@@ -13,7 +13,7 @@ npm run dev:mobile
 ## Estructura
 
 - `apps/web/`: React + Vite (splash + login responsive).
-- `apps/mobile/`: Expo + React Native (SDK `54.0.6`, splash animado + login).
+- `apps/mobile/`: Expo + React Native.
 - `packages/`: tipos/contratos compartidos.
 - `services/`: microservicios backend.
 - `docs/`: documentación.
