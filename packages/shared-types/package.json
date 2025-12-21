@@ -1,0 +1,11 @@
+{
+  "name": "@cafrilosa/shared-types",
+  "private": true,
+  "version": "0.0.0",
+  "main": "src/index.ts",
+  "types": "index.d.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "zod": "^4.1.9"
+  }
+}
