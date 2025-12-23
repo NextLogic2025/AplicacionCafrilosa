@@ -1,0 +1,7 @@
+{
+  "collection": "inventario",
+  "fields": {
+    "producto": "string",
+    "stock": "number"
+  }
+}
