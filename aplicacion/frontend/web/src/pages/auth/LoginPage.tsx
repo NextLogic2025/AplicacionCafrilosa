@@ -87,7 +87,7 @@ export function LoginPage() {
       setServerError(null)
       const { token } = await signInWithPassword(values.email, values.password)
       auth.signIn(token, { persist: Boolean(values.remember) })
-      navigate('/app', { replace: true })
+      navigate('/cliente', { replace: true })
     } catch (e) {
       setServerError(e instanceof Error ? e.message : 'No se pudo iniciar sesión')
     }

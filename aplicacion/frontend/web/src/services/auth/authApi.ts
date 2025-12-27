@@ -6,7 +6,11 @@ type ErrorResponse = { message?: string }
 
 export async function signInWithPassword(email: string, password: string) {
   const url = env.auth.loginUrl
-  if (!url) throw new Error('Servicio de inicio de sesión no disponible')
+  if (!url) {
+    console.warn('Login URL no configurada. Usando token mock para desarrollo.')
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    return { token: 'mock-token-desarrollo' }
+  }
 
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 10_000)
