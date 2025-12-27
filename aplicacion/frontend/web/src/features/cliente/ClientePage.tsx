@@ -27,7 +27,7 @@ export default function ClientePage() {
   return (
     <CartProvider>
       <div className="min-h-dvh bg-neutral-50 text-neutral-900">
-      <div className="mx-auto grid min-h-dvh max-w-7xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
+      <div className="grid min-h-dvh w-full grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
         <aside className="flex flex-col gap-4 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100dvh-3rem)] lg:self-start">
           <div className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-3">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-red text-sm font-semibold text-white">CL</div>
@@ -74,7 +74,7 @@ export default function ClientePage() {
           </div>
         </aside>
 
-        <div className="space-y-5">
+        <div className="space-y-5 px-6 py-6">
           <div className="flex items-center justify-end">
             <CartButton />
           </div>
@@ -92,7 +92,7 @@ export default function ClientePage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-neutral-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+          <div className="p-0">
             <Outlet />
           </div>
         </div>
