@@ -1,5 +1,6 @@
 // placeholder (Role entity)
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+
 import { Usuario } from './usuario.entity';
 
 @Entity('roles')

@@ -1,5 +1,6 @@
 // placeholder (Usuario entity)
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+
 import { Role } from './role.entity';
 
 @Entity('usuarios')
@@ -13,8 +14,17 @@ export class Usuario {
   @Column({ name: 'password_hash' }) // Mapeo exacto a tu BD
   passwordHash: string;
 
-  @Column()
+  @Column({ name: 'nombre_completo' })
   nombre: string;
+
+  @Column({ nullable: true })
+  telefono: string;
+
+  @Column({ name: 'avatar_url', nullable: true })
+  avatarUrl: string;
+
+  @Column({ name: 'email_verificado', default: false })
+  emailVerificado: boolean;
 
   @Column({ default: true })
   activo: boolean;

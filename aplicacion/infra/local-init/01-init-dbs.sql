@@ -9,55 +9,47 @@ CREATE DATABASE usuarios_db;
 -- CONECTARSE A usuarios_db E INICIALIZAR
 -- ============================================================
 \c usuarios_db;
+-- ==================================================================================
+-- MICROSERVICIO: AUTHENTICATION SERVICE (svc-auth) – Versión FINAL 100%
+-- BASE DE DATOS: auth_db
+-- ==================================================================================
 
--- EXTENSIONES
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ============================================================
--- LIMPIEZA (OPCIONAL)
--- ============================================================
-DROP TABLE IF EXISTS
-auth_auditoria,
-dispositivos_usuarios,
-auth_tokens,
-usuarios,
-roles
-CASCADE;
-
--- ============================================================
 -- ROLES
--- ============================================================
 CREATE TABLE roles (
     id SMALLSERIAL PRIMARY KEY,
-    nombre VARCHAR(30) UNIQUE NOT NULL
+    nombre VARCHAR(30) UNIQUE NOT NULL,
+    descripcion VARCHAR(150),
+    nivel_acceso INT DEFAULT 1
 );
 
-INSERT INTO roles (nombre) VALUES
-('admin'),
-('vendedor'),
-('bodeguero'),
-('transportista'),
-('cliente'),
-('supervisor');
+INSERT INTO roles (nombre, descripcion, nivel_acceso) VALUES
+('admin', 'Administrador Total del Sistema', 10),
+('supervisor', 'Gestión de Ventas, Créditos y Soporte', 8),
+('bodeguero', 'Operaciones de Inventario, Picking y Despacho', 5),
+('vendedor', 'Fuerza de Ventas (Móvil) y Cobranza', 5),
+('transportista', 'Logística de Entrega y Rutas', 4),
+('cliente', 'Usuarios finales (Web/App) para autogestión', 1);
 
--- ============================================================
 -- USUARIOS
--- ============================================================
 CREATE TABLE usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    nombre VARCHAR(100),
+    nombre_completo VARCHAR(150) NOT NULL,
+    telefono VARCHAR(20),
+    avatar_url TEXT,
     rol_id SMALLINT NOT NULL REFERENCES roles(id),
     activo BOOLEAN DEFAULT TRUE,
+    email_verificado BOOLEAN DEFAULT FALSE,
     last_login TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Trigger updated_at automático
-CREATE OR REPLACE FUNCTION fn_set_updated_at()
+CREATE OR REPLACE FUNCTION fn_update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -65,68 +57,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tr_usuarios_updated
+CREATE TRIGGER tr_usuarios_timestamp
 BEFORE UPDATE ON usuarios
-FOR EACH ROW
-EXECUTE FUNCTION fn_set_updated_at();
+FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
 
--- ============================================================
--- TOKENS (ACCESS / REFRESH)
--- ============================================================
-CREATE TABLE auth_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-
-    token_hash TEXT NOT NULL,
-    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('access','refresh')),
-
-    expiracion TIMESTAMPTZ NOT NULL,
-    revocado BOOLEAN DEFAULT FALSE,
-
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Un solo refresh token activo por usuario
-CREATE UNIQUE INDEX ux_refresh_token_activo
-ON auth_tokens(usuario_id)
-WHERE tipo = 'refresh' AND revocado = FALSE;
-
--- ============================================================
 -- DISPOSITIVOS
--- ============================================================
 CREATE TABLE dispositivos_usuarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-
-    device_id TEXT,
-    token_push TEXT,
-    ip_registro TEXT,
-
-    last_login TIMESTAMPTZ DEFAULT NOW()
+    device_id TEXT NOT NULL,
+    nombre_dispositivo VARCHAR(50),
+    tipo_plataforma VARCHAR(20),
+    token_push__fcm TEXT,
+    app_version VARCHAR(20),
+    ultimo_acceso TIMESTAMPTZ DEFAULT NOW(),
+    is_trusted BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(usuario_id, device_id)
 );
 
--- ============================================================
--- AUDITORÍA DE AUTENTICACIÓN
--- ============================================================
+-- REFRESH TOKENS
+CREATE TABLE auth_refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    dispositivo_id UUID REFERENCES dispositivos_usuarios(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    fecha_expiracion TIMESTAMPTZ NOT NULL,
+    revocado BOOLEAN DEFAULT FALSE,
+    revocado_razon VARCHAR(100),
+    ip_creacion INET,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    replaced_by_token TEXT
+);
+
+-- AUDITORÍA
 CREATE TABLE auth_auditoria (
     id BIGSERIAL PRIMARY KEY,
     usuario_id UUID,
-
-    evento VARCHAR(30), -- LOGIN, LOGOUT, FAIL, REFRESH
-    ip TEXT,
+    email_intentado VARCHAR(100),
+    evento VARCHAR(50) NOT NULL,
+    descripcion TEXT,
+    ip_address INET,
     user_agent TEXT,
-
+    dispositivo_id UUID,
+    geo_location JSONB,
     metadata JSONB,
-    fecha TIMESTAMPTZ DEFAULT NOW()
+    fecha_evento TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ============================================================
 -- ÍNDICES
--- ============================================================
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-
-CREATE INDEX idx_tokens_usuario ON auth_tokens(usuario_id);
-CREATE INDEX idx_tokens_exp ON auth_tokens(expiracion);
-
-CREATE INDEX idx_audit_usuario ON auth_auditoria(usuario_id);
-CREATE INDEX idx_audit_fecha ON auth_auditoria(fecha DESC);
+CREATE INDEX idx_users_email ON usuarios(email);
+CREATE INDEX idx_tokens_validos ON auth_refresh_tokens(usuario_id, dispositivo_id) WHERE revocado = FALSE;
+CREATE INDEX idx_push_tokens ON dispositivos_usuarios(usuario_id) WHERE token_push__fcm IS NOT NULL;
+CREATE INDEX idx_audit_fecha ON auth_auditoria(fecha_evento DESC);

@@ -1,19 +1,21 @@
 // placeholder (Auth module)
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { JwtAuthGuard } from './jwt.guard';
-import { Usuario } from '../entities/usuario.entity';
-import { Role } from '../entities/role.entity';
-import { AuthToken } from '../entities/auth-token.entity';
-import { Dispositivo } from '../entities/dispositivo.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { AuthAuditoria } from '../entities/auth-auditoria.entity';
+import { AuthRefreshToken } from '../entities/auth-token.entity';
+import { Dispositivo } from '../entities/dispositivo.entity';
+import { Role } from '../entities/role.entity';
+import { Usuario } from '../entities/usuario.entity';
+
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Usuario, Role, AuthToken, Dispositivo, AuthAuditoria]),
+    TypeOrmModule.forFeature([Usuario, Role, AuthRefreshToken, Dispositivo, AuthAuditoria]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret-change-me',
       signOptions: { expiresIn: '1h' },
