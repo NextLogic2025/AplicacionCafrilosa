@@ -62,13 +62,15 @@ export class AuthService {
     const payload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
     const access_token = this.jwtService.sign(payload);
 
-    // Política de sesión única: revocar tokens activos anteriores
-    await this.tokenRepo
-      .createQueryBuilder()
-      .update()
-      .set({ revocado: true })
-      .where('usuario_id = :uid AND revocado = false AND tipo = :tipo', { uid: usuario.id, tipo: 'access' })
-      .execute();
+    // Política de sesión única (configurable): si SINGLE_SESSION=true, revoca tokens activos anteriores
+    if (process.env.SINGLE_SESSION === 'true') {
+      await this.tokenRepo
+        .createQueryBuilder()
+        .update()
+        .set({ revocado: true })
+        .where('usuario_id = :uid AND revocado = false AND tipo = :tipo', { uid: usuario.id, tipo: 'access' })
+        .execute();
+    }
 
     // Guardar el token en BD (hash por seguridad)
     const tokenHash = await bcrypt.hash(access_token, 10);

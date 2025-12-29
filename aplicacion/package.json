@@ -1,12 +1,6 @@
 {
   "name": "aplicacion-cafrilosa",
   "private": true,
-  "workspaces": [
-    "frontend/web",
-    "frontend/mobile",
-    "backend/services/*",
-    "shared/types"
-  ],
   "scripts": {
     "dev:web": "npm --workspace frontend/web run dev",
     "build:web": "npm --workspace frontend/web run build",
