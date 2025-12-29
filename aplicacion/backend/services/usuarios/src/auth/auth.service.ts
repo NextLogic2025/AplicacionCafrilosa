@@ -62,7 +62,7 @@ export class AuthService {
     }
 
     // Access token short-lived (recommended 5-10m)
-    const accessPayload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
+    const accessPayload = { sub: usuario.id, email: usuario.email, role: usuario.rol?.nombre };
     const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
     const parseDuration = (v: string) => {
       const s = v.toString().trim().toLowerCase();
@@ -122,7 +122,7 @@ export class AuthService {
     usuario.lastLogin = new Date();
     await this.usuarioRepo.save(usuario);
 
-    return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre } };
+    return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.rol?.nombre } };
   }
 
   async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string) {
@@ -230,7 +230,7 @@ export class AuthService {
     if (!usuario) throw new UnauthorizedException('Usuario no encontrado');
 
     // Issue new access + refresh
-    const accessPayload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
+    const accessPayload = { sub: usuario.id, email: usuario.email, role: usuario.rol?.nombre };
     const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
     const parseDuration = (v: string) => {
       const s = v.toString().trim().toLowerCase();
