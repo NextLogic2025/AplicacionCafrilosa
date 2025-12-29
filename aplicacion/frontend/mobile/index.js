@@ -1,10 +1,10 @@
-import 'react-native-gesture-handler'
-import { registerRootComponent } from 'expo'
-import { LogBox } from 'react-native'
-import './global.css'
+import 'react-native-gesture-handler';
+import { registerRootComponent } from 'expo';
+import { LogBox } from 'react-native';
+import './global.css';
 
-import App from './App'
+import App from './App';
 
-LogBox.ignoreLogs(['SafeAreaView has been deprecated'])
+LogBox.ignoreLogs(['SafeAreaView has been deprecated']);
 
-registerRootComponent(App)
+registerRootComponent(App);
