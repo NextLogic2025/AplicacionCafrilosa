@@ -34,7 +34,7 @@ export class PreciosService {
 
       return await this.precioRepo.save(precioEntidad);
     } catch (err) {
-      console.error('Error en PreciosService.asignarPrecio:', err);
+     // console.error('Error en PreciosService.asignarPrecio:', err);
       throw new InternalServerErrorException('Error al asignar precio');
     }
   }
