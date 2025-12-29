@@ -63,11 +63,26 @@ export default function App() {
 
             <Stack.Screen name="RoleSelector" component={RoleSelectorScreen} />
 
-            <Stack.Screen name="Cliente" component={ClientNavigator} />
-            <Stack.Screen name="Supervisor" component={PlaceholderScreen} />
-            <Stack.Screen name="Vendedor" component={SellerNavigator} />
-            <Stack.Screen name="Transportista" component={TransportistaNavigator} />
-            <Stack.Screen name="Bodeguero" component={WarehouseNavigator} />
+            <Stack.Screen
+              name="Cliente"
+              component={ClientNavigator}
+            />
+            <Stack.Screen
+              name="Supervisor"
+              component={PlaceholderScreen}
+            />
+            <Stack.Screen
+              name="Vendedor"
+              component={SellerNavigator}
+            />
+            <Stack.Screen
+              name="Transportista"
+              component={TransportistaNavigator}
+            />
+            <Stack.Screen
+              name="Bodeguero"
+              component={WarehouseNavigator}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

@@ -1,12 +1,14 @@
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { Ionicons } from '@expo/vector-icons'
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import { useNavigation } from '@react-navigation/native'
+import { useFocusEffect } from '@react-navigation/native'
 import React from 'react'
 import { View, ScrollView, RefreshControl, Text } from 'react-native'
 
 import { ExpandableFab, type FabAction } from '../../../components/ui/ExpandableFab'
 import { Header } from '../../../components/ui/Header'
 import { TransportistaService, type TransportistaAlert, type TransportistaKPIs, type Delivery } from '../../../services/api/TransportistaService'
+import type { TransportistaNavigationProp } from '../../../navigation/TransportistaNavigator'
 
 /**
  * KPI Card Component
@@ -91,7 +93,8 @@ function NextDeliveryCard({ delivery }: { delivery: Delivery | null }) {
 }
 
 export function TransportistaHomeScreen() {
-    const navigation = useNavigation()
+    const navigation = useNavigation<TransportistaNavigationProp>()
+    const parentNavigation = navigation.getParent()
     const [refreshing, setRefreshing] = React.useState(false)
     const [kpis, setKpis] = React.useState<TransportistaKPIs | null>(null)
     const [alerts, setAlerts] = React.useState<TransportistaAlert[]>([])
@@ -135,26 +138,22 @@ export function TransportistaHomeScreen() {
         {
             icon: 'map-outline',
             label: 'Rutas',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('TransportistaRoutes')
+            onPress: () => parentNavigation?.navigate('TransportistaRoutes' as never)
         },
         {
             icon: 'refresh-circle-outline',
             label: 'Devoluciones',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('TransportistaReturns')
+            onPress: () => parentNavigation?.navigate('TransportistaReturns' as never)
         },
         {
             icon: 'time-outline',
             label: 'Historial',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('TransportistaHistory')
+            onPress: () => parentNavigation?.navigate('TransportistaHistory' as never)
         },
         {
             icon: 'notifications-outline',
             label: 'Notificaciones',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('TransportistaNotifications')
+            onPress: () => parentNavigation?.navigate('TransportistaNotifications' as never)
         }
     ]
 
@@ -167,8 +166,7 @@ export function TransportistaHomeScreen() {
                 showNotification={true}
                 variant="home"
                 onNotificationPress={() => {
-                    // @ts-expect-error - Navigation is typed but routes are dynamic
-                    navigation.navigate('TransportistaNotifications')
+                    parentNavigation?.navigate('TransportistaNotifications' as never)
                 }}
             />
 

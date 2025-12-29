@@ -43,6 +43,7 @@ export interface Delivery {
     itemsCount: number
     latitude?: number
     longitude?: number
+    contact?: string
 }
 
 /**
@@ -53,6 +54,10 @@ export interface TransportistaAlert {
     type: 'order_ready' | 'route_changed' | 'info'
     message: string
     date: string
+}
+
+export interface TransportistaOrder extends Order {
+    address?: string
 }
 
 /**
