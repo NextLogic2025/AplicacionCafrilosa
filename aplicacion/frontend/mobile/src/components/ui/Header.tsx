@@ -17,6 +17,9 @@ type HeaderProps = {
   onCartPress?: () => void
   onMenuPress?: () => void
   style?: any
+  variant?: 'home' | 'standard'
+  title?: string
+  onBackPress?: () => void
   notificationRoute?: string
 }
 
@@ -36,9 +39,18 @@ export function Header({
   title,
   onBackPress,
   notificationRoute
-}: HeaderProps & { variant?: 'home' | 'standard'; title?: string; onBackPress?: () => void }) {
+}: HeaderProps) {
   const insets = useSafeAreaInsets()
-  const navigation = useReactNavigation()
+
+  // Safe navigation retrieval
+  let navigation: any | undefined
+  try {
+    navigation = useReactNavigation()
+  } catch (e) {
+    // Context might be missing during initial value
+    console.warn('[Header] Navigation context missing')
+  }
+
   const isStandard = variant === 'standard' || !!title
 
   const handleNotificationPress = () => {
@@ -46,10 +58,9 @@ export function Header({
       onNotificationPress()
     } else if (notificationRoute && navigation) {
       try {
-        // @ts-ignore
         navigation.navigate(notificationRoute)
       } catch (e) {
-        console.warn('[Header] Navigation error:', e)
+        console.warn('[Header] Navigation navigate error:', e)
       }
     }
   }

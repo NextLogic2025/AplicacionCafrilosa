@@ -1,110 +1,96 @@
-import * as React from 'react'
-import { View, Text, ScrollView, RefreshControl, Image, Pressable } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
+import React, { useState, useCallback } from 'react'
+import { View, Text, ScrollView, Image } from 'react-native'
+
 import { Header } from '../../../components/ui/Header'
-import { TransportistaService } from '../../../services/api/TransportistaService'
+import { TransportistaService, type TransportistaProfile } from '../../../services/api/TransportistaService'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { useNavigation } from '@react-navigation/native'
-
-function ProfileSection({ title, children }: { title: string, children: React.ReactNode }) {
-    return (
-        <View className="mb-6 bg-white p-5 rounded-2xl border border-neutral-100 shadow-sm">
-            <Text className="text-sm font-bold text-neutral-400 mb-4 uppercase tracking-wider">{title}</Text>
-            {children}
-        </View>
-    )
-}
-
-function ProfileItem({ label, value, icon }: { label: string, value: string, icon: any }) {
-    return (
-        <View className="flex-row items-center mb-4 last:mb-0">
-            <View className="w-10 h-10 rounded-full bg-neutral-50 items-center justify-center mr-4">
-                <Ionicons name={icon} size={20} color="#4B5563" />
-            </View>
-            <View>
-                <Text className="text-xs text-neutral-400 font-medium">{label}</Text>
-                <Text className="text-base text-neutral-900 font-bold">{value}</Text>
-            </View>
-        </View>
-    )
-}
 
 export function TransportistaProfileScreen() {
-    const [profile, setProfile] = React.useState<any>(null)
-    const [refreshing, setRefreshing] = React.useState(false)
+    const [profile, setProfile] = useState<TransportistaProfile | null>(null)
+    const [loading, setLoading] = useState(true)
 
     const loadProfile = async () => {
-        const data = await TransportistaService.getProfile()
-        setProfile(data)
-        setRefreshing(false)
+        try {
+            const data = await TransportistaService.getProfile()
+            setProfile(data)
+        } catch (error) {
+            console.error('Error loading profile')
+        } finally {
+            setLoading(false)
+        }
     }
 
-    React.useEffect(() => {
-        loadProfile()
-    }, [])
+    useFocusEffect(useCallback(() => { loadProfile() }, []))
+
+    if (!profile) return (
+        <View className="flex-1 bg-neutral-50">
+            <Header userName="Transportista" role="TRANSPORTISTA" showNotification={false} />
+            <View className="flex-1 justify-center items-center">
+                <Text>Cargando perfil...</Text>
+            </View>
+        </View>
+    )
 
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header
-                userName="Transportista"
-                variant="standard"
-                title="Mi Perfil"
-                style={{ height: 120 }} // Taller header for profile feel
-            />
+            <Header userName={profile.name} role="TRANSPORTISTA" showNotification={false} />
+            <ScrollView className="flex-1 px-5 pt-5">
 
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={{ padding: 20, paddingTop: 10 }} // Overlap effect
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProfile(); }} colors={[BRAND_COLORS.red]} />}
-            >
-                {/* Avatar Card - Floating over Header */}
-                <View className="items-center -mt-8 mb-6">
-                    <View className="bg-white p-1.5 rounded-full shadow-lg">
-                        <View className="h-24 w-24 rounded-full bg-neutral-200 items-center justify-center overflow-hidden">
-                            {/* Placeholder for now */}
-                            <Text className="text-3xl font-bold text-neutral-400">{profile?.name?.charAt(0) || 'T'}</Text>
-                        </View>
+                {/* Header Profile */}
+                <View className="items-center mb-6">
+                    <View className="w-24 h-24 bg-brand-red rounded-full items-center justify-center border-4 border-white shadow-sm mb-3">
+                        <Text className="text-4xl text-white font-bold">{profile.name.charAt(0)}</Text>
                     </View>
-                    <Text className="text-xl font-bold text-neutral-900 mt-3">{profile?.name || 'Cargando...'}</Text>
-                    <Text className="text-brand-red font-bold text-sm bg-red-50 px-3 py-1 rounded-full mt-1">
-                        {profile?.role || 'Transportista'}
-                    </Text>
+                    <Text className="text-2xl font-bold text-neutral-900">{profile.name}</Text>
+                    <Text className="text-neutral-500">{profile.email}</Text>
+                    <View className="flex-row items-center mt-2 bg-yellow-100 px-3 py-1 rounded-full">
+                        <Ionicons name="star" size={14} color="#D97706" />
+                        <Text className="text-xs font-bold text-yellow-800 ml-1">{profile.rating} / 5.0</Text>
+                    </View>
                 </View>
 
-                {profile && (
-                    <>
-                        <ProfileSection title="Unidad Asignada">
-                            <ProfileItem label="Vehículo" value={profile.vehicle.model} icon="bus-outline" />
-                            <ProfileItem label="Placa" value={profile.vehicle.plate} icon="card-outline" />
-                            <ProfileItem label="Zona" value={profile.zone} icon="map-outline" />
-                        </ProfileSection>
+                {/* Details Section */}
+                <View className="gap-4 mb-10">
+                    <ProfileItem
+                        icon="bus"
+                        label="Vehículo Asignado"
+                        value={profile.vehicle}
+                        subValue={`Placa: ${profile.licensePlate}`}
+                    />
+                    <ProfileItem
+                        icon="map"
+                        label="Zona de Operación"
+                        value={profile.assignedZone}
+                    />
+                    <ProfileItem
+                        icon="call"
+                        label="Teléfono de Contacto"
+                        value={profile.phone}
+                    />
+                    <ProfileItem
+                        icon="id-card"
+                        label="Identificador"
+                        value={profile.id}
+                    />
+                </View>
 
-                        <ProfileSection title="Estadísticas">
-                            <View className="flex-row justify-between">
-                                <View className="items-center flex-1">
-                                    <Text className="text-2xl font-bold text-neutral-900">{profile.stats.deliveriesCompleted}</Text>
-                                    <Text className="text-xs text-neutral-400 text-center">Entregas</Text>
-                                </View>
-                                <View className="w-[1px] bg-neutral-100" />
-                                <View className="items-center flex-1">
-                                    <Text className="text-2xl font-bold text-neutral-900">{profile.stats.yearsActive}</Text>
-                                    <Text className="text-xs text-neutral-400 text-center">Años</Text>
-                                </View>
-                                <View className="w-[1px] bg-neutral-100" />
-                                <View className="items-center flex-1">
-                                    <Text className="text-2xl font-bold text-neutral-900">★ {profile.stats.rating}</Text>
-                                    <Text className="text-xs text-neutral-400 text-center">Cafrilosa</Text>
-                                </View>
-                            </View>
-                        </ProfileSection>
-
-                        <Pressable className="bg-white p-4 rounded-xl border border-neutral-100 flex-row items-center mb-10">
-                            <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-                            <Text className="font-bold text-brand-red ml-3">Cerrar Sesión</Text>
-                        </Pressable>
-                    </>
-                )}
             </ScrollView>
+        </View>
+    )
+}
+
+function ProfileItem({ icon, label, value, subValue }: any) {
+    return (
+        <View className="bg-white p-4 rounded-xl border border-neutral-100 flex-row items-center shadow-sm">
+            <View className="w-12 h-12 bg-neutral-50 rounded-full items-center justify-center mr-4">
+                <Ionicons name={icon} size={24} color="#EF4444" />
+            </View>
+            <View className="flex-1">
+                <Text className="text-xs text-neutral-500 uppercase font-bold mb-1">{label}</Text>
+                <Text className="text-lg text-neutral-900 font-semibold">{value}</Text>
+                {subValue && <Text className="text-sm text-neutral-500">{subValue}</Text>}
+            </View>
         </View>
     )
 }

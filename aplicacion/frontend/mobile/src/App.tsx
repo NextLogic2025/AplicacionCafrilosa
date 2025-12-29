@@ -16,6 +16,7 @@ import { ClientNavigator } from './navigation/ClientNavigator'
 import { WarehouseNavigator } from './navigation/WarehouseNavigator'
 import { SellerNavigator } from './navigation/SellerNavigator'
 import { TransportistaNavigator } from './navigation/TransportistaNavigator'
+import { SupervisorNavigator } from './navigation/SupervisorNavigator'
 import type { RootStackParamList } from './navigation/types'
 import { getToken } from './storage/authStorage'
 import { CartProvider } from './hooks/useCart'
@@ -69,7 +70,7 @@ export default function App() {
             />
             <Stack.Screen
               name="Supervisor"
-              component={PlaceholderScreen}
+              component={SupervisorNavigator}
             />
             <Stack.Screen
               name="Vendedor"
