@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { CategoriesService } from './categories.service';
-import { Category } from './entities/category.entity';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+
+import { CategoriesService } from './categories.service';
+import { Category } from './entities/category.entity';
 
 @Controller('categories')
 export class CategoriesController {

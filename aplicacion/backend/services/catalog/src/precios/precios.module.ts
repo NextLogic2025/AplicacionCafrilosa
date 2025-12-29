@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { PreciosService } from './precios.service';
 import { PreciosController } from './precios.controller';
 import { PrecioItem } from './entities/precio.entity';

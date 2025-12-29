@@ -1,5 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+
 import { Product } from '../../products/entities/product.entity';
+
 import { ListaPrecio } from './lista-precio.entity';
 
 @Entity('precios_items')
