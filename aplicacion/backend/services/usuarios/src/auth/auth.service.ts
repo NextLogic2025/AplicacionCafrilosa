@@ -1,22 +1,24 @@
 import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
-import { Usuario } from '../entities/usuario.entity';
-import { Role } from '../entities/role.entity';
-import { AuthToken } from '../entities/auth-token.entity';
-import { Dispositivo } from '../entities/dispositivo.entity';
+
 import { AuthAuditoria } from '../entities/auth-auditoria.entity';
+import { AuthRefreshToken } from '../entities/auth-token.entity';
+import { Dispositivo } from '../entities/dispositivo.entity';
+import { Role } from '../entities/role.entity';
+import { Usuario } from '../entities/usuario.entity';
+
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { LoginDto } from './dto/login.dto';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(Usuario) private usuarioRepo: Repository<Usuario>,
     @InjectRepository(Role) private roleRepo: Repository<Role>,
-    @InjectRepository(AuthToken) private tokenRepo: Repository<AuthToken>,
+    @InjectRepository(AuthRefreshToken) private tokenRepo: Repository<AuthRefreshToken>,
     @InjectRepository(Dispositivo) private dispositivoRepo: Repository<Dispositivo>,
     @InjectRepository(AuthAuditoria) private auditoriaRepo: Repository<AuthAuditoria>,
     private readonly jwtService: JwtService,
@@ -42,7 +44,7 @@ export class AuthService {
     return { mensaje: 'Usuario registrado', id: nuevoUsuario.id };
   }
 
-  async login(dto: LoginDto, ip?: string, userAgent?: string) {
+  async login(dto: LoginDto, ip?: string, userAgent?: string, deviceId?: string) {
     const usuario = await this.usuarioRepo.findOne({
       where: { email: dto.email },
       relations: ['rol'],
@@ -52,43 +54,67 @@ export class AuthService {
     if (!usuario || !(await bcrypt.compare(dto.password, usuario.passwordHash))) {
       await this.auditoriaRepo.save({
         evento: 'FAIL',
-        ip,
+        ip_address: ip,
         user_agent: userAgent,
         metadata: { email: dto.email },
       });
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
-    const access_token = this.jwtService.sign(payload);
+    // Access token short-lived (recommended 5-10m)
+    const accessPayload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
+    const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
+    const parseDuration = (v: string) => {
+      const s = v.toString().trim().toLowerCase();
+      if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
+      const n = parseInt(s.slice(0, -1), 10);
+      if (s.endsWith('m')) return n * 60;
+      if (s.endsWith('h')) return n * 3600;
+      if (s.endsWith('d')) return n * 86400;
+      return parseInt(s, 10) || 600;
+    };
+    const accessSeconds = parseDuration(accessTtl);
+    const access_token = this.jwtService.sign(accessPayload, { expiresIn: accessSeconds });
 
-    // Política de sesión única (configurable): si SINGLE_SESSION=true, revoca tokens activos anteriores
+    // Refresh token long-lived
+    const refreshPayload = { sub: usuario.id, type: 'refresh' };
+    const refreshTtl = process.env.REFRESH_TOKEN_TTL || '7d';
+    const refreshSeconds = parseDuration(refreshTtl);
+    const refresh_token = this.jwtService.sign(refreshPayload, { expiresIn: refreshSeconds });
+
+    // Optionally enforce single session: revoke previous refresh tokens
     if (process.env.SINGLE_SESSION === 'true') {
       await this.tokenRepo
         .createQueryBuilder()
         .update()
         .set({ revocado: true })
-        .where('usuario_id = :uid AND revocado = false AND tipo = :tipo', { uid: usuario.id, tipo: 'access' })
+        .where('usuario_id = :uid AND revocado = false', { uid: usuario.id })
         .execute();
     }
 
-    // Guardar el token en BD (hash por seguridad)
-    const tokenHash = await bcrypt.hash(access_token, 10);
+    // Save refresh token hash in DB
+    const tokenHash = await bcrypt.hash(refresh_token, 10);
     const ahora = new Date();
-    const expiracion = new Date(ahora.getTime() + 60 * 60 * 1000); // 1 hora
+    const fechaExpiracion = new Date(ahora.getTime() + refreshSeconds * 1000);
 
-    await this.tokenRepo.save({
-      usuario: { id: usuario.id },
-      token_hash: tokenHash,
-      tipo: 'access',
-      expiracion,
-    });
+    const tokenEntity = new AuthRefreshToken();
+    tokenEntity.usuario = usuario;
+    if (deviceId) {
+      const disp = await this.dispositivoRepo.findOne({ where: { device_id: deviceId, usuario: { id: usuario.id } } });
+      if (disp) tokenEntity.dispositivo = disp;
+    }
+    tokenEntity.token_hash = tokenHash;
+    tokenEntity.fechaExpiracion = fechaExpiracion;
+    tokenEntity.ipCreacion = ip;
+    tokenEntity.userAgent = userAgent;
+
+    await this.tokenRepo.save(tokenEntity);
 
     // Registrar login en auditoría
     await this.auditoriaRepo.save({
       usuario_id: usuario.id,
       evento: 'LOGIN',
-      ip,
+      ip_address: ip,
       user_agent: userAgent,
     });
 
@@ -96,58 +122,154 @@ export class AuthService {
     usuario.lastLogin = new Date();
     await this.usuarioRepo.save(usuario);
 
-    return { access_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre } };
+    return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre } };
   }
 
-  async logout(usuarioId: string, bearerToken?: string, ip?: string, userAgent?: string) {
-    // Intentar revocar el token específico presentado
-    if (bearerToken) {
-      const activos = await this.tokenRepo.find({
-        where: { usuario: { id: usuarioId }, tipo: 'access', revocado: false },
-      });
+  async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string) {
+    // If a refresh token string is provided, revoke only that token; otherwise revoke all refresh tokens for user
+    if (refreshToken) {
+      const activos = await this.tokenRepo.find({ where: { usuario: { id: usuarioId }, revocado: false } });
       for (const t of activos) {
-        const match = await bcrypt.compare(bearerToken, t.token_hash);
+        const match = await bcrypt.compare(refreshToken, t.token_hash);
         if (match) {
-          await this.tokenRepo.update({ id: t.id }, { revocado: true });
+          t.revocado = true;
+          t.revocadoRazon = 'logout';
+          await this.tokenRepo.save(t);
           break;
         }
       }
+    } else {
+      await this.tokenRepo
+        .createQueryBuilder()
+        .update()
+        .set({ revocado: true, revocadoRazon: 'logout_all' })
+        .where('usuario_id = :uid AND revocado = false', { uid: usuarioId })
+        .execute();
     }
 
     // Registrar logout en auditoría
     await this.auditoriaRepo.save({
       usuario_id: usuarioId,
       evento: 'LOGOUT',
-      ip,
+      ip_address: ip,
       user_agent: userAgent,
     });
 
     return { mensaje: 'Logout exitoso' };
   }
 
-  async registrarDispositivo(usuarioId: string, device_id: string, ip?: string) {
+  async registrarDispositivo(usuarioId: string, device_id: string, _ip?: string) {
     const dispositivo = await this.dispositivoRepo.findOne({
       where: { usuario: { id: usuarioId }, device_id },
     });
 
     if (dispositivo) {
-      dispositivo.ip_registro = ip;
-      dispositivo.lastLogin = new Date();
+      dispositivo.ultimoAcceso = new Date();
       return this.dispositivoRepo.save(dispositivo);
     }
 
-    return this.dispositivoRepo.save({
+    const nuevo = this.dispositivoRepo.create({
       usuario: { id: usuarioId },
       device_id,
-      ip_registro: ip,
-    } as any);
+      ultimoAcceso: new Date(),
+    } as Partial<Dispositivo>);
+    return this.dispositivoRepo.save(nuevo);
   }
 
   async obtenerMiPerfil(usuarioId: string) {
     return this.usuarioRepo.findOne({
       where: { id: usuarioId },
       relations: ['rol'],
-      select: ['id', 'email', 'nombre', 'activo', 'createdAt'],
+      select: ['id', 'email', 'nombre', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt'],
     });
+  }
+
+  async refreshTokens(providedRefreshToken: string, deviceId?: string, ip?: string, userAgent?: string) {
+    // Fetch all tokens (revoked or not) and compare to detect reuse
+    const candidatos = await this.tokenRepo.find();
+
+    let matched: AuthRefreshToken | null = null;
+    for (const c of candidatos) {
+      // skip clearly expired tokens
+      if (c.fechaExpiracion && c.fechaExpiracion.getTime() < Date.now()) continue;
+      const ok = await bcrypt.compare(providedRefreshToken, c.token_hash);
+      if (!ok) continue;
+
+      // If token matches but is revoked -> reuse detected
+      if (c.revocado) {
+        // revoke all tokens for that user immediately
+        await this.tokenRepo
+          .createQueryBuilder()
+          .update()
+          .set({ revocado: true, revocadoRazon: 'reuse_detected' })
+          .where('usuario_id = :uid', { uid: c.usuario.id })
+          .execute();
+
+        await this.auditoriaRepo.save({
+          usuario_id: c.usuario.id,
+          evento: 'REUSE_DETECTED',
+          metadata: { descripcion: 'Refresh token reuse detected - all tokens revoked' },
+        });
+
+        throw new UnauthorizedException('Refresh token reuse detected');
+      }
+
+      // otherwise matched and not revoked -> normal rotation
+      matched = c;
+      break;
+    }
+
+    if (!matched) throw new UnauthorizedException('Refresh token inválido o revocado');
+
+    // Rotate: revoke matched token and issue a new refresh token
+    matched.revocado = true;
+    matched.revocadoRazon = 'rotated';
+    await this.tokenRepo.save(matched);
+
+    const usuario = await this.usuarioRepo.findOne({ where: { id: matched.usuario.id }, relations: ['rol'] });
+    if (!usuario) throw new UnauthorizedException('Usuario no encontrado');
+
+    // Issue new access + refresh
+    const accessPayload = { sub: usuario.id, email: usuario.email, rolId: usuario.rol?.id };
+    const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
+    const parseDuration = (v: string) => {
+      const s = v.toString().trim().toLowerCase();
+      if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
+      const n = parseInt(s.slice(0, -1), 10);
+      if (s.endsWith('m')) return n * 60;
+      if (s.endsWith('h')) return n * 3600;
+      if (s.endsWith('d')) return n * 86400;
+      return parseInt(s, 10) || 600;
+    };
+    const accessSeconds = parseDuration(accessTtl);
+    const access_token = this.jwtService.sign(accessPayload, { expiresIn: accessSeconds });
+
+    const refreshTtl = process.env.REFRESH_TOKEN_TTL || '7d';
+    const refreshSeconds = parseDuration(refreshTtl);
+    const refresh_token = this.jwtService.sign({ sub: usuario.id, type: 'refresh' }, { expiresIn: refreshSeconds });
+
+    const tokenHash = await bcrypt.hash(refresh_token, 10);
+    const nuevo = new AuthRefreshToken();
+    nuevo.usuario = usuario;
+    if (deviceId) {
+      const disp = await this.dispositivoRepo.findOne({ where: { device_id: deviceId, usuario: { id: usuario.id } } });
+      if (disp) nuevo.dispositivo = disp;
+    }
+    nuevo.token_hash = tokenHash;
+    nuevo.fechaExpiracion = new Date(Date.now() + refreshSeconds * 1000);
+    nuevo.ipCreacion = ip;
+    nuevo.userAgent = userAgent;
+    nuevo.replacedByToken = matched.id;
+    await this.tokenRepo.save(nuevo);
+
+    await this.auditoriaRepo.save({
+      usuario_id: usuario.id,
+      evento: 'REFRESH',
+      ip: ip,
+      user_agent: userAgent,
+      metadata: { descripcion: 'Refresh token rotado' },
+    });
+
+    return { access_token, refresh_token };
   }
 }
