@@ -1,7 +1,8 @@
-import { Package } from 'lucide-react'
+import { Package, UserPlus } from 'lucide-react'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { EmptyContent } from 'components/ui/EmptyContent'
 import { PageHero } from 'components/ui/PageHero'
+import { Button } from 'components/ui/Button'
 
 export default function BodegaPage() {
   return (
@@ -20,6 +21,13 @@ export default function BodegaPage() {
         title="Estado de Bodega"
         subtitle="Validaciones de stock y preparación de pedidos"
       />
+
+      <div className="flex justify-end">
+        <Button className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90">
+          <UserPlus className="h-4 w-4" />
+          Crear usuario bodega
+        </Button>
+      </div>
 
       <EmptyContent
         icon={Package}

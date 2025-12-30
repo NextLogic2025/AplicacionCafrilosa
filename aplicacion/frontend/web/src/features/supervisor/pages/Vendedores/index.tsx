@@ -1,7 +1,8 @@
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, UserPlus } from 'lucide-react'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { EmptyContent } from 'components/ui/EmptyContent'
 import { PageHero } from 'components/ui/PageHero'
+import { Button } from 'components/ui/Button'
 
 export default function VendedoresPage() {
   return (
@@ -20,6 +21,13 @@ export default function VendedoresPage() {
         title="Vendedores"
         subtitle="Rendimiento y zonas de cobertura"
       />
+
+      <div className="flex justify-end">
+        <Button className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90">
+          <UserPlus className="h-4 w-4" />
+          Crear usuario vendedor
+        </Button>
+      </div>
 
       <EmptyContent
         icon={TrendingUp}

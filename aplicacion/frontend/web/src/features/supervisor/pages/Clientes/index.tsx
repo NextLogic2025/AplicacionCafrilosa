@@ -1,7 +1,8 @@
-import { Users } from 'lucide-react'
+import { Users, UserPlus } from 'lucide-react'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { EmptyContent } from 'components/ui/EmptyContent'
 import { PageHero } from 'components/ui/PageHero'
+import { Button } from 'components/ui/Button'
 
 export default function ClientesPage() {
   return (
@@ -20,6 +21,13 @@ export default function ClientesPage() {
         title="Clientes"
         subtitle="Listado de clientes activos e incidencias"
       />
+
+      <div className="flex justify-end">
+        <Button className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90">
+          <UserPlus className="h-4 w-4" />
+          Crear usuario cliente
+        </Button>
+      </div>
 
       <EmptyContent
         icon={Users}
