@@ -6,8 +6,10 @@ import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
 import { Header } from '../../../components/ui/Header'
 import { SupervisorService, type SupervisorProfile } from '../../../services/api/SupervisorService'
+import { signOut } from '../../../services/auth/authClient'
 
 export function SupervisorProfileScreen() {
+    const navigation = useNavigation()
     const [profile, setProfile] = useState<SupervisorProfile | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
@@ -56,13 +58,18 @@ export function SupervisorProfileScreen() {
                         <Ionicons name="call-outline" size={20} color="gray" />
                         <Text className="text-neutral-700 ml-3">{profile.phone}</Text>
                     </View>
-                    <View className="flex-row items-center">
-                        <Ionicons name="map-outline" size={20} color="gray" />
-                        <Text className="text-neutral-700 ml-3">Zona Norte - Guayaquil</Text>
-                    </View>
                 </View>
 
-                <TouchableOpacity className="w-full py-4 bg-white border border-red-100 rounded-xl items-center shadow-sm">
+                <TouchableOpacity
+                    onPress={async () => {
+                        await signOut()
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'Login' as never }],
+                        })
+                    }}
+                    className="w-full py-4 bg-white border border-red-100 rounded-xl items-center shadow-sm active:bg-red-50"
+                >
                     <Text className="text-brand-red font-bold">Cerrar Sesión</Text>
                 </TouchableOpacity>
             </View>

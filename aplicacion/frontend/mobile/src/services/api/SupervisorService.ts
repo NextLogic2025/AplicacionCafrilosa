@@ -1,4 +1,6 @@
 import { Platform } from 'react-native'
+import { getValidToken } from '../auth/authClient'
+import { env } from '../../config/env'
 
 export interface KPI {
     label: string
@@ -83,13 +85,30 @@ export const SupervisorService = {
     },
 
     getProfile: async (): Promise<SupervisorProfile | null> => {
-        // TODO: Integrate with backend API
-        return {
-            id: '',
-            name: '',
-            role: '',
-            email: '',
-            phone: ''
+        try {
+            const token = await getValidToken()
+            if (!token) return null
+
+            const response = await fetch(`${env.api.baseUrl}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            if (!response.ok) throw new Error('Failed to fetch profile')
+
+            const data = await response.json()
+            return {
+                id: data.id,
+                name: data.nombre,
+                role: data.rol?.nombre || 'Supervisor',
+                email: data.email,
+                phone: data.telefono || 'Sin teléfono',
+                photoUrl: data.avatarUrl
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error)
+            return null
         }
     },
 

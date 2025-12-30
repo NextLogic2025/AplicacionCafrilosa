@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
 import { Header } from '../../../components/ui/Header'
+import { getUserName } from '../../../storage/authStorage'
 import { SupervisorService, type KPI, type Alert } from '../../../services/api/SupervisorService'
 
 export function SupervisorDashboardScreen() {
@@ -12,9 +13,14 @@ export function SupervisorDashboardScreen() {
     const [alerts, setAlerts] = useState<Alert[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    const [userName, setUserName] = useState('Supervisor')
+
     const loadData = async () => {
         try {
             setIsLoading(true)
+            const storedName = await getUserName()
+            if (storedName) setUserName(storedName)
+
             const [kpiData, alertData] = await Promise.all([
                 SupervisorService.getDashboardKPIs(),
                 SupervisorService.getDashboardAlerts()
@@ -33,10 +39,10 @@ export function SupervisorDashboardScreen() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
-                title="Dashboard Supervisor"
-                variant="home"
-                userName="Supervisor"
+                userName={userName}
                 role="SUPERVISOR"
+                variant="home"
+                showNotification={true}
             />
 
             <ScrollView
