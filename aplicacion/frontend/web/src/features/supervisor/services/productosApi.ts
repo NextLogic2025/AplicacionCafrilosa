@@ -2,36 +2,48 @@ import { getToken } from '../../../services/storage/tokenStorage'
 
 const CATALOG_BASE_URL = 'http://localhost:3002'
 
-export interface Category {
-  id: number
+export interface Product {
+  id: string
+  codigo_sku: string
   nombre: string
   descripcion: string | null
+  categoria_id: number | null
+  peso_unitario_kg: string
+  volumen_m3: string | null
+  requiere_frio: boolean
+  unidad_medida: string
   imagen_url: string | null
   activo: boolean
   created_at: string
   deleted_at: string | null
 }
 
-export interface CreateCategoryDto {
+export interface CreateProductDto {
+  codigo_sku: string
   nombre: string
   descripcion?: string
+  categoria_id?: number | null
+  peso_unitario_kg: number
+  volumen_m3?: number | null
+  requiere_frio?: boolean
+  unidad_medida?: string
   imagen_url?: string
   activo?: boolean
 }
 
-class CatalogApiError extends Error {
+class ProductApiError extends Error {
   readonly status: number
   readonly payload?: unknown
 
   constructor(message: string, status: number, payload?: unknown) {
     super(message)
-    this.name = 'CatalogApiError'
+    this.name = 'ProductApiError'
     this.status = status
     this.payload = payload
   }
 }
 
-async function catalogHttp<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+async function productHttp<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -56,33 +68,32 @@ async function catalogHttp<T>(path: string, options: { method?: string; body?: u
       typeof (data as { message?: string } | null)?.message === 'string'
         ? (data as { message: string }).message
         : 'Error de API'
-    throw new CatalogApiError(message, res.status, data)
+    throw new ProductApiError(message, res.status, data)
   }
-  if (data == null) throw new CatalogApiError('Respuesta inválida del servidor', res.status)
+  if (data == null) throw new ProductApiError('Respuesta inválida del servidor', res.status)
   return data as T
 }
 
-export async function getAllCategories(): Promise<Category[]> {
-  return catalogHttp<Category[]>('/categories')
+export async function getAllProducts(): Promise<Product[]> {
+  return productHttp<Product[]>('/products')
 }
 
-export async function createCategory(data: CreateCategoryDto): Promise<Category> {
-  return catalogHttp<Category>('/categories', {
+export async function createProduct(data: CreateProductDto): Promise<Product> {
+  return productHttp<Product>('/products', {
     method: 'POST',
     body: data,
   })
 }
 
-export async function updateCategory(id: number, data: Partial<CreateCategoryDto>): Promise<Category> {
-  return catalogHttp<Category>(`/categories/${id}`, {
+export async function updateProduct(id: string, data: Partial<CreateProductDto>): Promise<Product> {
+  return productHttp<Product>(`/products/${id}`, {
     method: 'PUT',
     body: data,
   })
 }
 
-export async function deleteCategory(id: number): Promise<void> {
-  await catalogHttp<void>(`/categories/${id}`, {
+export async function deleteProduct(id: string): Promise<void> {
+  await productHttp<void>(`/products/${id}`, {
     method: 'DELETE',
   })
 }
-

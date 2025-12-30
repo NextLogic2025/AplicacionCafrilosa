@@ -139,8 +139,9 @@ export function CategoriasView() {
     try {
       await deleteCategory(id)
       await loadCategories()
-    } catch (error) {
-      alert('Error al eliminar la categoría')
+    } catch (error: any) {
+      console.error('Error al eliminar:', error)
+      alert(error.message || 'Error al eliminar la categoría')
     }
   }
 
@@ -266,7 +267,7 @@ export function CategoriasView() {
             label="Nombre de la categoría"
             tone="light"
             type="text"
-            placeholder="Ej: Bebidas"
+            placeholder="Ej: Embutidos"
             value={formData.nombre}
             onChange={(e) =>
               setFormData({ ...formData, nombre: e.target.value })

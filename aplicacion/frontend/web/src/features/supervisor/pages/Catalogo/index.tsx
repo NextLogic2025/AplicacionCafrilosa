@@ -5,13 +5,17 @@ import {
   ListOrdered, 
   PlusCircle, 
   LayoutGrid,
-  ArrowLeft
+  ArrowLeft,
+  Package,
+  DollarSign
 } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { Button } from 'components/ui/Button'
 import { useState } from 'react'
 import { CategoriasView } from './CategoriasView'
+import { ProductosView } from './ProductosView'
+import { PreciosView } from './PreciosView'
 
 type CatalogoOption = {
   id: string
@@ -98,6 +102,54 @@ export default function CatalogoPage() {
         </div>
 
         <CategoriasView />
+      </div>
+    )
+  }
+
+  if (selectedOption === 'nuevo-producto') {
+    return (
+      <div className="space-y-6">
+        <PageHero
+          title="Productos"
+          subtitle="Gestión del catálogo de productos"
+          chips={['Catálogo', 'Productos', 'SKU']}
+        />
+        
+        <div className="flex justify-start">
+          <Button
+            onClick={handleBack}
+            className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 shadow-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al catálogo
+          </Button>
+        </div>
+
+        <ProductosView />
+      </div>
+    )
+  }
+
+  if (selectedOption === 'listas-precios') {
+    return (
+      <div className="space-y-6">
+        <PageHero
+          title="Listas de Precios"
+          subtitle="Administración de precios por lista (General, Mayorista, Horeca)"
+          chips={['Catálogo', 'Precios', 'Listas']}
+        />
+        
+        <div className="flex justify-start">
+          <Button
+            onClick={handleBack}
+            className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 shadow-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al catálogo
+          </Button>
+        </div>
+
+        <PreciosView />
       </div>
     )
   }
