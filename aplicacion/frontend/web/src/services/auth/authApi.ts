@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
 import type { AppRole } from '../../types/roles'
 import { APP_ROLES } from '../../types/roles'
+import { http } from '../api/http'
 
 type ErrorResponse = { message?: string }
 type LoginResponse = {
@@ -8,6 +9,18 @@ type LoginResponse = {
   refresh_token?: string
   usuario?: unknown
   message?: string
+}
+
+export type UserProfile = {
+  id: string
+  email: string
+  nombre: string
+  telefono: string | null
+  avatarUrl?: string | null
+  emailVerificado: boolean
+  activo: boolean
+  createdAt: string
+  rol?: { id: number; nombre: string }
 }
 
 function resolveLogoutUrl() {
@@ -104,6 +117,10 @@ export async function signOutFromServer(accessToken: string) {
   } finally {
     window.clearTimeout(timeout)
   }
+}
+
+export async function fetchProfile(): Promise<UserProfile> {
+  return http<UserProfile>('/auth/me')
 }
 
 export async function requestPasswordReset(email: string) {
