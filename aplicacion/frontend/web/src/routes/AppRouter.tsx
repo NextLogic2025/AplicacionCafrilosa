@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-import { AppLayout } from '../pages/app/AppLayout'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { SplashPage } from '../pages/SplashPage'
@@ -23,7 +22,6 @@ const NotificacionesBodegaPage = React.lazy(() => import('../features/bodeguero/
 
 import { RequireAuth } from './RequireAuth'
 
-const AppIndexPage = React.lazy(() => import('../pages/app/AppIndexPage'))
 import ClienteLayout from '../features/cliente/ClientePage'
 const PaginaPanelCliente = React.lazy(() => import('../features/cliente/pages/dashboard'))
 const PaginaPedidos = React.lazy(() => import('../features/cliente/pages/pedidos'))
@@ -194,15 +192,7 @@ export default function AppRouter() {
           <Route path="perfil" element={<SupervisorPerfil />} />
         </Route>
 
-        <Route path="/app"
-          element={
-            <RequireAuth>
-              <AppLayout />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<AppIndexPage />} />
-        </Route>
+        <Route path="/app/*" element={<Navigate to="/login" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

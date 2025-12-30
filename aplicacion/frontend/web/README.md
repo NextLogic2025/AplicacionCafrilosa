@@ -32,9 +32,8 @@ Código TypeScript/React.
 
 Pantallas “globales” (no dependen de un rol específico).
 
-- `src/pages/SplashPage.tsx`: splash inicial, decide si va a `/login` o `/app` según sesión local.
+- `src/pages/SplashPage.tsx`: splash inicial, redirige a `/login` tras una breve carga.
 - `src/pages/auth/*`: pantallas de autenticación (Login / Forgot Password).
-- `src/pages/app/*`: layout general del panel (`AppLayout`) + pantalla inicial (`AppIndexPage`) para elegir rol en modo dev.
 
 #### `src/features/`
 
@@ -58,7 +57,7 @@ Recomendación dentro de cada feature (cuando crezcan las pantallas):
 Enrutado de la app.
 
 - `src/routes/AppRouter.tsx`: define rutas y lazy loading.
-- `src/routes/RequireAuth.tsx`: protege `/app/*` si no hay token.
+- `src/routes/RequireAuth.tsx`: protege las rutas de rol si no hay token.
 
 #### `src/context/`
 
