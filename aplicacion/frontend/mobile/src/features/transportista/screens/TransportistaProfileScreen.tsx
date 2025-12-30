@@ -1,18 +1,40 @@
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import React, { useState, useCallback } from 'react'
-import { View, Text, ScrollView, Image } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
 
 import { Header } from '../../../components/ui/Header'
-import { TransportistaService, type TransportistaProfile } from '../../../services/api/TransportistaService'
+import { UserService, type UserProfile } from '../../../services/api/UserService'
+import { signOut } from '../../../services/auth/authClient'
 import { Ionicons } from '@expo/vector-icons'
+import { BRAND_COLORS } from '@cafrilosa/shared-types'
+
+// New imports
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
+import { useToast } from '../../../context/ToastContext'
 
 export function TransportistaProfileScreen() {
-    const [profile, setProfile] = useState<TransportistaProfile | null>(null)
+    const navigation = useNavigation()
+    const { showToast } = useToast()
+    const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     const loadProfile = async () => {
         try {
-            const data = await TransportistaService.getProfile()
+            const data = await UserService.getProfile()
             setProfile(data)
         } catch (error) {
             console.error('Error loading profile')
@@ -23,12 +45,63 @@ export function TransportistaProfileScreen() {
 
     useFocusEffect(useCallback(() => { loadProfile() }, []))
 
+    const handleLogoutPress = () => {
+        setFeedbackConfig({
+            type: 'warning',
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
+            showCancel: true,
+            onConfirm: performLogout
+        })
+        setFeedbackVisible(true)
+    }
+
+    const performLogout = async () => {
+        setFeedbackVisible(false)
+        try {
+            await signOut()
+            showToast('Sesión cerrada exitosamente', 'success')
+            setTimeout(() => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' as never }],
+                })
+            }, 300)
+        } catch (error) {
+            showToast('Error al cerrar sesión', 'error')
+        }
+    }
+
+    if (loading) return (
+        <View className="flex-1 bg-neutral-50 justify-center items-center">
+            <ActivityIndicator size="large" color={BRAND_COLORS.red} />
+        </View>
+    )
+
     if (!profile) return (
         <View className="flex-1 bg-neutral-50">
             <Header userName="Transportista" role="TRANSPORTISTA" showNotification={false} />
             <View className="flex-1 justify-center items-center">
-                <Text>Cargando perfil...</Text>
+                <Text>No se pudo cargar el perfil.</Text>
+                <TouchableOpacity
+                    className="bg-brand-red py-3 px-8 rounded-xl mt-4"
+                    onPress={handleLogoutPress}
+                >
+                    <Text className="text-white font-bold">Cerrar Sesión</Text>
+                </TouchableOpacity>
             </View>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText="Cerrar Sesión"
+                cancelText="Cancelar"
+            />
         </View>
     )
 
@@ -44,25 +117,13 @@ export function TransportistaProfileScreen() {
                     </View>
                     <Text className="text-2xl font-bold text-neutral-900">{profile.name}</Text>
                     <Text className="text-neutral-500">{profile.email}</Text>
-                    <View className="flex-row items-center mt-2 bg-yellow-100 px-3 py-1 rounded-full">
-                        <Ionicons name="star" size={14} color="#D97706" />
-                        <Text className="text-xs font-bold text-yellow-800 ml-1">{profile.rating} / 5.0</Text>
+                    <View className="mt-2 bg-neutral-100 px-3 py-1 rounded-full">
+                        <Text className="text-xs font-bold text-neutral-600">{profile.role}</Text>
                     </View>
                 </View>
 
                 {/* Details Section */}
                 <View className="gap-4 mb-10">
-                    <ProfileItem
-                        icon="bus"
-                        label="Vehículo Asignado"
-                        value={profile.vehicle}
-                        subValue={`Placa: ${profile.licensePlate}`}
-                    />
-                    <ProfileItem
-                        icon="map"
-                        label="Zona de Operación"
-                        value={profile.assignedZone}
-                    />
                     <ProfileItem
                         icon="call"
                         label="Teléfono de Contacto"
@@ -70,12 +131,31 @@ export function TransportistaProfileScreen() {
                     />
                     <ProfileItem
                         icon="id-card"
-                        label="Identificador"
-                        value={profile.id}
+                        label="Email"
+                        value={profile.email}
                     />
                 </View>
 
+                <TouchableOpacity
+                    className="w-full py-4 bg-white border border-red-100 rounded-xl items-center shadow-sm active:bg-red-50"
+                    onPress={handleLogoutPress}
+                >
+                    <Text className="text-brand-red font-bold">Cerrar Sesión</Text>
+                </TouchableOpacity>
+
             </ScrollView>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText="Cerrar Sesión"
+                cancelText="Cancelar"
+            />
         </View>
     )
 }

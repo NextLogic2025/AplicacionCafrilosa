@@ -94,7 +94,7 @@ async function refreshAccessToken(): Promise<string | null> {
     }
   } catch (error) {
     console.log('Error refreshing token:', error)
-    await signOut()
+    await clearTokens()
   }
   return null
 }
@@ -103,14 +103,16 @@ export async function signOut() {
   try {
     const refreshToken = await getRefreshToken()
     if (refreshToken) {
+      const cleanToken = refreshToken.trim().replace(/^"|"$/g, '')
       const url = env.api.baseUrl + '/auth/logout'
       await fetch(url, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${refreshToken}`
+          'Authorization': `Bearer ${cleanToken}`
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({ refresh_token: cleanToken }),
       }).catch(err => console.warn('Logout backend failed', err))
     }
   } catch (error) {

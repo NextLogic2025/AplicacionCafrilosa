@@ -7,8 +7,17 @@ import { Header } from '../../../components/ui/Header'
 import { ExpandableFab, type FabAction } from '../../../components/ui/ExpandableFab'
 import { AccountOverview, QuickStats, RecentActivity } from '../components/DashboardComponents'
 
+import { getUserName } from '../../../storage/authStorage'
+
 export function ClientHomeScreen() {
     const navigation = useNavigation()
+    const [userName, setUserName] = React.useState('Cliente')
+
+    React.useEffect(() => {
+        getUserName().then(name => {
+            if (name) setUserName(name)
+        })
+    }, [])
 
     const fabActions: FabAction[] = [
         {
@@ -58,7 +67,7 @@ export function ClientHomeScreen() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
-                userName="Cliente"
+                userName={userName}
                 role="CLIENTE"
                 showNotification={true}
                 variant="home"

@@ -68,9 +68,9 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
         <View
             className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-100 rounded-t-[24px] shadow-lg shadow-black/10"
             style={{
-                paddingBottom: Platform.OS === 'ios' ? insets.bottom : 16,
+                paddingBottom: (insets.bottom || 16) + 12, // Add extra buffer for aesthetics and safety
                 paddingTop: 12,
-                height: Platform.OS === 'ios' ? 70 + insets.bottom : 80,
+                elevation: 8,
             }}
         >
             <View className="flex-row items-center justify-around w-full">

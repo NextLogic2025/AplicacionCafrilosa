@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons'
-import * as React from 'react'
-import { TextInput, View, Pressable, type TextInputProps } from 'react-native'
+import React from 'react'
+import { TextInput, View, Pressable, type TextInputProps, StyleProp, ViewStyle } from 'react-native'
 
-type Props = TextInputProps & {
+type SearchBarProps = TextInputProps & {
     onSearch?: (text: string) => void
     onClear?: () => void
+    style?: StyleProp<ViewStyle>
 }
 
-export function SearchBar({ onSearch, onClear, style, value, ...props }: Props) {
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onClear, style, value, ...props }) => {
     return (
         <View
             className="flex-row items-center bg-white rounded-xl border border-neutral-200 px-4 h-12 shadow-sm shadow-black/5"
@@ -20,7 +21,7 @@ export function SearchBar({ onSearch, onClear, style, value, ...props }: Props) 
                 value={value}
                 {...props}
             />
-            {value ? (
+            {value && value.length > 0 ? (
                 <Pressable onPress={onClear}>
                     <Ionicons name="close-circle" size={18} color="#9CA3AF" />
                 </Pressable>

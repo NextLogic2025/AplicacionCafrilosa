@@ -8,8 +8,22 @@ import { ExpandableFab, type FabAction } from '../../../components/ui/Expandable
 import { Header } from '../../../components/ui/Header'
 import { TransportistaService, type TransportistaAlert, type TransportistaKPIs, type Delivery } from '../../../services/api/TransportistaService'
 
+import { getUserName } from '../../../storage/authStorage'
+
 export function TransportistaHomeScreen() {
     const navigation = useNavigation<any>()
+    const [userName, setUserName] = useState('Transportista')
+
+    useFocusEffect(
+        useCallback(() => {
+            getUserName().then(name => {
+                if (name) setUserName(name)
+            })
+            // ... load data
+            loadData()
+        }, [])
+    )
+
     const [refreshing, setRefreshing] = useState(false)
     const [loading, setLoading] = useState(true)
     const [kpis, setKpis] = useState<TransportistaKPIs | null>(null)
@@ -35,11 +49,8 @@ export function TransportistaHomeScreen() {
         }
     }
 
-    useFocusEffect(
-        useCallback(() => {
-            loadData()
-        }, [])
-    )
+    // Removed redundant useFocusEffect since we combined it above
+
 
     const fabActions: FabAction[] = [
         {
@@ -75,7 +86,7 @@ export function TransportistaHomeScreen() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
-                userName="Transportista"
+                userName={userName}
                 role="TRANSPORTISTA"
                 showNotification={true}
                 variant="home"

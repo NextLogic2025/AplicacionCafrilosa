@@ -1,21 +1,43 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, Pressable, Alert } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, Pressable, Alert, TouchableOpacity } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { Header } from '../../../components/ui/Header'
-import { ProfileService, UserProfile } from '../../../services/api/ProfileService'
+import { UserService, type UserProfile } from '../../../services/api/UserService'
+import { signOut } from '../../../services/auth/authClient'
+
+// New imports
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
+import { useToast } from '../../../context/ToastContext'
 
 export function ClientProfileScreen() {
     const navigation = useNavigation()
+    const { showToast } = useToast()
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     useEffect(() => {
         const fetchProfile = async () => {
             try {
-                const data = await ProfileService.getProfile()
+                const data = await UserService.getProfile()
                 setProfile(data)
+            } catch (error) {
+                console.error('Error loading profile', error)
             } finally {
                 setLoading(false)
             }
@@ -23,11 +45,31 @@ export function ClientProfileScreen() {
         fetchProfile()
     }, [])
 
-    const handleLogout = () => {
-        Alert.alert('Cerrar Sesión', '¿Estás seguro que deseas salir?', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Salir', style: 'destructive', onPress: () => console.log('Logout') }
-        ])
+    const handleLogoutPress = () => {
+        setFeedbackConfig({
+            type: 'warning',
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
+            showCancel: true,
+            onConfirm: performLogout
+        })
+        setFeedbackVisible(true)
+    }
+
+    const performLogout = async () => {
+        setFeedbackVisible(false)
+        try {
+            await signOut()
+            showToast('Sesión cerrada exitosamente', 'success')
+            setTimeout(() => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' as never }],
+                })
+            }, 300)
+        } catch (error) {
+            showToast('Error al cerrar sesión', 'error')
+        }
     }
 
     if (loading) {
@@ -48,15 +90,27 @@ export function ClientProfileScreen() {
                     </View>
                     <Text className="text-neutral-900 font-bold text-xl mb-2 text-center">Bienvenido</Text>
                     <Text className="text-neutral-500 text-center mb-8">
-                        No se ha cargado la información del perfil. Conecta tu cuenta para ver tus datos.
+                        No se ha cargado la información del perfil.
                     </Text>
-                    <Pressable
+                    <TouchableOpacity
                         className="bg-brand-red py-3 px-8 rounded-xl shadow-lg shadow-red-500/30"
-                        onPress={() => Alert.alert('Login', 'Navegar a Login')}
+                        onPress={handleLogoutPress}
                     >
-                        <Text className="text-white font-bold">Iniciar Sesión</Text>
-                    </Pressable>
+                        <Text className="text-white font-bold">Cerrar Sesión</Text>
+                    </TouchableOpacity>
                 </View>
+
+                <FeedbackModal
+                    visible={feedbackVisible}
+                    type={feedbackConfig.type}
+                    title={feedbackConfig.title}
+                    message={feedbackConfig.message}
+                    onClose={() => setFeedbackVisible(false)}
+                    onConfirm={feedbackConfig.onConfirm}
+                    showCancel={feedbackConfig.showCancel}
+                    confirmText="Cerrar Sesión"
+                    cancelText="Cancelar"
+                />
             </View>
         )
     }
@@ -75,7 +129,7 @@ export function ClientProfileScreen() {
                     <View className="flex-1">
                         <Text className="text-neutral-900 font-bold text-xl">{profile.name}</Text>
                         <View className="bg-brand-gold/20 self-start px-2 py-0.5 rounded-md mt-1">
-                            <Text className="text-brand-gold text-[10px] font-bold uppercase">Cliente Verificado</Text>
+                            <Text className="text-brand-gold text-[10px] font-bold uppercase">{profile.role}</Text>
                         </View>
                     </View>
                 </View>
@@ -87,13 +141,9 @@ export function ClientProfileScreen() {
                     </View>
 
                     <View className="gap-3">
-                        <InfoRow label="Razón Social" value={profile?.businessName || 'Cargando...'} />
-                        <InfoRow label="RUC / Cédula" value={profile?.ruc || 'Cargando...'} />
+                        <InfoRow label="Nombre" value={profile.name} />
                         <InfoRow label="Email" value={profile.email} />
-                        <InfoRow label="Zona Asignada" value={profile?.zone?.name || 'Sin datos'} />
-                        <InfoRow label="Vendedor Responsable" value={profile?.vendor?.name || 'Sin datos'} />
-                        <InfoRow label="Teléfono" value={profile?.phone || 'Sin datos'} />
-                        <InfoRow label="Dirección" value={profile?.address || 'Sin datos'} />
+                        <InfoRow label="Teléfono" value={profile.phone} />
                     </View>
                 </View>
 
@@ -101,7 +151,7 @@ export function ClientProfileScreen() {
                 <View className="gap-3 mb-10">
                     <Pressable
                         className="bg-white border border-neutral-200 rounded-xl p-4 flex-row justify-between items-center active:bg-neutral-50"
-                        onPress={() => Alert.alert('Seguridad', 'Cambiar Contraseña')}
+                        onPress={() => Alert.alert('Seguridad', 'Cambiar Contraseña: Próximamente')}
                     >
                         <View className="flex-row items-center gap-3">
                             <Ionicons name="lock-closed-outline" size={20} color="#4B5563" />
@@ -111,12 +161,27 @@ export function ClientProfileScreen() {
                     </Pressable>
 
                     {/* Botón Cerrar Sesión */}
-                    <Pressable className="bg-neutral-100 p-4 rounded-xl items-center border border-neutral-200" onPress={handleLogout}>
+                    <TouchableOpacity
+                        className="bg-neutral-100 p-4 rounded-xl items-center border border-neutral-200 mt-2"
+                        onPress={handleLogoutPress}
+                    >
                         <Text className="text-neutral-600 font-bold">Cerrar Sesión</Text>
-                    </Pressable>
+                    </TouchableOpacity>
                 </View>
 
             </ScrollView>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText="Cerrar Sesión"
+                cancelText="Cancelar"
+            />
         </View>
     )
 }

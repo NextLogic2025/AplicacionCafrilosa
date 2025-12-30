@@ -1,15 +1,35 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, Pressable, Alert, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { Header } from '../../../components/ui/Header'
-import { ProfileService, type UserProfile } from '../../../services/api/ProfileService'
+import { UserService, type UserProfile } from '../../../services/api/UserService'
+import { signOut } from '../../../services/auth/authClient'
+
+// New imports
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
+import { useToast } from '../../../context/ToastContext'
 
 export function WarehouseProfileScreen() {
     const navigation = useNavigation()
+    const { showToast } = useToast()
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<UserProfile | null>(null)
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     useEffect(() => {
         loadProfile()
@@ -18,7 +38,7 @@ export function WarehouseProfileScreen() {
     const loadProfile = async () => {
         setLoading(true)
         try {
-            const data = await ProfileService.getProfile()
+            const data = await UserService.getProfile()
             setProfile(data)
         } catch (error) {
             console.error('Error loading profile', error)
@@ -27,21 +47,31 @@ export function WarehouseProfileScreen() {
         }
     }
 
-    const handleLogout = () => {
-        Alert.alert('Cerrar Sesión', '¿Estás seguro?', [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-                text: 'Salir',
-                style: 'destructive',
-                onPress: () => {
-                    // Logic to clear token and navigate to login
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Login' as never }],
-                    });
-                }
-            }
-        ])
+    const handleLogoutPress = () => {
+        setFeedbackConfig({
+            type: 'warning',
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
+            showCancel: true,
+            onConfirm: performLogout
+        })
+        setFeedbackVisible(true)
+    }
+
+    const performLogout = async () => {
+        setFeedbackVisible(false)
+        try {
+            await signOut()
+            showToast('Sesión cerrada exitosamente', 'success')
+            setTimeout(() => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' as never }],
+                })
+            }, 300)
+        } catch (error) {
+            showToast('Error al cerrar sesión', 'error')
+        }
     }
 
     if (loading) {
@@ -64,13 +94,25 @@ export function WarehouseProfileScreen() {
                     <Text className="text-neutral-500 text-center mb-8">
                         No se ha cargado la información del bodeguero.
                     </Text>
-                    <Pressable
-                        className="bg-brand-red py-3 px-8 rounded-xl shadow-lg shadow-red-500/30"
-                        onPress={() => Alert.alert('Login', 'Navegar a Login')}
+                    <TouchableOpacity
+                        className="bg-brand-red py-3 px-8 rounded-xl mt-4"
+                        onPress={handleLogoutPress}
                     >
-                        <Text className="text-white font-bold">Iniciar Sesión</Text>
-                    </Pressable>
+                        <Text className="text-white font-bold">Cerrar Sesión</Text>
+                    </TouchableOpacity>
                 </View>
+
+                <FeedbackModal
+                    visible={feedbackVisible}
+                    type={feedbackConfig.type}
+                    title={feedbackConfig.title}
+                    message={feedbackConfig.message}
+                    onClose={() => setFeedbackVisible(false)}
+                    onConfirm={feedbackConfig.onConfirm}
+                    showCancel={feedbackConfig.showCancel}
+                    confirmText="Cerrar Sesión"
+                    cancelText="Cancelar"
+                />
             </View>
         )
     }
@@ -93,7 +135,6 @@ export function WarehouseProfileScreen() {
                                 {profile.role ? profile.role : 'BODEGUERO'}
                             </Text>
                         </View>
-                        <Text className="text-neutral-500 text-xs mt-1">Turno: {profile.shift || 'General'}</Text>
                     </View>
                 </View>
 
@@ -104,8 +145,6 @@ export function WarehouseProfileScreen() {
                     </View>
 
                     <View className="gap-3">
-                        <InfoRow label="ID Empleado" value={profile.employeeId || '--'} />
-                        <InfoRow label="Zona Asignada" value={profile.zone?.name || '--'} />
                         <InfoRow label="Email" value={profile.email} />
                         <InfoRow label="Teléfono" value={profile.phone} />
                     </View>
@@ -113,12 +152,27 @@ export function WarehouseProfileScreen() {
 
                 {/* 3. Acciones */}
                 <View className="gap-3 mb-10">
-                    <Pressable className="bg-neutral-100 p-4 rounded-xl items-center border border-neutral-200" onPress={handleLogout}>
-                        <Text className="text-neutral-600 font-bold">Cerrar Sesión</Text>
-                    </Pressable>
+                    <TouchableOpacity
+                        className="w-full py-4 bg-white border border-red-100 rounded-xl items-center shadow-sm active:bg-red-50"
+                        onPress={handleLogoutPress}
+                    >
+                        <Text className="text-brand-red font-bold">Cerrar Sesión</Text>
+                    </TouchableOpacity>
                 </View>
 
             </ScrollView>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText="Cerrar Sesión"
+                cancelText="Cancelar"
+            />
         </View>
     )
 }

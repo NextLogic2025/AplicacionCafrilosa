@@ -7,8 +7,18 @@ import { SellerService, type SellerKPIs, type ScheduledVisit, type SellerAlert }
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
+import { getUserName } from '../../../storage/authStorage'
+
 export function SellerHomeScreen() {
     const navigation = useNavigation()
+    const [userName, setUserName] = useState('Vendedor')
+
+    // Cargar nombre real
+    React.useEffect(() => {
+        getUserName().then(name => {
+            if (name) setUserName(name)
+        })
+    }, [])
     const [refreshing, setRefreshing] = useState(false)
     const [kpis, setKpis] = useState<SellerKPIs | null>(null)
     const [visits, setVisits] = useState<ScheduledVisit[]>([])
@@ -58,7 +68,7 @@ export function SellerHomeScreen() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
-                userName="Vendedor"
+                userName={userName}
                 role="VENDEDOR"
                 showNotification={true}
                 variant="home"

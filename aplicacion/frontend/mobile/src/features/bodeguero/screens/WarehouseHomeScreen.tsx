@@ -7,8 +7,18 @@ import { ExpandableFab, type FabAction } from '../../../components/ui/Expandable
 import { WarehouseKPIs, CriticalAlerts, WarehouseRecentActivity } from '../components/WarehouseDashboardComponents'
 import { WarehouseService, type WarehouseStats, type RecentActivity } from '../../../services/api/WarehouseService'
 
+import { getUserName } from '../../../storage/authStorage'
+
 export function WarehouseHomeScreen() {
     const navigation = useNavigation()
+    const [userName, setUserName] = useState('Bodeguero')
+
+    // Cargar nombre real
+    React.useEffect(() => {
+        getUserName().then(name => {
+            if (name) setUserName(name)
+        })
+    }, [])
     const [refreshing, setRefreshing] = useState(false)
     const [stats, setStats] = useState<WarehouseStats>({
         pendingOrders: 0,
@@ -77,7 +87,7 @@ export function WarehouseHomeScreen() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
-                userName="Bodeguero"
+                userName={userName}
                 role="BODEGA"
                 showNotification={true}
                 variant="home"

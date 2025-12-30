@@ -16,14 +16,7 @@ export interface Alert {
     timestamp: string
 }
 
-export interface SupervisorProfile {
-    id: string
-    name: string
-    role: string
-    email: string
-    phone: string
-    photoUrl?: string
-}
+// export interface SupervisorProfile removed - use UserService.UserProfile
 
 export interface SupervisorOrder {
     id: string
@@ -84,33 +77,7 @@ export const SupervisorService = {
         return []
     },
 
-    getProfile: async (): Promise<SupervisorProfile | null> => {
-        try {
-            const token = await getValidToken()
-            if (!token) return null
-
-            const response = await fetch(`${env.api.baseUrl}/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-
-            if (!response.ok) throw new Error('Failed to fetch profile')
-
-            const data = await response.json()
-            return {
-                id: data.id,
-                name: data.nombre,
-                role: data.rol?.nombre || 'Supervisor',
-                email: data.email,
-                phone: data.telefono || 'Sin teléfono',
-                photoUrl: data.avatarUrl
-            }
-        } catch (error) {
-            console.error('Error fetching profile:', error)
-            return null
-        }
-    },
+    // getProfile removed - use UserService.getProfile
 
     getOrders: async (): Promise<SupervisorOrder[]> => {
         // TODO: Integrate with backend API

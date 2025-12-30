@@ -8,6 +8,7 @@ import {
     StyleSheet,
     Text,
     View,
+    TouchableOpacity
 } from 'react-native'
 
 export type FabAction = {
@@ -103,22 +104,25 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                             style={[styles.actionItem, getActionStyle(index)]}
                             pointerEvents={isOpen ? 'auto' : 'none'}
                         >
-                            <View style={styles.labelContainer}>
-                                <Text style={styles.label}>{action.label}</Text>
-                            </View>
-                            <Pressable
+                            <TouchableOpacity
+                                activeOpacity={0.8}
                                 onPress={() => {
                                     closeMenu()
                                     action.onPress()
                                 }}
-                                style={[styles.miniFab, { backgroundColor: action.color || 'white' }]}
+                                style={styles.actionItem}
                             >
-                                <Ionicons
-                                    name={action.icon}
-                                    size={20}
-                                    color={action.color ? 'white' : BRAND_COLORS.red700}
-                                />
-                            </Pressable>
+                                <View style={styles.labelContainer}>
+                                    <Text style={styles.label}>{action.label}</Text>
+                                </View>
+                                <View style={[styles.miniFab, { backgroundColor: 'white' }]}>
+                                    <Ionicons
+                                        name={action.icon as any}
+                                        size={20}
+                                        color={BRAND_COLORS.red}
+                                    />
+                                </View>
+                            </TouchableOpacity>
                         </Animated.View>
                     ))}
                 </View>

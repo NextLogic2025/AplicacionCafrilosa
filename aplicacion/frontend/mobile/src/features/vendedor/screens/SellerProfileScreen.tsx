@@ -1,15 +1,35 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, Pressable, Alert, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { Header } from '../../../components/ui/Header'
-import { ProfileService, type UserProfile } from '../../../services/api/ProfileService'
+import { UserService, UserProfile } from '../../../services/api/UserService'
+import { signOut } from '../../../services/auth/authClient'
+
+// New imports
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
+import { useToast } from '../../../context/ToastContext'
 
 export function SellerProfileScreen() {
     const navigation = useNavigation()
+    const { showToast } = useToast()
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<UserProfile | null>(null)
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     useEffect(() => {
         loadProfile()
@@ -18,7 +38,7 @@ export function SellerProfileScreen() {
     const loadProfile = async () => {
         setLoading(true)
         try {
-            const data = await ProfileService.getProfile()
+            const data = await UserService.getProfile()
             setProfile(data)
         } catch (error) {
             console.error('Error loading profile', error)
@@ -27,20 +47,31 @@ export function SellerProfileScreen() {
         }
     }
 
-    const handleLogout = () => {
-        Alert.alert('Cerrar Sesión', '¿Estás seguro?', [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-                text: 'Salir',
-                style: 'destructive',
-                onPress: () => {
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Login' as never }],
-                    });
-                }
-            }
-        ])
+    const handleLogoutPress = () => {
+        setFeedbackConfig({
+            type: 'warning',
+            title: 'Cerrar Sesión',
+            message: '¿Estás seguro de que deseas cerrar sesión?',
+            showCancel: true,
+            onConfirm: performLogout
+        })
+        setFeedbackVisible(true)
+    }
+
+    const performLogout = async () => {
+        setFeedbackVisible(false)
+        try {
+            await signOut()
+            showToast('Sesión cerrada exitosamente', 'success')
+            setTimeout(() => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' as never }],
+                })
+            }, 300)
+        } catch (error) {
+            showToast('Error al cerrar sesión', 'error')
+        }
     }
 
     if (loading) {
@@ -57,7 +88,25 @@ export function SellerProfileScreen() {
                 <Header title="Perfil Vendedor" variant="standard" />
                 <View className="flex-1 items-center justify-center p-8">
                     <EmptyProfileState />
+                    <TouchableOpacity
+                        className="bg-brand-red py-3 px-8 rounded-xl mt-4"
+                        onPress={handleLogoutPress}
+                    >
+                        <Text className="text-white font-bold">Cerrar Sesión</Text>
+                    </TouchableOpacity>
                 </View>
+
+                <FeedbackModal
+                    visible={feedbackVisible}
+                    type={feedbackConfig.type}
+                    title={feedbackConfig.title}
+                    message={feedbackConfig.message}
+                    onClose={() => setFeedbackVisible(false)}
+                    onConfirm={feedbackConfig.onConfirm}
+                    showCancel={feedbackConfig.showCancel}
+                    confirmText="Cerrar Sesión"
+                    cancelText="Cancelar"
+                />
             </View>
         )
     }
@@ -73,50 +122,39 @@ export function SellerProfileScreen() {
                     </View>
                     <View className="flex-1">
                         <Text className="text-neutral-900 font-bold text-xl">{profile.name}</Text>
-                        <Text className="text-neutral-500 text-xs mt-1">Vendedor de Campo</Text>
+                        <Text className="text-neutral-500 text-xs mt-1">{profile.role}</Text>
                     </View>
                 </View>
-
-                {profile.commercialGoal && (
-                    <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm border border-neutral-100">
-                        <Text className="text-neutral-900 font-bold text-lg mb-3">Meta Comercial - {profile.commercialGoal.period}</Text>
-                        <View className="mb-2">
-                            <View className="flex-row justify-between mb-1">
-                                <Text className="text-neutral-500 text-xs font-bold uppercase">Progreso</Text>
-                                <Text className="text-brand-red font-bold text-xs">
-                                    {((profile.commercialGoal.currentProgress / profile.commercialGoal.monthlyTarget) * 100).toFixed(1)}%
-                                </Text>
-                            </View>
-                            <View className="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                <View
-                                    className="h-full bg-brand-red"
-                                    style={{ width: `${(profile.commercialGoal.currentProgress / profile.commercialGoal.monthlyTarget) * 100}%` }}
-                                />
-                            </View>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-neutral-500 text-xs">Actual: ${profile.commercialGoal.currentProgress.toLocaleString()}</Text>
-                            <Text className="text-neutral-500 text-xs">Meta: ${profile.commercialGoal.monthlyTarget.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                )}
 
                 <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm border border-neutral-100">
                     <View className="mb-4">
                         <Text className="text-neutral-900 font-bold text-lg">Mis Datos</Text>
                     </View>
                     <View className="gap-3">
-                        <InfoRow label="ID Empleado" value={profile.employeeId || '--'} />
                         <InfoRow label="Email" value={profile.email} />
                         <InfoRow label="Teléfono" value={profile.phone} />
-                        <InfoRow label="Zona" value={profile.zone?.name || '--'} />
                     </View>
                 </View>
 
-                <Pressable className="bg-neutral-100 p-4 rounded-xl items-center border border-neutral-200" onPress={handleLogout}>
-                    <Text className="text-neutral-600 font-bold">Cerrar Sesión</Text>
-                </Pressable>
+                <TouchableOpacity
+                    className="w-full py-4 bg-white border border-red-100 rounded-xl items-center shadow-sm active:bg-red-50"
+                    onPress={handleLogoutPress}
+                >
+                    <Text className="text-brand-red font-bold">Cerrar Sesión</Text>
+                </TouchableOpacity>
             </ScrollView>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText="Cerrar Sesión"
+                cancelText="Cancelar"
+            />
         </View>
     )
 }

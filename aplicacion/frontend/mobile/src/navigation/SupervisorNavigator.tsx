@@ -17,6 +17,13 @@ import { SupervisorWarehouseScreen } from '../features/supervisor/screens/Superv
 import { SupervisorReturnsScreen } from '../features/supervisor/screens/SupervisorReturnsScreen'
 import { SupervisorReportsScreen } from '../features/supervisor/screens/SupervisorReportsScreen'
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/SupervisorAlertsScreen'
+import { SupervisorCatalogScreen } from '../features/supervisor/screens/SupervisorCatalogScreen'
+import { SupervisorCategoriesScreen } from '../features/supervisor/screens/SupervisorCategoriesScreen'
+import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
+import { SupervisorPriceListsScreen } from '../features/supervisor/screens/SupervisorPriceListsScreen'
+import { SupervisorPromotionsScreen } from '../features/supervisor/screens/SupervisorPromotionsScreen'
+import { SupervisorZonesScreen } from '../features/supervisor/screens/SupervisorZonesScreen'
+import { SupervisorAuditScreen } from '../features/supervisor/screens/SupervisorAuditScreen'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
@@ -63,6 +70,11 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
             <ExpandableFab
                 actions={[
                     {
+                        icon: 'list',
+                        label: 'Catálogo',
+                        onPress: () => navigation.navigate('SupervisorCatalog'),
+                    },
+                    {
                         icon: 'people',
                         label: 'Clientes',
                         onPress: () => navigation.navigate('SupervisorClients'),
@@ -102,6 +114,15 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorReturns" component={SupervisorReturnsScreen} />
             <Stack.Screen name="SupervisorReports" component={SupervisorReportsScreen} />
             <Stack.Screen name="SupervisorAlerts" component={SupervisorAlertsScreen} />
+
+            {/* Catalog Modules */}
+            <Stack.Screen name="SupervisorCatalog" component={SupervisorCatalogScreen} />
+            <Stack.Screen name="SupervisorCategories" component={SupervisorCategoriesScreen} />
+            <Stack.Screen name="SupervisorProductForm" component={SupervisorProductFormScreen} />
+            <Stack.Screen name="SupervisorPriceLists" component={SupervisorPriceListsScreen} />
+            <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
+            <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
+            <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>
     )
 }

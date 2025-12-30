@@ -13,5 +13,6 @@ export const env = {
   },
   api: {
     baseUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_API_BASE_URL')),
+    catalogUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_CATALOG_API_URL') || 'http://10.0.2.2:3002'),
   },
 } as const

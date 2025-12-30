@@ -21,6 +21,10 @@ type HeaderProps = {
   title?: string
   onBackPress?: () => void
   notificationRoute?: string
+  rightAction?: {
+    icon: keyof typeof Ionicons.glyphMap
+    onPress: () => void
+  }
 }
 
 export function Header({
@@ -38,7 +42,8 @@ export function Header({
   variant = 'home',
   title,
   onBackPress,
-  notificationRoute
+  notificationRoute,
+  rightAction
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
 
@@ -147,6 +152,15 @@ export function Header({
               {notificationCount > 0 && (
                 <View className="absolute top-2 right-2 h-2.5 w-2.5 bg-brand-gold rounded-full border border-brand-red" />
               )}
+            </Pressable>
+          )}
+
+          {rightAction && (
+            <Pressable
+              onPress={rightAction.onPress}
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+            >
+              <Ionicons name={rightAction.icon} size={22} color="white" />
             </Pressable>
           )}
 

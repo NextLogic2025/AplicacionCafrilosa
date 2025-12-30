@@ -60,6 +60,10 @@ const getRoleAndNavigate = (role?: string | null, navigation?: any) => {
   navigation.replace(targetRoute)
 }
 
+import { navigationRef } from './navigation/navigationRef'
+
+import { ToastProvider } from './context/ToastContext'
+
 export default function App() {
   React.useEffect(() => {
     ExpoSplashScreen.hideAsync().catch(() => { })
@@ -68,69 +72,71 @@ export default function App() {
   return (
     <CartProvider>
       <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-            <Stack.Screen
-              name="Splash"
-              children={({ navigation }) => (
-                <SplashScreen
-                  onDone={async () => {
-                    const token = await getToken()
-                    if (token) {
-                      // Decodificar token para obtener rol
-                      try {
-                        const { jwtDecode } = require('jwt-decode'); // Import dynamic or move top-level if possible
-                        const decoded: any = jwtDecode(token);
-                        getRoleAndNavigate(decoded.role || decoded.rol, navigation);
-                      } catch (e) {
-                        console.error('Error decoding token on splash:', e);
-                        navigation.replace('Login');
+        <ToastProvider>
+          <NavigationContainer ref={navigationRef}>
+            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+              <Stack.Screen
+                name="Splash"
+                children={({ navigation }) => (
+                  <SplashScreen
+                    onDone={async () => {
+                      const token = await getToken()
+                      if (token) {
+                        // Decodificar token para obtener rol
+                        try {
+                          const { jwtDecode } = require('jwt-decode'); // Import dynamic or move top-level if possible
+                          const decoded: any = jwtDecode(token);
+                          getRoleAndNavigate(decoded.role || decoded.rol, navigation);
+                        } catch (e) {
+                          console.error('Error decoding token on splash:', e);
+                          navigation.replace('Login');
+                        }
+                      } else {
+                        navigation.replace('Login')
                       }
-                    } else {
-                      navigation.replace('Login')
-                    }
-                  }}
-                />
-              )}
-            />
+                    }}
+                  />
+                )}
+              />
 
-            <Stack.Screen
-              name="Login"
-              children={({ navigation }) => (
-                <LoginScreen
-                  onSignedIn={(role) => getRoleAndNavigate(role, navigation)}
-                  onForgotPassword={() => navigation.navigate('ForgotPassword')}
-                />
-              )}
-            />
+              <Stack.Screen
+                name="Login"
+                children={({ navigation }) => (
+                  <LoginScreen
+                    onSignedIn={(role) => getRoleAndNavigate(role, navigation)}
+                    onForgotPassword={() => navigation.navigate('ForgotPassword')}
+                  />
+                )}
+              />
 
-            <Stack.Screen
-              name="ForgotPassword"
-              children={({ navigation }) => <ForgotPasswordScreen onBack={() => navigation.goBack()} />}
-            />
+              <Stack.Screen
+                name="ForgotPassword"
+                children={({ navigation }) => <ForgotPasswordScreen onBack={() => navigation.goBack()} />}
+              />
 
-            <Stack.Screen
-              name="Cliente"
-              component={ClientNavigator}
-            />
-            <Stack.Screen
-              name="Supervisor"
-              component={SupervisorNavigator}
-            />
-            <Stack.Screen
-              name="Vendedor"
-              component={SellerNavigator}
-            />
-            <Stack.Screen
-              name="Transportista"
-              component={TransportistaNavigator}
-            />
-            <Stack.Screen
-              name="Bodeguero"
-              component={WarehouseNavigator}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
+              <Stack.Screen
+                name="Cliente"
+                component={ClientNavigator}
+              />
+              <Stack.Screen
+                name="Supervisor"
+                component={SupervisorNavigator}
+              />
+              <Stack.Screen
+                name="Vendedor"
+                component={SellerNavigator}
+              />
+              <Stack.Screen
+                name="Transportista"
+                component={TransportistaNavigator}
+              />
+              <Stack.Screen
+                name="Bodeguero"
+                component={WarehouseNavigator}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </ToastProvider>
       </SafeAreaProvider>
     </CartProvider>
   )
