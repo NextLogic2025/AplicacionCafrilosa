@@ -1,7 +1,7 @@
 import { 
   Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw, 
   BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart, 
-  Percent, MessageCircle, Users, FileText, Map, Calendar
+  Percent, MessageCircle, Users, FileText, Map, Calendar, BookOpen
 } from 'lucide-react'
 import type { SidebarItem } from '../components/ui/SidebarNav'
 
@@ -45,7 +45,8 @@ export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
 export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/supervisor', icon: Home, end: true },
   { id: 'clientes', label: 'Clientes', to: '/supervisor/clientes', icon: Users },
-  { id: 'vendedores', label: 'Vendedores', to: '/supervisor/vendedores', icon: Users },
+  { id: 'equipo', label: 'Equipo', to: '/supervisor/equipo', icon: Users },
+  { id: 'catalogo', label: 'Catálogo', to: '/supervisor/catalogo', icon: BookOpen },
   { id: 'pedidos', label: 'Pedidos', to: '/supervisor/pedidos', icon: ClipboardList },
   { id: 'bodega', label: 'Bodega', to: '/supervisor/bodega', icon: Package },
   { id: 'entregas', label: 'Entregas', to: '/supervisor/entregas', icon: Truck },

@@ -21,25 +21,25 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Pedidos Hoy"
-          value="24"
+          value="0"
           change={+8}
           icon={<BarChart3 className="h-5 w-5" />}
         />
         <MetricCard
           label="En Validación"
-          value="12"
+          value="0"
           change={0}
           icon={<Activity className="h-5 w-5" />}
         />
         <MetricCard
           label="Entregas Pendientes"
-          value="8"
+          value="0"
           change={-2}
           icon={<BarChart3 className="h-5 w-5" />}
         />
         <MetricCard
           label="Alertas Activas"
-          value="3"
+          value="0"
           change={+1}
           icon={<Activity className="h-5 w-5" />}
         />
