@@ -10,6 +10,13 @@ type LoginResponse = {
   message?: string
 }
 
+function resolveLogoutUrl() {
+  if (env.auth.logoutUrl) return env.auth.logoutUrl
+  if (env.auth.loginUrl) return env.auth.loginUrl.replace(/\/login$/, '/logout')
+  if (env.api.baseUrl) return `${env.api.baseUrl}/auth/logout`
+  return ''
+}
+
 const ROLE_BY_ID: Record<number, AppRole> = {
   2: 'supervisor',
   3: 'bodeguero',
@@ -66,6 +73,34 @@ export async function signInWithPassword(email: string, password: string) {
       throw new Error('Tiempo de espera agotado')
     }
     throw e
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+export async function signOutFromServer(accessToken: string) {
+  const url = resolveLogoutUrl()
+  if (!url) throw new Error('Logout URL no configurada')
+
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 10_000)
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({}),
+      signal: controller.signal,
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error('Tiempo de espera agotado')
+    }
+    // Silenciaremos cualquier fallo de red; el frontend igual limpiará la sesión
+    console.warn('No se pudo cerrar sesión en el servidor', e)
   } finally {
     window.clearTimeout(timeout)
   }

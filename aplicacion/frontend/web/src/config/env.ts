@@ -10,6 +10,7 @@ export const env = {
   auth: {
     loginUrl: readEnv('VITE_AUTH_LOGIN_URL'),
     forgotPasswordUrl: readEnv('VITE_AUTH_FORGOT_PASSWORD_URL'),
+    logoutUrl: readEnv('VITE_AUTH_LOGOUT_URL'),
   },
   api: {
     baseUrl: normalizeBaseUrl(readEnv('VITE_API_BASE_URL')),

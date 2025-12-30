@@ -41,13 +41,14 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  logout(@Req() req: AuthRequest) {
+  logout(@Req() req: AuthRequest, @Body() body: { refresh_token?: string }) {
     const usuarioId = req.user?.sub;
     const ip = req.ip;
     const userAgent = req.get('user-agent');
     const authHeader = req.headers['authorization'] || '';
     const token = typeof authHeader === 'string' ? authHeader.split(' ')[1] : undefined;
-    return this.authService.logout(usuarioId, token, ip, userAgent);
+    const refreshToken = body?.refresh_token;
+    return this.authService.logout(usuarioId, refreshToken, ip, userAgent, token);
   }
 
   @Post('dispositivo')

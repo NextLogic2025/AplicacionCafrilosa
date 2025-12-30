@@ -2,12 +2,13 @@ import * as React from 'react'
 
 import { clearSelectedRole } from '../../services/storage/roleStorage'
 import { clearToken, getToken, setToken } from '../../services/storage/tokenStorage'
+import { signOutFromServer } from '../../services/auth/authApi'
 
 type AuthContextValue = {
   token: string | null
   isAuthenticated: boolean
   signIn: (token: string, opts?: { persist?: boolean }) => void
-  signOut: () => void
+  signOut: () => Promise<void>
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null)
@@ -20,7 +21,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokenState(newToken)
   }, [])
 
-  const signOut = React.useCallback(() => {
+  const signOut = React.useCallback(async () => {
+    const currentToken = getToken()
+    if (currentToken) {
+      try {
+        await signOutFromServer(currentToken)
+      } catch (error) {
+        console.warn('No se pudo cerrar sesión en el servidor', error)
+      }
+    }
+
     clearToken()
     clearSelectedRole()
     setTokenState(null)

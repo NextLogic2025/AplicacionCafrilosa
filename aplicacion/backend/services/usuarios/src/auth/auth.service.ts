@@ -125,7 +125,7 @@ export class AuthService {
     return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.rol?.nombre } };
   }
 
-  async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string) {
+  async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string, accessToken?: string) {
     // If a refresh token string is provided, revoke only that token; otherwise revoke all refresh tokens for user
     if (refreshToken) {
       const activos = await this.tokenRepo.find({ where: { usuario: { id: usuarioId }, revocado: false } });
@@ -153,6 +153,7 @@ export class AuthService {
       evento: 'LOGOUT',
       ip_address: ip,
       user_agent: userAgent,
+      access_token: accessToken,
     });
 
     return { mensaje: 'Logout exitoso' };
