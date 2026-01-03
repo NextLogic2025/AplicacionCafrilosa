@@ -1,188 +1,107 @@
-Catalog microservice (svc-catalog)
+Servicio de Catálogo (svc-catalog)
 
-- API prefix: `/api`
-- Endpoints:
-  - `GET /api/products`
-  - `GET /api/products/:id`
-  - `POST /api/products`
-  - `PUT /api/products/:id`
-  - `DELETE /api/products/:id` (soft delete)
-  - `GET /api/categories` etc.
+Prefijo de la API: `/api`
 
-Env vars:
-- `DB_HOST` (default: `database`)
-- `DB_PORT` (default: `5432`)
-- `DB_USER` (default: `admin`)
-- `DB_PASSWORD` (default: `root`)
-- `DB_NAME` (default: `catalog_db`)
+Este README documenta las rutas principales y las reglas de acceso por roles añadidas al microservicio de catálogo.
 
-To run locally:
+Ejecución rápida
+----------------
 
 ```bash
-cd backend/services/catalog
+cd aplicacion/backend/services/catalog
 npm install
 npm run start:dev
 ```
 
-Endpoints (details)
+Variables de entorno
+--------------------
+- `DB_HOST` (por defecto: `database`)
+- `DB_PORT` (por defecto: `5432`)
+- `DB_USER` (por defecto: `admin`)
+- `DB_PASSWORD` (por defecto: `root`)
+- `DB_NAME` (por defecto: `catalog_db`)
+- `JWT_SECRET` — secreto compartido con el servicio `usuarios`
 
-- Categories
-  - `GET /api/categories` — list active categories (no auth required)
-  - `GET /api/categories/:id` — get one category by numeric id
-  - `POST /api/categories` — create category (requires JWT role `supervisor` or `admin`)
-    - Body JSON: { "nombre": "Bebidas", "descripcion": "Bebidas frías", "imagen_url": "https://...", "activo": true }
-  - `PUT /api/categories/:id` — update category (requires role)
-    - Body: partial same as above
-  - `DELETE /api/categories/:id` — soft-delete (requires role)
+Resumen de la API (rutas importantes)
+------------------------------------
 
-- Products
-  - `GET /api/products` — list products (excludes soft-deleted)
-  - `GET /api/products/:id` — get product by UUID
-  - `POST /api/products` — create product (requires auth role: `supervisor`/`admin`)
-    - Body JSON example:
-      {
-        "codigo_sku": "SKU-1001",
-        Servicio Catalog (svc-catalog)
+Categorías
+- `GET /api/categories` — listar categorías (público)
+- `GET /api/categories/:id` — obtener categoría por id (público)
+- `POST /api/categories` — crear (requiere `supervisor` o `admin`)
+- `PUT /api/categories/:id` — actualizar (requiere rol)
+- `DELETE /api/categories/:id` — eliminación lógica (requiere `admin`)
 
-        Breve descripción
-        ------------------
-        Servicio micro de catálogo para gestionar productos, categorías y listas de precios. Expone una API REST bajo el prefijo `/api` y valida JWT emitidos por el servicio `usuarios`.
+Productos
+- `GET /api/products` — listar productos (lectura permitida para ciertos roles como `bodeguero`)
+- `GET /api/products/:id` — obtener producto por UUID (acceso de solo lectura para roles permitidos)
+- `POST /api/products` — crear producto (requiere `supervisor`/`admin`)
+- `PUT /api/products/:id` — actualizar producto (requiere `supervisor`/`admin`)
+- `DELETE /api/products/:id` — eliminación lógica (requiere `supervisor`/`admin`)
 
-        Requisitos
-        ----------
-        - Node.js 18+ (recomendado)
-        - PostgreSQL (la composición local usa PostGIS en `database`)
+Precios
+- `POST /api/precios` — asignar o actualizar un precio para la combinación (productoId + listaId). Requiere `supervisor` o `admin`.
+- `GET /api/precios/producto/:id` — ver precios de un producto.
+  - Reglas de acceso: `admin`, `supervisor` y `vendedor` pueden ver todos los precios del producto.
+  - Si el solicitante es `cliente`, la respuesta se limita a los precios de la `lista_precios_id` asignada al cliente (si no tiene lista asignada devuelve `[]`).
 
-        Variables de entorno
-        --------------------
-        - `DB_HOST` (por defecto: `database`)
-        - `DB_PORT` (por defecto: `5432`)
-        - `DB_USER` (por defecto: `admin`)
-        - `DB_PASSWORD` (por defecto: `root`)
-        - `DB_NAME` (por defecto: `catalog_db`)
-        - `JWT_SECRET` — secreto compartido con el servicio `usuarios` para validar access tokens
+Promociones
+- `GET /api/promociones` — listar campañas (legible por `admin`, `supervisor`, `vendedor` y `cliente`)
+- `GET /api/promociones/:id` — obtener detalles de la campaña (legible por los mismos roles)
+- `GET /api/promociones/:id/productos` — listar productos en una campaña (legible por los mismos roles)
+- `POST/PUT/DELETE` — requieren `supervisor` o `admin` según el endpoint.
 
-        Instalación y ejecución local
-        -----------------------------
-        1. Instalar dependencias:
+Rutero (visitas planificadas)
+- `GET /api/rutero` — listar todas las entradas del rutero (uso interno)
+- `GET /api/rutero/cliente/:id` — entradas del rutero para un cliente específico
+- `GET /api/rutero/mio` — devuelve el rutero planificado para el `vendedor` autenticado (rol `vendedor`). Requiere autenticación.
 
-        ```bash
-        cd aplicacion/backend/services/catalog
-        npm install
-        ```
+Clientes
+- `GET /api/clientes` — listar clientes (legible por `admin`, `supervisor`, `transportista`)
+- `GET /api/clientes/:id` — detalles de cliente (legible por `admin`, `supervisor`, `vendedor`, `transportista`)
+- `GET /api/clientes/mis` — devuelve los clientes asignados al `vendedor` autenticado (rol `vendedor`). Requiere autenticación.
+- Crear/actualizar/eliminar requieren `supervisor`/`admin` según el endpoint.
 
-        2. Ejecutar en modo desarrollo:
+Zonas
+- `GET /api/zonas` y `GET /api/zonas/:id` — legible por `admin`, `supervisor`, `transportista`.
 
-        ```bash
-        npm run start:dev
-        ```
+Roles y mapeo numérico (IDs usados por el servicio `usuarios`)
+- `admin` = 1
+- `supervisor` = 2
+- `bodeguero` = 3 (acceso de solo lectura a productos para gestión de stock)
+- `vendedor` = 4 (puede ver productos, precios, promociones, clientes asignados y su rutero)
+- `transportista` = 5 (puede ver clientes y zonas para entregas)
+- `cliente` = 6 (puede ver productos, promociones y precios limitados a su lista de precios asignada)
 
-        Con Docker Compose (desde la raíz `aplicacion`):
+Autenticación
+-------------
+El servicio valida JWT firmados por el servicio `usuarios`. Los endpoints protegidos requieren la cabecera:
 
-        ```bash
-        docker compose up --build
-        ```
+```
+Authorization: Bearer <access_token>
+```
 
-        Rutas principales
-        ------------------
-        Prefijo de la API: `/api`
+Ejemplos
+--------
 
-        Categorías
-        - `GET /api/categories` — listar categorías activas (pública)
-        - `GET /api/categories/:id` — obtener categoría por id numérico
-        - `POST /api/categories` — crear categoría (requiere JWT con rol `supervisor` o `admin`)
-        - `PUT /api/categories/:id` — actualizar categoría (requiere rol)
-        - `DELETE /api/categories/:id` — eliminación lógica (requiere rol)
+Obtener rutero del vendedor (reemplazar TOKEN):
 
-        Productos
-        - `GET /api/products` — listar productos (excluye borrados lógicos)
-        - `GET /api/products/:id` — obtener producto por UUID
-        - `POST /api/products` — crear producto (requiere rol `supervisor`/`admin`)
-        - `PUT /api/products/:id` — actualizar producto (requiere rol)
-        - `DELETE /api/products/:id` — eliminación lógica (requiere rol)
+```bash
+curl -H "Authorization: Bearer <TOKEN>" http://localhost:3000/api/rutero/mio
+```
 
-        Precios (nuevo módulo)
-        - `POST /api/precios` — asignar o actualizar un precio para una combinación (productoId + listaId). Requiere JWT con rol `supervisor` o `admin`.
-          - Body JSON: { "productoId": "UUID-DE-TU-PRODUCTO", "listaId": 2, "precio": 0.85 }
-        - `GET /api/precios/producto/:id` — obtener todos los precios asignados a un producto (incluye nombre de la lista). Público por defecto.
+Obtener precios como cliente (se limitarán a la lista asignada):
 
-        Ejemplo de cuerpo para crear/actualizar precio
-        ```json
-        {
-          "productoId": "UUID-DE-TU-BOTELLA",
-          "listaId": 2,
-          "precio": 0.85
-        }
-        ```
+```bash
+curl -H "Authorization: Bearer <CLIENT_TOKEN>" http://localhost:3000/api/precios/producto/<PRODUCT_ID>
+```
 
-        Ejemplo de cuerpo para crear producto
-        ```json
-        {
-          "codigo_sku": "SKU-1001",
-          "nombre": "Coca Cola 500ml",
-          "descripcion": "Refresco",
-          "categoria_id": 1,
-          "peso_unitario_kg": 0.5,
-          "volumen_m3": 0.0005,
-          "requiere_frio": false,
-          "unidad_medida": "UNIDAD",
-          "imagen_url": null,
-          "activo": true
-        }
-        ```
+Notas
+-----
+- Los triggers de auditoría en la base de datos esperan que las operaciones propaguen el usuario actor (desde el JWT) cuando sea necesario.
+- En la configuración local con Docker Compose, el servicio `catalog` suele exponerse en el puerto de host `3002` (contenedor 3000).
 
-        Autenticación
-        --------------
-        El servicio valida JWT firmados por el servicio `usuarios`. Los endpoints protegidos requieren el header:
+Contacto
+-------
+Para dudas o mejoras, abra un issue o contacte al equipo de backend.
 
-        ```
-        Authorization: Bearer <access_token>
-        ```
-
-        En la configuración local de `docker-compose` el servicio `catalog` suele exponerse en el puerto `3002` del host (mappeado al `3000` del contenedor).
-
-        Flujo rápido (Postman / curl)
-        ----------------------------
-        1) Obtener token (desde el servicio `usuarios`):
-
-        - POST http://localhost:3001/auth/login
-        - Body (JSON): { "email": "supervisor@example.com", "password": "secret" }
-        - Copiar `access_token` del response
-
-        2) Crear una categoría (con token):
-
-        - POST http://localhost:3002/api/categories
-        - Headers: `Authorization: Bearer <access_token>` y `Content-Type: application/json`
-        - Body: usar el JSON de ejemplo de categoría
-
-        3) Crear/actualizar precio (con token):
-
-        - POST http://localhost:3002/api/precios
-        - Headers: `Authorization: Bearer <access_token>` y `Content-Type: application/json`
-        - Body: usar el JSON de ejemplo de precio
-
-        Ejemplo curl para asignar precio (Mayorista listaId=2)
-        ```bash
-        curl -X POST http://localhost:3002/api/precios \
-          -H "Authorization: Bearer <TOKEN>" \
-          -H "Content-Type: application/json" \
-          -d '{"productoId":"UUID-DE-TU-BOTELLA","listaId":2,"precio":0.85}'
-        ```
-
-        Ejemplo curl para listar precios de un producto (público)
-        ```bash
-        curl http://localhost:3002/api/precios/producto/<UUID-PRODUCTO>
-        ```
-
-        Notas y recomendaciones
-        -----------------------
-        - Auditoría: el esquema de BD incluye triggers para auditoría. Para que el campo `changed_by` registre al usuario, las operaciones deben propagar la información del usuario validado (desde el JWT) al crear/actualizar registros.
-        - Seguridad: en producción gestione `JWT_SECRET` con un gestor de secretos (Secret Manager, Vault) y considere mecanismos adicionales para invalidación inmediata de access tokens (blacklist con Redis o uso de `jti` más corto).
-
-        Contacto
-        -------
-        Para dudas o mejoras, abra un issue o contacte al equipo backend.
-
-        Licencia
-        -------
-        Código y configuración interna del proyecto.
