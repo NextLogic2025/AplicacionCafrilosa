@@ -31,7 +31,7 @@ export class RolesGuard implements CanActivate {
 
     // Support tokens that include a numeric `rolId` claim instead of role name
     // Map known role names to IDs used in `usuarios` DB. Ajusta los IDs si es necesario.
-    const ROLE_NAME_TO_ID: Record<string, number> = { admin: 1, supervisor: 2 };
+    const ROLE_NAME_TO_ID: Record<string, number> = { admin: 1, supervisor: 2, bodeguero: 3, vendedor: 4, transportista: 5, cliente: 6 };
     if (user.rolId && typeof user.rolId === 'number') {
       const neededIds = required
         .map((r) => ROLE_NAME_TO_ID[r])

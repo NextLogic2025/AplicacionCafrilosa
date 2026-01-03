@@ -24,17 +24,17 @@ export class PreciosService {
         // Si existe, actualizamos el precio
         precioEntidad.precio = dto.precio as any;
       } else {
-        // Si no existe, creamos el registro nuevo indicando las relaciones por id
+        // Si no existe, creamos el registro nuevo asignando las PK compuestas directamente
         precioEntidad = this.precioRepo.create({
-          producto: { id: dto.productoId } as any,
-          lista: { id: dto.listaId } as any,
+          producto_id: dto.productoId,
+          lista_id: dto.listaId,
           precio: dto.precio as any,
         } as Partial<PrecioItem>);
       }
 
       return await this.precioRepo.save(precioEntidad);
     } catch (err) {
-     // console.error('Error en PreciosService.asignarPrecio:', err);
+      console.error('Error en PreciosService.asignarPrecio:', err);
       throw new InternalServerErrorException('Error al asignar precio');
     }
   }
@@ -43,6 +43,13 @@ export class PreciosService {
   async obtenerPreciosDeProducto(productoId: string) {
     return this.precioRepo.find({
       where: { producto_id: productoId },
+      relations: ['lista'],
+    });
+  }
+
+  async obtenerPreciosDeProductoParaLista(productoId: string, listaId: number) {
+    return this.precioRepo.find({
+      where: { producto_id: productoId, lista_id: listaId },
       relations: ['lista'],
     });
   }

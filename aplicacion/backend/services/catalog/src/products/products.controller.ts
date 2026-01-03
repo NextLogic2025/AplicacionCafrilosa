@@ -12,11 +12,15 @@ export class ProductsController {
   constructor(private readonly svc: ProductsService) {}
 
   @Get()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'bodeguero')
   findAll() {
     return this.svc.findAll();
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'bodeguero')
   findOne(@Param('id') id: string) {
     return this.svc.findOne(id);
   }
