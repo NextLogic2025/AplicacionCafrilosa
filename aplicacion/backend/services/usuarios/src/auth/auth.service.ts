@@ -268,7 +268,7 @@ export class AuthService {
       throw new BadRequestException('Sólo se pueden desactivar usuarios con rol cliente');
     }
 
-    await this.usuarioRepo.update(usuarioId, { activo: false } as any);
+    await this.usuarioRepo.update(usuarioId, { activo: false } as Partial<Usuario>);
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 
@@ -281,7 +281,7 @@ export class AuthService {
       throw new BadRequestException('Sólo se pueden activar usuarios con rol cliente');
     }
 
-    await this.usuarioRepo.update(usuarioId, { activo: true } as any);
+    await this.usuarioRepo.update(usuarioId, { activo: true } as Partial<Usuario>);
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 

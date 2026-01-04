@@ -170,4 +170,10 @@ export class PreciosService {
       relations: ['lista'],
     });
   }
+
+  async removePrecio(listaId: number, productoId: string) {
+    const res = await this.precioRepo.delete({ lista_id: listaId, producto_id: productoId } as any);
+    if (res.affected && res.affected > 0) return { deleted: true };
+    throw new NotFoundException('Precio no encontrado');
+  }
 }
