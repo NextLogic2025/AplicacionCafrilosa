@@ -86,7 +86,10 @@ export const CatalogService = {
 
     // --- Products ---
     getProducts: async (): Promise<Product[]> => {
-        return apiRequest<Product[]>('/api/products')
+        // Backend now returns paginated response { items: [], metadata: {} }
+        // We request a large page size to support existing client-side filtering until server-side search is implemented.
+        const response: any = await apiRequest('/api/products?per_page=1000')
+        return response.items || response || []
     },
     createProduct: async (product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>('/api/products', {

@@ -7,6 +7,8 @@ import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModa
 import { UserService, UserProfile } from '../../../services/api/UserService'
 import { ClientService, Client } from '../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../services/api/PriceService'
+import { ZoneService, Zone } from '../../../services/api/ZoneService'
+import { AssignmentService } from '../../../services/api/AssignmentService'
 import { Ionicons } from '@expo/vector-icons'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericModal } from '../../../components/ui/GenericModal'
@@ -20,8 +22,12 @@ export function SupervisorClientFormScreen() {
 
     const [loading, setLoading] = useState(false)
     const [priceLists, setPriceLists] = useState<PriceList[]>([])
-    const [vendors, setVendors] = useState<UserProfile[]>([])
-    const [showVendorModal, setShowVendorModal] = useState(false)
+
+    // Zone & Vendor State
+    const [zones, setZones] = useState<Zone[]>([])
+    const [vendors, setVendors] = useState<UserProfile[]>([]) // We need this to look up vendor details
+    const [showZoneModal, setShowZoneModal] = useState(false)
+    const [inferredVendor, setInferredVendor] = useState<UserProfile | null>(null)
 
     // Feedback State
     const [feedbackVisible, setFeedbackVisible] = useState(false)
@@ -38,7 +44,7 @@ export function SupervisorClientFormScreen() {
         nombre: '',
         email: '',
         password: '',
-        rolId: 4 // Cliente role ID usually
+        rolId: 4 // Cliente role ID
     })
 
     // Client Data State
@@ -48,6 +54,7 @@ export function SupervisorClientFormScreen() {
         razon_social: '',
         nombre_comercial: '',
         lista_precios_id: 1, // Default to General
+        zona_comercial_id: null as number | null,
         vendedor_asignado_id: null as string | null,
         direccion_texto: '',
         tiene_credito: false,
@@ -55,8 +62,10 @@ export function SupervisorClientFormScreen() {
         dias_plazo: '0'
     })
 
+    // 1. Initial Load (Lists, Zones, Vendors)
     useEffect(() => {
-        loadPriceLists()
+        loadDependencies()
+
         if (isEditing && client) {
             setClientData({
                 identificacion: client.identificacion,
@@ -64,6 +73,7 @@ export function SupervisorClientFormScreen() {
                 razon_social: client.razon_social,
                 nombre_comercial: client.nombre_comercial || '',
                 lista_precios_id: client.lista_precios_id,
+                zona_comercial_id: client.zona_comercial_id || null,
                 vendedor_asignado_id: client.vendedor_asignado_id || null,
                 direccion_texto: client.direccion_texto || '',
                 tiene_credito: client.tiene_credito,
@@ -73,16 +83,57 @@ export function SupervisorClientFormScreen() {
         }
     }, [])
 
-    const loadPriceLists = async () => {
+    // 2. Inference Effect: When Zone changes, fetch/update Vendor
+    useEffect(() => {
+        const updateInferredVendor = async () => {
+            if (clientData.zona_comercial_id) {
+                // Determine who is the vendor for this zone
+                try {
+                    const assignments = await AssignmentService.getAssignmentsByZone(clientData.zona_comercial_id)
+                    const mainAssignment = assignments.find(a => a.es_principal)
+
+                    if (mainAssignment && mainAssignment.vendedor_usuario_id) {
+                        const vendorDetail = vendors.find(v => v.id === mainAssignment.vendedor_usuario_id)
+                        setInferredVendor(vendorDetail || null)
+
+                        // Auto-assign this vendor to the client data too
+                        setClientData(prev => ({
+                            ...prev,
+                            vendedor_asignado_id: mainAssignment.vendedor_usuario_id
+                        }))
+                    } else {
+                        // Zone has no vendor assigned
+                        setInferredVendor(null)
+                        setClientData(prev => ({ ...prev, vendedor_asignado_id: null }))
+                    }
+                } catch (e) {
+                    console.error("Error inferring vendor", e)
+                }
+            } else {
+                setInferredVendor(null)
+                setClientData(prev => ({ ...prev, vendedor_asignado_id: null }))
+            }
+        }
+
+        // Only run if vendors are loaded
+        if (vendors.length > 0) {
+            updateInferredVendor()
+        }
+    }, [clientData.zona_comercial_id, vendors])
+
+    const loadDependencies = async () => {
         try {
-            const [lists, vendorUsers] = await Promise.all([
+            const [lists, allZones, allVendors] = await Promise.all([
                 PriceService.getLists(),
+                ZoneService.getZones(),
                 UserService.getVendors()
             ])
             setPriceLists(lists.filter(l => l.activa))
-            setVendors(vendorUsers)
+            setZones(allZones)
+            setVendors(allVendors)
         } catch (error) {
             console.error(error)
+            showFeedback('error', 'Error de Carga', 'No se pudieron cargar las listas o zonas.')
         }
     }
 
@@ -95,6 +146,11 @@ export function SupervisorClientFormScreen() {
         // Validation
         if (!clientData.razon_social.trim() || !clientData.identificacion.trim()) {
             showFeedback('warning', 'Validación', 'Razón Social e Identificación son obligatorios.')
+            return
+        }
+
+        if (!clientData.zona_comercial_id) {
+            showFeedback('warning', 'Validación', 'Debes asignar una Zona Comercial al cliente.')
             return
         }
 
@@ -113,7 +169,7 @@ export function SupervisorClientFormScreen() {
                     email: userData.email,
                     password: userData.password,
                     nombre: userData.nombre || clientData.razon_social,
-                    rolId: 4 // Assuming 4 is 'cliente' role
+                    rolId: 4 // Cliente role ID
                 })
 
                 if (!userResponse.success || !userResponse.userId) {
@@ -130,8 +186,9 @@ export function SupervisorClientFormScreen() {
                 dias_plazo: parseInt(clientData.dias_plazo) || 0
             }
 
-            // Ensure lista_precios_id is a number
+            // Ensure numeric IDs
             payload.lista_precios_id = Number(payload.lista_precios_id)
+            if (payload.zona_comercial_id) payload.zona_comercial_id = Number(payload.zona_comercial_id)
 
             if (isEditing && client) {
                 await ClientService.updateClient(client.id, payload)
@@ -241,18 +298,45 @@ export function SupervisorClientFormScreen() {
                         <Text className="text-neutral-900 font-bold text-lg ml-2">Configuración</Text>
                     </View>
 
-                    <Text className="text-neutral-500 font-medium mb-1">Vendedor Asignado</Text>
+                    {/* Zone Selection (Primary) */}
+                    <Text className="text-neutral-500 font-medium mb-1">Zona Comercial</Text>
                     <TouchableOpacity
-                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-4 flex-row justify-between items-center"
-                        onPress={() => setShowVendorModal(true)}
+                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3 flex-row justify-between items-center"
+                        onPress={() => setShowZoneModal(true)}
                     >
-                        <Text className={clientData.vendedor_asignado_id ? "text-neutral-900" : "text-neutral-400"}>
-                            {clientData.vendedor_asignado_id
-                                ? vendors.find(v => v.id === clientData.vendedor_asignado_id)?.name || 'Vendedor no encontrado'
-                                : 'Seleccionar Vendedor'}
-                        </Text>
+                        <View>
+                            <Text className={clientData.zona_comercial_id ? "text-neutral-900 font-medium" : "text-neutral-400"}>
+                                {clientData.zona_comercial_id
+                                    ? zones.find(z => z.id === clientData.zona_comercial_id)?.nombre || 'Zona no encontrada'
+                                    : 'Seleccionar Zona'}
+                            </Text>
+                            {clientData.zona_comercial_id && (
+                                <Text className="text-xs text-neutral-400 mt-0.5">
+                                    {zones.find(z => z.id === clientData.zona_comercial_id)?.codigo}
+                                </Text>
+                            )}
+                        </View>
                         <Ionicons name="chevron-down" size={20} color="#9ca3af" />
                     </TouchableOpacity>
+
+                    {/* Inferred Vendor (Read Only) */}
+                    {clientData.zona_comercial_id && (
+                        <View className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 flex-row items-center">
+                            <Ionicons name="person" size={20} color="#2563EB" />
+                            <View className="ml-3 flex-1">
+                                <Text className="text-blue-800 text-xs font-bold uppercase mb-0.5">Vendedor Responsable</Text>
+                                <Text className="text-neutral-900 font-medium">
+                                    {inferredVendor ? inferredVendor.name : 'Zona Sin Vendedor Asignado'}
+                                </Text>
+                                {inferredVendor && (
+                                    <Text className="text-neutral-500 text-xs">{inferredVendor.email}</Text>
+                                )}
+                            </View>
+                            {!inferredVendor && (
+                                <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+                            )}
+                        </View>
+                    )}
 
                     <Text className="text-neutral-500 font-medium mb-2">Lista de Precios Asignada</Text>
                     <View className="mb-4">
@@ -320,47 +404,40 @@ export function SupervisorClientFormScreen() {
                 showCancel={feedbackConfig.showCancel}
             />
 
-            {/* Vendor Selection Modal */}
+            {/* Zone Selection Modal (Replaces Vendor Modal) */}
             <GenericModal
-                visible={showVendorModal}
-                title="Seleccionar Vendedor"
-                onClose={() => setShowVendorModal(false)}
+                visible={showZoneModal}
+                title="Seleccionar Zona Comercial"
+                onClose={() => setShowZoneModal(false)}
             >
                 <View className="h-64">
                     <GenericList
-                        items={vendors}
-                        renderItem={(item: UserProfile) => {
-                            const isSelected = clientData.vendedor_asignado_id === item.id
+                        items={zones}
+                        renderItem={(item: Zone) => {
+                            const isSelected = clientData.zona_comercial_id === item.id
                             return (
                                 <TouchableOpacity
                                     className={`p-3 mb-2 rounded-xl flex-row items-center justify-between border ${isSelected ? 'bg-red-50 border-red-200' : 'bg-white border-neutral-100'}`}
                                     onPress={() => {
-                                        setClientData(prev => ({ ...prev, vendedor_asignado_id: item.id }))
-                                        setShowVendorModal(false)
+                                        setClientData(prev => ({ ...prev, zona_comercial_id: item.id }))
+                                        setShowZoneModal(false)
                                     }}
                                 >
                                     <View className="flex-row items-center flex-1">
-                                        {/* Avatar / Placeholder */}
                                         <View className={`w-10 h-10 rounded-full mr-3 items-center justify-center ${isSelected ? 'bg-red-100' : 'bg-neutral-100'}`}>
-                                            <Text className={`font-bold text-lg ${isSelected ? 'text-red-600' : 'text-neutral-500'}`}>
-                                                {item.name.charAt(0).toUpperCase()}
-                                            </Text>
+                                            <Ionicons name="map" size={18} color={isSelected ? BRAND_COLORS.red : '#9CA3AF'} />
                                         </View>
 
                                         <View className="flex-1">
                                             <Text className={`font-semibold text-base ${isSelected ? 'text-neutral-900' : 'text-neutral-700'}`}>
-                                                {item.name}
+                                                {item.nombre}
                                             </Text>
-                                            <Text className="text-neutral-500 text-xs">{item.email}</Text>
+                                            <Text className="text-neutral-500 text-xs">{item.ciudad} • {item.codigo}</Text>
                                         </View>
                                     </View>
 
-                                    {isSelected ? (
-                                        <View className="w-6 h-6 rounded-full bg-red-500 items-center justify-center">
-                                            <Ionicons name="checkmark" size={14} color="white" />
-                                        </View>
-                                    ) : (
-                                        <View className="w-6 h-6 rounded-full border border-neutral-300" />
+                                    {isSelected && (
+                                        <Ionicons name="checkmark-circle" size={24} color={BRAND_COLORS.red} />
                                     )}
                                 </TouchableOpacity>
                             )
@@ -368,9 +445,9 @@ export function SupervisorClientFormScreen() {
                         isLoading={false}
                         onRefresh={() => { }}
                         emptyState={{
-                            icon: 'people-outline',
-                            title: 'Sin Vendedores',
-                            message: 'No se encontraron usuarios con rol Vendedor.'
+                            icon: 'map-outline',
+                            title: 'Sin Zonas',
+                            message: 'No existen zonas comerciales activas.'
                         }}
                     />
                 </View>

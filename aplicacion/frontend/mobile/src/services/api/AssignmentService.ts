@@ -9,6 +9,7 @@ export interface Allocation {
     es_principal: boolean
     // Optional expanded info if backend joins
     vendedor?: UserProfile
+    nombre_vendedor_cache?: string
 }
 
 export interface AssignVendorPayload {
@@ -16,20 +17,30 @@ export interface AssignVendorPayload {
     vendedor_usuario_id: string
     es_principal?: boolean
     fecha_inicio?: string
+    nombre_vendedor_cache?: string
 }
 
 export const AssignmentService = {
     getAssignmentsByZone: async (zoneId: number): Promise<Allocation[]> => {
         try {
-            // BACKEND WORKAROUND: Endpoint /asignacion returns ALL records (does not filter by query param).
-            // We must filter client-side to find assignments for THIS zone.
-            const allAssignments = await apiRequest<Allocation[]>('/api/asignacion')
+            // BACKEND WORKAROUND: Endpoint /asignacion returns ALL records.
+            const allAssignments = await AssignmentService.getAllAssignments()
             return allAssignments.filter(a => Number(a.zona_id) === Number(zoneId))
         } catch (error) {
-            console.error('Error fetching assignments:', error)
+            console.error('Error fetching assignments by zone:', error)
             return []
         }
     },
+
+    getAllAssignments: async (): Promise<Allocation[]> => {
+        try {
+            return await apiRequest<Allocation[]>('/api/asignacion')
+        } catch (error) {
+            console.error('Error fetching all assignments:', error)
+            return []
+        }
+    },
+
 
     assignVendor: async (data: AssignVendorPayload): Promise<{ success: boolean; message?: string }> => {
         try {
@@ -37,8 +48,8 @@ export const AssignmentService = {
                 zona_id: Number(data.zona_id),
                 vendedor_usuario_id: String(data.vendedor_usuario_id),
                 es_principal: Boolean(data.es_principal ?? true),
-                // Optional: Provide start date if strictly required, but DB default is usually sufficient
-                // fecha_inicio: new Date().toISOString().split('T')[0]
+                fecha_inicio: new Date().toISOString().split('T')[0],
+                nombre_vendedor_cache: data.nombre_vendedor_cache || null
             }
 
             await apiRequest('/api/asignacion', {
@@ -57,7 +68,8 @@ export const AssignmentService = {
             const payload = {
                 zona_id: Number(data.zona_id),
                 vendedor_usuario_id: String(data.vendedor_usuario_id),
-                es_principal: Boolean(data.es_principal ?? true)
+                es_principal: Boolean(data.es_principal ?? true),
+                nombre_vendedor_cache: data.nombre_vendedor_cache || null
             }
 
             await apiRequest(`/api/asignacion/${id}`, {
@@ -67,8 +79,6 @@ export const AssignmentService = {
             return { success: true, message: 'Asignación actualizada correctamente' }
         } catch (error: any) {
             console.error('Error updating assignment:', error)
-            // Fallback: If 405 Method Not Allowed, maybe try PATCH? 
-            // But usually standard is PUT. We return false to handle it in UI.
             return { success: false, message: error.message || 'Error al actualizar asignación' }
         }
     },
@@ -80,7 +90,6 @@ export const AssignmentService = {
             })
             return { success: true, message: 'Asignación eliminada correctamente' }
         } catch (error: any) {
-            // We know backend restricts this to ADMIN, so this might fail for Supervisor unless specific backend rules change
             console.error('Error removing assignment:', error)
             return { success: false, message: error.message || 'Error al eliminar asignación' }
         }

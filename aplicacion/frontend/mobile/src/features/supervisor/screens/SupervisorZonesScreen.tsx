@@ -1,27 +1,54 @@
-
-import React, { useState, useEffect } from 'react'
+import React, { useState, useCallback } from 'react'
 import { View, TouchableOpacity, Text } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Header } from '../../../components/ui/Header'
 import { GenericList } from '../../../components/ui/GenericList'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { ZoneService, Zone } from '../../../services/api/ZoneService'
+import { AssignmentService } from '../../../services/api/AssignmentService'
+import { UserService } from '../../../services/api/UserService'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
 export function SupervisorZonesScreen() {
     const navigation = useNavigation<any>()
-    const [zones, setZones] = useState<Zone[]>([])
+    const [zones, setZones] = useState<any[]>([])
+    const [filteredZones, setFilteredZones] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
-    const [filteredZones, setFilteredZones] = useState<Zone[]>([])
 
-    const fetchZones = async () => {
+    const fetchData = async () => {
         setLoading(true)
         try {
-            const data = await ZoneService.getZones()
-            setZones(data)
-            setFilteredZones(data)
+            const [zonesData, assignmentsData, vendorsData] = await Promise.all([
+                ZoneService.getZones(),
+                AssignmentService.getAllAssignments(),
+                UserService.getVendors()
+            ])
+
+            // Create Vendor Lookup Map: ID -> Name
+            const vendorMap = new Map<string, string>()
+            vendorsData.forEach(v => vendorMap.set(v.id, v.name))
+
+            // Enhance Zones with Vendor Name
+            const enhancedZones = zonesData.map(zone => {
+                // Find principal assignment for this zone
+                const assignment = assignmentsData.find(a => Number(a.zona_id) === Number(zone.id) && a.es_principal)
+                let vendorName = null
+
+                if (assignment) {
+                    vendorName = assignment.nombre_vendedor_cache || vendorMap.get(assignment.vendedor_usuario_id) || 'Desconocido'
+                }
+
+                return {
+                    ...zone,
+                    vendorName
+                }
+            })
+
+            setZones(enhancedZones)
+            setFilteredZones(enhancedZones)
+
         } catch (error) {
             console.error(error)
         } finally {
@@ -29,11 +56,14 @@ export function SupervisorZonesScreen() {
         }
     }
 
-    useEffect(() => {
-        fetchZones()
-    }, [])
+    useFocusEffect(
+        useCallback(() => {
+            fetchData()
+        }, [])
+    )
 
-    useEffect(() => {
+    // Filter effect
+    React.useEffect(() => {
         if (!searchQuery) {
             setFilteredZones(zones)
         } else {
@@ -41,6 +71,7 @@ export function SupervisorZonesScreen() {
             const filtered = zones.filter(z =>
                 z.nombre.toLowerCase().includes(query) ||
                 z.codigo.toLowerCase().includes(query) ||
+                (z.vendorName && z.vendorName.toLowerCase().includes(query)) ||
                 (z.ciudad && z.ciudad.toLowerCase().includes(query))
             )
             setFilteredZones(filtered)
@@ -57,16 +88,16 @@ export function SupervisorZonesScreen() {
                         <SearchBar
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Buscar zona..."
+                            placeholder="Buscar zona, código o vendedor..."
                             onClear={() => setSearchQuery('')}
                         />
                     </View>
                     <TouchableOpacity
-                        className="w-12 h-12 rounded-xl items-center justify-center shadow-sm"
+                        className="w-12 h-12 rounded-xl items-center justify-center shadow-lg"
                         style={{ backgroundColor: BRAND_COLORS.red }}
                         onPress={() => navigation.navigate('SupervisorZoneDetail', { zone: null })}
                     >
-                        <Ionicons name="add" size={24} color="white" />
+                        <Ionicons name="add" size={28} color="white" />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -75,26 +106,51 @@ export function SupervisorZonesScreen() {
                 <GenericList
                     items={filteredZones}
                     isLoading={loading}
-                    onRefresh={fetchZones}
-                    renderItem={(item: Zone) => (
+                    onRefresh={fetchData}
+                    renderItem={(item: any) => (
                         <TouchableOpacity
-                            className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 flex-row items-center shadow-sm"
+                            className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 flex-row items-center shadow-sm active:bg-neutral-50"
                             onPress={() => navigation.navigate('SupervisorZoneDetail', { zone: item })}
                         >
-                            <View className="w-12 h-12 rounded-full bg-blue-50 items-center justify-center mr-4">
-                                <Ionicons name="map-outline" size={24} color={'#3b82f6'} />
+                            {/* Icon Container */}
+                            <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${item.vendorName ? 'bg-blue-50' : 'bg-neutral-100'}`}>
+                                <Ionicons
+                                    name={item.vendorName ? "map" : "map-outline"}
+                                    size={24}
+                                    color={item.vendorName ? '#3b82f6' : '#9ca3af'}
+                                />
                             </View>
+
+                            {/* Content */}
                             <View className="flex-1">
-                                <Text className="font-bold text-neutral-900 text-base">{item.nombre}</Text>
-                                <Text className="text-neutral-500 text-sm">Código: {item.codigo} • {item.ciudad || 'N/A'}</Text>
+                                <View className="flex-row justify-between items-center mb-1">
+                                    <Text className="font-bold text-neutral-900 text-base flex-1 mr-2" numberOfLines={1}>{item.nombre}</Text>
+                                    <View className="bg-neutral-100 px-2 py-0.5 rounded-md">
+                                        <Text className="text-xs font-bold text-neutral-500">{item.codigo}</Text>
+                                    </View>
+                                </View>
+
+                                <Text className="text-neutral-500 text-xs mb-1">
+                                    <Ionicons name="location-outline" size={12} color="#6b7280" /> {item.ciudad || 'Sin ciudad'}
+                                </Text>
+
+                                {item.vendorName ? (
+                                    <View className="flex-row items-center mt-1">
+                                        <Ionicons name="person-circle-outline" size={14} color="#2563EB" />
+                                        <Text className="text-blue-600 text-xs font-bold ml-1">{item.vendorName}</Text>
+                                    </View>
+                                ) : (
+                                    <Text className="text-neutral-400 text-xs italic mt-1">Sin Vendedor Asignado</Text>
+                                )}
                             </View>
-                            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+
+                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" style={{ marginLeft: 8 }} />
                         </TouchableOpacity>
                     )}
                     emptyState={{
                         icon: 'map-outline',
                         title: 'Sin Resultados',
-                        message: 'No se encontraron zonas con el filtro actual.'
+                        message: 'No se encontraron zonas coinciden con tu búsqueda.'
                     }}
                 />
             </View>

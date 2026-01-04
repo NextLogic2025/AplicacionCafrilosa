@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { useNavigation as useReactNavigation } from '@react-navigation/native'
 import React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { navigationRef } from '../../navigation/navigationRef'
 
 type HeaderProps = {
   userName?: string
@@ -47,25 +47,17 @@ export function Header({
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
 
-  // Safe navigation retrieval
-  let navigation: any | undefined
-  try {
-    navigation = useReactNavigation()
-  } catch (e) {
-    // Context might be missing during initial value
-    console.warn('[Header] Navigation context missing')
-  }
+  // Removed unsafe useNavigation hook usage which caused crashes when context was lost/unavailable.
+  // We now use global navigationRef for navigation actions, or the onBackPress prop.
 
   const isStandard = variant === 'standard' || !!title
 
   const handleNotificationPress = () => {
     if (onNotificationPress) {
       onNotificationPress()
-    } else if (notificationRoute && navigation) {
-      try {
-        navigation.navigate(notificationRoute)
-      } catch (e) {
-        console.warn('[Header] Navigation navigate error:', e)
+    } else if (notificationRoute) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate(notificationRoute as never);
       }
     }
   }

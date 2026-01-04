@@ -357,7 +357,7 @@ export function SupervisorProductFormScreen() {
                     </View>
                 </View>
 
-                {/* 3. Estrategia de Precios (NUEVO) */}
+                {/* 3. Estrategia de Precios*/}
                 <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
                     <View className="flex-row items-center justify-between mb-4">
                         <View>
