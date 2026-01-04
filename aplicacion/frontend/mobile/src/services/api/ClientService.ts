@@ -1,37 +1,66 @@
-import { delay } from '../../utils/delay'
+import { env } from '../../config/env'
+import { apiRequest } from './client'
 
 export interface Client {
     id: string
-    name: string
-    businessName: string
-    ruc: string
-    address: string
-    phone: string
-    zone: string
-    category: 'A' | 'B' | 'C' // Commercial category
-    status: 'active' | 'blocked' | 'pending_approval' // Prospects
-    creditLimit: number
-    creditUsed: number
+    usuario_principal_id?: string
+    identificacion: string
+    tipo_identificacion: 'RUC' | 'CEDULA' | 'PASAPORTE'
+    razon_social: string
+    nombre_comercial?: string
+    lista_precios_id: number
+    zona_comercial_id?: number
+    tiene_credito: boolean
+    limite_credito: number
+    saldo_actual: number
+    dias_plazo: number
+    bloqueado: boolean
+    direccion_texto?: string
+    vendedor_asignado_id?: string | null
+    // Add other fields as needed
+}
 
-    // Details for Seller
-    outstandingBalance: number
-    lastOrders?: {
-        id: string
-        date: string
-        total: number
-        status: string
-    }[]
-    paymentStatus?: 'up_to_date' | 'overdue' // Informativo
+export interface CreateClientPayload {
+    usuario_principal_id: string
+    identificacion: string
+    tipo_identificacion: string
+    razon_social: string
+    nombre_comercial: string
+    lista_precios_id: number
+    direccion_texto: string
+    zona_comercial_id?: number
+    vendedor_asignado_id?: string | null
+    tiene_credito?: boolean
+    limite_credito?: number
+    dias_plazo?: number
 }
 
 export const ClientService = {
-    async getMyClients(search?: string): Promise<Client[]> {
-        await delay(600)
-        return [] // Backend ready
+    getClients: async (): Promise<Client[]> => {
+        return apiRequest<Client[]>('/api/clientes')
     },
 
-    async getClientDetails(id: string): Promise<Client | null> {
-        await delay(300)
-        return null
+    getClient: async (id: string): Promise<Client> => {
+        return apiRequest<Client>(`/api/clientes/${id}`)
+    },
+
+    createClient: async (client: CreateClientPayload): Promise<Client> => {
+        return apiRequest<Client>('/api/clientes', {
+            method: 'POST',
+            body: JSON.stringify(client)
+        })
+    },
+
+    updateClient: async (id: string, client: Partial<Client>): Promise<Client> => {
+        return apiRequest<Client>(`/api/clientes/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(client)
+        })
+    },
+
+    deleteClient: async (id: string): Promise<void> => {
+        return apiRequest<void>(`/api/clientes/${id}`, {
+            method: 'DELETE'
+        })
     }
 }

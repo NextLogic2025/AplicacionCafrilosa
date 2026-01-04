@@ -1,25 +1,57 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, Switch, TextInput } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
 import { GenericList } from '../../../components/ui/GenericList'
+import { PriceService, PriceList } from '../../../services/api/PriceService'
+import { SearchBar } from '../../../components/ui/SearchBar'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { CatalogService, PriceList } from '../../../services/api/CatalogService'
+import { GenericModal } from '../../../components/ui/GenericModal'
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
 export function SupervisorPriceListsScreen() {
     const navigation = useNavigation()
     const [lists, setLists] = useState<PriceList[]>([])
     const [loading, setLoading] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+
+    // Modal State
+    const [modalVisible, setModalVisible] = useState(false)
+    const [processing, setProcessing] = useState(false)
+    const [editingList, setEditingList] = useState<PriceList | null>(null)
+
+    // Form State
+    const [listName, setListName] = useState('')
+    const [isActive, setIsActive] = useState(true)
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
+
+    const showFeedback = (type: FeedbackType, title: string, message: string, onConfirm?: () => void, showCancel = false) => {
+        setFeedbackConfig({ type, title, message, onConfirm, showCancel })
+        setFeedbackVisible(true)
+    }
 
     const fetchLists = async () => {
         setLoading(true)
         try {
-            const data = await CatalogService.getPriceLists()
+            const data = await PriceService.getLists()
             setLists(data)
         } catch (error) {
             console.error(error)
-            Alert.alert('Error', 'No se pudieron cargar las listas de precios.')
+            showFeedback('error', 'Error', 'No se pudieron cargar las listas de precios.')
         } finally {
             setLoading(false)
         }
@@ -29,11 +61,95 @@ export function SupervisorPriceListsScreen() {
         fetchLists()
     }, [])
 
+    const handleOpenCreate = () => {
+        setEditingList(null)
+        setListName('')
+        setIsActive(true)
+        setModalVisible(true)
+    }
+
+    const handleOpenEdit = (item: PriceList) => {
+        setEditingList(item)
+        setListName(item.nombre)
+        setIsActive(item.activa)
+        setModalVisible(true)
+    }
+
+    const handleSave = async () => {
+        if (!listName.trim()) {
+            showFeedback('warning', 'Validación', 'El nombre de la lista es obligatorio.')
+            return
+        }
+        setProcessing(true)
+        try {
+            if (editingList) {
+                // Update
+                const updated = await PriceService.updateList(editingList.id, {
+                    nombre: listName,
+                    activa: isActive
+                })
+                setLists(prev => prev.map(l => l.id === updated.id ? updated : l))
+                setModalVisible(false) // Close modal first
+                setTimeout(() => {
+                    showFeedback('success', 'Éxito', 'Lista actualizada correctamente')
+                }, 300)
+            } else {
+                // Create
+                const newList = await PriceService.createList({
+                    nombre: listName,
+                    activa: isActive,
+                    moneda: 'USD'
+                })
+                setLists(prev => [...prev, newList])
+                setModalVisible(false)
+                setTimeout(() => {
+                    showFeedback('success', 'Éxito', 'Lista creada correctamente')
+                }, 300)
+            }
+        } catch (error: any) {
+            console.error(error)
+            showFeedback('error', 'Error', error.message || 'No se pudo guardar la lista.')
+        } finally {
+            setProcessing(false)
+        }
+    }
+
+    const handleDelete = (item: PriceList) => {
+        if (item.nombre.toLowerCase() === 'general') {
+            showFeedback('warning', 'Restricción', 'La lista General no se puede eliminar porque es fundamental para el sistema.')
+            return
+        }
+
+        showFeedback(
+            'warning',
+            'Eliminar Lista',
+            `¿Estás seguro de eliminar la lista "${item.nombre}"? Esto podría afectar a los productos asociados.`,
+            async () => {
+                try {
+                    setLoading(true)
+                    await PriceService.deleteList(item.id)
+                    setLists(prev => prev.filter(l => l.id !== item.id))
+                    showFeedback('success', 'Eliminado', 'La lista se ha eliminado correctamente.')
+                } catch (error) {
+                    showFeedback('error', 'Error', 'No se pudo eliminar la lista.')
+                } finally {
+                    setLoading(false)
+                }
+            },
+            true // Show cancel button
+        )
+    }
+
+    const filteredLists = lists.filter(l =>
+        l.nombre.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
     const renderItem = (item: PriceList) => (
         <TouchableOpacity
             className="flex-row items-center bg-white p-4 mb-3 rounded-xl shadow-sm border border-neutral-100"
             activeOpacity={0.7}
-            onPress={() => Alert.alert('Detalle', `Lista: ${item.nombre}`)}
+            onPress={() => handleOpenEdit(item)}
+            onLongPress={() => handleDelete(item)}
         >
             <View className="w-12 h-12 bg-amber-50 rounded-lg items-center justify-center mr-4">
                 <Ionicons name="pricetag-outline" size={24} color="#D97706" />
@@ -42,38 +158,134 @@ export function SupervisorPriceListsScreen() {
                 <Text className="font-bold text-neutral-900 text-lg">{item.nombre}</Text>
                 <Text className="text-neutral-500 text-sm">Moneda: {item.moneda || 'USD'}</Text>
             </View>
-            <View className={`px-2 py-1 rounded-md ${item.activa ? 'bg-green-100' : 'bg-neutral-100'}`}>
+            <View className={`px-2 py-1 rounded-md ml-2 ${item.activa ? 'bg-green-100' : 'bg-neutral-100'}`}>
                 <Text className={`text-[10px] font-bold uppercase ${item.activa ? 'text-green-700' : 'text-neutral-400'}`}>
                     {item.activa ? 'Activa' : 'Inactiva'}
                 </Text>
             </View>
+            <TouchableOpacity
+                onPress={() => handleDelete(item)}
+                className="p-2 ml-2"
+            >
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
         </TouchableOpacity>
     )
 
+    // Suggestions for new lists
+    const SUGGESTIONS = ['Mayorista', 'Horeca', 'Minorista']
+
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header title="Listas de Precios" variant="standard" onBackPress={() => navigation.goBack()} />
+            <Header title="Gestión de Listas" variant="standard" onBackPress={() => navigation.goBack()} />
 
-            <GenericList
-                items={lists}
-                isLoading={loading}
-                onRefresh={fetchLists}
-                renderItem={renderItem}
-                emptyState={{
-                    icon: 'pricetags-outline',
-                    title: 'Sin Listas',
-                    message: 'No hay listas de precios configuradas.'
-                }}
-            />
+            <View className="px-5 py-4 bg-white shadow-sm z-10 mb-2 flex-row items-center">
+                <View className="flex-1">
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Buscar lista..."
+                        onClear={() => setSearchQuery('')}
+                    />
+                </View>
+                <TouchableOpacity
+                    className="ml-3 rounded-xl items-center justify-center px-5 h-12 shadow-sm"
+                    onPress={handleOpenCreate}
+                    style={{ backgroundColor: BRAND_COLORS.red || '#EF4444' }}
+                >
+                    <Text className="text-white font-bold text-base">Crear</Text>
+                </TouchableOpacity>
+            </View>
 
-            {/* FAB for Add */}
-            <TouchableOpacity
-                className="absolute bottom-6 right-6 w-14 h-14 bg-brand-red rounded-full items-center justify-center shadow-lg shadow-red-500/40 z-50 elevation-5"
-                onPress={() => Alert.alert('Nuevo', 'Crear Lista (Implementar Formulario)')}
-                style={{ position: 'absolute', bottom: 30, right: 30 }}
+            <View className="flex-1 px-5 mt-2">
+                <GenericList
+                    items={filteredLists}
+                    isLoading={loading}
+                    onRefresh={fetchLists}
+                    renderItem={renderItem}
+                    emptyState={{
+                        icon: 'pricetags-outline',
+                        title: 'Sin Listas',
+                        message: 'No hay listas de precios configuradas.'
+                    }}
+                />
+            </View>
+
+            {/* Create/Edit Modal */}
+            <GenericModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                title={editingList ? "Editar Lista" : "Nueva Lista"}
             >
-                <Ionicons name="add" size={30} color="white" />
-            </TouchableOpacity>
+                <View className="w-full">
+                    <Text className="text-neutral-600 mb-2 font-medium">Nombre de la Lista</Text>
+
+                    <TextInput
+                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900 mb-3 text-lg"
+                        placeholder="Ej. Distribuidor A"
+                        value={listName}
+                        onChangeText={setListName}
+                    />
+
+                    {/* Suggestions (Only show provided suggestions if creating or name is empty) */}
+                    {!editingList && (
+                        <View className="flex-row flex-wrap gap-2 mb-4">
+                            {SUGGESTIONS.map((option) => (
+                                <TouchableOpacity
+                                    key={option}
+                                    onPress={() => setListName(option)}
+                                    className={`px-3 py-1.5 rounded-full border ${listName === option
+                                        ? 'bg-red-50 border-red-500'
+                                        : 'bg-white border-neutral-200'
+                                        }`}
+                                >
+                                    <Text
+                                        className={`text-xs font-medium ${listName === option ? 'text-red-600' : 'text-neutral-600'
+                                            }`}
+                                    >
+                                        {option}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
+                    <View className="flex-row items-center justify-between bg-neutral-50 p-3 rounded-xl mb-6 border border-neutral-200">
+                        <View>
+                            <Text className="text-neutral-700 font-medium">Estado Activo</Text>
+                            <Text className="text-neutral-400 text-xs">Visible para asignar precios</Text>
+                        </View>
+                        <Switch
+                            value={isActive}
+                            onValueChange={setIsActive}
+                            trackColor={{ false: "#d1d5db", true: "#22c55e" }}
+                            thumbColor={isActive ? "#ffffff" : "#f4f3f4"}
+                        />
+                    </View>
+
+                    <TouchableOpacity
+                        className={`w-full py-4 rounded-xl items-center shadow-sm ${processing ? 'opacity-70' : ''}`}
+                        style={{ backgroundColor: BRAND_COLORS.red }}
+                        onPress={handleSave}
+                        disabled={processing}
+                    >
+                        <Text className="text-white font-bold text-base">
+                            {processing ? 'Guardando...' : 'Guardar Lista'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </GenericModal>
+
+            {/* Feedback Modal */}
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+            />
         </View>
     )
 }

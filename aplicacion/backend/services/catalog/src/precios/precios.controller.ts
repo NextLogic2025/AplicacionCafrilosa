@@ -9,14 +9,26 @@ import { ClientesService } from '../clientes/clientes.service';
 import { PreciosService } from './precios.service';
 import { AsignarPrecioDto } from './dto/asignar-precio.dto';
 
+import { IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+
 // Minimal DTO for listas
 class ListaDto {
+  @IsString()
+  @IsNotEmpty()
   nombre: string;
+
+  @IsBoolean()
+  @IsOptional()
+  activa?: boolean;
+
+  @IsString()
+  @IsOptional()
+  moneda?: string;
 }
 
 @Controller('precios')
 export class PreciosController {
-  constructor(private readonly preciosService: PreciosService, private readonly clientesService: ClientesService) {}
+  constructor(private readonly preciosService: PreciosService, private readonly clientesService: ClientesService) { }
 
   // POST /precios -> Para guardar o actualizar un precio individual
   @Post()

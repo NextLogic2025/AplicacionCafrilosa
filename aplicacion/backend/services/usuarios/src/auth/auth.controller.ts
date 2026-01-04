@@ -19,7 +19,7 @@ type AuthRequest = Request & { user?: JwtUser };
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('registro')
   registrar(@Body() dto: CreateUsuarioDto) {

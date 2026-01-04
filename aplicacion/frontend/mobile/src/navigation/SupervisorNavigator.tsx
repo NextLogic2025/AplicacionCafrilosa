@@ -9,10 +9,12 @@ import { SupervisorDashboardScreen } from '../features/supervisor/screens/Superv
 import { SupervisorOrdersScreen } from '../features/supervisor/screens/SupervisorOrdersScreen'
 import { SupervisorDeliveriesScreen } from '../features/supervisor/screens/SupervisorDeliveriesScreen'
 import { SupervisorTeamScreen } from '../features/supervisor/screens/SupervisorTeamScreen'
+import { SupervisorTeamDetailScreen } from '../features/supervisor/screens/SupervisorTeamDetailScreen'
 import { SupervisorProfileScreen } from '../features/supervisor/screens/SupervisorProfileScreen'
 import { ExpandableFab } from '../components/ui/ExpandableFab'
 
 import { SupervisorClientsScreen } from '../features/supervisor/screens/SupervisorClientsScreen'
+import { SupervisorClientFormScreen } from '../features/supervisor/screens/SupervisorClientFormScreen'
 import { SupervisorWarehouseScreen } from '../features/supervisor/screens/SupervisorWarehouseScreen'
 import { SupervisorReturnsScreen } from '../features/supervisor/screens/SupervisorReturnsScreen'
 import { SupervisorReportsScreen } from '../features/supervisor/screens/SupervisorReportsScreen'
@@ -110,6 +112,9 @@ export function SupervisorNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="SupervisorTabs" component={SupervisorTabs} />
             <Stack.Screen name="SupervisorClients" component={SupervisorClientsScreen} />
+            <Stack.Screen name="SupervisorClientForm" component={SupervisorClientFormScreen} />
+            <Stack.Screen name="SupervisorTeam" component={SupervisorTeamScreen} />
+            <Stack.Screen name="SupervisorTeamDetail" component={SupervisorTeamDetailScreen} />
             <Stack.Screen name="SupervisorWarehouse" component={SupervisorWarehouseScreen} />
             <Stack.Screen name="SupervisorReturns" component={SupervisorReturnsScreen} />
             <Stack.Screen name="SupervisorReports" component={SupervisorReportsScreen} />

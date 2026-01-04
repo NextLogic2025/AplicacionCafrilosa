@@ -22,7 +22,7 @@ export class AuthService {
     @InjectRepository(Dispositivo) private dispositivoRepo: Repository<Dispositivo>,
     @InjectRepository(AuthAuditoria) private auditoriaRepo: Repository<AuthAuditoria>,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async registro(dto: CreateUsuarioDto) {
     const existe = await this.usuarioRepo.findOne({ where: { email: dto.email } });

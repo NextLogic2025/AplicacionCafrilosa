@@ -1,13 +1,12 @@
 import { env } from '../../config/env'
-import { getValidToken, signOut } from '../auth/authClient'
-import { resetToLogin } from '../../navigation/navigationRef'
+import { apiRequest } from './client'
 
 export interface Category {
     id: number
     nombre: string
     descripcion?: string
     imagen_url?: string
-    activo: boolean
+    activo?: boolean
 }
 
 export interface Product {
@@ -16,12 +15,13 @@ export interface Product {
     nombre: string
     descripcion?: string
     categoria_id?: number
-    peso_unitario_kg: number
+    peso_unitario_kg?: number
     volumen_m3?: number
-    requiere_frio: boolean
-    unidad_medida: string
+    requiere_frio?: boolean
+    unidad_medida?: string
     imagen_url?: string
     activo: boolean
+    // ... possibly other fields
 }
 
 export interface PriceList {
@@ -62,18 +62,20 @@ export interface AuditLog {
 export const CatalogService = {
     // --- Categories ---
     getCategories: async (): Promise<Category[]> => {
-        return apiRequest<Category[]>('/api/categories')
-    },
-    createCategory: async (category: Partial<Category>): Promise<Category> => {
-        return apiRequest<Category>('/api/categories', {
-            method: 'POST',
-            body: JSON.stringify(category)
+        return apiRequest<Category[]>('/api/categories', {
+            useIdInsteadOfNumber: false // categories use number ID
         })
     },
-    updateCategory: async (id: number, category: Partial<Category>): Promise<Category> => {
+    createCategory: async (data: Partial<Category>): Promise<Category> => {
+        return apiRequest<Category>('/api/categories', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        })
+    },
+    updateCategory: async (id: number, data: Partial<Category>): Promise<Category> => {
         return apiRequest<Category>(`/api/categories/${id}`, {
             method: 'PUT',
-            body: JSON.stringify(category)
+            body: JSON.stringify(data)
         })
     },
     deleteCategory: async (id: number): Promise<void> => {
@@ -104,10 +106,7 @@ export const CatalogService = {
         })
     },
 
-    // --- Price Lists ---
-    getPriceLists: async (): Promise<PriceList[]> => {
-        return apiRequest<PriceList[]>('/api/prices/lists')
-    },
+
 
     // --- Promotions ---
     getPromotions: async (): Promise<Promotion[]> => {
@@ -137,41 +136,4 @@ export const CatalogService = {
     }
 }
 
-// Helper genérico para peticiones usando la base url y token
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    try {
-        const token = await getValidToken()
-        console.log(`[CatalogService] Token for ${endpoint}:`, token ? `Exists (${token.substring(0, 10)}...)` : 'MISSING')
 
-        const headers = {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...options.headers,
-        }
-
-        // Se usa la URL específica del servicio de catálogo
-        const response = await fetch(`${env.api.catalogUrl}${endpoint}`, {
-            ...options,
-            headers,
-        })
-
-        if (!response.ok) {
-            if (response.status === 401) {
-                console.warn('[CatalogService] 401 Unauthorized - Redirecting to Login')
-                await signOut()
-                resetToLogin()
-                // Stop further execution or throw a specific error that components can ignore
-                throw new Error('SESSION_EXPIRED')
-            }
-            const errorBody = await response.text()
-            throw new Error(`API Error ${response.status}: ${errorBody}`)
-        }
-
-        return await response.json() as T
-    } catch (error: any) {
-        if (error?.message !== 'SESSION_EXPIRED') {
-            console.error(`CatalogService Error [${endpoint}]:`, error)
-        }
-        throw error
-    }
-}

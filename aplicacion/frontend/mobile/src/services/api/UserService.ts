@@ -1,6 +1,5 @@
 import { env } from '../../config/env'
-import { getValidToken, signOut } from '../auth/authClient'
-import { resetToLogin } from '../../navigation/navigationRef'
+import { apiRequest } from './client'
 
 export interface UserProfile {
     id: string
@@ -14,26 +13,9 @@ export interface UserProfile {
 export const UserService = {
     getProfile: async (): Promise<UserProfile | null> => {
         try {
-            const token = await getValidToken()
-            if (!token) return null
+            // Using full URL to override default catalogUrl in client
+            const data = await apiRequest<any>(`${env.api.baseUrl}/auth/me`)
 
-            const response = await fetch(`${env.api.baseUrl}/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    console.warn('[UserService] 401 Unauthorized - Redirecting to Login')
-                    await signOut()
-                    resetToLogin()
-                    return null
-                }
-                throw new Error('Failed to fetch profile')
-            }
-
-            const data = await response.json()
             return {
                 id: data.id,
                 name: data.nombre,
@@ -48,48 +30,29 @@ export const UserService = {
         }
     },
 
-    createUser: async (userData: CreateUserPayload): Promise<{ success: boolean; message?: string }> => {
+    createUser: async (userData: CreateUserPayload): Promise<{ success: boolean; message?: string; userId?: string }> => {
         try {
-            // Not authentication required for registration endpoint? usually public but here using it as admin tool
-            // If backend requires AUTH for this endpoint we'd add header.
-            // Based on analysis, /auth/registro is PUBLIC.
-
-            const response = await fetch(`${env.api.baseUrl}/auth/registro`, {
+            const response = await apiRequest<any>(`${env.api.baseUrl}/auth/registro`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify(userData)
             })
 
-            const data = await response.json()
-
-            if (!response.ok) {
-                return { success: false, message: data.message || 'Error al crear usuario' }
+            return {
+                success: true,
+                message: 'Usuario creado exitosamente',
+                userId: response.id || response.userId // Handling potential response variations
             }
-
-            return { success: true, message: 'Usuario creado exitosamente' }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating user:', error)
-            return { success: false, message: 'Error de red al crear usuario' }
+            return { success: false, message: error.message || 'Error de red al crear usuario' }
         }
     },
 
     getUsers: async (): Promise<UserProfile[]> => {
         try {
-            // Future-proof: This endpoint DOES NOT EXIST yet. It will 404.
-            // Frontend will handle the empty/error state.
-            const token = await getValidToken()
-            if (!token) return []
+            // Correct endpoint is /auth/usuarios
+            const data = await apiRequest<any[]>(`${env.api.baseUrl}/auth/usuarios`)
 
-            const response = await fetch(`${env.api.baseUrl}/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-
-            if (!response.ok) return []
-
-            const data = await response.json()
-            // Map hypothetical backend response to UserProfile
             return data.map((u: any) => ({
                 id: u.id,
                 name: u.nombre,
@@ -99,8 +62,51 @@ export const UserService = {
                 photoUrl: u.avatarUrl
             }))
         } catch (error) {
-            console.warn('Backend for getUsers not ready yet')
+            console.error('Error fetching users:', error)
             return []
+        }
+    },
+
+    getVendors: async (): Promise<UserProfile[]> => {
+        try {
+            const data = await apiRequest<any[]>(`${env.api.baseUrl}/auth/vendedores`)
+
+            return data.map((u: any) => ({
+                id: u.id,
+                name: u.nombre,
+                role: u.rol?.nombre || 'Vendedor',
+                email: u.email,
+                phone: u.telefono || '',
+                photoUrl: u.avatarUrl
+            }))
+        } catch (error) {
+            console.error('Error fetching vendors:', error)
+            return []
+        }
+    },
+
+    updateUser: async (userId: string, data: Partial<{ nombre: string; activo: boolean; rolId: number }>): Promise<{ success: boolean; message?: string }> => {
+        try {
+            await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data)
+            })
+            return { success: true, message: 'Usuario actualizado correctamente' }
+        } catch (error: any) {
+            console.error('Error updating user:', error)
+            return { success: false, message: error.message || 'Error al actualizar usuario' }
+        }
+    },
+
+    deleteUser: async (userId: string): Promise<{ success: boolean; message?: string }> => {
+        try {
+            await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}`, {
+                method: 'DELETE'
+            })
+            return { success: true, message: 'Usuario eliminado correctamente' }
+        } catch (error: any) {
+            console.error('Error deleting user:', error)
+            return { success: false, message: error.message || 'Error al eliminar usuario' }
         }
     }
 }

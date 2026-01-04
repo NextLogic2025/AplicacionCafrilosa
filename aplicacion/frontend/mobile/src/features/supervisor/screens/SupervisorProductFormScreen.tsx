@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react'
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
+import React, { useState, useEffect, useCallback } from 'react'
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native'
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
 import { GenericModal } from '../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 import { CatalogService, Category } from '../../../services/api/CatalogService'
+import { PriceService, PriceList } from '../../../services/api/PriceService'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import type { RootStackParamList } from '../../../navigation/types'
 
@@ -22,6 +23,10 @@ export function SupervisorProductFormScreen() {
     const [categories, setCategories] = useState<Category[]>([])
     const [categoryModalVisible, setCategoryModalVisible] = useState(false)
     const [selectedCategoryName, setSelectedCategoryName] = useState('')
+
+    // Price Management State
+    const [priceLists, setPriceLists] = useState<PriceList[]>([])
+    const [priceValues, setPriceValues] = useState<Record<number, string>>({})
 
     // Feedback State
     const [feedbackVisible, setFeedbackVisible] = useState(false)
@@ -50,8 +55,13 @@ export function SupervisorProductFormScreen() {
         active: true
     })
 
+    useFocusEffect(
+        useCallback(() => {
+            loadData()
+        }, [])
+    )
+
     useEffect(() => {
-        loadCategories()
         if (isEditing && params.product) {
             const p = params.product
             setForm({
@@ -66,6 +76,8 @@ export function SupervisorProductFormScreen() {
                 requiresCold: p.requiere_frio,
                 active: p.activo
             })
+            // Load existing prices separately if needed, or include in loadData
+            loadExistingPrices(p.id)
         }
     }, [isEditing, params.product])
 
@@ -76,17 +88,71 @@ export function SupervisorProductFormScreen() {
         }
     }, [categories, form.categoryId])
 
+    const loadData = async () => {
+        try {
+            const [cats, lists] = await Promise.all([
+                CatalogService.getCategories(),
+                PriceService.getLists()
+            ])
+            setCategories(cats)
+
+            // Sort: General first, then others alphabetically
+            const activeLists = lists.filter(l => l.activa).sort((a, b) => {
+                const isAGen = a.nombre.toLowerCase().includes('general')
+                const isBGen = b.nombre.toLowerCase().includes('general')
+                if (isAGen && !isBGen) return -1
+                if (!isAGen && isBGen) return 1
+                return a.nombre.localeCompare(b.nombre)
+            })
+            setPriceLists(activeLists)
+
+            if (isEditing && params.product) {
+                const p = params.product
+                setForm({
+                    nombre: p.nombre,
+                    sku: p.codigo_sku,
+                    description: p.descripcion || '',
+                    categoryId: p.categoria_id || 0,
+                    unit: p.unidad_medida || 'UNIDAD',
+                    weight: p.peso_unitario_kg?.toString() || '',
+                    volume: p.volumen_m3?.toString() || '',
+                    imageUrl: p.imagen_url || '',
+                    requiresCold: p.requiere_frio,
+                    active: p.activo
+                })
+
+                // Load existing prices
+                loadExistingPrices(p.id)
+            }
+        } catch (error) {
+            console.error('Failed to load initial data', error)
+        }
+    }
+
+    const loadExistingPrices = async (productId: string) => {
+        try {
+            const prices = await PriceService.getByProduct(productId)
+            const map: Record<number, string> = {}
+            prices.forEach((p: any) => {
+                if (p.lista_id) {
+                    map[p.lista_id] = p.precio.toString()
+                }
+            })
+            setPriceValues(map)
+        } catch (error) {
+            console.warn('Could not load prices for product', error)
+        }
+    }
+
     const showFeedback = (type: FeedbackType, title: string, message: string, onConfirm?: () => void, showCancel = false) => {
         setFeedbackConfig({ type, title, message, onConfirm, showCancel })
         setFeedbackVisible(true)
     }
 
-    const loadCategories = async () => {
-        try {
-            const data = await CatalogService.getCategories()
-            setCategories(data)
-        } catch (error) {
-            console.error('Failed to load categories', error)
+    const handlePriceChange = (listId: number, text: string) => {
+        // Validate numeric input
+        if (/^\d*\.?\d*$/.test(text)) {
+            setPriceValues(prev => ({ ...prev, [listId]: text }))
         }
     }
 
@@ -110,29 +176,53 @@ export function SupervisorProductFormScreen() {
         setLoading(true)
         try {
             const productData = {
-                nombre: form.nombre,
                 codigo_sku: form.sku,
+                nombre: form.nombre,
                 descripcion: form.description,
-                peso_unitario_kg: weightVal,
+                categoria_id: form.categoryId,
+                peso_unitario_kg: parseFloat(form.weight) || 0,
                 volumen_m3: parseFloat(form.volume) || 0,
-                requiere_frio: form.requiresCold,
                 unidad_medida: form.unit,
+                requiere_frio: form.requiresCold,
+                activo: form.active, // CatalogService uses 'activo' (product)
                 imagen_url: form.imageUrl,
-                activo: form.active,
-                categoria_id: form.categoryId
             }
 
-            if (isEditing && params.product?.id) {
-                await CatalogService.updateProduct(params.product.id, productData)
-                showFeedback('success', 'Éxito', 'Producto actualizado correctamente.', () => {
-                    navigation.goBack()
-                })
+            let productId = params.product?.id
+
+            if (isEditing && productId) {
+                await CatalogService.updateProduct(productId, productData)
+                showFeedback('success', 'Producto Actualizado', 'Los cambios se guardaron correctamente.')
             } else {
-                await CatalogService.createProduct(productData)
-                showFeedback('success', 'Éxito', 'Producto creado correctamente.', () => {
-                    navigation.goBack()
-                })
+                const newProduct = await CatalogService.createProduct(productData)
+                productId = newProduct.id // Backend returns string UUID
+                showFeedback('success', 'Producto Creado', 'El nuevo producto se agregó al catálogo.')
             }
+
+            // Save Prices
+            if (productId) {
+                // Filter only active lists
+                const activeLists = priceLists.filter(l => l.activa)
+
+                const pricePromises = activeLists.map(list => {
+                    const val = priceValues[list.id]
+                    if (val && parseFloat(val) >= 0) {
+                        return PriceService.assignPrice({
+                            productoId: productId!,
+                            listaId: list.id,
+                            precio: parseFloat(val)
+                        })
+                    }
+                    return Promise.resolve()
+                })
+
+                await Promise.all(pricePromises)
+            }
+
+            showFeedback('success', 'Éxito', isEditing ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.', () => {
+                navigation.goBack()
+            })
+
         } catch (error: any) {
             if (error?.message !== 'SESSION_EXPIRED') {
                 showFeedback('error', 'Error', 'No se pudo guardar el producto. Verifica tu conexión.')
@@ -267,7 +357,78 @@ export function SupervisorProductFormScreen() {
                     </View>
                 </View>
 
-                {/* 3. Estado */}
+                {/* 3. Estrategia de Precios (NUEVO) */}
+                <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
+                    <View className="flex-row items-center justify-between mb-4">
+                        <View>
+                            <Text className="text-neutral-900 font-bold text-lg">Estrategia de Precios</Text>
+                            <Text className="text-neutral-500 text-xs">Define el valor para cada canal</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => loadData()} className="bg-neutral-50 p-2 rounded-full">
+                            <Ionicons name="refresh" size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {priceLists.length === 0 ? (
+                        <View className="items-center py-6 bg-orange-50 rounded-xl border border-orange-100">
+                            <Ionicons name="pricetags-outline" size={32} color="#F97316" className="mb-2" />
+                            <Text className="text-orange-800 font-medium mb-1">Sin Listas Configuradas</Text>
+                            <Text className="text-orange-600 text-center px-4 text-xs mb-3">
+                                No se encontraron listas de precios activas.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('SupervisorPriceLists' as never)}
+                                className="bg-white px-4 py-2 rounded-lg border border-orange-200 shadow-sm"
+                            >
+                                <Text className="text-orange-700 font-bold text-sm">Gestionar Listas</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View className="gap-3">
+                            {priceLists.map((list) => {
+                                const isGeneral = list.nombre.toLowerCase().includes('general');
+                                return (
+                                    <View
+                                        key={list.id}
+                                        className={`p-3 rounded-xl border ${isGeneral
+                                            ? 'bg-blue-50 border-blue-200'
+                                            : 'bg-neutral-50 border-neutral-200'
+                                            }`}
+                                    >
+                                        <View className="flex-row items-center justify-between mb-2">
+                                            <View className="flex-row items-center">
+                                                {isGeneral && (
+                                                    <Ionicons name="star" size={14} color="#2563EB" style={{ marginRight: 4 }} />
+                                                )}
+                                                <Text className={`font-bold ${isGeneral ? 'text-blue-800' : 'text-neutral-700'}`}>
+                                                    {list.nombre}
+                                                </Text>
+                                            </View>
+                                            <View className="bg-white px-2 py-0.5 rounded border border-neutral-100">
+                                                <Text className="text-xs text-neutral-400 font-medium">{list.moneda || 'USD'}</Text>
+                                            </View>
+                                        </View>
+
+                                        <View className="flex-row items-center bg-white border border-neutral-200 rounded-xl px-3 h-12">
+                                            <Text className="text-neutral-400 mr-2 text-lg">$</Text>
+                                            <TextInput
+                                                className="flex-1 text-neutral-900 font-bold text-lg text-right"
+                                                placeholder="0.00"
+                                                placeholderTextColor="#D1D5DB"
+                                                keyboardType="numeric"
+                                                value={priceValues[list.id] || ''}
+                                                onChangeText={(text) => handlePriceChange(list.id, text)}
+                                                selectTextOnFocus
+                                            />
+                                        </View>
+                                    </View>
+                                )
+                            })}
+                        </View>
+                    )}
+                </View>
+
+                {/* 4. Estado */}
                 <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-8">
                     <View className="flex-row items-center justify-between">
                         <View>

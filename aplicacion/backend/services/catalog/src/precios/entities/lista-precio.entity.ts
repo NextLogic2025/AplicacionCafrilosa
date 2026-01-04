@@ -7,4 +7,10 @@ export class ListaPrecio {
 
   @Column()
   nombre: string;
+
+  @Column({ default: true })
+  activa: boolean;
+
+  @Column({ default: 'USD' })
+  moneda: string;
 }
