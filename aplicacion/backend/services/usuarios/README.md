@@ -307,6 +307,62 @@ Response ejemplo:
 }
 ```
 
+### GET /auth/usuarios
+Lista todos los usuarios visibles para un `supervisor` (excluye usuarios con rol `cliente`).
+
+Headers:
+
+```
+Authorization: Bearer <ACCESS_TOKEN>
+```
+
+Response ejemplo (array):
+
+```json
+[
+  {
+    "id": "668b3a96-5190-49df-a755-bcaf2338ed8a",
+    "email": "vendedor1@cafrilosa.com",
+    "nombre": "Vendedor Uno",
+    "telefono": "+593987654321",
+    "emailVerificado": true,
+    "activo": true,
+    "createdAt": "2025-12-01T12:34:56.000Z",
+    "rol": { "id": 4, "nombre": "vendedor" }
+  }
+]
+```
+
+Notes: este endpoint requiere rol `supervisor` (o `rolId === 2`).
+
+### GET /auth/vendedores
+Lista únicamente los usuarios con rol `vendedor` (útil para que el supervisor revise la fuerza de ventas).
+
+Headers:
+
+```
+Authorization: Bearer <ACCESS_TOKEN>
+```
+
+Response ejemplo (array):
+
+```json
+[
+  {
+    "id": "668b3a96-5190-49df-a755-bcaf2338ed8a",
+    "email": "vendedor1@cafrilosa.com",
+    "nombre": "Vendedor Uno",
+    "telefono": "+593987654321",
+    "emailVerificado": true,
+    "activo": true,
+    "createdAt": "2025-12-01T12:34:56.000Z",
+    "rol": { "id": 4, "nombre": "vendedor" }
+  }
+]
+```
+
+Notes: este endpoint también requiere rol `supervisor` (o `rolId === 2`).
+
 ## 🛡️ Notas importantes de seguridad
 
 - Nunca almacenar tokens en texto claro — sólo hashes (`bcrypt`).
