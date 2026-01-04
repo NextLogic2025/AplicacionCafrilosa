@@ -233,6 +233,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_changed_by UUID;
     v_ip INET := inet_client_addr();
+    v_record_id TEXT
 BEGIN
     BEGIN
         v_changed_by := current_setting('app.current_user', true)::uuid;
@@ -240,12 +241,19 @@ BEGIN
         v_changed_by := NULL;
     END;
 
+    -- Para tablas con clave compuesta, concatena los IDs
+    IF TG_TABLE_NAME = 'promociones_clientes_permitidos' THEN
+        v_record_id := COALESCE(NEW.campaña_id::TEXT || '-' || NEW.cliente_id, OLD.campaña_id::TEXT || '-' || OLD.cliente_id);
+    ELSE
+        v_record_id := COALESCE(NEW.id::TEXT, OLD.id::TEXT);
+    END IF;
+
     INSERT INTO audit_log_catalog (
         table_name, record_id, operation, old_data, new_data, changed_by, ip_address
     )
     VALUES (
         TG_TABLE_NAME,
-        COALESCE(NEW.id::TEXT, OLD.id::TEXT),
+        v_record_id,
         TG_OP,
         CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) END,
         CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) END,
