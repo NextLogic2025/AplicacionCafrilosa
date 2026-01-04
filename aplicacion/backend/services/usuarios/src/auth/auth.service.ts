@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -59,6 +59,11 @@ export class AuthService {
         metadata: { email: dto.email },
       });
       throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // Deny login if the user is deactivated
+    if (!usuario.activo) {
+      throw new UnauthorizedException('Usuario desactivado');
     }
 
     // Access token short-lived (recommended 5-10m)
@@ -228,6 +233,56 @@ export class AuthService {
       .getMany();
 
     return vendedores;
+  }
+
+  // List users that are deactivated (activo = false)
+  async listarUsuariosDesactivados() {
+    const usuarios = await this.usuarioRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.rol', 'r')
+      .where('u.activo = false')
+      .select([
+        'u.id',
+        'u.email',
+        'u.nombre',
+        'u.telefono',
+        'u.avatarUrl',
+        'u.emailVerificado',
+        'u.activo',
+        'u.createdAt',
+        'r.id',
+        'r.nombre',
+      ])
+      .getMany();
+
+    return usuarios;
+  }
+
+  // Deactivate a user (only intended for deactivating clients)
+  async desactivarUsuario(usuarioId: string) {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado');
+    const rolNombre = String(usuario.rol?.nombre || '').toLowerCase();
+    // Only allow deactivating clients via this endpoint
+    if (rolNombre !== 'cliente' && usuario.rol?.id !== 3) {
+      throw new BadRequestException('Sólo se pueden desactivar usuarios con rol cliente');
+    }
+
+    await this.usuarioRepo.update(usuarioId, { activo: false } as any);
+    return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+  }
+
+  async activarUsuario(usuarioId: string) {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    if (!usuario) throw new NotFoundException('Usuario no encontrado');
+    const rolNombre = String(usuario.rol?.nombre || '').toLowerCase();
+    // Only allow activating clients via this endpoint
+    if (rolNombre !== 'cliente' && usuario.rol?.id !== 3) {
+      throw new BadRequestException('Sólo se pueden activar usuarios con rol cliente');
+    }
+
+    await this.usuarioRepo.update(usuarioId, { activo: true } as any);
+    return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 
   async refreshTokens(providedRefreshToken: string, deviceId?: string, ip?: string, userAgent?: string) {
