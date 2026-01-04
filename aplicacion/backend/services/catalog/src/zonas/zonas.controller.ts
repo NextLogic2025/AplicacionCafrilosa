@@ -40,8 +40,15 @@ export class ZonasController {
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   remove(@Param('id') id: number) {
     return this.svc.remove(Number(id));
+  }
+
+  @Put(':id/aprobar')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  aprobar(@Param('id') id: number) {
+    return this.svc.approve(Number(id));
   }
 }

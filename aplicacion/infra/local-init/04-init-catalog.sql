@@ -1,28 +1,20 @@
 -- ==================================================================================
--- MICROSERVICIO: CATALOG SERVICE (svc-catalog) - VERSIÓN FINAL 100% + AUDITORÍA + SOFT DELETE
+-- MICROSERVICIO: CATALOG SERVICE (svc-catalog) - VERSIÓN FINAL CORREGIDA
 -- BASE DE DATOS: catalog_db
 -- MOTOR: PostgreSQL 14+
 -- ==================================================================================
 
--- Crear la base y conectarse
-CREATE DATABASE catalog_db;
+-- Conectarse a la base (Solo funciona si la base ya existe)
 \c catalog_db;
-
-	-- ==================================================================================
--- PROYECTO: CAFRILOSA ENTERPRISE
--- MICROSERVICIO: CATALOG SERVICE (svc-catalog) - VERSIÓN FINAL 100%
--- BASE DE DATOS: catalog_db
--- MOTOR: PostgreSQL 14+
--- ==================================================================================
 
 -- =========================================
 -- 1. EXTENSIONES
 -- =========================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis"; -- Para zonas geográficas y ubicaciones GPS
+CREATE EXTENSION IF NOT EXISTS "postgis"; 
 
 -- =========================================
--- 2. CATEGORÍAS (de productos)
+-- 2. CATEGORÍAS
 -- =========================================
 CREATE TABLE categorias (
     id SERIAL PRIMARY KEY,
@@ -32,10 +24,9 @@ CREATE TABLE categorias (
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
--- Datos semilla (ejemplos reales de Cafrilosa)
 INSERT INTO categorias (nombre, descripcion) VALUES
 ('Mortadelas', 'Línea de mortadelas clásicas y gourmet'),
 ('Salchichas', 'Salchichas para hot dog, parrilla y freír'),
@@ -47,7 +38,7 @@ INSERT INTO categorias (nombre, descripcion) VALUES
 ('Línea Navideña', 'Productos especiales para Navidad');
 
 -- =========================================
--- 3. PRODUCTOS (con datos semilla de tu lista)
+-- 3. PRODUCTOS
 -- =========================================
 CREATE TABLE productos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -63,10 +54,9 @@ CREATE TABLE productos (
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
--- Datos semilla (basados en tu lista de productos)
 INSERT INTO productos (codigo_sku, nombre, descripcion, categoria_id, peso_unitario_kg, requiere_frio, unidad_medida) VALUES
 ('MORT-ESPEC', 'Mortadela Especial', 'Mortadela clásica en piezas y empaque al vacío', (SELECT id FROM categorias WHERE nombre = 'Mortadelas'), 4.5, TRUE, 'KG'),
 ('MORT-BOLO', 'Mortadela Bolognia', 'Mortadela tipo Bolognia en tacos y empaque', (SELECT id FROM categorias WHERE nombre = 'Mortadelas'), 2.7, TRUE, 'KG'),
@@ -82,13 +72,13 @@ INSERT INTO productos (codigo_sku, nombre, descripcion, categoria_id, peso_unita
 CREATE TABLE listas_precios (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
+    nombre_interno VARCHAR(50), -- Opcional, para uso interno
     moneda VARCHAR(3) DEFAULT 'USD',
     activa BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-INSERT INTO listas_precios (nombre) VALUES
-('General'), ('Mayorista'), ('Horeca');
+INSERT INTO listas_precios (nombre) VALUES ('General'), ('Mayorista'), ('Horeca');
 
 CREATE TABLE precios_items (
     lista_id INT REFERENCES listas_precios(id) ON DELETE CASCADE,
@@ -98,32 +88,7 @@ CREATE TABLE precios_items (
 );
 
 -- =========================================
--- 5. PROMOCIONES
--- =========================================
-CREATE TABLE campañas_promocionales (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    descripcion TEXT,
-    fecha_inicio TIMESTAMPTZ NOT NULL,
-    fecha_fin TIMESTAMPTZ NOT NULL,
-    tipo_descuento VARCHAR(20),
-    valor_descuento DECIMAL(10,2),
-    imagen_banner_url TEXT,
-    activo BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
-);
-
-CREATE TABLE productos_promocion (
-    campaña_id INT REFERENCES campañas_promocionales(id) ON DELETE CASCADE,
-    producto_id UUID REFERENCES productos(id) ON DELETE CASCADE,
-    precio_oferta_fijo DECIMAL(10,2),
-    PRIMARY KEY (campaña_id, producto_id)
-);
-
--- =========================================
--- 6. ZONAS COMERCIALES (GEOGRÁFICAS)
+-- 5. ZONAS COMERCIALES (MOVIDO AQUÍ POR DEPENDENCIA)
 -- =========================================
 CREATE TABLE zonas_comerciales (
     id SERIAL PRIMARY KEY,
@@ -135,23 +100,23 @@ CREATE TABLE zonas_comerciales (
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
 -- =========================================
--- 7. ASIGNACIÓN DE VENDEDORES A ZONAS
+-- 6. ASIGNACIÓN DE VENDEDORES (MOVIDO AQUÍ)
 -- =========================================
 CREATE TABLE asignacion_vendedores (
     id SERIAL PRIMARY KEY,
     zona_id INT NOT NULL REFERENCES zonas_comerciales(id),
-    vendedor_usuario_id UUID NOT NULL,  -- referencia lógica a auth_db.usuarios
+    vendedor_usuario_id UUID NOT NULL, 
     nombre_vendedor_cache VARCHAR(150),
     fecha_inicio DATE DEFAULT CURRENT_DATE,
     fecha_fin DATE,
     es_principal BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE UNIQUE INDEX ux_vendedor_zona_activo
@@ -159,18 +124,18 @@ ON asignacion_vendedores(zona_id)
 WHERE fecha_fin IS NULL AND es_principal = TRUE AND deleted_at IS NULL;
 
 -- =========================================
--- 8. CLIENTES
+-- 7. CLIENTES (AHORA SÍ FUNCIONA)
 -- =========================================
 CREATE TABLE clientes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_principal_id UUID,  -- referencia lógica a auth_db.usuarios
+    usuario_principal_id UUID,
     identificacion VARCHAR(20) UNIQUE NOT NULL,
     tipo_identificacion VARCHAR(10) DEFAULT 'RUC',
     razon_social VARCHAR(200) NOT NULL,
     nombre_comercial VARCHAR(200),
     lista_precios_id INT REFERENCES listas_precios(id) DEFAULT 1,
-    vendedor_asignado_id UUID,  -- referencia lógica
-    zona_comercial_id INT REFERENCES zonas_comerciales(id),
+    vendedor_asignado_id UUID,
+    zona_comercial_id INT REFERENCES zonas_comerciales(id), -- Esto fallaba antes
     tiene_credito BOOLEAN DEFAULT FALSE,
     limite_credito DECIMAL(12,2) DEFAULT 0,
     saldo_actual DECIMAL(12,2) DEFAULT 0,
@@ -180,7 +145,7 @@ CREATE TABLE clientes (
     ubicacion_gps GEOMETRY(POINT, 4326),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ  -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE sucursales_cliente (
@@ -194,6 +159,40 @@ CREATE TABLE sucursales_cliente (
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================================
+-- 8. PROMOCIONES
+-- =========================================
+CREATE TABLE campañas_promocionales (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    fecha_inicio TIMESTAMPTZ NOT NULL,
+    fecha_fin TIMESTAMPTZ NOT NULL,
+    tipo_descuento VARCHAR(20) CHECK (tipo_descuento IN ('PORCENTAJE', 'MONTO_FIJO')),
+    valor_descuento DECIMAL(10,2),
+    alcance VARCHAR(20) DEFAULT 'GLOBAL' CHECK (alcance IN ('GLOBAL', 'POR_LISTA', 'POR_CLIENTE')),
+    lista_precios_objetivo_id INT REFERENCES listas_precios(id),
+    imagen_banner_url TEXT,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE productos_promocion (
+    campaña_id INT REFERENCES campañas_promocionales(id) ON DELETE CASCADE,
+    producto_id UUID REFERENCES productos(id) ON DELETE CASCADE,
+    precio_oferta_fijo DECIMAL(10,2),
+    PRIMARY KEY (campaña_id, producto_id)
+);
+
+CREATE TABLE promociones_clientes_permitidos (
+    campaña_id INT REFERENCES campañas_promocionales(id) ON DELETE CASCADE,
+    cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (campaña_id, cliente_id)
 );
 
 -- =========================================
@@ -213,17 +212,18 @@ CREATE TABLE rutero_planificado (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(cliente_id, dia_semana)
 );
+
 -- =========================================
--- 10. AUDITORÍA CATÁLOGO (CORREGIDO PARA INT Y UUID)
+-- 10. AUDITORÍA (FIXED)
 -- =========================================
 CREATE TABLE audit_log_catalog (
     id BIGSERIAL PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
-    record_id TEXT NOT NULL, -- 👈 CAMBIO: UUID -> TEXT (Para aceptar Serial y UUID)
+    record_id TEXT NOT NULL, 
     operation VARCHAR(10) NOT NULL,
     old_data JSONB,
     new_data JSONB,
-    changed_by UUID, -- Referencia al usuario que hizo el cambio
+    changed_by UUID,
     changed_at TIMESTAMPTZ DEFAULT NOW(),
     ip_address INET
 );
@@ -231,14 +231,13 @@ CREATE TABLE audit_log_catalog (
 CREATE OR REPLACE FUNCTION fn_audit_catalog()
 RETURNS TRIGGER AS $$
 DECLARE
-    -- Intentamos obtener el usuario de la configuración, si es null, null queda
     v_changed_by UUID;
     v_ip INET := inet_client_addr();
 BEGIN
     BEGIN
         v_changed_by := current_setting('app.current_user', true)::uuid;
     EXCEPTION WHEN OTHERS THEN
-        v_changed_by := NULL; -- Evita error si el string no es un UUID válido
+        v_changed_by := NULL;
     END;
 
     INSERT INTO audit_log_catalog (
@@ -246,7 +245,7 @@ BEGIN
     )
     VALUES (
         TG_TABLE_NAME,
-        COALESCE(NEW.id::TEXT, OLD.id::TEXT), -- 👈 CAMBIO: Casteo explícito a TEXT
+        COALESCE(NEW.id::TEXT, OLD.id::TEXT),
         TG_OP,
         CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) END,
         CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) END,
@@ -257,13 +256,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers (Igual que antes)
+-- TRIGGERS DE AUDITORÍA
 CREATE TRIGGER trg_audit_productos AFTER INSERT OR UPDATE OR DELETE ON productos FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
-CREATE TRIGGER trg_audit_clientes AFTER INSERT OR UPDATE OR DELETE ON clientes FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
-CREATE TRIGGER trg_audit_zonas AFTER INSERT OR UPDATE OR DELETE ON zonas_comerciales FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
-CREATE TRIGGER trg_audit_promociones AFTER INSERT OR UPDATE OR DELETE ON campañas_promocionales FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
--- Puedes agregar también a categorías si quieres
 CREATE TRIGGER trg_audit_categorias AFTER INSERT OR UPDATE OR DELETE ON categorias FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
+CREATE TRIGGER trg_audit_zonas AFTER INSERT OR UPDATE OR DELETE ON zonas_comerciales FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
+CREATE TRIGGER trg_audit_clientes AFTER INSERT OR UPDATE OR DELETE ON clientes FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
+CREATE TRIGGER trg_audit_promociones AFTER INSERT OR UPDATE OR DELETE ON campañas_promocionales FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
+CREATE TRIGGER trg_audit_promos_clientes AFTER INSERT OR UPDATE OR DELETE ON promociones_clientes_permitidos FOR EACH ROW EXECUTE FUNCTION fn_audit_catalog();
+
 -- =========================================
 -- 11. ÍNDICES OPTIMIZADOS
 -- =========================================
@@ -273,15 +273,16 @@ CREATE INDEX idx_zonas_poligono ON zonas_comerciales USING GIST(poligono_geograf
 CREATE INDEX idx_clientes_gps ON clientes USING GIST(ubicacion_gps);
 CREATE INDEX idx_promos_activas ON campañas_promocionales(fecha_inicio, fecha_fin) WHERE activo = TRUE AND deleted_at IS NULL;
 CREATE INDEX idx_audit_catalog ON audit_log_catalog(table_name, record_id, changed_at DESC);
+
 -- =========================================
--- 12. EVENTOS ASÍNCRONOS (pg_notify → Cloud Functions)
+-- 12. EVENTOS ASÍNCRONOS
 -- =========================================
 CREATE OR REPLACE FUNCTION notify_catalogo_cambio()
 RETURNS TRIGGER AS $$
 BEGIN
     PERFORM pg_notify('catalogo-cambio', json_build_object(
         'table', TG_TABLE_NAME,
-        'id', COALESCE(NEW.id::TEXT, OLD.id::TEXT), -- 👈 CAMBIO: Aseguramos formato texto
+        'id', COALESCE(NEW.id::TEXT, OLD.id::TEXT),
         'operation', TG_OP
     )::text);
     RETURN NEW;
@@ -291,7 +292,3 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_notify_productos AFTER INSERT OR UPDATE OR DELETE ON productos FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
 CREATE TRIGGER trg_notify_clientes AFTER INSERT OR UPDATE OR DELETE ON clientes FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
 CREATE TRIGGER trg_notify_promos AFTER INSERT OR UPDATE OR DELETE ON campañas_promocionales FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
-
--- =========================================
--- FIN DEL MICROSERVICIO CATALOG - 100% PostgreSQL
--- =========================================

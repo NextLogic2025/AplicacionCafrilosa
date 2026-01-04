@@ -16,6 +16,11 @@ export class CategoriesController {
     return this.svc.findAll();
   }
 
+  @Get('deleted')
+  findDeleted() {
+    return this.svc.findDeleted();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.svc.findOne(id);
@@ -40,5 +45,12 @@ export class CategoriesController {
   @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.softDelete(id);
+  }
+
+  @Post(':id/restore')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  restore(@Param('id') id: string) {
+    return this.svc.restore(id);
   }
 }

@@ -13,5 +13,6 @@ import { ListaPrecio } from './entities/lista-precio.entity';
   imports: [TypeOrmModule.forFeature([PrecioItem, ListaPrecio, Product]), ClientesModule],
   providers: [PreciosService],
   controllers: [PreciosController],
+  exports: [PreciosService],
 })
 export class PreciosModule {}
