@@ -1,8 +1,10 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { Product } from '../products/entities/product.entity';
+import { Category } from '../categories/entities/category.entity';
+import { ProductoPromocion } from '../promociones/entities/producto-promocion.entity';
 
 import { PrecioItem } from './entities/precio.entity';
 import { AsignarPrecioDto } from './dto/asignar-precio.dto';
@@ -68,14 +70,74 @@ export class PreciosService {
   }
 
   // Devuelve solo productos que tienen precio en la lista (INNER JOIN)
-  async productosConPrecioParaLista(listaId: number) {
-    return this.precioRepo
-      .createQueryBuilder('p')
-      .innerJoinAndSelect('p.producto', 'prod')
-      .innerJoinAndSelect('p.lista', 'l')
-      .where('p.lista_id = :lid', { lid: listaId })
-      .select(['prod', 'p.precio', 'l.id', 'l.nombre'])
-      .getMany();
+  async productosConPrecioParaLista(
+    listaId: number,
+    opts: { page?: number; per_page?: number; q?: string; role?: string[]; userId?: string; clienteListaId?: number | null } = {},
+  ) {
+    const page = opts.page && opts.page > 0 ? opts.page : 1;
+    const per_page = opts.per_page && opts.per_page > 0 ? opts.per_page : 20;
+
+    const qb = this.precioRepo
+      .createQueryBuilder('pi')
+      .innerJoinAndSelect('pi.producto', 'prod')
+      .innerJoinAndSelect('pi.lista', 'l')
+      .where('pi.lista_id = :lid', { lid: listaId })
+      .andWhere('prod.deleted_at IS NULL')
+      .andWhere('prod.activo = TRUE')
+      ;
+
+    if (opts.q) {
+      qb.andWhere('(prod.nombre ILIKE :q OR prod.codigo_sku ILIKE :q)', { q: `%${opts.q}%` });
+    }
+
+    const rows = await qb.skip((page - 1) * per_page).take(per_page).getMany();
+
+    // Build a count query separately to avoid TypeORM generating a COUNT with invalid aliases
+    const countQb = this.precioRepo
+      .createQueryBuilder('pi')
+      .innerJoin('pi.producto', 'prod')
+      .innerJoin('pi.lista', 'l')
+      .where('pi.lista_id = :lid', { lid: listaId })
+      .andWhere('prod.deleted_at IS NULL')
+      .andWhere('prod.activo = TRUE');
+
+    if (opts.q) {
+      countQb.andWhere('(prod.nombre ILIKE :q OR prod.codigo_sku ILIKE :q)', { q: `%${opts.q}%` });
+    }
+
+    const total = await countQb.getCount();
+
+    // load categories and promotions for the products
+    const productIds = rows.map((r: any) => r.producto.id);
+    const categoriaIds = Array.from(new Set(rows.map((r: any) => r.producto.categoria_id).filter(Boolean)));
+    const categoryRepo = this.productRepo.manager.getRepository(Category);
+    const categorias: any[] = categoriaIds.length ? await categoryRepo.findBy(categoriaIds.map((id: any) => ({ id } as any))) : [];
+    const catMap = new Map(categorias.map((c: any) => [c.id, { id: c.id, nombre: c.nombre }]));
+
+    const promoRepo = this.productRepo.manager.getRepository(ProductoPromocion);
+    const promos = productIds.length ? await promoRepo.find({ where: { producto_id: In(productIds) } }) : [];
+
+    const items = rows.map((r: any) => {
+      const p = r.producto;
+      return {
+        id: p.id,
+        codigo_sku: p.codigo_sku,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        categoria: p.categoria_id ? catMap.get(p.categoria_id) ?? null : null,
+        peso_unitario_kg: parseFloat(String(p.peso_unitario_kg)),
+        volumen_m3: p.volumen_m3 ? parseFloat(String(p.volumen_m3)) : null,
+        requiere_frio: p.requiere_frio,
+        unidad_medida: p.unidad_medida,
+        imagen_url: p.imagen_url,
+        activo: p.activo,
+        precios: [{ lista_id: r.lista.id, precio: Number(r.precio) }],
+        promociones: promos.filter((pr: any) => pr.producto_id === p.id).map((pr: any) => ({ campana_id: pr.campania_id, precio_oferta: pr.precio_oferta_fijo })).filter((pp: any) => pp.precio_oferta != null),
+      };
+    });
+
+    const total_pages = Math.ceil(total / per_page);
+    return { metadata: { total_items: total, page, per_page, total_pages }, items };
   }
 
   // Devuelve todos los productos y, cuando exista, su precio para la lista (LEFT JOIN)

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, QueryDeepPartialEntity } from 'typeorm';
+import { Repository, FindOptionsWhere, QueryDeepPartialEntity, Not, IsNull } from 'typeorm';
 
 import { Category } from './entities/category.entity';
 
@@ -12,7 +12,11 @@ export class CategoriesService {
   ) {}
 
   findAll() {
-    return this.repo.find({ where: { deleted_at: null } });
+    return this.repo.find({ where: { deleted_at: null, activo: true } });
+  }
+
+  findDeleted() {
+    return this.repo.find({ where: { deleted_at: Not(IsNull()) } });
   }
 
   async findOne(id: string | number) {
@@ -40,5 +44,12 @@ export class CategoriesService {
     const update: QueryDeepPartialEntity<Category> = { deleted_at: now, activo: false };
     await this.repo.update(nid, update);
     return { id: nid, deleted_at: now };
+  }
+
+  async restore(id: string | number) {
+    const nid = typeof id === 'string' ? Number(id) : id;
+    const update: QueryDeepPartialEntity<Category> = { deleted_at: null, activo: true };
+    await this.repo.update(nid, update);
+    return this.findOne(nid);
   }
 }

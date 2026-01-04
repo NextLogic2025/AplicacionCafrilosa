@@ -4,6 +4,8 @@
 CREATE DATABASE ventas_db;
 CREATE DATABASE inventario_db;
 CREATE DATABASE usuarios_db;
+CREATE DATABASE orders_db;
+CREATE DATABASE catalog_db;
 
 -- ============================================================
 -- CONECTARSE A usuarios_db E INICIALIZAR

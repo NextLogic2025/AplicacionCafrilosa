@@ -1,4 +1,3 @@
-
 import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -8,15 +7,12 @@ import { ClientesService } from '../clientes/clientes.service';
 
 import { PreciosService } from './precios.service';
 import { AsignarPrecioDto } from './dto/asignar-precio.dto';
-
-// Minimal DTO for listas
-class ListaDto {
-  nombre: string;
-}
+import { ListaPrecioDto } from './dto/lista-precio.dto';
+import { UpdateListaPrecioDto } from './dto/update-lista-precio.dto';
 
 @Controller('precios')
 export class PreciosController {
-  constructor(private readonly preciosService: PreciosService, private readonly clientesService: ClientesService) {}
+  constructor(private readonly preciosService: PreciosService, private readonly clientesService: ClientesService) { }
 
   // POST /precios -> Para guardar o actualizar un precio individual
   @Post()
@@ -56,14 +52,14 @@ export class PreciosController {
   @Post('listas')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  crearLista(@Body() body: ListaDto) {
+  crearLista(@Body() body: ListaPrecioDto) {
     return this.preciosService.createLista(body as any);
   }
 
   @Patch('listas/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  actualizarLista(@Param('id') id: string, @Body() body: ListaDto) {
+  actualizarLista(@Param('id') id: string, @Body() body: UpdateListaPrecioDto) {
     return this.preciosService.updateLista(Number(id), body as any);
   }
 
