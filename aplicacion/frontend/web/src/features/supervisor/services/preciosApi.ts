@@ -25,6 +25,10 @@ export interface AsignarPrecioDto {
   precio: number
 }
 
+export interface CreateListaPrecioDto {
+  nombre: string
+}
+
 class PrecioApiError extends Error {
   readonly status: number
   readonly payload?: unknown
@@ -77,4 +81,28 @@ export async function asignarPrecio(data: AsignarPrecioDto): Promise<PrecioItem>
 
 export async function obtenerPreciosDeProducto(productoId: string): Promise<PrecioItem[]> {
   return precioHttp<PrecioItem[]>(`/precios/producto/${productoId}`)
+}
+
+export async function getAllListasPrecios(): Promise<ListaPrecio[]> {
+  return precioHttp<ListaPrecio[]>('/precios/listas')
+}
+
+export async function createListaPrecio(data: CreateListaPrecioDto): Promise<ListaPrecio> {
+  return precioHttp<ListaPrecio>('/precios/listas', {
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function updateListaPrecio(id: number, data: CreateListaPrecioDto): Promise<ListaPrecio> {
+  return precioHttp<ListaPrecio>(`/precios/listas/${id}`, {
+    method: 'PUT',
+    body: data,
+  })
+}
+
+export async function deleteListaPrecio(id: number): Promise<void> {
+  return precioHttp<void>(`/precios/listas/${id}`, {
+    method: 'DELETE',
+  })
 }

@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
-import { PlusCircle, DollarSign } from 'lucide-react'
+import { PlusCircle, DollarSign, Settings } from 'lucide-react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { useEntityCrud } from '../../../../hooks/useEntityCrud'
-import { asignarPrecio, obtenerPreciosDeProducto, type PrecioItem, type AsignarPrecioDto } from '../../services/preciosApi'
+import { 
+  asignarPrecio, 
+  obtenerPreciosDeProducto, 
+  getAllListasPrecios,
+  createListaPrecio,
+  updateListaPrecio,
+  deleteListaPrecio,
+  type PrecioItem, 
+  type AsignarPrecioDto,
+  type ListaPrecio,
+  type CreateListaPrecioDto
+} from '../../services/preciosApi'
 import { getAllProducts, type Product } from '../../services/productosApi'
-
-const LISTAS_PRECIOS = [
-  { id: 1, nombre: 'General' },
-  { id: 2, nombre: 'Mayorista' },
-  { id: 3, nombre: 'Horeca' },
-]
 
 export function PreciosView() {
   const { data: products, isLoading, error } = useEntityCrud<Product, any, any>({
@@ -22,9 +27,28 @@ export function PreciosView() {
     delete: async () => new Promise(() => {}),
   })
 
+  const { 
+    data: listasPrecios, 
+    isLoading: isLoadingListas,
+    create: createLista,
+    update: updateLista,
+    delete: deleteLista,
+    refresh: refreshListas
+  } = useEntityCrud<ListaPrecio, CreateListaPrecioDto, CreateListaPrecioDto>({
+    load: getAllListasPrecios,
+    create: createListaPrecio,
+    update: (id, data) => updateListaPrecio(typeof id === 'string' ? parseInt(id) : id, data),
+    delete: (id) => deleteListaPrecio(typeof id === 'string' ? parseInt(id) : id),
+  })
+
   const [preciosMap, setPreciosMap] = useState<Map<string, PrecioItem[]>>(new Map())
   const [isLoadingPrecios, setIsLoadingPrecios] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isListaModalOpen, setIsListaModalOpen] = useState(false)
+  const [editingLista, setEditingLista] = useState<ListaPrecio | null>(null)
+  const [listaFormData, setListaFormData] = useState<CreateListaPrecioDto>({
+    nombre: '',
+  })
   const [formData, setFormData] = useState<AsignarPrecioDto>({
     productoId: '',
     listaId: 1,
@@ -42,6 +66,81 @@ export function PreciosView() {
       loadPreciosMap()
     }
   }, [products, isLoadingPrecios])
+
+  const handleOpenListaModal = (lista?: ListaPrecio) => {
+    if (lista) {
+      setEditingLista(lista)
+      setListaFormData({ nombre: lista.nombre })
+    } else {
+      setEditingLista(null)
+      setListaFormData({ nombre: '' })
+    }
+    setIsListaModalOpen(true)
+    setErrors({})
+    setSubmitMessage(null)
+  }
+
+  const handleCloseListaModal = () => {
+    setIsListaModalOpen(false)
+    setEditingLista(null)
+    setListaFormData({ nombre: '' })
+    setErrors({})
+    setSubmitMessage(null)
+  }
+
+  const handleSubmitLista = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitMessage(null)
+
+    if (!listaFormData.nombre.trim()) {
+      setErrors({ nombre: 'El nombre es requerido' })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      if (editingLista) {
+        await updateLista(editingLista.id.toString(), listaFormData)
+        setSubmitMessage({
+          type: 'success',
+          message: 'Lista actualizada correctamente',
+        })
+      } else {
+        await createLista(listaFormData)
+        setSubmitMessage({
+          type: 'success',
+          message: 'Lista creada correctamente',
+        })
+      }
+      
+      await refreshListas()
+      setTimeout(() => {
+        handleCloseListaModal()
+      }, 1500)
+    } catch (error: any) {
+      setSubmitMessage({
+        type: 'error',
+        message: error.message || 'Error al guardar la lista',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteLista = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar esta lista de precios?')) {
+      return
+    }
+
+    try {
+      await deleteLista(id.toString())
+      await refreshListas()
+    } catch (error: any) {
+      console.error('Error al eliminar:', error)
+      alert(error.message || 'Error al eliminar la lista')
+    }
+  }
 
   const handleOpenModal = (productoId?: string) => {
     if (productoId) {
@@ -142,7 +241,7 @@ export function PreciosView() {
     return precio ? parseFloat(precio.precio as any) : null
   }
 
-  if (isLoading || isLoadingPrecios) {
+  if (isLoading || isLoadingPrecios || isLoadingListas) {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />
@@ -156,16 +255,25 @@ export function PreciosView() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Listas de Precios</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Administra precios por lista (General, Mayorista, Horeca)
+            Administra precios por lista y gestiona tus listas de precios
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Asignar precio
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => handleOpenListaModal()}
+            className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition"
+          >
+            <Settings className="h-4 w-4" />
+            Gestionar listas
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Asignar precio
+          </button>
+        </div>
       </div>
 
       {error && <Alert type="error" message={error} />}
@@ -185,7 +293,7 @@ export function PreciosView() {
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">SKU</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Producto</th>
-                {LISTAS_PRECIOS.map((lista) => (
+                {listasPrecios.map((lista) => (
                   <th key={lista.id} className="px-6 py-3 text-center text-sm font-semibold text-gray-900">
                     {lista.nombre}
                   </th>
@@ -200,7 +308,7 @@ export function PreciosView() {
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <p className="font-medium">{product.nombre}</p>
                   </td>
-                  {LISTAS_PRECIOS.map((lista) => {
+                  {listasPrecios.map((lista) => {
                     const precio = getPrecioForProductoAndLista(product.id, lista.id)
                     return (
                       <td key={`${product.id}-${lista.id}`} className="px-6 py-4 text-center">
@@ -278,7 +386,7 @@ export function PreciosView() {
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
               disabled={isSubmitting}
             >
-              {LISTAS_PRECIOS.map((lista) => (
+              {listasPrecios.map((lista) => (
                 <option key={lista.id} value={lista.id}>
                   {lista.nombre}
                 </option>
@@ -319,6 +427,101 @@ export function PreciosView() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal para gestionar listas de precios */}
+      <Modal
+        isOpen={isListaModalOpen}
+        title={editingLista ? 'Editar Lista de Precios' : 'Crear Lista de Precios'}
+        onClose={handleCloseListaModal}
+        headerGradient="blue"
+        maxWidth="lg"
+      >
+        <div className="space-y-6">
+          {/* Formulario para crear/editar lista */}
+          <form onSubmit={handleSubmitLista} className="space-y-4 pb-4 border-b border-gray-200">
+            {submitMessage && (
+              <Alert
+                type={submitMessage.type}
+                message={submitMessage.message}
+                onClose={() => setSubmitMessage(null)}
+              />
+            )}
+
+            <TextField
+              label="Nombre de la lista"
+              tone="light"
+              type="text"
+              placeholder="Ej: Mayorista, Distribuidor, Especial"
+              value={listaFormData.nombre}
+              onChange={(e) =>
+                setListaFormData({ ...listaFormData, nombre: e.target.value })
+              }
+              error={errors.nombre}
+              disabled={isSubmitting}
+            />
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCloseListaModal}
+                className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 font-semibold"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Guardando...' : editingLista ? 'Actualizar' : 'Crear lista'}
+              </button>
+            </div>
+          </form>
+
+          {/* Lista de listas de precios existentes */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Listas existentes</h3>
+            {listasPrecios.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">No hay listas de precios creadas</p>
+            ) : (
+              <div className="space-y-2">
+                {listasPrecios.map((lista) => (
+                  <div
+                    key={lista.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{lista.nombre}</p>
+                      <p className="text-xs text-gray-500">ID: {lista.id}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenListaModal(lista)}
+                        className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
+                        title="Editar"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLista(lista.id)}
+                        className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
+                        title="Eliminar"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   )
