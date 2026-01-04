@@ -47,6 +47,7 @@ export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'clientes', label: 'Clientes', to: '/supervisor/clientes', icon: Users },
   { id: 'equipo', label: 'Equipo', to: '/supervisor/equipo', icon: Users },
   { id: 'catalogo', label: 'Catálogo', to: '/supervisor/catalogo', icon: BookOpen },
+  { id: 'rutas', label: 'Rutas', to: '/supervisor/rutas', icon: Map },
   { id: 'pedidos', label: 'Pedidos', to: '/supervisor/pedidos', icon: ClipboardList },
   { id: 'bodega', label: 'Bodega', to: '/supervisor/bodega', icon: Package },
   { id: 'entregas', label: 'Entregas', to: '/supervisor/entregas', icon: Truck },

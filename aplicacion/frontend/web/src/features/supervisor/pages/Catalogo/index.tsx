@@ -1,13 +1,10 @@
 import { 
   ClipboardCheck, 
-  MapPin, 
   Percent, 
   ListOrdered, 
   PlusCircle, 
   LayoutGrid,
-  ArrowLeft,
-  Package,
-  DollarSign
+  ArrowLeft
 } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
 import { SectionHeader } from 'components/ui/SectionHeader'
@@ -32,13 +29,6 @@ const CATALOGO_OPTIONS: CatalogoOption[] = [
     description: 'Revisión y validación de productos',
     icon: ClipboardCheck,
     color: 'from-blue-500 to-blue-600',
-  },
-  {
-    id: 'zonas',
-    title: 'Zonas',
-    description: 'Gestión de zonas de distribución',
-    icon: MapPin,
-    color: 'from-green-500 to-green-600',
   },
   {
     id: 'promociones',

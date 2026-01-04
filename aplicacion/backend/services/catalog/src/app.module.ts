@@ -6,9 +6,11 @@ import { Product } from './products/entities/product.entity';
 import { Category } from './categories/entities/category.entity';
 import { ListaPrecio } from './precios/entities/lista-precio.entity';
 import { PrecioItem } from './precios/entities/precio.entity';
+import { Cliente } from './clientes/entities/cliente.entity';
 import { PreciosModule } from './precios/precios.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ClientesModule } from './clientes/clientes.module';
 import { JwtStrategy } from './auth/jwt.strategy';
 
 @Module({
@@ -20,7 +22,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
       username: process.env.DB_USER || 'admin',
       password: process.env.DB_PASSWORD || 'root',
       database: process.env.DB_NAME || 'catalog_db',
-      entities: [Product, Category, ListaPrecio, PrecioItem],
+      entities: [Product, Category, ListaPrecio, PrecioItem, Cliente],
       synchronize: false,
       logging: false
     }),
@@ -28,6 +30,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
     ProductsModule,
     CategoriesModule,
     PreciosModule,
+    ClientesModule,
   ]
   ,
   providers: [JwtStrategy]

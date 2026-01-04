@@ -63,7 +63,7 @@ export class AuthService {
 
     // Access token short-lived (recommended 5-10m)
     const accessPayload = { sub: usuario.id, email: usuario.email, role: usuario.rol?.nombre };
-    const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
+    const accessTtl = process.env.ACCESS_TOKEN_TTL || '12h';
     const parseDuration = (v: string) => {
       const s = v.toString().trim().toLowerCase();
       if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
@@ -125,7 +125,7 @@ export class AuthService {
     return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.rol?.nombre } };
   }
 
-  async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string, accessToken?: string) {
+  async logout(usuarioId: string, refreshToken?: string, ip?: string, userAgent?: string) {
     // If a refresh token string is provided, revoke only that token; otherwise revoke all refresh tokens for user
     if (refreshToken) {
       const activos = await this.tokenRepo.find({ where: { usuario: { id: usuarioId }, revocado: false } });
@@ -153,7 +153,6 @@ export class AuthService {
       evento: 'LOGOUT',
       ip_address: ip,
       user_agent: userAgent,
-      access_token: accessToken,
     });
 
     return { mensaje: 'Logout exitoso' };
@@ -183,6 +182,52 @@ export class AuthService {
       relations: ['rol'],
       select: ['id', 'email', 'nombre', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt'],
     });
+  }
+
+  // List users excluding those with role 'cliente' (for supervisor use)
+  async listarUsuariosExcluyendoClientes() {
+    const usuarios = await this.usuarioRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.rol', 'r')
+      .where('LOWER(r.nombre) <> :cliente', { cliente: 'cliente' })
+      .select([
+        'u.id',
+        'u.email',
+        'u.nombre',
+        'u.telefono',
+        'u.avatarUrl',
+        'u.emailVerificado',
+        'u.activo',
+        'u.createdAt',
+        'r.id',
+        'r.nombre',
+      ])
+      .getMany();
+
+    return usuarios;
+  }
+
+  // List users that are vendedores (role name 'vendedor' or rol id 4)
+  async listarVendedores() {
+    const vendedores = await this.usuarioRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.rol', 'r')
+      .where('LOWER(r.nombre) = :vendedor OR r.id = :vid', { vendedor: 'vendedor', vid: 4 })
+      .select([
+        'u.id',
+        'u.email',
+        'u.nombre',
+        'u.telefono',
+        'u.avatarUrl',
+        'u.emailVerificado',
+        'u.activo',
+        'u.createdAt',
+        'r.id',
+        'r.nombre',
+      ])
+      .getMany();
+
+    return vendedores;
   }
 
   async refreshTokens(providedRefreshToken: string, deviceId?: string, ip?: string, userAgent?: string) {
@@ -232,7 +277,7 @@ export class AuthService {
 
     // Issue new access + refresh
     const accessPayload = { sub: usuario.id, email: usuario.email, role: usuario.rol?.nombre };
-    const accessTtl = process.env.ACCESS_TOKEN_TTL || '10m';
+    const accessTtl = process.env.ACCESS_TOKEN_TTL || '12h';
     const parseDuration = (v: string) => {
       const s = v.toString().trim().toLowerCase();
       if (/^[0-9]+$/.test(s)) return parseInt(s, 10);
