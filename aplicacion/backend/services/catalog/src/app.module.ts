@@ -11,6 +11,7 @@ import { SucursalCliente } from './clientes/sucursales/entities/sucursal.entity'
 import { ZonaComercial } from './zonas/entities/zona.entity';
 import { CampaniaPromocional } from './promociones/entities/campania.entity';
 import { ProductoPromocion } from './promociones/entities/producto-promocion.entity';
+import { PromocionClientePermitido } from './promociones/entities/promocion-cliente-permitido.entity';
 import { RuteroPlanificado } from './rutero/entities/rutero-planificado.entity';
 import { AsignacionVendedores } from './asignacion/entities/asignacion-vendedores.entity';
 import { PreciosModule } from './precios/precios.module';
@@ -32,7 +33,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
       username: process.env.DB_USER || 'admin',
       password: process.env.DB_PASSWORD || 'root',
       database: process.env.DB_NAME || 'catalog_db',
-      entities: [Product, Category, ListaPrecio, PrecioItem, Cliente, SucursalCliente, ZonaComercial, CampaniaPromocional, ProductoPromocion, RuteroPlanificado, AsignacionVendedores],
+      entities: [Product, Category, ListaPrecio, PrecioItem, Cliente, SucursalCliente, ZonaComercial, CampaniaPromocional, ProductoPromocion, PromocionClientePermitido, RuteroPlanificado, AsignacionVendedores],
       synchronize: false,
       logging: false
     }),

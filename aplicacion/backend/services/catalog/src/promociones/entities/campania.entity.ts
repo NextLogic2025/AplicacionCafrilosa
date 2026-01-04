@@ -23,6 +23,12 @@ export class CampaniaPromocional {
   @Column({ name: 'valor_descuento', type: 'decimal', precision: 10, scale: 2, nullable: true })
   valor_descuento: string | null;
 
+  @Column({ name: 'alcance', default: 'GLOBAL', nullable: true })
+  alcance: string | null;
+
+  @Column({ name: 'lista_precios_objetivo_id', type: 'int', nullable: true })
+  lista_precios_objetivo_id: number | null;
+
   @Column({ name: 'imagen_banner_url', type: 'text', nullable: true })
   imagen_banner_url: string | null;
 
