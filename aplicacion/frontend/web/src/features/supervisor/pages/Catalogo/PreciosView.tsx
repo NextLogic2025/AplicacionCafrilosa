@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { PlusCircle, Edit2, DollarSign } from 'lucide-react'
-import { Button } from 'components/ui/Button'
+import { PlusCircle, DollarSign } from 'lucide-react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { useEntityCrud } from '../../../../hooks/useEntityCrud'
 import { asignarPrecio, obtenerPreciosDeProducto, type PrecioItem, type AsignarPrecioDto } from '../../services/preciosApi'
 import { getAllProducts, type Product } from '../../services/productosApi'
 
@@ -15,9 +15,15 @@ const LISTAS_PRECIOS = [
 ]
 
 export function PreciosView() {
-  const [products, setProducts] = useState<Product[]>([])
+  const { data: products, isLoading, error } = useEntityCrud<Product, any, any>({
+    load: getAllProducts,
+    create: async () => new Promise(() => {}),
+    update: async () => new Promise(() => {}),
+    delete: async () => new Promise(() => {}),
+  })
+
   const [preciosMap, setPreciosMap] = useState<Map<string, PrecioItem[]>>(new Map())
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingPrecios, setIsLoadingPrecios] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState<AsignarPrecioDto>({
     productoId: '',
@@ -32,35 +38,10 @@ export function PreciosView() {
   } | null>(null)
 
   useEffect(() => {
-    loadInitialData()
-  }, [])
-
-  const loadInitialData = async () => {
-    try {
-      setIsLoading(true)
-      const productsData = await getAllProducts()
-      setProducts(productsData || [])
-
-      // Cargar precios para cada producto
-      const preciosData = new Map<string, PrecioItem[]>()
-      for (const product of (productsData || [])) {
-        try {
-          const precios = await obtenerPreciosDeProducto(product.id)
-          preciosData.set(product.id, precios)
-        } catch (error) {
-          // Si no hay precios para este producto, continuar
-          preciosData.set(product.id, [])
-        }
-      }
-      setPreciosMap(preciosData)
-    } catch (error) {
-      console.error('Error al cargar datos:', error)
-      setProducts([])
-      setPreciosMap(new Map())
-    } finally {
-      setIsLoading(false)
+    if (products.length > 0 && isLoadingPrecios) {
+      loadPreciosMap()
     }
-  }
+  }, [products, isLoadingPrecios])
 
   const handleOpenModal = (productoId?: string) => {
     if (productoId) {
@@ -99,8 +80,8 @@ export function PreciosView() {
       newErrors.productoId = 'Debes seleccionar un producto'
     }
 
-    if (formData.precio < 0) {
-      newErrors.precio = 'El precio no puede ser negativo'
+    if (formData.precio <= 0) {
+      newErrors.precio = 'El precio debe ser mayor a 0'
     }
 
     setErrors(newErrors)
@@ -121,36 +102,47 @@ export function PreciosView() {
       await asignarPrecio(formData)
       setSubmitMessage({
         type: 'success',
-        message: 'Precio asignado exitosamente',
+        message: 'Precio asignado correctamente',
       })
-
-      await loadInitialData()
-
+      await loadPreciosMap()
       setTimeout(() => {
         handleCloseModal()
       }, 1500)
     } catch (error: any) {
       setSubmitMessage({
         type: 'error',
-        message: error.message || 'Error al asignar el precio',
+        message: error.message || 'Error al asignar precio',
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const loadPreciosMap = async () => {
+    try {
+      setIsLoadingPrecios(true)
+      const preciosData = new Map<string, PrecioItem[]>()
+      for (const product of products) {
+        try {
+          const precios = await obtenerPreciosDeProducto(product.id)
+          preciosData.set(product.id, precios)
+        } catch {
+          preciosData.set(product.id, [])
+        }
+      }
+      setPreciosMap(preciosData)
+    } finally {
+      setIsLoadingPrecios(false)
+    }
+  }
+
   const getPrecioForProductoAndLista = (productoId: string, listaId: number): number | null => {
     const precios = preciosMap.get(productoId) || []
-    const precio = precios.find((p) => p.lista_id === listaId)
-    return precio ? parseFloat(String(precio.precio)) : null
+    const precio = precios.find((p: PrecioItem) => p.lista_id === listaId)
+    return precio ? parseFloat(precio.precio as any) : null
   }
 
-  const getProductoNombre = (productoId: string): string => {
-    const producto = products.find((p) => p.id === productoId)
-    return producto?.nombre || productoId
-  }
-
-  if (isLoading) {
+  if (isLoading || isLoadingPrecios) {
     return (
       <div className="flex justify-center py-12">
         <LoadingSpinner />
@@ -167,61 +159,48 @@ export function PreciosView() {
             Administra precios por lista (General, Mayorista, Horeca)
           </p>
         </div>
-        <Button
+        <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90"
+          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
         >
           <PlusCircle className="h-4 w-4" />
           Asignar precio
-        </Button>
+        </button>
       </div>
+
+      {error && <Alert type="error" message={error} />}
 
       {products.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
             <DollarSign className="h-8 w-8 text-gray-400" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            No hay productos
-          </h3>
-          <p className="mt-2 text-sm text-gray-600">
-            Primero crea productos en el catálogo
-          </p>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900">No hay productos</h3>
+          <p className="mt-2 text-sm text-gray-600">Primero crea productos en el catálogo</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
           <table className="w-full">
             <thead className="border-b border-gray-200 bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  SKU
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Producto
-                </th>
-                {Array.isArray(LISTAS_PRECIOS) && LISTAS_PRECIOS.map((lista) => (
-                  <th
-                    key={lista.id}
-                    className="px-6 py-3 text-center text-sm font-semibold text-gray-900"
-                  >
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">SKU</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Producto</th>
+                {LISTAS_PRECIOS.map((lista) => (
+                  <th key={lista.id} className="px-6 py-3 text-center text-sm font-semibold text-gray-900">
                     {lista.nombre}
                   </th>
                 ))}
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
-                  Acciones
-                </th>
+                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {Array.isArray(products) && products.map((product) => (
+              {products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {product.codigo_sku}
-                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{product.codigo_sku}</td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <p className="font-medium">{product.nombre}</p>
                   </td>
-                  {Array.isArray(LISTAS_PRECIOS) && LISTAS_PRECIOS.map((lista) => {
+                  {LISTAS_PRECIOS.map((lista) => {
                     const precio = getPrecioForProductoAndLista(product.id, lista.id)
                     return (
                       <td key={`${product.id}-${lista.id}`} className="px-6 py-4 text-center">
@@ -241,7 +220,9 @@ export function PreciosView() {
                       className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
                       title="Editar precio"
                     >
-                      <Edit2 className="h-4 w-4" />
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
                     </button>
                   </td>
                 </tr>
@@ -278,15 +259,13 @@ export function PreciosView() {
               disabled={isSubmitting}
             >
               <option value="">Selecciona un producto</option>
-              {Array.isArray(products) && products.map((product) => (
+              {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.codigo_sku} - {product.nombre}
                 </option>
               ))}
             </select>
-            {errors.productoId && (
-              <span className="text-xs text-red-700">{errors.productoId}</span>
-            )}
+            {errors.productoId && <span className="text-xs text-red-700">{errors.productoId}</span>}
           </div>
 
           <div className="grid gap-2">
@@ -323,21 +302,21 @@ export function PreciosView() {
           />
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button
+            <button
               type="button"
               onClick={handleCloseModal}
-              className="bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
+              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
               disabled={isSubmitting}
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition disabled:opacity-50 font-semibold"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Guardando...' : 'Asignar precio'}
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

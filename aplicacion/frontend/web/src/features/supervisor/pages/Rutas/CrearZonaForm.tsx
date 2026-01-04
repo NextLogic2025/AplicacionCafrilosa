@@ -81,7 +81,7 @@ export function CrearZonaForm({
           <option value="">Sin asignar</option>
           {Array.isArray(vendedores) && vendedores.map((v) => (
             <option key={v.id} value={v.id}>
-              {v.nombre} {v.apellido || ''} - {v.email}
+              {v.nombre} - {v.email}
             </option>
           ))}
         </select>

@@ -75,7 +75,8 @@ async function productHttp<T>(path: string, options: { method?: string; body?: u
 }
 
 export async function getAllProducts(): Promise<Product[]> {
-  return productHttp<Product[]>('/products')
+  const response = await productHttp<{ metadata: any; items: Product[] }>('/products')
+  return response.items || []
 }
 
 export async function createProduct(data: CreateProductDto): Promise<Product> {

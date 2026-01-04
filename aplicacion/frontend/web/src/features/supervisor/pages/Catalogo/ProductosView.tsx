@@ -1,24 +1,28 @@
-import { useState, useEffect } from 'react'
-import { PlusCircle, Edit2, Trash2, Package } from 'lucide-react'
-import { Button } from 'components/ui/Button'
+import { useState } from 'react'
+import { PlusCircle } from 'lucide-react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
-import { 
-  getAllProducts, 
-  createProduct, 
+import { GenericDataTable, type GenericTableColumn } from '../../../../components/ui/GenericDataTable'
+import { useEntityCrud } from '../../../../hooks/useEntityCrud'
+import {
+  getAllProducts,
+  createProduct,
   updateProduct,
   deleteProduct,
   type Product,
-  type CreateProductDto 
+  type CreateProductDto,
 } from '../../services/productosApi'
-import { getAllCategories, type Category } from '../../services/catalogApi'
 
 export function ProductosView() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: products, isLoading, error, create, update, delete: deleteItem } = useEntityCrud<Product, CreateProductDto, Partial<CreateProductDto>>({
+    load: getAllProducts,
+    create: createProduct,
+    update: (id, data) => updateProduct(id as string, data as Partial<CreateProductDto>),
+    delete: (id) => deleteProduct(id as string),
+  })
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState<CreateProductDto>({
@@ -39,40 +43,6 @@ export function ProductosView() {
     type: 'success' | 'error'
     message: string
   } | null>(null)
-
-  useEffect(() => {
-    loadInitialData()
-  }, [])
-
-  const loadInitialData = async () => {
-    try {
-      setIsLoading(true)
-      const [productsData, categoriesData] = await Promise.all([
-        getAllProducts(),
-        getAllCategories(),
-      ])
-      setProducts(productsData || [])
-      setCategories(categoriesData || [])
-    } catch (error) {
-      console.error('Error al cargar datos:', error)
-      setProducts([])
-      setCategories([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const loadProducts = async () => {
-    try {
-      const data = await getAllProducts()
-      setProducts(data || [])
-    } catch (error) {
-      console.error('Error al cargar productos:', error)
-      setProducts([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
@@ -159,54 +129,39 @@ export function ProductosView() {
 
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, formData)
+        await update(editingProduct.id, formData)
         setSubmitMessage({
           type: 'success',
           message: 'Producto actualizado exitosamente',
         })
       } else {
-        await createProduct(formData)
+        await create(formData)
         setSubmitMessage({
           type: 'success',
           message: 'Producto creado exitosamente',
         })
       }
 
-      await loadProducts()
-
       setTimeout(() => {
         handleCloseModal()
       }, 1500)
-    } catch (error: any) {
+    } catch (err: any) {
       setSubmitMessage({
         type: 'error',
-        message: error.message || 'Error al guardar el producto',
+        message: err.message || 'Error al guardar el producto',
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este producto?')) {
-      return
-    }
-
+  const handleDelete = async (product: Product) => {
     try {
-      await deleteProduct(id)
-      await loadInitialData()
-    } catch (error: any) {
-      console.error('Error al eliminar:', error)
-      alert(error.message || 'Error al eliminar el producto')
+      await deleteItem(product.id)
+    } catch (err: any) {
+      console.error('Error al eliminar:', err)
+      alert(err.message || 'Error al eliminar el producto')
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <LoadingSpinner />
-      </div>
-    )
   }
 
   return (
@@ -218,96 +173,59 @@ export function ProductosView() {
             Administra el catálogo de productos
           </p>
         </div>
-        <Button
+        <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90"
+          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
         >
           <PlusCircle className="h-4 w-4" />
           Nuevo producto
-        </Button>
+        </button>
       </div>
 
-      {products.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <Package className="h-8 w-8 text-gray-400" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            No hay productos
-          </h3>
-          <p className="mt-2 text-sm text-gray-600">
-            Comienza creando tu primer producto
-          </p>
+      {error && <Alert type="error" message={error} />}
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <LoadingSpinner />
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-          <table className="w-full">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">SKU</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Nombre</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Peso (kg)</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Unidad</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Estado</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {Array.isArray(products) && products.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                    {product.codigo_sku}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    <div>
-                      <p className="font-medium">{product.nombre}</p>
-                      {product.descripcion && (
-                        <p className="text-xs text-gray-500 line-clamp-1">
-                          {product.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {product.peso_unitario_kg}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">
-                    {product.unidad_medida}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        product.activo
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {product.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleOpenModal(product)}
-                        className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
-                        title="Editar"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <GenericDataTable<Product>
+          data={products}
+          columns={[
+            { key: 'codigo_sku', label: 'SKU', className: 'font-medium' },
+            {
+              key: 'nombre',
+              label: 'Nombre',
+              render: (value, row) => (
+                <div>
+                  <p className="font-medium">{value}</p>
+                  {row.descripcion && (
+                    <p className="text-xs text-gray-500 line-clamp-1">{row.descripcion}</p>
+                  )}
+                </div>
+              ),
+            },
+            { key: 'peso_unitario_kg', label: 'Peso (kg)' },
+            { key: 'unidad_medida', label: 'Unidad' },
+            {
+              key: 'activo',
+              label: 'Estado',
+              render: (value) => (
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {value ? 'Activo' : 'Inactivo'}
+                </span>
+              ),
+            },
+          ]}
+          onEdit={handleOpenModal}
+          onDelete={handleDelete}
+          emptyStateTitle="No hay productos"
+          emptyStateDescription="Comienza creando tu primer producto"
+        />
       )}
 
       <Modal
@@ -367,28 +285,6 @@ export function ProductosView() {
               className="min-h-[80px] w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
               disabled={isSubmitting}
             />
-          </div>
-
-          <div className="grid gap-2">
-            <label className="text-xs text-neutral-600">Categoría</label>
-            <select
-              value={formData.categoria_id || ''}
-              onChange={(e) =>
-                setFormData({ 
-                  ...formData, 
-                  categoria_id: e.target.value ? parseInt(e.target.value) : null 
-                })
-              }
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              <option value="">Sin categoría</option>
-              {Array.isArray(categories) && categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.nombre}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -487,17 +383,17 @@ export function ProductosView() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button
+            <button
               type="button"
               onClick={handleCloseModal}
-              className="bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
+              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
               disabled={isSubmitting}
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition disabled:opacity-50 font-semibold"
               disabled={isSubmitting}
             >
               {isSubmitting
@@ -505,7 +401,7 @@ export function ProductosView() {
                 : editingProduct
                 ? 'Actualizar'
                 : 'Crear producto'}
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

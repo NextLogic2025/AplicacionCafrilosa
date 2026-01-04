@@ -154,7 +154,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             password: formData.contacto_password,
             rolId: 6,
           })
-          usuarioId = usuario.id
+          usuarioId = usuario.id.toString()
         }
 
         await crearCliente({

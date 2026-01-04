@@ -93,7 +93,7 @@ export default function ClientesPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSuccessCreate}
-        initialData={editingCliente ?? undefined}
+        initialData={editingCliente ? { ...editingCliente, nombre_comercial: editingCliente.nombre_comercial || undefined } : undefined}
         mode={editingCliente ? 'edit' : 'create'}
       />
     </div>

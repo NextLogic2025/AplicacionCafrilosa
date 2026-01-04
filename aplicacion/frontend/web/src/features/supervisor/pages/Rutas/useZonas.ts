@@ -6,6 +6,8 @@ import {
   updateZona,
   toggleZonaActivo,
   asignarVendedorAZona,
+  actualizarAsignacionVendedor,
+  eliminarAsignacionVendedor,
   type ZonaComercial, 
   type CreateZonaDto 
 } from '../../services/zonasApi'
@@ -63,8 +65,7 @@ export function useZonas() {
       await asignarVendedorAZona({
         zona_id: zonaCreada.id,
         vendedor_usuario_id: vendedorId,
-        nombre_vendedor_cache: vendedor ? `${vendedor.nombre} ${vendedor.apellido || ''}`.trim() : null,
-        es_principal: true,
+        nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
       })
     }
 
@@ -74,7 +75,8 @@ export function useZonas() {
   const actualizarZonaConVendedor = async (
     zonaId: number,
     zonaData: Partial<CreateZonaDto>,
-    vendedorId?: string
+    vendedorId?: string,
+    asignacionActualId?: number
   ) => {
     const zonaActualizada = await updateZona(zonaId, {
       codigo: zonaData.codigo?.trim(),
@@ -83,12 +85,26 @@ export function useZonas() {
       macrorregion: zonaData.macrorregion?.trim() || undefined,
     })
 
-    if (vendedorId && zonaId) {
+    // Si hay una asignación actual y el vendedor cambió o se eliminó
+    if (asignacionActualId) {
+      if (!vendedorId) {
+        // Se quitó el vendedor
+        await eliminarAsignacionVendedor(asignacionActualId)
+      } else {
+        // Se cambió el vendedor
+        const vendedor = vendedores.find((v) => v.id === vendedorId)
+        await actualizarAsignacionVendedor(asignacionActualId, {
+          vendedor_usuario_id: vendedorId,
+          nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
+        })
+      }
+    } else if (vendedorId) {
+      // No había vendedor y se asignó uno nuevo
       const vendedor = vendedores.find((v) => v.id === vendedorId)
       await asignarVendedorAZona({
         zona_id: zonaId,
         vendedor_usuario_id: vendedorId,
-        nombre_vendedor_cache: vendedor ? `${vendedor.nombre} ${vendedor.apellido || ''}`.trim() : null,
+        nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
         es_principal: true,
       })
     }

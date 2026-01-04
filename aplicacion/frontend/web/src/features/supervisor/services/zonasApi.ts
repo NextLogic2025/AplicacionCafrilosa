@@ -68,12 +68,12 @@ async function zonasHttp<T>(path: string, options: { method?: string; body?: unk
 
   const data = (await res.json().catch(() => null)) as T | { message?: string; error?: string } | null
   if (!res.ok) {
-    const message =
-      typeof data?.message === 'string'
-        ? data.message
-        : typeof data?.error === 'string'
-          ? data.error
-          : 'Error de API'
+    let message = 'Error de API'
+    if (data && typeof data === 'object' && 'message' in data && typeof (data as any).message === 'string') {
+      message = (data as any).message
+    } else if (data && typeof data === 'object' && 'error' in data && typeof (data as any).error === 'string') {
+      message = (data as any).error
+    }
     throw new ZonasApiError(message, res.status, data)
   }
   if (data == null) throw new ZonasApiError('Respuesta inválida del servidor', res.status)
@@ -102,10 +102,10 @@ export async function getZonasConVendedores(): Promise<ZonaComercial[]> {
         ? {
             id: asignacion.id || 0,
             vendedor_usuario_id: asignacion.vendedor_usuario_id,
-            nombre_vendedor_cache: asignacion.nombre_vendedor_cache,
+            nombre_vendedor_cache: asignacion.nombre_vendedor_cache || null,
           }
         : null,
-    }
+    } as ZonaComercial
   })
 }
 
@@ -151,6 +151,19 @@ export async function asignarVendedorAZona(data: AsignacionVendedor): Promise<As
   return zonasHttp<AsignacionVendedor>('/asignacion', {
     method: 'POST',
     body: data,
+  })
+}
+
+export async function actualizarAsignacionVendedor(id: number, data: Partial<AsignacionVendedor>): Promise<AsignacionVendedor> {
+  return zonasHttp<AsignacionVendedor>(`/asignacion/${id}`, {
+    method: 'PUT',
+    body: data,
+  })
+}
+
+export async function eliminarAsignacionVendedor(id: number): Promise<void> {
+  await zonasHttp<void>(`/asignacion/${id}`, {
+    method: 'DELETE',
   })
 }
 

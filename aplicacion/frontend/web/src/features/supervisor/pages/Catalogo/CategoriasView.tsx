@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
-import { PlusCircle, Edit2, Trash2, Image as ImageIcon } from 'lucide-react'
-import { Button } from 'components/ui/Button'
+import { useState } from 'react'
+import { PlusCircle, Image as ImageIcon } from 'lucide-react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { useEntityCrud } from '../../../../hooks/useEntityCrud'
 import { 
   getAllCategories, 
   createCategory, 
@@ -15,8 +15,6 @@ import {
 } from '../../services/catalogApi'
 
 export function CategoriasView() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formData, setFormData] = useState<CreateCategoryDto>({
@@ -32,21 +30,12 @@ export function CategoriasView() {
     message: string
   } | null>(null)
 
-  useEffect(() => {
-    loadCategories()
-  }, [])
-
-  const loadCategories = async () => {
-    try {
-      setIsLoading(true)
-      const data = await getAllCategories()
-      setCategories(data)
-    } catch (error) {
-      console.error('Error al cargar categorías:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const { data: categories, isLoading, error, update, delete: deleteItem } = useEntityCrud<Category, CreateCategoryDto, CreateCategoryDto>({
+    load: getAllCategories,
+    create: createCategory,
+    update: (id, data) => updateCategory(typeof id === 'string' ? parseInt(id) : id, data),
+    delete: (id) => deleteCategory(typeof id === 'string' ? parseInt(id) : id),
+  })
 
   const handleOpenModal = (category?: Category) => {
     if (category) {
@@ -103,7 +92,7 @@ export function CategoriasView() {
 
     try {
       if (editingCategory) {
-        await updateCategory(editingCategory.id, formData)
+        await update(editingCategory.id.toString(), formData)
         setSubmitMessage({
           type: 'success',
           message: 'Categoría actualizada exitosamente',
@@ -115,8 +104,6 @@ export function CategoriasView() {
           message: 'Categoría creada exitosamente',
         })
       }
-
-      await loadCategories()
 
       setTimeout(() => {
         handleCloseModal()
@@ -137,8 +124,7 @@ export function CategoriasView() {
     }
 
     try {
-      await deleteCategory(id)
-      await loadCategories()
+      await deleteItem(id.toString())
     } catch (error: any) {
       console.error('Error al eliminar:', error)
       alert(error.message || 'Error al eliminar la categoría')
@@ -162,14 +148,16 @@ export function CategoriasView() {
             Administra las categorías de productos
           </p>
         </div>
-        <Button
+        <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90"
+          className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
         >
           <PlusCircle className="h-4 w-4" />
           Crear categoría
-        </Button>
+        </button>
       </div>
+
+      {error && <Alert type="error" message={error} />}
 
       {categories.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
@@ -231,14 +219,18 @@ export function CategoriasView() {
                     className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
                     title="Editar"
                   >
-                    <Edit2 className="h-4 w-4" />
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
                   </button>
                   <button
                     onClick={() => handleDelete(category.id)}
                     className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
                     title="Eliminar"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -323,17 +315,17 @@ export function CategoriasView() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button
+            <button
               type="button"
               onClick={handleCloseModal}
-              className="bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
+              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
               disabled={isSubmitting}
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition disabled:opacity-50 font-semibold"
               disabled={isSubmitting}
             >
               {isSubmitting
@@ -341,7 +333,7 @@ export function CategoriasView() {
                 : editingCategory
                 ? 'Actualizar'
                 : 'Crear categoría'}
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

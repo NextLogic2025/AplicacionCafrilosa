@@ -26,7 +26,6 @@ export default function RutasPage() {
     nombre: '',
     ciudad: '',
     macrorregion: '',
-    activo: true,
   })
 
   const handleOpenModalCrear = () => {
@@ -36,7 +35,7 @@ export default function RutasPage() {
     setFormErrors({})
     setSubmitMessage(null)
     setVendedorSeleccionado('')
-    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '', activo: true })
+    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '' })
   }
 
   const handleOpenModalEditar = (zona: ZonaComercial) => {
@@ -60,7 +59,7 @@ export default function RutasPage() {
     setFormErrors({})
     setSubmitMessage(null)
     setVendedorSeleccionado('')
-    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '', activo: true })
+    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '' })
   }
 
   const handleToggleEstado = async (zona: ZonaComercial) => {
@@ -96,7 +95,12 @@ export default function RutasPage() {
         await crearZonaConVendedor(formData, vendedorSeleccionado || undefined)
         setSubmitMessage({ type: 'success', message: 'Zona creada correctamente' })
       } else if (zonaEditando) {
-        await actualizarZonaConVendedor(zonaEditando.id, formData, vendedorSeleccionado || undefined)
+        await actualizarZonaConVendedor(
+          zonaEditando.id, 
+          formData, 
+          vendedorSeleccionado || undefined,
+          zonaEditando.vendedor_asignado?.id
+        )
         setSubmitMessage({ type: 'success', message: 'Zona actualizada correctamente' })
       }
       await loadZonas()
