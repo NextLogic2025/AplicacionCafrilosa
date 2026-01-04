@@ -15,6 +15,7 @@ export interface Product {
     nombre: string
     descripcion?: string
     categoria_id?: number
+    categoria?: Category
     peso_unitario_kg?: number
     volumen_m3?: number
     requiere_frio?: boolean

@@ -68,7 +68,7 @@ export function SupervisorProductFormScreen() {
                 nombre: p.nombre,
                 sku: p.codigo_sku,
                 description: p.descripcion || '',
-                categoryId: p.categoria_id || 0,
+                categoryId: p.categoria_id || p.categoria?.id || 0,
                 unit: p.unidad_medida || 'UNIDAD',
                 weight: p.peso_unitario_kg?.toString() || '',
                 volume: p.volumen_m3?.toString() || '',
@@ -112,7 +112,7 @@ export function SupervisorProductFormScreen() {
                     nombre: p.nombre,
                     sku: p.codigo_sku,
                     description: p.descripcion || '',
-                    categoryId: p.categoria_id || 0,
+                    categoryId: p.categoria_id || p.categoria?.id || 0,
                     unit: p.unidad_medida || 'UNIDAD',
                     weight: p.peso_unitario_kg?.toString() || '',
                     volume: p.volumen_m3?.toString() || '',
@@ -147,6 +147,39 @@ export function SupervisorProductFormScreen() {
     const showFeedback = (type: FeedbackType, title: string, message: string, onConfirm?: () => void, showCancel = false) => {
         setFeedbackConfig({ type, title, message, onConfirm, showCancel })
         setFeedbackVisible(true)
+    }
+
+    const handleConfirmDeletePrice = (list: PriceList) => {
+        if (!params.product?.id) {
+            // Only local state clear if product not created yet
+            const newPrices = { ...priceValues }
+            delete newPrices[list.id]
+            setPriceValues(newPrices)
+            return
+        }
+
+        showFeedback(
+            'warning',
+            'Eliminar Precio',
+            `¿Deseas eliminar el precio de la lista "${list.nombre}"? Se borrará de la base de datos.`,
+            async () => {
+                try {
+                    setLoading(true)
+                    await PriceService.deletePrice(params.product!.id, list.id)
+
+                    const newPrices = { ...priceValues }
+                    delete newPrices[list.id]
+                    setPriceValues(newPrices)
+
+                    showFeedback('success', 'Eliminado', 'Precio eliminado correctamente.')
+                } catch (error) {
+                    showFeedback('error', 'Error', 'No se pudo eliminar el precio.')
+                } finally {
+                    setLoading(false)
+                }
+            },
+            true
+        )
     }
 
     const handlePriceChange = (listId: number, text: string) => {
@@ -357,7 +390,7 @@ export function SupervisorProductFormScreen() {
                     </View>
                 </View>
 
-                {/* 3. Estrategia de Precios*/}
+                {/* 3. Estrategia de Precios */}
                 <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
                     <View className="flex-row items-center justify-between mb-4">
                         <View>
@@ -386,41 +419,73 @@ export function SupervisorProductFormScreen() {
                     ) : (
                         <View className="gap-3">
                             {priceLists.map((list) => {
-                                const isGeneral = list.nombre.toLowerCase().includes('general');
+                                const isGeneral = list.nombre.toLowerCase().includes('general')
+                                const isActive = priceValues[list.id] !== undefined
+
+                                // Dynamic Styles
+                                const containerStyle = isActive
+                                    ? (isGeneral ? 'bg-blue-50 border-blue-200' : 'bg-white border-green-200 shadow-sm')
+                                    : 'bg-neutral-50 border-neutral-200 opacity-80'
+
+                                const titleColor = isActive
+                                    ? (isGeneral ? 'text-blue-800' : 'text-green-700')
+                                    : 'text-neutral-500'
+
                                 return (
                                     <View
                                         key={list.id}
-                                        className={`p-3 rounded-xl border ${isGeneral
-                                            ? 'bg-blue-50 border-blue-200'
-                                            : 'bg-neutral-50 border-neutral-200'
-                                            }`}
+                                        className={`p-3 rounded-xl border ${containerStyle}`}
                                     >
                                         <View className="flex-row items-center justify-between mb-2">
                                             <View className="flex-row items-center">
                                                 {isGeneral && (
                                                     <Ionicons name="star" size={14} color="#2563EB" style={{ marginRight: 4 }} />
                                                 )}
-                                                <Text className={`font-bold ${isGeneral ? 'text-blue-800' : 'text-neutral-700'}`}>
+                                                <Text className={`font-bold ${titleColor}`}>
                                                     {list.nombre}
                                                 </Text>
                                             </View>
-                                            <View className="bg-white px-2 py-0.5 rounded border border-neutral-100">
-                                                <Text className="text-xs text-neutral-400 font-medium">{list.moneda || 'USD'}</Text>
-                                            </View>
+
+                                            {/* Action Buttons */}
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    if (isActive) {
+                                                        handleConfirmDeletePrice(list)
+                                                    } else {
+                                                        // Activate: Set empty string or '0' to enable input
+                                                        setPriceValues(prev => ({ ...prev, [list.id]: '' }))
+                                                    }
+                                                }}
+                                                className={`px-3 py-1 rounded-full border ${isActive
+                                                    ? 'bg-red-50 border-red-100'
+                                                    : 'bg-neutral-200 border-neutral-300'}`}
+                                            >
+                                                <Text className={`text-xs font-bold ${isActive ? 'text-red-600' : 'text-neutral-600'}`}>
+                                                    {isActive ? 'Desactivar' : 'Activar'}
+                                                </Text>
+                                            </TouchableOpacity>
                                         </View>
 
-                                        <View className="flex-row items-center bg-white border border-neutral-200 rounded-xl px-3 h-12">
-                                            <Text className="text-neutral-400 mr-2 text-lg">$</Text>
-                                            <TextInput
-                                                className="flex-1 text-neutral-900 font-bold text-lg text-right"
-                                                placeholder="0.00"
-                                                placeholderTextColor="#D1D5DB"
-                                                keyboardType="numeric"
-                                                value={priceValues[list.id] || ''}
-                                                onChangeText={(text) => handlePriceChange(list.id, text)}
-                                                selectTextOnFocus
-                                            />
-                                        </View>
+                                        {isActive ? (
+                                            <View className="flex-row items-center bg-white border border-neutral-200 rounded-xl px-3 h-12">
+                                                <Text className="text-neutral-400 mr-2 text-lg">$</Text>
+                                                <TextInput
+                                                    className="flex-1 text-neutral-900 font-bold text-lg text-right"
+                                                    placeholder="0.00"
+                                                    placeholderTextColor="#D1D5DB"
+                                                    keyboardType="numeric"
+                                                    value={priceValues[list.id]}
+                                                    onChangeText={(text) => handlePriceChange(list.id, text)}
+                                                    selectTextOnFocus
+                                                />
+                                            </View>
+                                        ) : (
+                                            <View className="h-10 justify-center">
+                                                <Text className="text-xs text-neutral-400 italic text-center">
+                                                    Precio inactivo. Pulse activar para asignar.
+                                                </Text>
+                                            </View>
+                                        )}
                                     </View>
                                 )
                             })}

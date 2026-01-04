@@ -55,5 +55,11 @@ export const PriceService = {
             method: 'POST',
             body: JSON.stringify(data)
         })
+    },
+
+    deletePrice: async (productoId: string, listaId: number) => {
+        return apiRequest(`/api/precios/item/${productoId}/${listaId}`, {
+            method: 'DELETE'
+        })
     }
 }
