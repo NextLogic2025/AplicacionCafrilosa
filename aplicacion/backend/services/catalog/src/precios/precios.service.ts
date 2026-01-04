@@ -2,10 +2,11 @@ import { Injectable, InternalServerErrorException, NotFoundException } from '@ne
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { Product } from '../products/entities/product.entity';
+
 import { PrecioItem } from './entities/precio.entity';
 import { AsignarPrecioDto } from './dto/asignar-precio.dto';
 import { ListaPrecio } from './entities/lista-precio.entity';
-import { Product } from '../products/entities/product.entity';
 
 @Injectable()
 export class PreciosService {
