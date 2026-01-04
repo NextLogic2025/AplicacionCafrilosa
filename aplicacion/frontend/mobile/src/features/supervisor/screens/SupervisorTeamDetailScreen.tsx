@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../components/ui/Header'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
@@ -13,16 +13,23 @@ import { FeedbackModal } from '../../../components/ui/FeedbackModal'
 export function SupervisorTeamDetailScreen() {
     const navigation = useNavigation()
     const route = useRoute<any>()
-    const { user } = route.params as { user: UserProfile }
+    const { user } = route.params as { user: UserProfile | null }
+    const isEditing = !!user
 
-    const [role, setRole] = useState(user.role)
-    const [isActive, setIsActive] = useState(true) // Default true until we fetch real status if available
+    // Form State
+    const [name, setName] = useState(user?.name || '')
+    const [email, setEmail] = useState(user?.email || '')
+    const [password, setPassword] = useState('') // Only for creation
+    const [role, setRole] = useState(user?.role || 'vendedor') // Default to 'vendedor'
+    const [isActive, setIsActive] = useState(user ? true : true) // Default active
+
+    // UI State
     const [showRoleModal, setShowRoleModal] = useState(false)
     const [loading, setLoading] = useState(false)
     const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false)
 
-    // Mock Roles
-    // Roles from auth_db schema
+    // Roles map
     const roles = [
         { id: '1', name: 'admin', label: 'Administrador' },
         { id: '2', name: 'supervisor', label: 'Supervisor' },
@@ -31,52 +38,71 @@ export function SupervisorTeamDetailScreen() {
         { id: '5', name: 'transportista', label: 'Transportista' },
     ]
 
-    const [deleteModalVisible, setDeleteModalVisible] = useState(false)
-
     const handleSave = async () => {
+        if (!name || !email) {
+            Alert.alert('Error', 'Por favor completa nombre y correo.')
+            return
+        }
+        if (!isEditing && !password) {
+            Alert.alert('Error', 'La contraseña es obligatoria para nuevos usuarios.')
+            return
+        }
+
         setLoading(true)
         try {
-            // Map role name to ID from our hardcoded list for now, or ensure backend accepts names. 
-            // DB schema says 'rol_id' (int). Our list has IDs.
-            const selectedRole = roles.find(r => r.name === role)
+            const selectedRole = roles.find(r => r.name.toLowerCase() === role.toLowerCase())
+            const rolId = selectedRole ? parseInt(selectedRole.id) : 4 // Default Vendedor
 
-            const payload: any = {
-                activo: isActive
-            }
+            if (isEditing && user) {
+                // UPDATE
+                const payload: any = { activo: isActive }
+                if (selectedRole) payload.rolId = rolId
+                if (name !== user.name) payload.nombre = name
+                // Note: Email often cannot be changed easily via this endpoint, depends on backend
 
-            if (selectedRole) {
-                payload.rolId = parseInt(selectedRole.id)
-            }
-
-            const result = await UserService.updateUser(user.id, payload)
-
-            if (result.success) {
-                setFeedbackVisible(true)
+                const result = await UserService.updateUser(user.id, payload)
+                if (result.success) {
+                    setFeedbackVisible(true)
+                } else {
+                    Alert.alert('Error', result.message)
+                }
             } else {
-                alert('Error: ' + result.message)
+                // CREATE
+                const payload = {
+                    nombre: name,
+                    email: email,
+                    password: password,
+                    rolId: rolId
+                }
+                const result = await UserService.createUser(payload)
+                if (result.success) {
+                    setFeedbackVisible(true)
+                } else {
+                    Alert.alert('Error', result.message)
+                }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            alert('Error al guardar cambios')
+            Alert.alert('Error', error.message || 'Error al guardar cambios')
         } finally {
             setLoading(false)
         }
     }
 
     const handleDelete = async () => {
+        if (!user) return
         setLoading(true)
-        setDeleteModalVisible(false) // Close modal first
+        setDeleteModalVisible(false)
         try {
             const result = await UserService.deleteUser(user.id)
             if (result.success) {
-                // Show success feedback then navigate back
-                setFeedbackVisible(true) // We can reuse or make a specific one
+                setFeedbackVisible(true)
             } else {
-                alert('Error al eliminar: ' + result.message)
+                Alert.alert('Error', result.message)
             }
         } catch (error) {
             console.error(error)
-            alert('Error al eliminar usuario')
+            Alert.alert('Error', 'Error al eliminar usuario')
         } finally {
             setLoading(false)
         }
@@ -84,23 +110,64 @@ export function SupervisorTeamDetailScreen() {
 
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header title="Detalle del Empleado" variant="standard" onBackPress={() => navigation.goBack()} />
+            <Header
+                title={isEditing ? 'Detalle del Empleado' : 'Nuevo Empleado'}
+                variant="standard"
+                onBackPress={() => navigation.goBack()}
+            />
 
             <ScrollView className="flex-1 px-5 pt-6">
 
-                {/* Profile Header Card */}
+                {/* Profile Header / Basic Info */}
                 <View className="bg-white p-6 rounded-3xl shadow-sm border border-neutral-100 items-center mb-6">
                     <View className="w-24 h-24 rounded-full bg-red-50 items-center justify-center mb-4 border-2 border-red-100">
-                        <Text className="text-red-500 font-bold text-4xl">{user.name.charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <Text className="text-2xl font-bold text-neutral-900 mb-1 text-center">{user.name}</Text>
-                    <Text className="text-neutral-500 font-medium mb-4">{user.email}</Text>
-
-                    <View className={`px-4 py-1.5 rounded-full ${isActive ? 'bg-green-100' : 'bg-red-100'}`}>
-                        <Text className={`${isActive ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
-                            {isActive ? 'Activo' : 'Inactivo'}
+                        <Text className="text-red-500 font-bold text-4xl">
+                            {name ? name.charAt(0).toUpperCase() : '?'}
                         </Text>
                     </View>
+
+                    {/* Inputs for Name/Email */}
+                    <View className="w-full">
+                        <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Nombre Completo</Text>
+                        <TextInput
+                            className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900 font-medium"
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Ej: Juan Perez"
+                        />
+
+                        <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Correo Electrónico</Text>
+                        <TextInput
+                            className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900"
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="ejemplo@correo.com"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            editable={!isEditing} // Often email is immutable or needs special flow
+                        />
+
+                        {!isEditing && (
+                            <>
+                                <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Contraseña Temporal</Text>
+                                <TextInput
+                                    className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    placeholder="********"
+                                    secureTextEntry
+                                />
+                            </>
+                        )}
+                    </View>
+
+                    {isEditing && (
+                        <View className={`px-4 py-1.5 rounded-full mt-2 ${isActive ? 'bg-green-100' : 'bg-red-100'}`}>
+                            <Text className={`${isActive ? 'text-green-700' : 'text-red-700'} font-bold text-sm`}>
+                                {isActive ? 'Activo' : 'Inactivo'}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Settings Section */}
@@ -118,29 +185,31 @@ export function SupervisorTeamDetailScreen() {
                                 <Ionicons name="briefcase-outline" size={16} color="#3b82f6" />
                             </View>
                             <Text className="text-neutral-900 font-semibold uppercase">
-                                {roles.find(r => r.name === role)?.label || role}
+                                {roles.find(r => r.name.toLowerCase() === role.toLowerCase())?.label || role}
                             </Text>
                         </View>
                         <Ionicons name="chevron-down" size={20} color="#9ca3af" />
                     </TouchableOpacity>
 
-                    {/* Status Toggle */}
-                    <View className="flex-row items-center justify-between p-4 bg-neutral-50 rounded-xl border border-neutral-200">
-                        <View className="flex-row items-center">
-                            <View className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center mr-3">
-                                <Ionicons name="power-outline" size={16} color="orange" />
+                    {/* Status Toggle - Only show if editing */}
+                    {isEditing && (
+                        <View className="flex-row items-center justify-between p-4 bg-neutral-50 rounded-xl border border-neutral-200">
+                            <View className="flex-row items-center">
+                                <View className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center mr-3">
+                                    <Ionicons name="power-outline" size={16} color="orange" />
+                                </View>
+                                <View>
+                                    <Text className="text-neutral-900 font-semibold">Estado de Cuenta</Text>
+                                    <Text className="text-neutral-500 text-xs">Habilitar acceso al sistema</Text>
+                                </View>
                             </View>
-                            <View>
-                                <Text className="text-neutral-900 font-semibold">Estado de Cuenta</Text>
-                                <Text className="text-neutral-500 text-xs">Habilitar acceso al sistema</Text>
-                            </View>
+                            <Switch
+                                value={isActive}
+                                onValueChange={setIsActive}
+                                trackColor={{ false: "#d1d5db", true: "#22c55e" }}
+                            />
                         </View>
-                        <Switch
-                            value={isActive}
-                            onValueChange={setIsActive}
-                            trackColor={{ false: "#d1d5db", true: "#22c55e" }}
-                        />
-                    </View>
+                    )}
                 </View>
 
             </ScrollView>
@@ -151,21 +220,23 @@ export function SupervisorTeamDetailScreen() {
                     style={{ backgroundColor: BRAND_COLORS.red }}
                     onPress={handleSave}
                 >
-                    <Text className="text-white font-bold text-lg">{loading ? 'Guardando...' : 'Guardar Cambios'}</Text>
+                    <Text className="text-white font-bold text-lg">{loading ? 'Procesando...' : (isEditing ? 'Guardar Cambios' : 'Crear Empleado')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    className="w-full py-3 items-center"
-                    onPress={() => setDeleteModalVisible(true)}
-                >
-                    <Text className="text-red-500 font-semibold">Eliminar Empleado</Text>
-                </TouchableOpacity>
+                {isEditing && (
+                    <TouchableOpacity
+                        className="w-full py-3 items-center"
+                        onPress={() => setDeleteModalVisible(true)}
+                    >
+                        <Text className="text-red-500 font-semibold">Eliminar Empleado</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Role Selection Modal */}
             <GenericModal
                 visible={showRoleModal}
-                title="Cambiar Rol"
+                title="Seleccionar Rol"
                 onClose={() => setShowRoleModal(false)}
             >
                 <View className="h-64">
@@ -173,16 +244,16 @@ export function SupervisorTeamDetailScreen() {
                         items={roles}
                         renderItem={(item: any) => (
                             <TouchableOpacity
-                                className={`p-4 mb-2 rounded-xl flex-row items-center justify-between border ${role === item.name ? 'bg-red-50 border-red-200' : 'bg-white border-neutral-100'}`}
+                                className={`p-4 mb-2 rounded-xl flex-row items-center justify-between border ${role.toLowerCase() === item.name.toLowerCase() ? 'bg-red-50 border-red-200' : 'bg-white border-neutral-100'}`}
                                 onPress={() => {
                                     setRole(item.name)
                                     setShowRoleModal(false)
                                 }}
                             >
-                                <Text className={`font-semibold ${role === item.name ? 'text-neutral-900' : 'text-neutral-700'}`}>
+                                <Text className={`font-semibold ${role.toLowerCase() === item.name.toLowerCase() ? 'text-neutral-900' : 'text-neutral-700'}`}>
                                     {item.label}
                                 </Text>
-                                {role === item.name && <Ionicons name="checkmark-circle" size={22} color="#ef4444" />}
+                                {role.toLowerCase() === item.name.toLowerCase() && <Ionicons name="checkmark-circle" size={22} color="#ef4444" />}
                             </TouchableOpacity>
                         )}
                         isLoading={false}
@@ -223,12 +294,11 @@ export function SupervisorTeamDetailScreen() {
                 </View>
             </GenericModal>
 
-
             <FeedbackModal
                 visible={feedbackVisible}
                 type="success"
-                title="Empleado Actualizado"
-                message="Los cambios se han guardado exitosamente."
+                title={isEditing ? "Empleado Actualizado" : "Empleado Creado"}
+                message={isEditing ? "Los cambios se han guardado exitosamente." : "El nuevo miembro ha sido agregado al equipo."}
                 onClose={() => {
                     setFeedbackVisible(false)
                     navigation.goBack()

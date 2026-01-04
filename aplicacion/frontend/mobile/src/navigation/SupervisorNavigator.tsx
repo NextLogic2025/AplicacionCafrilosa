@@ -19,12 +19,14 @@ import { SupervisorWarehouseScreen } from '../features/supervisor/screens/Superv
 import { SupervisorReturnsScreen } from '../features/supervisor/screens/SupervisorReturnsScreen'
 import { SupervisorReportsScreen } from '../features/supervisor/screens/SupervisorReportsScreen'
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/SupervisorAlertsScreen'
+import { SupervisorZonesScreen } from '../features/supervisor/screens/SupervisorZonesScreen'
+import { SupervisorZoneDetailScreen } from '../features/supervisor/screens/SupervisorZoneDetailScreen'
 import { SupervisorCatalogScreen } from '../features/supervisor/screens/SupervisorCatalogScreen'
 import { SupervisorCategoriesScreen } from '../features/supervisor/screens/SupervisorCategoriesScreen'
 import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
 import { SupervisorPriceListsScreen } from '../features/supervisor/screens/SupervisorPriceListsScreen'
 import { SupervisorPromotionsScreen } from '../features/supervisor/screens/SupervisorPromotionsScreen'
-import { SupervisorZonesScreen } from '../features/supervisor/screens/SupervisorZonesScreen'
+
 import { SupervisorAuditScreen } from '../features/supervisor/screens/SupervisorAuditScreen'
 
 const Tab = createBottomTabNavigator()
@@ -97,6 +99,11 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         onPress: () => navigation.navigate('SupervisorReports'),
                     },
                     {
+                        icon: 'map',
+                        label: 'Zonas',
+                        onPress: () => navigation.navigate('SupervisorZones'),
+                    },
+                    {
                         icon: 'alert-circle',
                         label: 'Alertas',
                         onPress: () => navigation.navigate('SupervisorAlerts'),
@@ -127,6 +134,7 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorPriceLists" component={SupervisorPriceListsScreen} />
             <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
             <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
+            <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
             <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>
     )
