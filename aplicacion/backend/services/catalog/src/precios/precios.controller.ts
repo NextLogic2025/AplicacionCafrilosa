@@ -1,12 +1,18 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req } from '@nestjs/common';
+
+import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { ClientesService } from '../clientes/clientes.service';
 
 import { PreciosService } from './precios.service';
 import { AsignarPrecioDto } from './dto/asignar-precio.dto';
-import { ClientesService } from '../clientes/clientes.service';
+
+// Minimal DTO for listas
+class ListaDto {
+  nombre: string;
+}
 
 @Controller('precios')
 export class PreciosController {
@@ -37,5 +43,50 @@ export class PreciosController {
     }
 
     return this.preciosService.obtenerPreciosDeProducto(id);
+  }
+
+  // CRUD para listas de precios
+  @Get('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  listarListas() {
+    return this.preciosService.listAllListas();
+  }
+
+  @Post('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  crearLista(@Body() body: ListaDto) {
+    return this.preciosService.createLista(body as any);
+  }
+
+  @Patch('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  actualizarLista(@Param('id') id: string, @Body() body: ListaDto) {
+    return this.preciosService.updateLista(Number(id), body as any);
+  }
+
+  @Delete('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  eliminarLista(@Param('id') id: string) {
+    return this.preciosService.deleteLista(Number(id));
+  }
+
+  // Listado: solo productos que tengan precio en la lista (ej. para clientes mayoristas)
+  @Get('lista/:id/productos')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
+  listarProductosConPrecio(@Param('id') id: string) {
+    return this.preciosService.productosConPrecioParaLista(Number(id));
+  }
+
+  // Listado: todos los productos y, si existe, su precio según la lista (para supervisor)
+  @Get('lista/:id/productos-all')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async listarTodosProductosConPrecio(@Param('id') id: string) {
+    return this.preciosService.todosProductosConPrecioParaLista(Number(id));
   }
 }

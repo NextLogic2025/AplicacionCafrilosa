@@ -1,5 +1,5 @@
 // placeholder (Auth controller)
-import { Controller, Post, Body, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Req, UseGuards, ForbiddenException } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthService } from './auth.service';
@@ -12,6 +12,7 @@ interface JwtUser {
   sub: string;
   email?: string;
   rolId?: string | number;
+  role?: string | string[];
 }
 
 type AuthRequest = Request & { user?: JwtUser };
@@ -62,5 +63,25 @@ export class AuthController {
   obtenerPerfil(@Req() req: AuthRequest) {
     const usuarioId = req.user?.sub;
     return this.authService.obtenerMiPerfil(usuarioId);
+  }
+
+  @Get('usuarios')
+  @UseGuards(JwtAuthGuard)
+  async listarUsuarios(@Req() req: AuthRequest) {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) ? user.role.map((r) => String(r).toLowerCase()) : [String(user?.role || '').toLowerCase()];
+    const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
+    if (!isSupervisor) throw new ForbiddenException('No autorizado');
+    return this.authService.listarUsuariosExcluyendoClientes();
+  }
+
+  @Get('vendedores')
+  @UseGuards(JwtAuthGuard)
+  async listarVendedores(@Req() req: AuthRequest) {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) ? user.role.map((r) => String(r).toLowerCase()) : [String(user?.role || '').toLowerCase()];
+    const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
+    if (!isSupervisor) throw new ForbiddenException('No autorizado');
+    return this.authService.listarVendedores();
   }
 }
