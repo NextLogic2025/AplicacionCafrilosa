@@ -13,11 +13,9 @@ export type ClienteFormValues = {
   dias_plazo: number
   direccion_texto: string
   lista_precios_id: number | null
-  vendedor_asignado_id: string | null | ''
   zona_comercial_id: number | null
 }
 
-export type VendedorOption = { id: string; nombre: string; email: string }
 export type ZonaOption = { id: number; nombre: string; descripcion?: string }
 export type ListaPrecioOption = { id: number; nombre: string; descripcion?: string; activo?: boolean }
 
@@ -36,31 +34,29 @@ export const CLIENTE_FORM_DEFAULT: ClienteFormValues = {
   dias_plazo: 0,
   direccion_texto: '',
   lista_precios_id: null,
-  vendedor_asignado_id: '',
   zona_comercial_id: null,
 }
 
 export function validateClienteForm(value: ClienteFormValues, mode: 'create' | 'edit'): Record<string, string> {
   const newErrors: Record<string, string> = {}
 
-  if (!value.contacto_nombre.trim()) {
-    newErrors.contacto_nombre = 'El nombre del contacto es requerido'
-  }
-
-  if (!value.contacto_email.trim()) {
-    newErrors.contacto_email = 'El email del contacto es requerido'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.contacto_email)) {
-    newErrors.contacto_email = 'Email inválido'
-  }
-
+  // Solo validar datos de acceso en modo crear
   if (mode === 'create') {
+    if (!value.contacto_nombre.trim()) {
+      newErrors.contacto_nombre = 'El nombre del contacto es requerido'
+    }
+
+    if (!value.contacto_email.trim()) {
+      newErrors.contacto_email = 'El email del contacto es requerido'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.contacto_email)) {
+      newErrors.contacto_email = 'Email inválido'
+    }
+
     if (!value.contacto_password) {
       newErrors.contacto_password = 'La contraseña es requerida'
     } else if (value.contacto_password.length < 6) {
       newErrors.contacto_password = 'La contraseña debe tener al menos 6 caracteres'
     }
-  } else if (value.contacto_password && value.contacto_password.length < 6) {
-    newErrors.contacto_password = 'La contraseña debe tener al menos 6 caracteres'
   }
 
   if (!value.identificacion.trim()) {
@@ -87,9 +83,7 @@ interface ClienteFormProps {
   errors: Record<string, string>
   mode: 'create' | 'edit'
   isSubmitting: boolean
-  isUserLoading: boolean
   isCatalogLoading: boolean
-  vendedores: VendedorOption[]
   zonas: ZonaOption[]
   listasPrecios: ListaPrecioOption[]
   onChange: (next: ClienteFormValues) => void
@@ -100,9 +94,7 @@ export function ClienteForm({
   errors,
   mode,
   isSubmitting,
-  isUserLoading,
   isCatalogLoading,
-  vendedores,
   zonas,
   listasPrecios,
   onChange,
@@ -115,44 +107,46 @@ export function ClienteForm({
 
   return (
     <>
-      {/* Datos de Acceso */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
-        <p className="text-sm font-semibold text-gray-800">Datos de Acceso</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextField
-            label="Nombre del contacto"
-            tone="light"
-            type="text"
-            placeholder="Ej: Juan Pérez"
-            value={value.contacto_nombre}
-            onChange={(e) => update('contacto_nombre', e.target.value)}
-            error={errors.contacto_nombre}
-            disabled={isSubmitting || isUserLoading}
-          />
+      {/* Datos de Acceso - Solo en modo crear */}
+      {mode === 'create' && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+          <p className="text-sm font-semibold text-gray-800">Datos de Acceso</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <TextField
+              label="Nombre del contacto"
+              tone="light"
+              type="text"
+              placeholder="Ej: Juan Pérez"
+              value={value.contacto_nombre}
+              onChange={(e) => update('contacto_nombre', e.target.value)}
+              error={errors.contacto_nombre}
+              disabled={isSubmitting}
+            />
+
+            <TextField
+              label="Correo del contacto"
+              tone="light"
+              type="email"
+              placeholder="contacto@cliente.com"
+              value={value.contacto_email}
+              onChange={(e) => update('contacto_email', e.target.value)}
+              error={errors.contacto_email}
+              disabled={isSubmitting}
+            />
+          </div>
 
           <TextField
-            label="Correo del contacto"
+            label="Contraseña"
             tone="light"
-            type="email"
-            placeholder="contacto@cliente.com"
-            value={value.contacto_email}
-            onChange={(e) => update('contacto_email', e.target.value)}
-            error={errors.contacto_email}
-            disabled={isSubmitting || isUserLoading}
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            value={value.contacto_password}
+            onChange={(e) => update('contacto_password', e.target.value)}
+            error={errors.contacto_password}
+            disabled={isSubmitting}
           />
         </div>
-
-        <TextField
-          label="Contraseña"
-          tone="light"
-          type="password"
-          placeholder="Mínimo 6 caracteres"
-          value={value.contacto_password}
-          onChange={(e) => update('contacto_password', e.target.value)}
-          error={errors.contacto_password}
-          disabled={isSubmitting || isUserLoading}
-        />
-      </div>
+      )}
 
       {/* Información Comercial */}
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
@@ -223,40 +217,21 @@ export function ClienteForm({
       <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
         <p className="text-sm font-semibold text-gray-800">Configuración</p>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="grid gap-2">
-            <label className="text-xs text-neutral-600">Vendedor asignado</label>
-            <select
-              value={value.vendedor_asignado_id || ''}
-              onChange={(e) => update('vendedor_asignado_id', e.target.value || '')}
-              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting || isCatalogLoading}
-            >
-              <option value="">Seleccionar vendedor</option>
-              {vendedores.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.nombre} - {v.email}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid gap-2">
-            <label className="text-xs text-neutral-600">Zona</label>
-            <select
-              value={value.zona_comercial_id ?? ''}
-              onChange={(e) => update('zona_comercial_id', e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting || isCatalogLoading}
-            >
-              <option value="">Seleccionar zona</option>
-              {zonas.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="grid gap-2">
+          <label className="text-xs text-neutral-600">Zona</label>
+          <select
+            value={value.zona_comercial_id ?? ''}
+            onChange={(e) => update('zona_comercial_id', e.target.value ? Number(e.target.value) : null)}
+            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
+            disabled={isSubmitting || isCatalogLoading}
+          >
+            <option value="">Seleccionar zona</option>
+            {zonas.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.nombre}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid gap-2">

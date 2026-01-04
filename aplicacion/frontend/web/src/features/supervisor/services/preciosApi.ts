@@ -11,6 +11,7 @@ export interface PrecioItem {
   lista_id: number
   producto_id: string
   precio: number
+  habilitado?: boolean
   lista?: ListaPrecio
   producto?: {
     id: string
@@ -23,6 +24,7 @@ export interface AsignarPrecioDto {
   productoId: string
   listaId: number
   precio: number
+  habilitado?: boolean
 }
 
 export interface CreateListaPrecioDto {
@@ -103,6 +105,13 @@ export async function updateListaPrecio(id: number, data: CreateListaPrecioDto):
 
 export async function deleteListaPrecio(id: number): Promise<void> {
   return precioHttp<void>(`/precios/listas/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+// Elimina un precio asignado a un producto en una lista específica
+export async function eliminarPrecioAsignado(listaId: number, productoId: string): Promise<void> {
+  return precioHttp<void>(`/precios/lista/${listaId}/producto/${productoId}`, {
     method: 'DELETE',
   })
 }

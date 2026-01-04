@@ -4,9 +4,12 @@ import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { EntityList } from '../../../../components/ui/EntityList'
 import { useEntityCrud } from '../../../../hooks/useEntityCrud'
+import { useModal } from '../../../../hooks/useModal'
 import { 
-  asignarPrecio, 
+  asignarPrecio,
+  eliminarPrecioAsignado,
   obtenerPreciosDeProducto, 
   getAllListasPrecios,
   createListaPrecio,
@@ -45,21 +48,14 @@ export function PreciosView() {
   const [isLoadingPrecios, setIsLoadingPrecios] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isListaModalOpen, setIsListaModalOpen] = useState(false)
-  const [editingLista, setEditingLista] = useState<ListaPrecio | null>(null)
-  const [listaFormData, setListaFormData] = useState<CreateListaPrecioDto>({
-    nombre: '',
-  })
+  const [listaFormData, setListaFormData] = useState<CreateListaPrecioDto>({ nombre: '' })
   const [formData, setFormData] = useState<AsignarPrecioDto>({
     productoId: '',
     listaId: 1,
     precio: 0,
   })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState<{
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
+  
+  const listaModal = useModal<ListaPrecio>()
 
   useEffect(() => {
     if (products.length > 0 && isLoadingPrecios) {
@@ -67,153 +63,99 @@ export function PreciosView() {
     }
   }, [products, isLoadingPrecios])
 
+  const handleSubmitLista = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!listaFormData.nombre.trim()) {
+      alert('El nombre de la lista es requerido')
+      return
+    }
+
+    try {
+      if (listaModal.editingItem) {
+        await updateLista(listaModal.editingItem.id.toString(), listaFormData)
+      } else {
+        await createLista(listaFormData)
+      }
+      
+      await refreshListas()
+      handleCloseListaModal()
+    } catch (error: any) {
+      alert(error.message || 'Error al guardar la lista')
+    }
+  }
+
   const handleOpenListaModal = (lista?: ListaPrecio) => {
     if (lista) {
-      setEditingLista(lista)
+      listaModal.openEdit(lista)
       setListaFormData({ nombre: lista.nombre })
     } else {
-      setEditingLista(null)
+      listaModal.openCreate()
       setListaFormData({ nombre: '' })
     }
     setIsListaModalOpen(true)
-    setErrors({})
-    setSubmitMessage(null)
   }
 
   const handleCloseListaModal = () => {
     setIsListaModalOpen(false)
-    setEditingLista(null)
+    listaModal.close()
     setListaFormData({ nombre: '' })
-    setErrors({})
-    setSubmitMessage(null)
-  }
-
-  const handleSubmitLista = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitMessage(null)
-
-    if (!listaFormData.nombre.trim()) {
-      setErrors({ nombre: 'El nombre es requerido' })
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      if (editingLista) {
-        await updateLista(editingLista.id.toString(), listaFormData)
-        setSubmitMessage({
-          type: 'success',
-          message: 'Lista actualizada correctamente',
-        })
-      } else {
-        await createLista(listaFormData)
-        setSubmitMessage({
-          type: 'success',
-          message: 'Lista creada correctamente',
-        })
-      }
-      
-      await refreshListas()
-      setTimeout(() => {
-        handleCloseListaModal()
-      }, 1500)
-    } catch (error: any) {
-      setSubmitMessage({
-        type: 'error',
-        message: error.message || 'Error al guardar la lista',
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
   }
 
   const handleDeleteLista = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta lista de precios?')) {
-      return
-    }
-
+    if (!confirm('¿Estás seguro de eliminar esta lista de precios?')) return
+    
     try {
       await deleteLista(id.toString())
       await refreshListas()
     } catch (error: any) {
-      console.error('Error al eliminar:', error)
       alert(error.message || 'Error al eliminar la lista')
     }
   }
 
-  const handleOpenModal = (productoId?: string) => {
-    if (productoId) {
-      setFormData({
-        productoId,
-        listaId: 1,
-        precio: 0,
-      })
-    } else {
-      setFormData({
-        productoId: '',
-        listaId: 1,
-        precio: 0,
-      })
+  const handleDeletePrecio = async (productoId: string, listaId: number) => {
+    const precioActual = getPrecioForProductoAndLista(productoId, listaId)
+    if (precioActual === null) return
+
+    const confirmed = confirm('¿Eliminar este precio asignado?')
+    if (!confirmed) return
+
+    try {
+      await eliminarPrecioAsignado(listaId, productoId)
+      await loadPreciosMap()
+    } catch (error: any) {
+      alert(error.message || 'Error al eliminar el precio')
     }
+  }
+
+  const handleOpenModal = (productoId?: string) => {
+    setFormData({
+      productoId: productoId || '',
+      listaId: 1,
+      precio: 0,
+    })
     setIsModalOpen(true)
-    setErrors({})
-    setSubmitMessage(null)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
-    setFormData({
-      productoId: '',
-      listaId: 1,
-      precio: 0,
-    })
-    setErrors({})
-    setSubmitMessage(null)
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.productoId) {
-      newErrors.productoId = 'Debes seleccionar un producto'
-    }
-
-    if (formData.precio <= 0) {
-      newErrors.precio = 'El precio debe ser mayor a 0'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    setFormData({ productoId: '', listaId: 1, precio: 0 })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitMessage(null)
 
-    if (!validateForm()) {
+    if (!formData.productoId || formData.precio <= 0) {
+      alert('Completa todos los campos correctamente')
       return
     }
 
-    setIsSubmitting(true)
-
     try {
       await asignarPrecio(formData)
-      setSubmitMessage({
-        type: 'success',
-        message: 'Precio asignado correctamente',
-      })
       await loadPreciosMap()
-      setTimeout(() => {
-        handleCloseModal()
-      }, 1500)
+      handleCloseModal()
     } catch (error: any) {
-      setSubmitMessage({
-        type: 'error',
-        message: error.message || 'Error al asignar precio',
-      })
-    } finally {
-      setIsSubmitting(false)
+      alert(error.message || 'Error al asignar precio')
     }
   }
 
@@ -298,6 +240,7 @@ export function PreciosView() {
                     {lista.nombre}
                   </th>
                 ))}
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-900">Estado</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Acciones</th>
               </tr>
             </thead>
@@ -313,9 +256,18 @@ export function PreciosView() {
                     return (
                       <td key={`${product.id}-${lista.id}`} className="px-6 py-4 text-center">
                         {precio !== null ? (
-                          <span className="inline-block rounded-lg bg-green-50 px-3 py-1 text-sm font-semibold text-green-800">
-                            ${precio.toFixed(2)}
-                          </span>
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="inline-block rounded-lg px-3 py-1 text-sm font-semibold bg-green-50 text-green-800">
+                              ${precio.toFixed(2)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePrecio(product.id, lista.id)}
+                              className="text-xs text-red-600 hover:text-red-700"
+                            >
+                              Eliminar precio
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-sm text-gray-400">—</span>
                         )}
@@ -348,23 +300,12 @@ export function PreciosView() {
         maxWidth="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {submitMessage && (
-            <Alert
-              type={submitMessage.type}
-              message={submitMessage.message}
-              onClose={() => setSubmitMessage(null)}
-            />
-          )}
-
           <div className="grid gap-2">
             <label className="text-xs text-neutral-600">Producto</label>
             <select
               value={formData.productoId}
-              onChange={(e) =>
-                setFormData({ ...formData, productoId: e.target.value })
-              }
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting}
+              onChange={(e) => setFormData({ ...formData, productoId: e.target.value })}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
             >
               <option value="">Selecciona un producto</option>
               {products.map((product) => (
@@ -373,18 +314,14 @@ export function PreciosView() {
                 </option>
               ))}
             </select>
-            {errors.productoId && <span className="text-xs text-red-700">{errors.productoId}</span>}
           </div>
 
           <div className="grid gap-2">
             <label className="text-xs text-neutral-600">Lista de Precio</label>
             <select
               value={formData.listaId}
-              onChange={(e) =>
-                setFormData({ ...formData, listaId: parseInt(e.target.value) })
-              }
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting}
+              onChange={(e) => setFormData({ ...formData, listaId: parseInt(e.target.value) })}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
             >
               {listasPrecios.map((lista) => (
                 <option key={lista.id} value={lista.id}>
@@ -394,132 +331,89 @@ export function PreciosView() {
             </select>
           </div>
 
-          <TextField
-            label="Precio"
-            tone="light"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Ej: 29.99"
-            value={formData.precio}
-            onChange={(e) =>
-              setFormData({ ...formData, precio: parseFloat(e.target.value) || 0 })
-            }
-            error={errors.precio}
-            disabled={isSubmitting}
-          />
+          <div className="grid gap-2">
+            <label className="text-xs text-neutral-600">Precio</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Ej: 29.99"
+              value={formData.precio}
+              onChange={(e) => setFormData({ ...formData, precio: parseFloat(e.target.value) || 0 })}
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
+            />
+          </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={handleCloseModal}
-              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
-              disabled={isSubmitting}
+              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition disabled:opacity-50 font-semibold"
-              disabled={isSubmitting}
+              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition font-semibold"
             >
-              {isSubmitting ? 'Guardando...' : 'Asignar precio'}
+              Asignar precio
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal para gestionar listas de precios */}
+      {/* Modal para gestionar listas */}
       <Modal
         isOpen={isListaModalOpen}
-        title={editingLista ? 'Editar Lista de Precios' : 'Crear Lista de Precios'}
+        title={listaModal.isEditing ? 'Editar Lista de Precios' : 'Crear Lista de Precios'}
         onClose={handleCloseListaModal}
         headerGradient="blue"
         maxWidth="lg"
       >
         <div className="space-y-6">
-          {/* Formulario para crear/editar lista */}
+          {/* Formulario */}
           <form onSubmit={handleSubmitLista} className="space-y-4 pb-4 border-b border-gray-200">
-            {submitMessage && (
-              <Alert
-                type={submitMessage.type}
-                message={submitMessage.message}
-                onClose={() => setSubmitMessage(null)}
-              />
-            )}
-
             <TextField
               label="Nombre de la lista"
               tone="light"
               type="text"
               placeholder="Ej: Mayorista, Distribuidor, Especial"
               value={listaFormData.nombre}
-              onChange={(e) =>
-                setListaFormData({ ...listaFormData, nombre: e.target.value })
-              }
-              error={errors.nombre}
-              disabled={isSubmitting}
+              onChange={(e) => setListaFormData({ nombre: e.target.value })}
             />
 
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={handleCloseListaModal}
-                className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
-                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 font-semibold"
-                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold"
               >
-                {isSubmitting ? 'Guardando...' : editingLista ? 'Actualizar' : 'Crear lista'}
+                {listaModal.isEditing ? 'Actualizar' : 'Crear lista'}
               </button>
             </div>
           </form>
 
-          {/* Lista de listas de precios existentes */}
+          {/* Lista de listas existentes */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Listas existentes</h3>
-            {listasPrecios.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">No hay listas de precios creadas</p>
-            ) : (
-              <div className="space-y-2">
-                {listasPrecios.map((lista) => (
-                  <div
-                    key={lista.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{lista.nombre}</p>
-                      <p className="text-xs text-gray-500">ID: {lista.id}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleOpenListaModal(lista)}
-                        className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
-                        title="Editar"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLista(lista.id)}
-                        className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
-                        title="Eliminar"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <EntityList<ListaPrecio>
+              items={listasPrecios}
+              renderItem={(lista) => (
+                <div>
+                  <p className="font-medium text-gray-900">{lista.nombre}</p>
+                  <p className="text-xs text-gray-500">ID: {lista.id}</p>
+                </div>
+              )}
+              onEdit={handleOpenListaModal}
+              onDelete={(lista) => handleDeleteLista(lista.id)}
+              emptyMessage="No hay listas de precios creadas"
+            />
           </div>
         </div>
       </Modal>

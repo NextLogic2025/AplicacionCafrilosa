@@ -21,6 +21,8 @@ export interface Cliente {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  zona_comercial?: { id: number; nombre: string }
+  lista_precios?: { id: number; nombre: string }
 }
 
 export interface CreateClienteDto {

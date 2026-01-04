@@ -1,5 +1,5 @@
 import { Building2, CheckCircle, XCircle, DollarSign, User } from 'lucide-react'
-import { type Cliente } from '../../services/clientesApi'
+import { type Cliente, type ZonaComercial, type ListaPrecio } from '../../services/clientesApi'
 
 const ESTADO_COLORES: Record<string, string> = {
   activo: 'bg-green-100 text-green-800',
@@ -11,11 +11,16 @@ interface ClienteCardProps {
   cliente: Cliente
   onEdit?: (cliente: Cliente) => void
   onDelete?: (cliente: Cliente) => void
+  zonas: ZonaComercial[]
+  listasPrecios: ListaPrecio[]
 }
 
-export function ClienteCard({ cliente, onEdit, onDelete }: ClienteCardProps) {
+export function ClienteCard({ cliente, onEdit, onDelete, zonas, listasPrecios }: ClienteCardProps) {
   const estado = cliente.bloqueado ? 'bloqueado' : cliente.deleted_at ? 'inactivo' : 'activo'
   const estadoColor = ESTADO_COLORES[estado] || 'bg-gray-100 text-gray-800'
+
+  const zonaNombre = cliente.zona_comercial?.nombre || zonas.find(z => z.id === cliente.zona_comercial_id)?.nombre
+  const listaNombre = cliente.lista_precios?.nombre || listasPrecios.find(l => l.id === cliente.lista_precios_id)?.nombre
 
   const creditoDisponible =
     cliente.tiene_credito && cliente.limite_credito
@@ -45,6 +50,18 @@ export function ClienteCard({ cliente, onEdit, onDelete }: ClienteCardProps) {
             {cliente.tipo_identificacion}: {cliente.identificacion}
           </span>
         </div>
+        {zonaNombre && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Zona:</span>
+            <span className="font-medium text-gray-900">{zonaNombre}</span>
+          </div>
+        )}
+        {listaNombre && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Lista de precios:</span>
+            <span className="font-medium text-gray-900">{listaNombre}</span>
+          </div>
+        )}
         {cliente.direccion_texto && (
           <div className="flex items-start gap-2 text-sm">
             <span className="flex-shrink-0 text-gray-600">Dirección:</span>

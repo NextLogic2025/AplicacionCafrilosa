@@ -78,6 +78,14 @@ export class PreciosController {
     return this.preciosService.productosConPrecioParaLista(Number(id));
   }
 
+  // Eliminar un precio asignado a un producto en una lista
+  @Delete('lista/:listaId/producto/:productoId')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  removePrecio(@Param('listaId') listaId: string, @Param('productoId') productoId: string) {
+    return this.preciosService.removePrecio(Number(listaId), productoId);
+  }
+
   // Listado: todos los productos y, si existe, su precio según la lista (para supervisor)
   @Get('lista/:id/productos-all')
   @UseGuards(AuthGuard('jwt'), RolesGuard)

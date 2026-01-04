@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { PlusCircle, Image as ImageIcon } from 'lucide-react'
-import { Modal } from 'components/ui/Modal'
-import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { EntityFormModal, type Field } from '../../../../components/ui/EntityFormModal'
 import { useEntityCrud } from '../../../../hooks/useEntityCrud'
+import { useModal } from '../../../../hooks/useModal'
 import { 
   getAllCategories, 
   createCategory, 
@@ -15,121 +14,46 @@ import {
 } from '../../services/catalogApi'
 
 export function CategoriasView() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [formData, setFormData] = useState<CreateCategoryDto>({
-    nombre: '',
-    descripcion: '',
-    imagen_url: '',
-    activo: true,
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState<{
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
-
-  const { data: categories, isLoading, error, update, delete: deleteItem } = useEntityCrud<Category, CreateCategoryDto, CreateCategoryDto>({
+  const { data: categories, isLoading, error, create, update, delete: deleteItem } = useEntityCrud<Category, CreateCategoryDto, CreateCategoryDto>({
     load: getAllCategories,
     create: createCategory,
     update: (id, data) => updateCategory(typeof id === 'string' ? parseInt(id) : id, data),
     delete: (id) => deleteCategory(typeof id === 'string' ? parseInt(id) : id),
   })
 
-  const handleOpenModal = (category?: Category) => {
-    if (category) {
-      setEditingCategory(category)
-      setFormData({
-        nombre: category.nombre,
-        descripcion: category.descripcion || '',
-        imagen_url: category.imagen_url || '',
-        activo: category.activo,
-      })
+  const modal = useModal<Category>()
+
+  const handleSubmit = async (data: any) => {
+    const categoryData: CreateCategoryDto = {
+      nombre: data.nombre,
+      descripcion: data.descripcion || undefined,
+      imagen_url: data.imagen_url || undefined,
+      activo: data.activo ?? true,
+    }
+
+    if (modal.editingItem) {
+      await update(modal.editingItem.id.toString(), categoryData)
     } else {
-      setEditingCategory(null)
-      setFormData({ nombre: '', descripcion: '', imagen_url: '', activo: true })
-    }
-    setIsModalOpen(true)
-    setErrors({})
-    setSubmitMessage(null)
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingCategory(null)
-    setFormData({ nombre: '', descripcion: '', imagen_url: '', activo: true })
-    setErrors({})
-    setSubmitMessage(null)
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = 'El nombre es requerido'
-    } else if (formData.nombre.length > 50) {
-      newErrors.nombre = 'El nombre no puede exceder 50 caracteres'
-    }
-
-    if (formData.descripcion && formData.descripcion.length > 150) {
-      newErrors.descripcion = 'La descripción no puede exceder 150 caracteres'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitMessage(null)
-
-    if (!validateForm()) {
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      if (editingCategory) {
-        await update(editingCategory.id.toString(), formData)
-        setSubmitMessage({
-          type: 'success',
-          message: 'Categoría actualizada exitosamente',
-        })
-      } else {
-        await createCategory(formData)
-        setSubmitMessage({
-          type: 'success',
-          message: 'Categoría creada exitosamente',
-        })
-      }
-
-      setTimeout(() => {
-        handleCloseModal()
-      }, 1500)
-    } catch (error: any) {
-      setSubmitMessage({
-        type: 'error',
-        message: error.message || 'Error al guardar la categoría',
-      })
-    } finally {
-      setIsSubmitting(false)
+      await create(categoryData)
     }
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Estás seguro de eliminar esta categoría?')) {
-      return
-    }
-
+    if (!confirm('¿Estás seguro de eliminar esta categoría?')) return
+    
     try {
       await deleteItem(id.toString())
     } catch (error: any) {
-      console.error('Error al eliminar:', error)
       alert(error.message || 'Error al eliminar la categoría')
     }
   }
+
+  const fields: Field[] = [
+    { name: 'nombre', label: 'Nombre de la categoría', required: true, placeholder: 'Ej: Embutidos' },
+    { name: 'descripcion', label: 'Descripción', type: 'textarea', placeholder: 'Describe la categoría...' },
+    { name: 'imagen_url', label: 'URL de imagen', type: 'url', placeholder: 'https://ejemplo.com/imagen.jpg' },
+    { name: 'activo', label: 'Categoría activa', type: 'checkbox' },
+  ]
 
   if (isLoading) {
     return (
@@ -149,7 +73,7 @@ export function CategoriasView() {
           </p>
         </div>
         <button
-          onClick={() => handleOpenModal()}
+          onClick={modal.openCreate}
           className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 px-4 py-2 rounded-lg font-semibold transition"
         >
           <PlusCircle className="h-4 w-4" />
@@ -215,7 +139,7 @@ export function CategoriasView() {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleOpenModal(category)}
+                    onClick={() => modal.openEdit(category)}
                     className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"
                     title="Editar"
                   >
@@ -239,104 +163,15 @@ export function CategoriasView() {
         </div>
       )}
 
-      <Modal
-        isOpen={isModalOpen}
-        title={editingCategory ? 'Editar Categoría' : 'Crear Categoría'}
-        onClose={handleCloseModal}
+      <EntityFormModal<Category>
+        isOpen={modal.isOpen}
+        onClose={modal.close}
+        title={modal.isEditing ? 'Editar Categoría' : 'Crear Categoría'}
+        fields={fields}
+        initialData={modal.editingItem || undefined}
+        onSubmit={handleSubmit}
         headerGradient="red"
-        maxWidth="md"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {submitMessage && (
-            <Alert
-              type={submitMessage.type}
-              message={submitMessage.message}
-              onClose={() => setSubmitMessage(null)}
-            />
-          )}
-
-          <TextField
-            label="Nombre de la categoría"
-            tone="light"
-            type="text"
-            placeholder="Ej: Embutidos"
-            value={formData.nombre}
-            onChange={(e) =>
-              setFormData({ ...formData, nombre: e.target.value })
-            }
-            error={errors.nombre}
-            disabled={isSubmitting}
-          />
-
-          <div className="grid gap-2">
-            <label className="text-xs text-neutral-600">
-              Descripción (opcional)
-            </label>
-            <textarea
-              value={formData.descripcion}
-              onChange={(e) =>
-                setFormData({ ...formData, descripcion: e.target.value })
-              }
-              placeholder="Describe la categoría..."
-              className="min-h-[80px] w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting}
-            />
-            {errors.descripcion && (
-              <span className="text-xs text-red-700">{errors.descripcion}</span>
-            )}
-          </div>
-
-          <TextField
-            label="URL de imagen (opcional)"
-            tone="light"
-            type="url"
-            placeholder="https://ejemplo.com/imagen.jpg"
-            value={formData.imagen_url}
-            onChange={(e) =>
-              setFormData({ ...formData, imagen_url: e.target.value })
-            }
-            disabled={isSubmitting}
-          />
-
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="activo"
-              checked={formData.activo}
-              onChange={(e) =>
-                setFormData({ ...formData, activo: e.target.checked })
-              }
-              className="h-4 w-4 rounded border-gray-300 text-brand-red focus:ring-brand-red"
-              disabled={isSubmitting}
-            />
-            <label htmlFor="activo" className="text-sm text-neutral-700">
-              Categoría activa
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleCloseModal}
-              className="px-4 py-2 rounded-lg text-neutral-700 bg-neutral-200 hover:bg-neutral-300 transition disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-red/90 transition disabled:opacity-50 font-semibold"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? 'Guardando...'
-                : editingCategory
-                ? 'Actualizar'
-                : 'Crear categoría'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      />
     </div>
   )
 }

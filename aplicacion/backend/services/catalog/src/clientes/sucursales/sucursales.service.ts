@@ -23,6 +23,12 @@ export class SucursalesService {
     return qb.getMany();
   }
 
+  findDeactivated(clienteId?: string) {
+    const qb = this.repo.createQueryBuilder('s').where('s.activo = false');
+    if (clienteId) qb.andWhere('s.cliente_id = :clienteId', { clienteId });
+    return qb.getMany();
+  }
+
   findOne(id: string) {
     return this.repo.findOne({ where: { id } });
   }
@@ -35,5 +41,10 @@ export class SucursalesService {
   async remove(id: string) {
     await this.repo.update(id, { activo: false } as any);
     return { id, deleted: true };
+  }
+
+  async activate(id: string) {
+    await this.repo.update(id, { activo: true } as any);
+    return this.findOne(id);
   }
 }

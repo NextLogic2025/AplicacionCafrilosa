@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { Roles } from '../auth/roles.decorator';
@@ -33,8 +33,11 @@ export class ClientesController {
 
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor')
-  findOne(@Param('id') id: string) {
+  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
+  findOne(@Req() req: any, @Param('id') id: string) {
+    const role = String(req.user?.role || '').toLowerCase();
+    const userId = req.user?.userId;
+    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
     return this.svc.findOne(id);
   }
 
@@ -55,15 +58,21 @@ export class ClientesController {
 
   @Put(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  update(@Param('id') id: string, @Body() body: any) {
+  @Roles('admin', 'supervisor', 'cliente')
+  update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    const role = String(req.user?.role || '').toLowerCase();
+    const userId = req.user?.userId;
+    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
     return this.svc.update(id, body);
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  remove(@Param('id') id: string) {
+  @Roles('admin', 'supervisor', 'cliente')
+  remove(@Req() req: any, @Param('id') id: string) {
+    const role = String(req.user?.role || '').toLowerCase();
+    const userId = req.user?.userId;
+    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
     return this.svc.remove(id);
   }
 }
