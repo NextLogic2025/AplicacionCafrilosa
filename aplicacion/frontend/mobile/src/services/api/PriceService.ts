@@ -58,7 +58,7 @@ export const PriceService = {
     },
 
     deletePrice: async (productoId: string, listaId: number) => {
-        return apiRequest(`/api/precios/item/${productoId}/${listaId}`, {
+        return apiRequest(`/api/precios/lista/${listaId}/producto/${productoId}`, {
             method: 'DELETE'
         })
     }
