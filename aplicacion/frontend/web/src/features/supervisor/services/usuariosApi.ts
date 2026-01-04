@@ -31,6 +31,16 @@ export interface Usuario {
   }
 }
 
+export interface UpdateUsuarioDto {
+  email?: string
+  password?: string
+  nombre?: string
+  telefono?: string | null
+  rolId?: number
+}
+
+export interface Vendedor extends Usuario {}
+
 export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuarioResponse> {
   const response = await http<CreateUsuarioResponse>('/auth/registro', {
     method: 'POST',
@@ -41,6 +51,26 @@ export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuar
 
 export async function obtenerEquipo(): Promise<Usuario[]> {
   const response = await http<Usuario[]>('/auth/usuarios', {
+    method: 'GET',
+  })
+  return response
+}
+
+export async function getUsuario(id: string): Promise<Usuario> {
+  const response = await http<Usuario>(`/auth/usuarios/${id}`)
+  return response
+}
+
+export async function updateUsuario(id: string, data: UpdateUsuarioDto): Promise<Usuario> {
+  const response = await http<Usuario>(`/auth/usuarios/${id}`, {
+    method: 'PATCH',
+    body: data,
+  })
+  return response
+}
+
+export async function obtenerVendedores(): Promise<Vendedor[]> {
+  const response = await http<Vendedor[]>('/auth/vendedores', {
     method: 'GET',
   })
   return response

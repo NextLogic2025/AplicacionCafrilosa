@@ -17,6 +17,20 @@ export class ClientesController {
     return this.svc.findAll();
   }
 
+  @Get('bloqueados')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  listarBloqueados() {
+    return this.svc.findBlocked();
+  }
+
+  @Put(':id/desbloquear')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  desbloquear(@Param('id') id: string) {
+    return this.svc.unblock(id);
+  }
+
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
@@ -48,7 +62,7 @@ export class ClientesController {
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
   }

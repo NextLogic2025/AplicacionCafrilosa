@@ -51,10 +51,12 @@ export function ProductosView() {
         getAllProducts(),
         getAllCategories(),
       ])
-      setProducts(productsData)
-      setCategories(categoriesData)
+      setProducts(productsData || [])
+      setCategories(categoriesData || [])
     } catch (error) {
       console.error('Error al cargar datos:', error)
+      setProducts([])
+      setCategories([])
     } finally {
       setIsLoading(false)
     }
@@ -63,9 +65,10 @@ export function ProductosView() {
   const loadProducts = async () => {
     try {
       const data = await getAllProducts()
-      setProducts(data)
+      setProducts(data || [])
     } catch (error) {
       console.error('Error al cargar productos:', error)
+      setProducts([])
     } finally {
       setIsLoading(false)
     }
@@ -250,7 +253,7 @@ export function ProductosView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {products.map((product) => (
+              {Array.isArray(products) && products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {product.codigo_sku}
@@ -380,7 +383,7 @@ export function ProductosView() {
               disabled={isSubmitting}
             >
               <option value="">Sin categoría</option>
-              {categories.map((cat) => (
+              {Array.isArray(categories) && categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.nombre}
                 </option>

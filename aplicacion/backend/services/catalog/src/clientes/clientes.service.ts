@@ -12,7 +12,7 @@ export class ClientesService {
   ) {}
 
   findAll() {
-    return this.repo.find();
+    return this.repo.find({ where: { bloqueado: false } });
   }
 
   findOne(id: string) {
@@ -38,6 +38,15 @@ export class ClientesService {
   }
 
   remove(id: string) {
-    return this.repo.delete(id);
+    return this.repo.update(id, { bloqueado: true, updated_at: new Date() } as any);
+  }
+
+  findBlocked() {
+    return this.repo.find({ where: { bloqueado: true } });
+  }
+
+  async unblock(id: string) {
+    await this.repo.update(id, { bloqueado: false, deleted_at: null, updated_at: new Date() } as any);
+    return this.findOne(id);
   }
 }

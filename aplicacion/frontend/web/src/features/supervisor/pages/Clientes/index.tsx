@@ -3,7 +3,7 @@ import { SectionHeader } from 'components/ui/SectionHeader'
 import { PageHero } from 'components/ui/PageHero'
 import { Button } from 'components/ui/Button'
 import { useState, useEffect } from 'react'
-import { obtenerClientes, type Cliente } from '../../services/clientesApi'
+import { obtenerClientes, eliminarCliente, type Cliente } from '../../services/clientesApi'
 import { ClienteList } from './ClienteList'
 import { CrearClienteModal } from './CrearClienteModal'
 
@@ -11,6 +11,7 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
 
   useEffect(() => {
     cargarClientes()
@@ -30,14 +31,32 @@ export default function ClientesPage() {
 
   const handleOpenModal = () => {
     setIsModalOpen(true)
+    setEditingCliente(null)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
+    setEditingCliente(null)
   }
 
   const handleSuccessCreate = () => {
     cargarClientes()
+  }
+
+  const handleEdit = (cliente: Cliente) => {
+    setEditingCliente(cliente)
+    setIsModalOpen(true)
+  }
+
+  const handleDelete = async (cliente: Cliente) => {
+    if (!confirm(`¿Eliminar cliente ${cliente.razon_social}?`)) return
+    try {
+      await eliminarCliente(cliente.id)
+      await cargarClientes()
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error)
+      alert('No se pudo eliminar el cliente')
+    }
   }
 
   return (
@@ -63,12 +82,19 @@ export default function ClientesPage() {
         </Button>
       </div>
 
-      <ClienteList clientes={clientes} isLoading={isLoading} />
+      <ClienteList
+        clientes={clientes}
+        isLoading={isLoading}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
       <CrearClienteModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSuccessCreate}
+        initialData={editingCliente ?? undefined}
+        mode={editingCliente ? 'edit' : 'create'}
       />
     </div>
   )

@@ -1,5 +1,5 @@
 // placeholder (Auth controller)
-import { Controller, Post, Body, Get, Req, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Req, UseGuards, ForbiddenException, Put, Param } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthService } from './auth.service';
@@ -75,6 +75,16 @@ export class AuthController {
     return this.authService.listarUsuariosExcluyendoClientes();
   }
 
+  @Get('usuarios/desactivados')
+  @UseGuards(JwtAuthGuard)
+  async listarUsuariosDesactivados(@Req() req: AuthRequest) {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) ? user.role.map((r) => String(r).toLowerCase()) : [String(user?.role || '').toLowerCase()];
+    const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
+    if (!isSupervisor) throw new ForbiddenException('No autorizado');
+    return this.authService.listarUsuariosDesactivados();
+  }
+
   @Get('vendedores')
   @UseGuards(JwtAuthGuard)
   async listarVendedores(@Req() req: AuthRequest) {
@@ -83,5 +93,25 @@ export class AuthController {
     const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
     if (!isSupervisor) throw new ForbiddenException('No autorizado');
     return this.authService.listarVendedores();
+  }
+
+  @Put('usuarios/:id/desactivar')
+  @UseGuards(JwtAuthGuard)
+  async desactivarUsuario(@Param('id') id: string, @Req() req: AuthRequest) {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) ? user.role.map((r) => String(r).toLowerCase()) : [String(user?.role || '').toLowerCase()];
+    const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
+    if (!isSupervisor) throw new ForbiddenException('No autorizado');
+    return this.authService.desactivarUsuario(id);
+  }
+
+  @Put('usuarios/:id/activar')
+  @UseGuards(JwtAuthGuard)
+  async activarUsuario(@Param('id') id: string, @Req() req: AuthRequest) {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) ? user.role.map((r) => String(r).toLowerCase()) : [String(user?.role || '').toLowerCase()];
+    const isSupervisor = (user?.rolId === 2) || roles.includes('supervisor');
+    if (!isSupervisor) throw new ForbiddenException('No autorizado');
+    return this.authService.activarUsuario(id);
   }
 }

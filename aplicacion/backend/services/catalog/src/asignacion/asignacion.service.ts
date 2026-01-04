@@ -20,6 +20,15 @@ export class AsignacionService {
     return this.repo.save(e);
   }
 
+  async update(id: number, data: Partial<AsignacionVendedores>) {
+    await this.repo.update(id, data as any);
+    return this.findOne(id);
+  }
+
+  findOne(id: number) {
+    return this.repo.findOne({ where: { id } });
+  }
+
   remove(id: number) {
     return this.repo.delete(id);
   }

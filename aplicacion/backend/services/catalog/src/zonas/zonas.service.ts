@@ -28,7 +28,13 @@ export class ZonasService {
     return this.findOne(id);
   }
 
-  remove(id: number) {
-    return this.repo.delete(id);
+  async remove(id: number) {
+    await this.repo.update(id, { activo: false, deleted_at: new Date() } as any);
+    return this.findOne(id);
+  }
+
+  async approve(id: number) {
+    await this.repo.update(id, { activo: true } as any);
+    return this.findOne(id);
   }
 }

@@ -9,9 +9,11 @@ const ESTADO_COLORES: Record<string, string> = {
 
 interface ClienteCardProps {
   cliente: Cliente
+  onEdit?: (cliente: Cliente) => void
+  onDelete?: (cliente: Cliente) => void
 }
 
-export function ClienteCard({ cliente }: ClienteCardProps) {
+export function ClienteCard({ cliente, onEdit, onDelete }: ClienteCardProps) {
   const estado = cliente.bloqueado ? 'bloqueado' : cliente.deleted_at ? 'inactivo' : 'activo'
   const estadoColor = ESTADO_COLORES[estado] || 'bg-gray-100 text-gray-800'
 
@@ -98,6 +100,27 @@ export function ClienteCard({ cliente }: ClienteCardProps) {
       <div className="mt-3 text-xs text-gray-500">
         Creado: {new Date(cliente.created_at).toLocaleDateString('es-ES')}
       </div>
+
+      {(onEdit || onDelete) && (
+        <div className="mt-4 flex justify-end gap-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(cliente)}
+              className="rounded-lg px-3 py-1 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              Editar
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(cliente)}
+              className="rounded-lg px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-50"
+            >
+              Eliminar
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

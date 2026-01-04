@@ -28,6 +28,7 @@ export interface CreateClienteDto {
   tipo_identificacion?: string
   razon_social: string
   nombre_comercial?: string
+  usuario_principal_id?: string | null
   lista_precios_id?: number | null
   vendedor_asignado_id?: string | null
   zona_comercial_id?: number | null
@@ -35,6 +36,19 @@ export interface CreateClienteDto {
   limite_credito?: number
   dias_plazo?: number
   direccion_texto?: string
+}
+
+export interface ZonaComercial {
+  id: number
+  nombre: string
+  descripcion?: string
+}
+
+export interface ListaPrecio {
+  id: number
+  nombre: string
+  descripcion?: string
+  activo?: boolean
 }
 
 class ClienteApiError extends Error {
@@ -106,4 +120,12 @@ export async function eliminarCliente(id: string): Promise<void> {
   await clienteHttp<void>(`/clientes/${id}`, {
     method: 'DELETE',
   })
+}
+
+export async function obtenerZonas(): Promise<ZonaComercial[]> {
+  return clienteHttp<ZonaComercial[]>('/zonas')
+}
+
+export async function obtenerListasPrecios(): Promise<ListaPrecio[]> {
+  return clienteHttp<ListaPrecio[]>('/precios/listas')
 }

@@ -1,59 +1,132 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from 'components/ui/Modal'
-import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { Button } from 'components/ui/Button'
-import { crearCliente } from '../../services/clientesApi'
-
-const TIPOS_IDENTIFICACION = ['RUC', 'Cédula', 'Pasaporte']
-
-const INITIAL_FORM_STATE = {
-  identificacion: '',
-  tipo_identificacion: 'RUC',
-  razon_social: '',
-  nombre_comercial: '',
-  tiene_credito: false,
-  limite_credito: 0,
-  dias_plazo: 0,
-  direccion_texto: '',
-}
+import {
+  crearCliente,
+  actualizarCliente,
+  obtenerZonas,
+  obtenerListasPrecios,
+  type ZonaComercial,
+  type ListaPrecio,
+} from '../../services/clientesApi'
+import {
+  createUsuario,
+  updateUsuario,
+  getUsuario,
+  obtenerVendedores,
+  type Vendedor,
+} from '../../services/usuariosApi'
+import {
+  ClienteForm,
+  CLIENTE_FORM_DEFAULT,
+  validateClienteForm,
+  type ClienteFormValues,
+  type VendedorOption,
+  type ZonaOption,
+  type ListaPrecioOption,
+} from 'components/ui/ClienteForm'
 
 interface CrearClienteModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  initialData?: Partial<ClienteFormValues> & { id?: string; usuario_principal_id?: string | null }
+  mode?: 'create' | 'edit'
 }
-
-export function CrearClienteModal({ isOpen, onClose, onSuccess }: CrearClienteModalProps) {
-  const [formData, setFormData] = useState(INITIAL_FORM_STATE)
+export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mode = 'create' }: CrearClienteModalProps) {
+  const [formData, setFormData] = useState<ClienteFormValues>({ ...CLIENTE_FORM_DEFAULT, ...initialData })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUserLoading, setIsUserLoading] = useState(false)
+  const [isCatalogLoading, setIsCatalogLoading] = useState(false)
+  const [vendedores, setVendedores] = useState<VendedorOption[]>([])
+  const [zonas, setZonas] = useState<ZonaOption[]>([])
+  const [listasPrecios, setListasPrecios] = useState<ListaPrecioOption[]>([])
   const [submitMessage, setSubmitMessage] = useState<{
     type: 'success' | 'error'
     message: string
   } | null>(null)
 
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        ...CLIENTE_FORM_DEFAULT,
+        ...initialData,
+        limite_credito:
+          typeof initialData?.limite_credito === 'string'
+            ? parseFloat(initialData.limite_credito) || 0
+            : initialData?.limite_credito ?? 0,
+        dias_plazo: initialData?.dias_plazo ?? 0,
+        tiene_credito: initialData?.tiene_credito ?? false,
+        identificacion: initialData?.identificacion ?? '',
+        tipo_identificacion: initialData?.tipo_identificacion ?? 'RUC',
+        razon_social: initialData?.razon_social ?? '',
+        nombre_comercial: initialData?.nombre_comercial ?? '',
+        direccion_texto: initialData?.direccion_texto ?? '',
+        contacto_nombre: initialData?.contacto_nombre ?? '',
+        contacto_email: initialData?.contacto_email ?? '',
+        contacto_password: '',
+        lista_precios_id:
+          typeof initialData?.lista_precios_id === 'string'
+            ? parseInt(initialData.lista_precios_id, 10)
+            : initialData?.lista_precios_id ?? null,
+        vendedor_asignado_id: initialData?.vendedor_asignado_id ?? '',
+        zona_comercial_id:
+          typeof initialData?.zona_comercial_id === 'string'
+            ? parseInt(initialData.zona_comercial_id, 10)
+            : initialData?.zona_comercial_id ?? null,
+      })
+      setErrors({})
+      setSubmitMessage(null)
+
+      const loadCatalog = async () => {
+        try {
+          setIsCatalogLoading(true)
+          const [vRes, zRes, lRes] = await Promise.all([
+            obtenerVendedores().catch(() => []),
+            obtenerZonas().catch(() => []),
+            obtenerListasPrecios().catch(() => []),
+          ])
+          setVendedores(vRes)
+          setZonas(zRes)
+          setListasPrecios(lRes)
+        } finally {
+          setIsCatalogLoading(false)
+        }
+      }
+
+      loadCatalog()
+
+      if (mode === 'edit' && initialData?.usuario_principal_id) {
+        setIsUserLoading(true)
+        getUsuario(initialData.usuario_principal_id)
+          .then((usuario) => {
+            setFormData((prev) => ({
+              ...prev,
+              contacto_nombre: usuario.nombre || prev.contacto_nombre,
+              contacto_email: usuario.email || prev.contacto_email,
+            }))
+          })
+          .catch((error: any) => {
+            setSubmitMessage({
+              type: 'error',
+              message: error?.message || 'No se pudieron cargar los datos de usuario',
+            })
+          })
+          .finally(() => setIsUserLoading(false))
+      }
+    }
+  }, [isOpen, initialData])
+
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.identificacion.trim()) {
-      newErrors.identificacion = 'La identificación es requerida'
-    }
-
-    if (!formData.razon_social.trim()) {
-      newErrors.razon_social = 'La razón social es requerida'
-    }
-
-    if (formData.tiene_credito && formData.limite_credito <= 0) {
-      newErrors.limite_credito = 'El límite de crédito debe ser mayor a 0'
-    }
-
+    const newErrors = validateClienteForm(formData, mode)
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleClose = () => {
-    setFormData(INITIAL_FORM_STATE)
+    setFormData({ ...CLIENTE_FORM_DEFAULT, ...initialData })
     setErrors({})
     setSubmitMessage(null)
     onClose()
@@ -70,30 +143,75 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess }: CrearClienteMo
     setIsSubmitting(true)
 
     try {
-      await crearCliente({
-        identificacion: formData.identificacion,
-        tipo_identificacion: formData.tipo_identificacion,
-        razon_social: formData.razon_social,
-        nombre_comercial: formData.nombre_comercial || undefined,
-        tiene_credito: formData.tiene_credito,
-        limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
-        dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
-        direccion_texto: formData.direccion_texto || undefined,
-      })
+      let usuarioId = initialData?.usuario_principal_id ?? null
+
+      if (mode === 'create') {
+        // Solo crear usuario si estamos en modo crear o no hay usuario asignado
+        if (!usuarioId) {
+          const usuario = await createUsuario({
+            nombre: formData.contacto_nombre,
+            email: formData.contacto_email,
+            password: formData.contacto_password,
+            rolId: 6,
+          })
+          usuarioId = usuario.id
+        }
+
+        await crearCliente({
+          identificacion: formData.identificacion,
+          tipo_identificacion: formData.tipo_identificacion,
+          razon_social: formData.razon_social,
+          nombre_comercial: formData.nombre_comercial || undefined,
+          usuario_principal_id: usuarioId,
+          lista_precios_id: formData.lista_precios_id,
+          vendedor_asignado_id: formData.vendedor_asignado_id || null,
+          zona_comercial_id: formData.zona_comercial_id,
+          tiene_credito: formData.tiene_credito,
+          limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
+          dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
+          direccion_texto: formData.direccion_texto || undefined,
+        })
+      } else if (initialData?.id) {
+        if (initialData.usuario_principal_id) {
+          await updateUsuario(initialData.usuario_principal_id, {
+            nombre: formData.contacto_nombre,
+            email: formData.contacto_email,
+            rolId: 6,
+            password: formData.contacto_password || undefined,
+          })
+        }
+
+        await actualizarCliente(initialData.id, {
+          identificacion: formData.identificacion,
+          tipo_identificacion: formData.tipo_identificacion,
+          razon_social: formData.razon_social,
+          nombre_comercial: formData.nombre_comercial || undefined,
+          usuario_principal_id: usuarioId,
+          lista_precios_id: formData.lista_precios_id,
+          vendedor_asignado_id: formData.vendedor_asignado_id || null,
+          zona_comercial_id: formData.zona_comercial_id,
+          tiene_credito: formData.tiene_credito,
+          limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
+          dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
+          direccion_texto: formData.direccion_texto || undefined,
+        })
+      } else {
+        throw new Error('No se pudo identificar el cliente a actualizar')
+      }
 
       setSubmitMessage({
         type: 'success',
-        message: 'Cliente creado exitosamente',
+        message: mode === 'create' ? 'Cliente creado exitosamente' : 'Cliente guardado',
       })
 
       setTimeout(() => {
         handleClose()
         onSuccess()
-      }, 1500)
+      }, 1200)
     } catch (error: any) {
       setSubmitMessage({
         type: 'error',
-        message: error.message || 'Error al crear el cliente',
+        message: error.message || 'Error al guardar el cliente',
       })
     } finally {
       setIsSubmitting(false)
@@ -103,7 +221,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess }: CrearClienteMo
   return (
     <Modal
       isOpen={isOpen}
-      title="Crear Cliente"
+      title={mode === 'create' ? 'Crear Cliente' : 'Editar Cliente'}
       onClose={handleClose}
       headerGradient="red"
       maxWidth="lg"
@@ -116,127 +234,18 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess }: CrearClienteMo
             onClose={() => setSubmitMessage(null)}
           />
         )}
-
-        {/* Información básica */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="grid gap-2">
-            <label className="text-xs text-neutral-600">Tipo de Identificación</label>
-            <select
-              value={formData.tipo_identificacion}
-              onChange={(e) =>
-                setFormData({ ...formData, tipo_identificacion: e.target.value })
-              }
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {TIPOS_IDENTIFICACION.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <TextField
-            label="Número de Identificación"
-            tone="light"
-            type="text"
-            placeholder="Ej: 0123456789"
-            value={formData.identificacion}
-            onChange={(e) =>
-              setFormData({ ...formData, identificacion: e.target.value })
-            }
-            error={errors.identificacion}
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <TextField
-          label="Razón Social"
-          tone="light"
-          type="text"
-          placeholder="Nombre de la empresa"
-          value={formData.razon_social}
-          onChange={(e) =>
-            setFormData({ ...formData, razon_social: e.target.value })
-          }
-          error={errors.razon_social}
-          disabled={isSubmitting}
+        <ClienteForm
+          value={formData}
+          errors={errors}
+          mode={mode}
+          isSubmitting={isSubmitting}
+          isUserLoading={isUserLoading}
+          isCatalogLoading={isCatalogLoading}
+          vendedores={vendedores}
+          zonas={zonas}
+          listasPrecios={listasPrecios}
+          onChange={setFormData}
         />
-
-        <TextField
-          label="Nombre Comercial (Opcional)"
-          tone="light"
-          type="text"
-          placeholder="Nombre corto de la empresa"
-          value={formData.nombre_comercial}
-          onChange={(e) =>
-            setFormData({ ...formData, nombre_comercial: e.target.value })
-          }
-          disabled={isSubmitting}
-        />
-
-        {/* Dirección */}
-        <div className="grid gap-2">
-          <label className="text-xs text-neutral-600">Dirección (Opcional)</label>
-          <textarea
-            value={formData.direccion_texto}
-            onChange={(e) =>
-              setFormData({ ...formData, direccion_texto: e.target.value })
-            }
-            placeholder="Dirección física del cliente"
-            className="min-h-[80px] w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)] disabled:opacity-50"
-            disabled={isSubmitting}
-          />
-        </div>
-
-        {/* Información de crédito */}
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="tiene_credito"
-              checked={formData.tiene_credito}
-              onChange={(e) =>
-                setFormData({ ...formData, tiene_credito: e.target.checked })
-              }
-              className="h-4 w-4 rounded border-gray-300 text-brand-red focus:ring-brand-red"
-              disabled={isSubmitting}
-            />
-            <label htmlFor="tiene_credito" className="text-sm font-medium text-neutral-700">
-              Este cliente tiene línea de crédito
-            </label>
-          </div>
-
-          {formData.tiene_credito && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField
-                label="Límite de Crédito"
-                tone="light"
-                type="number"
-                placeholder="0.00"
-                value={formData.limite_credito}
-                onChange={(e) =>
-                  setFormData({ ...formData, limite_credito: parseFloat(e.target.value) || 0 })
-                }
-                error={errors.limite_credito}
-                disabled={isSubmitting}
-              />
-
-              <TextField
-                label="Días de Plazo"
-                tone="light"
-                type="number"
-                placeholder="30"
-                value={formData.dias_plazo}
-                onChange={(e) =>
-                  setFormData({ ...formData, dias_plazo: parseInt(e.target.value) || 0 })
-                }
-                disabled={isSubmitting}
-              />
-            </div>
-          )}
-        </div>
 
         <div className="flex justify-end gap-3 pt-4">
           <Button
@@ -250,9 +259,9 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess }: CrearClienteMo
           <Button
             type="submit"
             className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUserLoading}
           >
-            {isSubmitting ? 'Creando...' : 'Crear cliente'}
+            {isSubmitting ? 'Guardando...' : mode === 'create' ? 'Crear cliente' : 'Guardar cambios'}
           </Button>
         </div>
       </form>

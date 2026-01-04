@@ -39,11 +39,11 @@ export function PreciosView() {
     try {
       setIsLoading(true)
       const productsData = await getAllProducts()
-      setProducts(productsData)
+      setProducts(productsData || [])
 
       // Cargar precios para cada producto
       const preciosData = new Map<string, PrecioItem[]>()
-      for (const product of productsData) {
+      for (const product of (productsData || [])) {
         try {
           const precios = await obtenerPreciosDeProducto(product.id)
           preciosData.set(product.id, precios)
@@ -55,6 +55,8 @@ export function PreciosView() {
       setPreciosMap(preciosData)
     } catch (error) {
       console.error('Error al cargar datos:', error)
+      setProducts([])
+      setPreciosMap(new Map())
     } finally {
       setIsLoading(false)
     }
@@ -197,7 +199,7 @@ export function PreciosView() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                   Producto
                 </th>
-                {LISTAS_PRECIOS.map((lista) => (
+                {Array.isArray(LISTAS_PRECIOS) && LISTAS_PRECIOS.map((lista) => (
                   <th
                     key={lista.id}
                     className="px-6 py-3 text-center text-sm font-semibold text-gray-900"
@@ -211,7 +213,7 @@ export function PreciosView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {products.map((product) => (
+              {Array.isArray(products) && products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {product.codigo_sku}
@@ -219,7 +221,7 @@ export function PreciosView() {
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <p className="font-medium">{product.nombre}</p>
                   </td>
-                  {LISTAS_PRECIOS.map((lista) => {
+                  {Array.isArray(LISTAS_PRECIOS) && LISTAS_PRECIOS.map((lista) => {
                     const precio = getPrecioForProductoAndLista(product.id, lista.id)
                     return (
                       <td key={`${product.id}-${lista.id}`} className="px-6 py-4 text-center">
@@ -276,7 +278,7 @@ export function PreciosView() {
               disabled={isSubmitting}
             >
               <option value="">Selecciona un producto</option>
-              {products.map((product) => (
+              {Array.isArray(products) && products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.codigo_sku} - {product.nombre}
                 </option>

@@ -7,9 +7,11 @@ import { ClienteCard } from './ClienteCard'
 interface ClienteListProps {
   clientes: Cliente[]
   isLoading: boolean
+  onEdit?: (cliente: Cliente) => void
+  onDelete?: (cliente: Cliente) => void
 }
 
-export function ClienteList({ clientes, isLoading }: ClienteListProps) {
+export function ClienteList({ clientes, isLoading, onEdit, onDelete }: ClienteListProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -31,7 +33,12 @@ export function ClienteList({ clientes, isLoading }: ClienteListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       {clientes.map((cliente) => (
-        <ClienteCard key={cliente.id} cliente={cliente} />
+        <ClienteCard
+          key={cliente.id}
+          cliente={cliente}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </div>
   )
