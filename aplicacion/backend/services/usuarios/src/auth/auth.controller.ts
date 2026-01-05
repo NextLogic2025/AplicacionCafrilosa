@@ -4,6 +4,7 @@ import { Request } from 'express';
 
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './jwt.guard';
@@ -106,7 +107,7 @@ export class AuthController {
   @Put('usuarios/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
-  async actualizarUsuario(@Param('id') id: string, @Body() body: Partial<CreateUsuarioDto>, @Req() _req: AuthRequest) {
+  async actualizarUsuario(@Param('id') id: string, @Body() body: Partial<UpdateUsuarioDto>, @Req() _req: AuthRequest) {
     return this.authService.actualizarUsuario(id, body, _req.user);
   }
 }
