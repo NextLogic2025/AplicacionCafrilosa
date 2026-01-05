@@ -8,6 +8,7 @@ export interface UserProfile {
     email: string
     phone: string
     photoUrl?: string
+    active: boolean
 }
 
 export const UserService = {
@@ -22,7 +23,8 @@ export const UserService = {
                 role: data.rol?.nombre || 'Usuario',
                 email: data.email,
                 phone: data.telefono || 'Sin teléfono',
-                photoUrl: data.avatarUrl
+                photoUrl: data.avatarUrl,
+                active: data.activo
             }
         } catch (error) {
             console.error('Error fetching profile:', error)
@@ -59,7 +61,8 @@ export const UserService = {
                 role: u.rol?.nombre || 'Usuario',
                 email: u.email,
                 phone: u.telefono || '',
-                photoUrl: u.avatarUrl
+                photoUrl: u.avatarUrl,
+                active: u.activo
             }))
         } catch (error) {
             console.error('Error fetching users:', error)
@@ -77,7 +80,8 @@ export const UserService = {
                 role: u.rol?.nombre || 'Vendedor',
                 email: u.email,
                 phone: u.telefono || '',
-                photoUrl: u.avatarUrl
+                photoUrl: u.avatarUrl,
+                active: u.activo
             }))
         } catch (error) {
             console.error('Error fetching vendors:', error)
@@ -87,10 +91,20 @@ export const UserService = {
 
     updateUser: async (userId: string, data: Partial<{ nombre: string; activo: boolean; rolId: number }>): Promise<{ success: boolean; message?: string }> => {
         try {
+            // 1. Update basic info (Name, Role, etc.)
             await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}`, {
-                method: 'PATCH',
+                method: 'PUT',
                 body: JSON.stringify(data)
             })
+
+            // 2. Handle Activation/Deactivation Explicitly if provided
+            if (data.activo !== undefined) {
+                const action = data.activo ? 'activar' : 'desactivar'
+                await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}/${action}`, {
+                    method: 'PUT'
+                })
+            }
+
             return { success: true, message: 'Usuario actualizado correctamente' }
         } catch (error: any) {
             console.error('Error updating user:', error)

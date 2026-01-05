@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Header } from '../../../components/ui/Header'
 import { GenericList } from '../../../components/ui/GenericList'
 import { SearchBar } from '../../../components/ui/SearchBar'
@@ -33,9 +33,11 @@ export function SupervisorTeamScreen() {
         }
     }
 
-    useEffect(() => {
-        fetchEmployees()
-    }, [])
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchEmployees()
+        }, [])
+    )
 
     useEffect(() => {
         let result = employees
@@ -115,9 +117,15 @@ export function SupervisorTeamScreen() {
                             </View>
 
                             {/* Status Indicator */}
-                            <View className="bg-green-100 px-2 py-1 rounded-full">
-                                <Text className="text-green-700 text-xs font-medium">Activo</Text>
-                            </View>
+                            {item.active ? (
+                                <View className="bg-green-100 px-2 py-1 rounded-full">
+                                    <Text className="text-green-700 text-xs font-medium">Activo</Text>
+                                </View>
+                            ) : (
+                                <View className="bg-red-100 px-2 py-1 rounded-full">
+                                    <Text className="text-red-700 text-xs font-medium">Inactivo</Text>
+                                </View>
+                            )}
 
                             <Ionicons name="chevron-forward" size={20} color="#9ca3af" className="ml-2" />
                         </TouchableOpacity>

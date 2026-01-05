@@ -10,6 +10,8 @@ export interface Allocation {
     // Optional expanded info if backend joins
     vendedor?: UserProfile
     nombre_vendedor_cache?: string
+    fecha_fin?: string | null
+    deleted_at?: string | null
 }
 
 export interface AssignVendorPayload {

@@ -1,14 +1,15 @@
-
-import React, { useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, ActivityIndicator, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../components/ui/Header'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { Ionicons } from '@expo/vector-icons'
 import { UserProfile, UserService } from '../../../services/api/UserService'
+import { ZoneService, Zone } from '../../../services/api/ZoneService'
+import { AssignmentService } from '../../../services/api/AssignmentService'
 import { GenericModal } from '../../../components/ui/GenericModal'
 import { GenericList } from '../../../components/ui/GenericList'
-import { FeedbackModal } from '../../../components/ui/FeedbackModal'
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
 export function SupervisorTeamDetailScreen() {
     const navigation = useNavigation()
@@ -21,12 +22,33 @@ export function SupervisorTeamDetailScreen() {
     const [email, setEmail] = useState(user?.email || '')
     const [password, setPassword] = useState('') // Only for creation
     const [role, setRole] = useState(user?.role || 'vendedor') // Default to 'vendedor'
-    const [isActive, setIsActive] = useState(user ? true : true) // Default active
+    const [isActive, setIsActive] = useState(user ? user.active : true) // Initialize with user.active
+
+    // Zone Assignment State (Only for Vendors)
+    const [zones, setZones] = useState<Zone[]>([])
+    const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
+    const [currentAssignmentId, setCurrentAssignmentId] = useState<number | null>(null)
+    const [occupiedZones, setOccupiedZones] = useState<Map<number, string>>(new Map()) // ZoneID -> VendorName
 
     // UI State
     const [showRoleModal, setShowRoleModal] = useState(false)
+    const [showZoneModal, setShowZoneModal] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [initializing, setInitializing] = useState(true)
+
+    // Feedback State
+    const [feedbackModal, setFeedbackModal] = useState<{
+        visible: boolean
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+    }>({
+        visible: false,
+        type: 'info',
+        title: '',
+        message: '',
+    })
     const [deleteModalVisible, setDeleteModalVisible] = useState(false)
 
     // Roles map
@@ -38,36 +60,95 @@ export function SupervisorTeamDetailScreen() {
         { id: '5', name: 'transportista', label: 'Transportista' },
     ]
 
+    useEffect(() => {
+        loadData()
+    }, [])
+
+    const loadData = async () => {
+        setInitializing(true)
+        try {
+            const [allZones, allAssignments, allUsers] = await Promise.all([
+                ZoneService.getZones(),
+                AssignmentService.getAllAssignments(),
+                UserService.getUsers()
+            ])
+            setZones(allZones)
+
+            // Map Users for quick lookup
+            const userMap = new Map<string, string>()
+            allUsers.forEach(u => userMap.set(u.id, u.name))
+
+            // Identify Occupied Zones (Assignments where es_principal is true AND active)
+            const occupied = new Map<number, string>()
+            allAssignments.forEach(a => {
+                // Backend rule: es_principal=true AND fecha_fin IS NULL AND deleted_at IS NULL
+                // Ensure we respect deleted_at and fecha_fin
+                const isActive = (a.es_principal === true || String(a.es_principal) === 'true')
+                    && !a.fecha_fin
+                    && !a.deleted_at
+
+                if (isActive) {
+                    const vendorName = a.nombre_vendedor_cache || userMap.get(a.vendedor_usuario_id) || 'Otro Vendedor'
+                    occupied.set(Number(a.zona_id), vendorName)
+                }
+            })
+            setOccupiedZones(occupied)
+
+            // If editing a Vendor, set current selection
+            if (isEditing && user && user.role.toLowerCase() === 'vendedor') {
+                // Find MY active assignment
+                const myAssignment = allAssignments.find(a => {
+                    const isActive = (a.es_principal === true || String(a.es_principal) === 'true') && !a.fecha_fin && !a.deleted_at
+                    const isMe = String(a.vendedor_usuario_id).toLowerCase() === String(user.id).toLowerCase()
+                    return isMe && isActive
+                })
+
+                if (myAssignment) {
+                    const assignedZone = allZones.find(z => z.id === Number(myAssignment.zona_id))
+                    if (assignedZone) setSelectedZone(assignedZone)
+                    setCurrentAssignmentId(myAssignment.id)
+                }
+            }
+        } catch (error) {
+            console.error('Error loading data:', error)
+        } finally {
+            setInitializing(false)
+        }
+    }
+
+    const showFeedback = (type: FeedbackType, title: string, message: string, onConfirm?: () => void) => {
+        setFeedbackModal({ visible: true, type, title, message, onConfirm })
+    }
+
     const handleSave = async () => {
-        if (!name || !email) {
-            Alert.alert('Error', 'Por favor completa nombre y correo.')
-            return
+        if (!name.trim() || !email.trim()) {
+            return showFeedback('warning', 'Faltan datos', 'Por favor completa nombre y correo.')
         }
         if (!isEditing && !password) {
-            Alert.alert('Error', 'La contraseña es obligatoria para nuevos usuarios.')
-            return
+            return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
+        }
+        if (role.toLowerCase() === 'vendedor' && !selectedZone) {
+            return showFeedback('warning', 'Zona Requerida', 'Debes asignar una zona al vendedor.')
         }
 
         setLoading(true)
         try {
-            const selectedRole = roles.find(r => r.name.toLowerCase() === role.toLowerCase())
-            const rolId = selectedRole ? parseInt(selectedRole.id) : 4 // Default Vendedor
+            const selectedRoleObj = roles.find(r => r.name.toLowerCase() === role.toLowerCase())
+            const rolId = selectedRoleObj ? parseInt(selectedRoleObj.id) : 4 // Default Vendedor
+
+            let targetUserId = user?.id
 
             if (isEditing && user) {
-                // UPDATE
+                // UPDATE USER
                 const payload: any = { activo: isActive }
-                if (selectedRole) payload.rolId = rolId
+                if (selectedRoleObj) payload.rolId = rolId
                 if (name !== user.name) payload.nombre = name
-                // Note: Email often cannot be changed easily via this endpoint, depends on backend
 
                 const result = await UserService.updateUser(user.id, payload)
-                if (result.success) {
-                    setFeedbackVisible(true)
-                } else {
-                    Alert.alert('Error', result.message)
-                }
+                if (!result.success) throw new Error(result.message)
+
             } else {
-                // CREATE
+                // CREATE USER
                 const payload = {
                     nombre: name,
                     email: email,
@@ -75,15 +156,39 @@ export function SupervisorTeamDetailScreen() {
                     rolId: rolId
                 }
                 const result = await UserService.createUser(payload)
-                if (result.success) {
-                    setFeedbackVisible(true)
+                if (!result.success || !result.userId) throw new Error(result.message)
+                targetUserId = result.userId
+            }
+
+            // --- HANDLE ZONE ASSIGNMENT (Only for Vendedor) ---
+            if (role.toLowerCase() === 'vendedor' && targetUserId && selectedZone) {
+                if (currentAssignmentId) {
+                    // Update existing assignment
+                    await AssignmentService.updateAssignment(currentAssignmentId, {
+                        zona_id: selectedZone.id,
+                        vendedor_usuario_id: targetUserId,
+                        es_principal: true
+                    })
                 } else {
-                    Alert.alert('Error', result.message)
+                    // Create new assignment
+                    await AssignmentService.assignVendor({
+                        zona_id: selectedZone.id,
+                        vendedor_usuario_id: targetUserId,
+                        es_principal: true
+                    })
                 }
             }
+
+            showFeedback(
+                'success',
+                isEditing ? 'Empleado Actualizado' : 'Empleado Creado',
+                isEditing ? 'Los cambios se han guardado exitosamente.' : 'El nuevo miembro ha sido agregado al equipo.',
+                () => navigation.goBack()
+            )
+
         } catch (error: any) {
             console.error(error)
-            Alert.alert('Error', error.message || 'Error al guardar cambios')
+            showFeedback('error', 'Error', error.message || 'Error al guardar cambios')
         } finally {
             setLoading(false)
         }
@@ -96,16 +201,24 @@ export function SupervisorTeamDetailScreen() {
         try {
             const result = await UserService.deleteUser(user.id)
             if (result.success) {
-                setFeedbackVisible(true)
+                showFeedback('success', 'Eliminado', 'Usuario eliminado correctamente', () => navigation.goBack())
             } else {
-                Alert.alert('Error', result.message)
+                showFeedback('error', 'Error', result.message || 'No se pudo eliminar')
             }
         } catch (error) {
             console.error(error)
-            Alert.alert('Error', 'Error al eliminar usuario')
+            showFeedback('error', 'Error', 'Error al eliminar usuario')
         } finally {
             setLoading(false)
         }
+    }
+
+    if (initializing) {
+        return (
+            <View className="flex-1 justify-center items-center bg-white">
+                <ActivityIndicator size="large" color={BRAND_COLORS.red} />
+            </View>
+        )
     }
 
     return (
@@ -116,7 +229,7 @@ export function SupervisorTeamDetailScreen() {
                 onBackPress={() => navigation.goBack()}
             />
 
-            <ScrollView className="flex-1 px-5 pt-6">
+            <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
 
                 {/* Profile Header / Basic Info */}
                 <View className="bg-white p-6 rounded-3xl shadow-sm border border-neutral-100 items-center mb-6">
@@ -144,7 +257,7 @@ export function SupervisorTeamDetailScreen() {
                             placeholder="ejemplo@correo.com"
                             keyboardType="email-address"
                             autoCapitalize="none"
-                            editable={!isEditing} // Often email is immutable or needs special flow
+                            editable={!isEditing}
                         />
 
                         {!isEditing && (
@@ -191,6 +304,27 @@ export function SupervisorTeamDetailScreen() {
                         <Ionicons name="chevron-down" size={20} color="#9ca3af" />
                     </TouchableOpacity>
 
+                    {/* Zone Selector (Only for Vendors) */}
+                    {role.toLowerCase() === 'vendedor' && (
+                        <View>
+                            <Text className="text-neutral-500 font-medium mb-2">Zona Asignada</Text>
+                            <TouchableOpacity
+                                className="flex-row items-center justify-between p-4 bg-neutral-50 rounded-xl border border-neutral-200 mb-6"
+                                onPress={() => setShowZoneModal(true)}
+                            >
+                                <View className="flex-row items-center">
+                                    <View className="w-8 h-8 rounded-full bg-indigo-100 items-center justify-center mr-3">
+                                        <Ionicons name="map-outline" size={16} color="#4f46e5" />
+                                    </View>
+                                    <Text className={selectedZone ? "text-neutral-900 font-semibold" : "text-neutral-400 italic"}>
+                                        {selectedZone ? selectedZone.nombre : 'Seleccionar Zona...'}
+                                    </Text>
+                                </View>
+                                <Ionicons name="chevron-down" size={20} color="#9ca3af" />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     {/* Status Toggle - Only show if editing */}
                     {isEditing && (
                         <View className="flex-row items-center justify-between p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -219,18 +353,12 @@ export function SupervisorTeamDetailScreen() {
                     className="w-full py-4 rounded-xl items-center shadow-lg mb-3"
                     style={{ backgroundColor: BRAND_COLORS.red }}
                     onPress={handleSave}
+                    disabled={loading}
                 >
-                    <Text className="text-white font-bold text-lg">{loading ? 'Procesando...' : (isEditing ? 'Guardar Cambios' : 'Crear Empleado')}</Text>
+                    {loading ? <ActivityIndicator color="white" /> : (
+                        <Text className="text-white font-bold text-lg">{isEditing ? 'Guardar Cambios' : 'Crear Empleado'}</Text>
+                    )}
                 </TouchableOpacity>
-
-                {isEditing && (
-                    <TouchableOpacity
-                        className="w-full py-3 items-center"
-                        onPress={() => setDeleteModalVisible(true)}
-                    >
-                        <Text className="text-red-500 font-semibold">Eliminar Empleado</Text>
-                    </TouchableOpacity>
-                )}
             </View>
 
             {/* Role Selection Modal */}
@@ -258,51 +386,103 @@ export function SupervisorTeamDetailScreen() {
                         )}
                         isLoading={false}
                         onRefresh={() => { }}
-                        emptyState={{
-                            icon: 'alert-circle-outline',
-                            title: 'Sin Roles',
-                            message: 'No hay roles disponibles.'
+                        emptyState={{ icon: 'alert-circle-outline', title: 'Sin Roles', message: 'No hay roles disponibles.' }}
+                    />
+                </View>
+            </GenericModal>
+
+            {/* Zone Selection Modal */}
+            <GenericModal
+                visible={showZoneModal}
+                title="Seleccionar Zona"
+                onClose={() => setShowZoneModal(false)}
+            >
+                <View className="h-96">
+                    <GenericList
+                        items={zones}
+                        renderItem={(item: Zone) => {
+                            // Check if zone is occupied by SOMEONE ELSE
+                            const occupiedBy = occupiedZones.get(item.id)
+                            const isMyZone = selectedZone?.id === item.id
+                            // It is unavailable if it is occupied AND (it's not my current zone OR I am creating a new user so I have no zones)
+                            // Actually simplified: If occupiedBy exists and it's NOT the Zone I already have selected (which implies "My" zone in this context logic is fuzzy if I change selection),
+                            // Better logic: 
+                            // If `occupiedBy` exists:
+                            //    If I am editing and `selectedZone` was loaded from backend as THIS item, then it's MY zone. -> Allow
+                            //    Else -> It is someone else's zone. -> Warn/Disable.
+
+                            // Wait, if I change selection, `selectedZone` updates. I need to know my *original* assignment. 
+                            // But `currentAssignmentId` tells me if I have one.
+                            // Let's rely on: If occupiedBy is defined, show it.
+
+                            // Does `occupiedBy` include ME? `loadData` set occupied map based on ALL assignments.
+                            // If I am `user.id`, I might be in that map.
+                            // Let's check names.
+
+                            const isOccupied = !!occupiedBy
+                            // If I am editing, my name might be in occupiedBy? No, occupiedBy is a name string.
+                            // Let's just show the name. If it's me, it's fine.
+                            // We can block selection if it is occupied.
+
+                            return (
+                                <TouchableOpacity
+                                    className={`p-4 mb-2 rounded-xl flex-row items-center justify-between border ${selectedZone?.id === item.id ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-neutral-100'} ${isOccupied && !isMyZone ? 'opacity-70 bg-gray-50' : ''}`}
+                                    onPress={() => {
+                                        if (isOccupied && !isMyZone) {
+                                            Alert.alert('Zona Ocupada', `Esta zona ya está asignada a: ${occupiedBy}. No se puede seleccionar.`)
+                                            return
+                                        }
+                                        setSelectedZone(item)
+                                        setShowZoneModal(false)
+                                    }}
+                                >
+                                    <View className="flex-1">
+                                        <Text className={`font-semibold ${selectedZone?.id === item.id ? 'text-indigo-900' : 'text-neutral-900'}`}>
+                                            {item.nombre}
+                                        </Text>
+                                        <Text className="text-xs text-neutral-500">{item.ciudad} - {item.codigo}</Text>
+                                        {isOccupied && !isMyZone && (
+                                            <Text className="text-xs text-orange-500 font-bold mt-1">
+                                                🔒 Ocupado por: {occupiedBy}
+                                            </Text>
+                                        )}
+                                        {isMyZone && (
+                                            <Text className="text-xs text-indigo-600 font-bold mt-1">
+                                                ✅ Asignada actualmente
+                                            </Text>
+                                        )}
+                                    </View>
+                                    {selectedZone?.id === item.id && <Ionicons name="checkmark-circle" size={22} color="#4f46e5" />}
+                                </TouchableOpacity>
+                            )
                         }}
+                        isLoading={false}
+                        onRefresh={() => { }}
+                        emptyState={{ icon: 'map-outline', title: 'Sin Zonas', message: 'No hay zonas registradas.' }}
                     />
                 </View>
             </GenericModal>
 
             {/* Confirmation Delete Modal */}
-            <GenericModal
-                visible={deleteModalVisible}
-                title="Eliminar Usuario"
-                onClose={() => setDeleteModalVisible(false)}
-            >
-                <View className="p-4">
-                    <Text className="text-neutral-600 mb-6 text-center">
-                        ¿Estás seguro de que deseas eliminar a este usuario? Esta acción no se puede deshacer.
-                    </Text>
-                    <View className="flex-row justify-between space-x-3">
-                        <TouchableOpacity
-                            className="flex-1 py-3 bg-neutral-100 rounded-xl items-center"
-                            onPress={() => setDeleteModalVisible(false)}
-                        >
-                            <Text className="font-semibold text-neutral-700">Cancelar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            className="flex-1 py-3 bg-red-100 rounded-xl items-center"
-                            onPress={handleDelete}
-                        >
-                            <Text className="font-semibold text-red-600">Eliminar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </GenericModal>
-
             <FeedbackModal
-                visible={feedbackVisible}
-                type="success"
-                title={isEditing ? "Empleado Actualizado" : "Empleado Creado"}
-                message={isEditing ? "Los cambios se han guardado exitosamente." : "El nuevo miembro ha sido agregado al equipo."}
-                onClose={() => {
-                    setFeedbackVisible(false)
-                    navigation.goBack()
-                }}
+                visible={deleteModalVisible}
+                type="warning"
+                title="Eliminar Usuario"
+                message="¿Estás seguro de que deseas eliminar a este usuario? Esta acción no se puede deshacer."
+                onClose={() => setDeleteModalVisible(false)}
+                onConfirm={handleDelete}
+                showCancel={true}
+                confirmText="Eliminar"
+            />
+
+            {/* General Feedback Modal */}
+            <FeedbackModal
+                visible={feedbackModal.visible}
+                type={feedbackModal.type}
+                title={feedbackModal.title}
+                message={feedbackModal.message}
+                onClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+                onConfirm={feedbackModal.onConfirm}
             />
         </View>
     )
