@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { TextField } from './TextField'
 import { Alert } from './Alert'
@@ -102,10 +102,14 @@ export function EntityFormModal<T extends Record<string, any>>({
     setSubmitMessage(null)
   }
 
-  // Actualizar formData cuando initialData cambie
-  if (JSON.stringify(formData) !== JSON.stringify(initialData) && isOpen) {
-    setFormData(initialData)
-  }
+  // Actualizar formData cuando cambie initialData o se abra el modal
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(initialData)
+      setErrors({})
+      setSubmitMessage(null)
+    }
+  }, [initialData, isOpen])
 
   return (
     <Modal isOpen={isOpen} title={title} onClose={handleClose} headerGradient={headerGradient} maxWidth="md">
