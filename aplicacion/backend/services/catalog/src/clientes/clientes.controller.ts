@@ -37,6 +37,14 @@ export class ClientesController {
   findOne(@Req() req: any, @Param('id') id: string) {
     const role = String(req.user?.role || '').toLowerCase();
     const userId = req.user?.userId;
+    
+    // Si es cliente, buscar por usuario_principal_id en lugar de id de tabla
+    if (role === 'cliente') {
+      // El id en la URL puede ser el userId, buscar por usuario_principal_id
+      return this.svc.findByUsuarioPrincipalId(userId);
+    }
+    
+    // Para otros roles, verificar ownership si es cliente el que consulta
     if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
     return this.svc.findOne(id);
   }
@@ -59,20 +67,36 @@ export class ClientesController {
   @Put(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
-  update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+  async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
     const role = String(req.user?.role || '').toLowerCase();
     const userId = req.user?.userId;
-    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
+    
+    if (role === 'cliente') {
+      // Buscar el cliente por usuario_principal_id
+      const cliente = await this.svc.findByUsuarioPrincipalId(userId);
+      if (!cliente) throw new ForbiddenException('Cliente no encontrado');
+      // Actualizar usando el id real del cliente
+      return this.svc.update(cliente.id, body);
+    }
+    
     return this.svc.update(id, body);
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
-  remove(@Req() req: any, @Param('id') id: string) {
+  async remove(@Req() req: any, @Param('id') id: string) {
     const role = String(req.user?.role || '').toLowerCase();
     const userId = req.user?.userId;
-    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
+    
+    if (role === 'cliente') {
+      // Buscar el cliente por usuario_principal_id
+      const cliente = await this.svc.findByUsuarioPrincipalId(userId);
+      if (!cliente) throw new ForbiddenException('Cliente no encontrado');
+      // Bloquear usando el id real del cliente
+      return this.svc.remove(cliente.id);
+    }
+    
     return this.svc.remove(id);
   }
 }
