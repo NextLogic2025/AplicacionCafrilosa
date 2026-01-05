@@ -1,13 +1,14 @@
-import { Edit2, Power } from 'lucide-react'
+import { Edit2, Power, Eye } from 'lucide-react'
 import { type ZonaComercial } from '../../services/zonasApi'
 
 interface ZonasTableProps {
   zonas: ZonaComercial[]
+  onView: (zona: ZonaComercial) => void
   onEdit: (zona: ZonaComercial) => void
   onToggleEstado: (zona: ZonaComercial) => void
 }
 
-export function ZonasTable({ zonas, onEdit, onToggleEstado }: ZonasTableProps) {
+export function ZonasTable({ zonas, onView, onEdit, onToggleEstado }: ZonasTableProps) {
   const handleToggle = (zona: ZonaComercial) => {
     const accion = zona.activo ? 'desactivar' : 'activar'
     if (confirm(`¿Estás seguro de ${accion} la zona "${zona.nombre}"?`)) {
@@ -50,6 +51,13 @@ export function ZonasTable({ zonas, onEdit, onToggleEstado }: ZonasTableProps) {
               </td>
               <td className="px-6 py-4 text-right">
                 <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => onView(zona)}
+                    className="rounded-lg p-2 text-indigo-600 transition-colors hover:bg-indigo-50"
+                    title="Ver detalles"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => onEdit(zona)}
                     className="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50"

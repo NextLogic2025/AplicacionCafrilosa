@@ -9,6 +9,7 @@ import { type ZonaComercial, type CreateZonaDto } from '../../services/zonasApi'
 import { useZonas } from './useZonas'
 import { ZonasTable } from './ZonasTable'
 import { CrearZonaForm } from './CrearZonaForm'
+import { ZonaDetailModal } from './ZonaDetailModal'
 
 type ModalMode = 'crear' | 'editar'
 
@@ -21,12 +22,22 @@ export default function RutasPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string>('')
   const [zonaEditando, setZonaEditando] = useState<ZonaComercial | null>(null)
-  const [formData, setFormData] = useState<CreateZonaDto>({
+  const [zonaDetalle, setZonaDetalle] = useState<ZonaComercial | null>(null)
+  const emptyForm: CreateZonaDto = {
     codigo: '',
     nombre: '',
     ciudad: '',
     macrorregion: '',
-  })
+    poligono_geografico: null,
+  }
+
+  const handleOpenDetalle = (zona: ZonaComercial) => {
+    setZonaDetalle(zona)
+  }
+
+  const handleCloseDetalle = () => setZonaDetalle(null)
+
+  const [formData, setFormData] = useState<CreateZonaDto>(emptyForm)
 
   const handleOpenModalCrear = () => {
     setModalMode('crear')
@@ -35,7 +46,7 @@ export default function RutasPage() {
     setFormErrors({})
     setSubmitMessage(null)
     setVendedorSeleccionado('')
-    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '' })
+    setFormData(emptyForm)
   }
 
   const handleOpenModalEditar = (zona: ZonaComercial) => {
@@ -50,6 +61,7 @@ export default function RutasPage() {
       nombre: zona.nombre,
       ciudad: zona.ciudad || '',
       macrorregion: zona.macrorregion || '',
+      poligono_geografico: zona.poligono_geografico ?? null,
     })
   }
 
@@ -59,7 +71,7 @@ export default function RutasPage() {
     setFormErrors({})
     setSubmitMessage(null)
     setVendedorSeleccionado('')
-    setFormData({ codigo: '', nombre: '', ciudad: '', macrorregion: '' })
+    setFormData(emptyForm)
   }
 
   const handleToggleEstado = async (zona: ZonaComercial) => {
@@ -167,7 +179,7 @@ export default function RutasPage() {
           <p className="mt-2 text-sm text-gray-600">Crea la primera zona para empezar a planificar rutas.</p>
         </div>
       ) : (
-        <ZonasTable zonas={zonas} onEdit={handleOpenModalEditar} onToggleEstado={handleToggleEstado} />
+        <ZonasTable zonas={zonas} onView={handleOpenDetalle} onEdit={handleOpenModalEditar} onToggleEstado={handleToggleEstado} />
       )}
 
       <Modal
@@ -191,6 +203,8 @@ export default function RutasPage() {
           isEditing={modalMode === 'editar'}
         />
       </Modal>
+
+      <ZonaDetailModal zona={zonaDetalle} isOpen={!!zonaDetalle} onClose={handleCloseDetalle} />
     </div>
   )
 }

@@ -1,7 +1,11 @@
+import { useEffect, useMemo, useState } from 'react'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { type CreateZonaDto } from '../../services/zonasApi'
 import { type Vendedor } from '../../services/usuariosApi'
+import { ZonaMapSelector } from './ZonaMapSelector'
+
+type LatLngLiteral = google.maps.LatLngLiteral
 
 interface CrearZonaFormProps {
   formData: CreateZonaDto
@@ -30,6 +34,24 @@ export function CrearZonaForm({
   onCancel,
   isEditing = false,
 }: CrearZonaFormProps) {
+  const [polygonPath, setPolygonPath] = useState<LatLngLiteral[]>([])
+
+  const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+
+  const parsedInitialPolygon = useMemo(() => parseGeoPolygon(formData.poligono_geografico), [formData.poligono_geografico])
+
+  useEffect(() => {
+    setPolygonPath(parsedInitialPolygon)
+  }, [parsedInitialPolygon])
+
+  const handlePolygonChange = (path: LatLngLiteral[]) => {
+    setPolygonPath(path)
+    setFormData((prev) => ({
+      ...prev,
+      poligono_geografico: path.length >= 3 ? toGeoJsonPolygon(path) : null,
+    }))
+  }
+
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       {submitMessage ? <Alert type={submitMessage.type} message={submitMessage.message} /> : null}
@@ -87,6 +109,19 @@ export function CrearZonaForm({
         </select>
       </div>
 
+      <div className="space-y-2 pt-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-neutral-700">Área geográfica (polígono)</label>
+          <span className="text-[11px] text-neutral-500">Opcional, ayuda a limitar la zona</span>
+        </div>
+        <ZonaMapSelector apiKey={mapsApiKey} polygon={polygonPath} onPolygonChange={handlePolygonChange} />
+        {polygonPath.length > 0 ? (
+          <p className="text-[11px] text-neutral-600">Vertices: {polygonPath.length} | Se guardará como polígono GeoJSON.</p>
+        ) : (
+          <p className="text-[11px] text-neutral-500">Dibuja en el mapa para delimitar la zona.</p>
+        )}
+      </div>
+
       <div className="flex justify-end gap-3 pt-2">
         <button
           type="button"
@@ -105,4 +140,53 @@ export function CrearZonaForm({
       </div>
     </form>
   )
+}
+
+function parseGeoPolygon(value: unknown): LatLngLiteral[] {
+  if (!value) return []
+
+  if (Array.isArray(value) && value.every((p: any) => typeof p?.lat === 'number' && typeof p?.lng === 'number')) {
+    return dedupeClosingPoint(value as LatLngLiteral[])
+  }
+
+  if (typeof value === 'object' && value !== null && 'coordinates' in (value as any)) {
+    const coordinates = (value as any).coordinates?.[0]
+    if (Array.isArray(coordinates)) {
+      const path = coordinates
+        .map((pair: any) => {
+          if (!Array.isArray(pair) || pair.length < 2) return null
+          const [lng, lat] = pair
+          if (typeof lat !== 'number' || typeof lng !== 'number') return null
+          return { lat, lng }
+        })
+        .filter(Boolean) as LatLngLiteral[]
+      return dedupeClosingPoint(path)
+    }
+  }
+
+  return []
+}
+
+function dedupeClosingPoint(path: LatLngLiteral[]): LatLngLiteral[] {
+  if (path.length < 2) return path
+  const first = path[0]
+  const last = path[path.length - 1]
+  if (first.lat === last.lat && first.lng === last.lng) {
+    return path.slice(0, -1)
+  }
+  return path
+}
+
+function toGeoJsonPolygon(path: LatLngLiteral[]) {
+  if (!Array.isArray(path) || path.length < 3) return null
+  const ring = path.map((point) => [point.lng, point.lat])
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    ring.push([...first])
+  }
+  return {
+    type: 'Polygon',
+    coordinates: [ring],
+  }
 }

@@ -58,6 +58,7 @@ export function useZonas() {
       nombre: zonaData.nombre.trim(),
       ciudad: zonaData.ciudad?.trim() || undefined,
       macrorregion: zonaData.macrorregion?.trim() || undefined,
+      poligono_geografico: zonaData.poligono_geografico,
     })
 
     if (vendedorId && zonaCreada?.id) {
@@ -83,6 +84,7 @@ export function useZonas() {
       nombre: zonaData.nombre?.trim(),
       ciudad: zonaData.ciudad?.trim() || undefined,
       macrorregion: zonaData.macrorregion?.trim() || undefined,
+      poligono_geografico: zonaData.poligono_geografico,
     })
 
     // Si hay una asignación actual y el vendedor cambió o se eliminó
