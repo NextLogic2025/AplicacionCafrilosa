@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Switch } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { PromotionService, PromotionCampaign, PromotionProduct, PromotionClient } from '../../../services/api/PromotionService'
@@ -7,6 +8,7 @@ import { CatalogService, Product } from '../../../services/api/CatalogService'
 import { ClientService, Client } from '../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../services/api/PriceService'
 import { Header } from '../../../components/ui/Header'
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
 export function SupervisorPromotionFormScreen(props: any) {
     const { navigation, route } = props
@@ -25,6 +27,12 @@ export function SupervisorPromotionFormScreen(props: any) {
     const [valorDescuento, setValorDescuento] = useState(campaign?.valor_descuento?.toString() || '')
     const [alcance, setAlcance] = useState<'GLOBAL' | 'POR_LISTA' | 'POR_CLIENTE'>(campaign?.alcance || 'GLOBAL')
     const [listaId, setListaId] = useState<number | undefined>(campaign?.lista_precios_objetivo_id || undefined)
+    const [activo, setActivo] = useState(campaign?.activo ?? true)
+    const [imagenBanner, setImagenBanner] = useState(campaign?.imagen_banner_url || '')
+
+    // --- Date Picker State ---
+    const [showDatePicker, setShowDatePicker] = useState(false)
+    const [dateTarget, setDateTarget] = useState<'start' | 'end'>('start')
 
     // --- Lists Data ---
     const [promoProducts, setPromoProducts] = useState<PromotionProduct[]>([])
@@ -38,6 +46,37 @@ export function SupervisorPromotionFormScreen(props: any) {
     // --- Picker UI State ---
     const [pickerType, setPickerType] = useState<'none' | 'products' | 'clients'>('none')
     const [searchText, setSearchText] = useState('')
+
+    // --- Modal State ---
+    const [feedbackModal, setFeedbackModal] = useState<{
+        visible: boolean
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+        confirmText?: string
+    }>({
+        visible: false,
+        type: 'info',
+        title: '',
+        message: '',
+    })
+
+    const showModal = (
+        type: FeedbackType,
+        title: string,
+        message: string,
+        onConfirm?: () => void,
+        showCancel: boolean = false,
+        confirmText: string = 'Entendido'
+    ) => {
+        setFeedbackModal({ visible: true, type, title, message, onConfirm, showCancel, confirmText })
+    }
+
+    const closeModal = () => {
+        setFeedbackModal(prev => ({ ...prev, visible: false }))
+    }
 
     useEffect(() => {
         loadData()
@@ -56,16 +95,28 @@ export function SupervisorPromotionFormScreen(props: any) {
             setAvailableClients(clis)
 
             if (isEditing && campaign) {
-                const [p, c] = await Promise.all([
+                const [rawProducts, rawClients] = await Promise.all([
                     PromotionService.getProducts(campaign.id),
                     PromotionService.getClients(campaign.id)
                 ])
-                setPromoProducts(p)
-                setPromoClients(c)
+
+                // Hydrate Names (Backend might not return relations)
+                const hydratedProducts = rawProducts.map(rp => ({
+                    ...rp,
+                    producto: rp.producto || prods.find(p => p.id === rp.producto_id)
+                }))
+
+                const hydratedClients = rawClients.map(rc => ({
+                    ...rc,
+                    cliente: rc.cliente || clis.find(c => c.id === rc.cliente_id)
+                }))
+
+                setPromoProducts(hydratedProducts)
+                setPromoClients(hydratedClients)
             }
         } catch (e) {
             console.error(e)
-            Alert.alert('Error', 'No se pudieron cargar los datos')
+            showModal('error', 'Error', 'No se pudieron cargar los datos')
         } finally {
             setInitializing(false)
         }
@@ -73,11 +124,28 @@ export function SupervisorPromotionFormScreen(props: any) {
 
     // --- Handlers ---
 
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        setShowDatePicker(false)
+        if (selectedDate) {
+            const dateStr = selectedDate.toISOString().split('T')[0]
+            if (dateTarget === 'start') {
+                setFechaInicio(dateStr)
+            } else {
+                setFechaFin(dateStr)
+            }
+        }
+    }
+
+    const openDatePicker = (target: 'start' | 'end') => {
+        setDateTarget(target)
+        setShowDatePicker(true)
+    }
+
     const handleSave = async () => {
         // Validation
-        if (!nombre.trim()) return Alert.alert('Faltan datos', 'El nombre es obligatorio')
-        if (!valorDescuento || isNaN(Number(valorDescuento)) || Number(valorDescuento) <= 0) return Alert.alert('Error', 'Valor de descuento inválido')
-        if (alcance === 'POR_LISTA' && !listaId) return Alert.alert('Faltan datos', 'Selecciona una lista de precios')
+        if (!nombre.trim()) return showModal('warning', 'Faltan datos', 'El nombre es obligatorio')
+        if (!valorDescuento || isNaN(Number(valorDescuento)) || Number(valorDescuento) <= 0) return showModal('warning', 'Error', 'Valor de descuento inválido')
+        if (alcance === 'POR_LISTA' && !listaId) return showModal('warning', 'Faltan datos', 'Selecciona una lista de precios')
 
         setLoading(true)
         try {
@@ -90,7 +158,8 @@ export function SupervisorPromotionFormScreen(props: any) {
                 valor_descuento: Number(valorDescuento),
                 alcance,
                 lista_precios_objetivo_id: alcance === 'POR_LISTA' ? listaId : null,
-                activo: true
+                activo,
+                imagen_banner_url: imagenBanner
             }
 
             // Clean up unrelated fields based on scope logic
@@ -104,8 +173,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                 const newCamp = await PromotionService.createCampaign(payload)
                 savedId = newCamp.id
 
-                // NEW: Save deferred items (Products & Clients)
-                // We run this sequentially or in parallel. Parallel is faster.
+                // Save deferred items (Products & Clients) in parallel
                 const productPromises = promoProducts.map(p =>
                     PromotionService.addProduct(newCamp.id, p.producto_id, 0)
                 )
@@ -116,67 +184,90 @@ export function SupervisorPromotionFormScreen(props: any) {
                 await Promise.all([...productPromises, ...clientPromises])
             }
 
-            Alert.alert('Éxito', isEditing ? 'Campaña actualizada' : 'Campaña creada con sus items')
-            navigation.goBack()
+            showModal(
+                'success',
+                'Éxito',
+                isEditing ? 'Campaña actualizada correctamente' : 'Campaña creada correctamente',
+                () => navigation.goBack()
+            )
 
         } catch (error) {
             console.error(error)
-            Alert.alert('Error', 'No se pudo guardar la campaña')
+            showModal('error', 'Error', 'No se pudo guardar la campaña')
         } finally {
             setLoading(false)
         }
     }
 
+    const handleDelete = async () => {
+        if (!campaign) return
+
+        showModal(
+            'warning',
+            'Eliminar Campaña',
+            '¿Estás seguro de que deseas eliminar esta campaña? Esta acción no se puede deshacer.',
+            async () => {
+                closeModal() // Close confirmation modal
+                setLoading(true)
+                try {
+                    await PromotionService.deleteCampaign(campaign.id)
+                    // Show success modal after delete
+                    // Use setTimeout to allow modal transition if needed, but here simple state switch usually works
+                    // Wait a tick ensures setFeedbackModal defaults aren't overwritten immediately by closeModal
+                    setTimeout(() => {
+                        showModal(
+                            'success',
+                            'Éxito',
+                            'Campaña eliminada correctamente',
+                            () => navigation.goBack()
+                        )
+                    }, 300)
+
+                } catch (error) {
+                    console.error(error)
+                    showModal('error', 'Error', 'No se pudo eliminar la campaña')
+                } finally {
+                    setLoading(false)
+                }
+            },
+            true, // showCancel
+            'Eliminar' // confirmText
+        )
+    }
+
+
     const addItem = async (item: any) => {
         try {
             if (pickerType === 'products') {
-                // Check if already exists
                 if (promoProducts.some(p => p.producto_id === item.id)) return;
-
-                const newP: any = { producto_id: item.id, producto: item, precio_oferta_fijo: 0 } // Optimistic object
-
-                if (campaign) {
-                    // Edit Mode: Save immediately
-                    await PromotionService.addProduct(campaign.id, item.id, 0)
-                }
-                // Always update UI
+                const newP: any = { producto_id: item.id, producto: item, precio_oferta_fijo: 0 }
+                if (campaign) await PromotionService.addProduct(campaign.id, item.id, 0)
                 setPromoProducts([...promoProducts, newP])
             } else {
-                // Check if already exists
                 if (promoClients.some(c => c.cliente_id === item.id)) return;
-
                 const newC: any = { cliente_id: item.id, cliente: item }
-
-                if (campaign) {
-                    // Edit Mode: Save immediately
-                    await PromotionService.addClient(campaign.id, item.id)
-                }
-                // Always update UI
+                if (campaign) await PromotionService.addClient(campaign.id, item.id)
                 setPromoClients([...promoClients, newC])
             }
             setPickerType('none')
             setSearchText('')
         } catch (error) {
             console.error(error)
-            Alert.alert('Error', 'No se pudo agregar el item')
+            showModal('error', 'Error', 'No se pudo agregar el item')
         }
     }
 
     const removeItem = async (id: string, type: 'product' | 'client') => {
         try {
             if (type === 'product') {
-                if (campaign) {
-                    await PromotionService.removeProduct(campaign.id, id)
-                }
+                if (campaign) await PromotionService.removeProduct(campaign.id, id)
                 setPromoProducts(promoProducts.filter(p => p.producto_id !== id))
             } else {
-                if (campaign) {
-                    await PromotionService.removeClient(campaign.id, id)
-                }
+                if (campaign) await PromotionService.removeClient(campaign.id, id)
                 setPromoClients(promoClients.filter(c => c.cliente_id !== id))
             }
         } catch (error) {
-            Alert.alert('Error', 'No se pudo eliminar')
+            showModal('error', 'Error', 'No se pudo eliminar')
         }
     }
 
@@ -197,21 +288,23 @@ export function SupervisorPromotionFormScreen(props: any) {
             <View className="flex-row gap-4 mt-4">
                 <View className="flex-1">
                     <Text className="text-gray-800 font-bold mb-1 text-sm">Inicio</Text>
-                    <TextInput
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center"
-                        value={fechaInicio}
-                        onChangeText={setFechaInicio}
-                        placeholder="YYYY-MM-DD"
-                    />
+                    <TouchableOpacity
+                        onPress={() => openDatePicker('start')}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex-row items-center justify-between"
+                    >
+                        <Text className="text-gray-800">{fechaInicio}</Text>
+                        <Ionicons name="calendar-outline" size={20} color={BRAND_COLORS.red} />
+                    </TouchableOpacity>
                 </View>
                 <View className="flex-1">
                     <Text className="text-gray-800 font-bold mb-1 text-sm">Fin</Text>
-                    <TextInput
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center"
-                        value={fechaFin}
-                        onChangeText={setFechaFin}
-                        placeholder="YYYY-MM-DD"
-                    />
+                    <TouchableOpacity
+                        onPress={() => openDatePicker('end')}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex-row items-center justify-between"
+                    >
+                        <Text className="text-gray-800">{fechaFin}</Text>
+                        <Ionicons name="calendar-outline" size={20} color={BRAND_COLORS.red} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -240,6 +333,30 @@ export function SupervisorPromotionFormScreen(props: any) {
                         placeholder="0"
                     />
                 </View>
+            </View>
+
+            <View className="mt-4">
+                <Text className="text-gray-800 font-bold mb-1 text-sm">URL Banner (Opcional)</Text>
+                <TextInput
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800"
+                    value={imagenBanner}
+                    onChangeText={setImagenBanner}
+                    placeholder="https://..."
+                />
+            </View>
+
+            <View className="flex-row justify-between items-center mt-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                <View>
+                    <Text className="text-gray-900 font-bold text-base">Estado de la Campaña</Text>
+                    <Text className="text-gray-500 text-xs">Visible cuando está activa</Text>
+                </View>
+                <Switch
+                    trackColor={{ false: '#767577', true: '#bbf7d0' }}
+                    thumbColor={activo ? '#16a34a' : '#f4f3f4'}
+                    ios_backgroundColor="#3e3e3e"
+                    onValueChange={setActivo}
+                    value={activo}
+                />
             </View>
         </View>
     )
@@ -323,7 +440,7 @@ export function SupervisorPromotionFormScreen(props: any) {
 
     const renderProductsSection = () => {
         return (
-            <View className="bg-white mx-4 mt-0 mb-24 p-4 rounded-xl shadow-sm border border-gray-100">
+            <View className="bg-white mx-4 mt-0 mb-8 p-4 rounded-xl shadow-sm border border-gray-100">
                 <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-gray-500 font-bold text-xs uppercase tracking-wider">Productos en Promoción</Text>
                     <TouchableOpacity
@@ -420,23 +537,57 @@ export function SupervisorPromotionFormScreen(props: any) {
                 variant="standard"
                 onBackPress={() => navigation.goBack()}
             />
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+            >
                 {renderInputSection()}
                 {renderScopeSection()}
                 {renderProductsSection()}
+
+                {/* Buttons Container - INSIDE ScrollView */}
+                <View className="mt-4 mb-10 mx-4 gap-3">
+                    <TouchableOpacity
+                        onPress={handleSave}
+                        className="bg-red-600 py-4 rounded-xl shadow-lg items-center"
+                        disabled={loading}
+                    >
+                        {loading ? <ActivityIndicator color="white" /> : (
+                            <Text className="text-white font-bold text-lg">{isEditing ? 'GUARDAR CAMBIOS' : 'CREAR CAMPAÑA'}</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {isEditing && (
+                        <TouchableOpacity
+                            onPress={handleDelete}
+                            className="bg-white py-4 rounded-xl shadow-sm border border-red-100 items-center"
+                            disabled={loading}
+                        >
+                            <Text className="text-red-600 font-bold text-base">ELIMINAR CAMPAÑA</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             </ScrollView>
 
-            {/* Floating Save Button */}
-            <View className="absolute bottom-6 left-4 right-4">
-                <TouchableOpacity
-                    onPress={handleSave}
-                    className="bg-red-600 py-4 rounded-xl shadow-lg items-center"
-                >
-                    {loading ? <ActivityIndicator color="white" /> : (
-                        <Text className="text-white font-bold text-lg">{isEditing ? 'GUARDAR CAMBIOS' : 'CREAR CAMPAÑA'}</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={dateTarget === 'start' ? new Date(fechaInicio) : new Date(fechaFin)}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                />
+            )}
+
+            <FeedbackModal
+                visible={feedbackModal.visible}
+                type={feedbackModal.type}
+                title={feedbackModal.title}
+                message={feedbackModal.message}
+                onClose={closeModal}
+                onConfirm={feedbackModal.onConfirm}
+                showCancel={feedbackModal.showCancel}
+                confirmText={feedbackModal.confirmText}
+            />
         </View>
     )
 }

@@ -32,6 +32,9 @@
         "googleMapsApiKey": "AIzaSyDoftE8Lg_aqWrrJKQDprE5EkEuN5ChvEE"
       },
       "bundleIdentifier": "com.cafrilosa.mobile"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

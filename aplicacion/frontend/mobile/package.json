@@ -14,6 +14,7 @@
     "@cafrilosa/shared-types": "file:../../shared/types",
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.2.2",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-native/virtualized-lists": "^0.81.5",
     "@react-navigation/bottom-tabs": "^7.9.0",
     "@react-navigation/native": "^7.1.18",
