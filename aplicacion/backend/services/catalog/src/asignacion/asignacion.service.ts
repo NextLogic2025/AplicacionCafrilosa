@@ -15,10 +15,11 @@ export class AsignacionService {
     return this.repo.find();
   }
 
-  create(data: Partial<AsignacionVendedores>) {
+  async create(data: Partial<AsignacionVendedores>) {
     // If marking as principal, ensure there is no other active principal for the same zone
     if (data.es_principal) {
-      const exists = this.repo.createQueryBuilder('a')
+      const exists = await this.repo
+        .createQueryBuilder('a')
         .where('a.zona_id = :zonaId', { zonaId: data.zona_id })
         .andWhere('a.fecha_fin IS NULL')
         .andWhere('a.es_principal = TRUE')
@@ -28,7 +29,7 @@ export class AsignacionService {
       if (exists) throw new BadRequestException('Ya existe un vendedor principal activo para esta zona');
     }
 
-    const e = this.repo.create(data as any);
+    const e = this.repo.create(data as Partial<AsignacionVendedores>);
     return this.repo.save(e);
   }
 
