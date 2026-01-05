@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { CategoriasView } from './CategoriasView'
 import { ProductosView } from './ProductosView'
 import { PreciosView } from './PreciosView'
+import { PromocionesView } from './PromocionesView'
 
 type CatalogoOption = {
   id: string
@@ -140,6 +141,30 @@ export default function CatalogoPage() {
         </div>
 
         <PreciosView />
+      </div>
+    )
+  }
+
+  if (selectedOption === 'promociones') {
+    return (
+      <div className="space-y-6">
+        <PageHero
+          title="Promociones"
+          subtitle="Gestión de campañas promocionales y ofertas especiales"
+          chips={['Catálogo', 'Promociones', 'Descuentos']}
+        />
+        
+        <div className="flex justify-start">
+          <Button
+            onClick={handleBack}
+            className="flex items-center gap-2 bg-brand-red text-white hover:bg-brand-red/90 shadow-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al catálogo
+          </Button>
+        </div>
+
+        <PromocionesView />
       </div>
     )
   }
