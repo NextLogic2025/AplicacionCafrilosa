@@ -26,6 +26,7 @@ import { SupervisorCategoriesScreen } from '../features/supervisor/screens/Super
 import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
 import { SupervisorPriceListsScreen } from '../features/supervisor/screens/SupervisorPriceListsScreen'
 import { SupervisorPromotionsScreen } from '../features/supervisor/screens/SupervisorPromotionsScreen'
+import { SupervisorPromotionFormScreen } from '../features/supervisor/screens/SupervisorPromotionFormScreen'
 
 import { SupervisorAuditScreen } from '../features/supervisor/screens/SupervisorAuditScreen'
 
@@ -108,6 +109,11 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         label: 'Alertas',
                         onPress: () => navigation.navigate('SupervisorAlerts'),
                     },
+                    {
+                        icon: 'pricetag',
+                        label: 'Promociones',
+                        onPress: () => navigation.navigate('SupervisorPromotions'),
+                    },
                 ]}
             />
         </View>
@@ -133,6 +139,7 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorProductForm" component={SupervisorProductFormScreen} />
             <Stack.Screen name="SupervisorPriceLists" component={SupervisorPriceListsScreen} />
             <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
+            <Stack.Screen name="SupervisorPromotionForm" component={SupervisorPromotionFormScreen} />
             <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
             <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
             <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />

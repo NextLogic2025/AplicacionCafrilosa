@@ -18,7 +18,7 @@ interface GenericTabsProps {
 export function GenericTabs({ tabs, activeTab, onTabChange, containerClassName }: GenericTabsProps) {
     return (
         <View className={`border-b border-neutral-100 bg-white ${containerClassName}`}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
                 {tabs.map((tab) => {
                     const isActive = activeTab === tab.key
                     return (

@@ -1,0 +1,102 @@
+import { apiRequest } from './client'
+import { Product } from './CatalogService'
+import { Client } from './ClientService'
+
+export interface PromotionCampaign {
+    id: number
+    nombre: string
+    descripcion: string
+    fecha_inicio: string // ISO Date
+    fecha_fin: string // ISO Date
+    tipo_descuento: 'PORCENTAJE' | 'MONTO_FIJO'
+    valor_descuento: number
+    alcance: 'GLOBAL' | 'POR_LISTA' | 'POR_CLIENTE'
+    lista_precios_objetivo_id?: number | null
+    imagen_banner_url?: string
+    activo: boolean
+}
+
+export interface PromotionProduct {
+    campania_id: number
+    producto_id: string
+    precio_oferta_fijo: number
+    producto?: Product // For display
+}
+
+export interface PromotionClient {
+    campania_id: number
+    cliente_id: string
+    cliente?: Client // For display
+}
+
+export const PromotionService = {
+    // --- Compaigns ---
+    getCampaigns: async (): Promise<PromotionCampaign[]> => {
+        return apiRequest<PromotionCampaign[]>('/api/promociones')
+    },
+
+    getCampaign: async (id: number): Promise<PromotionCampaign> => {
+        return apiRequest<PromotionCampaign>(`/api/promociones/${id}`)
+    },
+
+    createCampaign: async (data: Partial<PromotionCampaign>): Promise<PromotionCampaign> => {
+        return apiRequest<PromotionCampaign>('/api/promociones', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        })
+    },
+
+    updateCampaign: async (id: number, data: Partial<PromotionCampaign>): Promise<PromotionCampaign> => {
+        return apiRequest<PromotionCampaign>(`/api/promociones/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        })
+    },
+
+    deleteCampaign: async (id: number): Promise<void> => {
+        return apiRequest<void>(`/api/promociones/${id}`, {
+            method: 'DELETE'
+        })
+    },
+
+    // --- Products ---
+    getProducts: async (campaignId: number): Promise<PromotionProduct[]> => {
+        return apiRequest<PromotionProduct[]>(`/api/promociones/${campaignId}/productos`)
+    },
+
+    addProduct: async (campaignId: number, productId: string, precioOferta?: number): Promise<PromotionProduct> => {
+        const body: any = { producto_id: productId }
+        if (precioOferta !== undefined) body.precio_oferta_fijo = precioOferta
+
+        return apiRequest<PromotionProduct>(`/api/promociones/${campaignId}/productos`, {
+            method: 'POST',
+            body: JSON.stringify(body)
+        })
+    },
+
+    removeProduct: async (campaignId: number, productId: string): Promise<void> => {
+        return apiRequest<void>(`/api/promociones/${campaignId}/productos/${productId}`, {
+            method: 'DELETE'
+        })
+    },
+
+    // --- Clients ---
+    getClients: async (campaignId: number): Promise<PromotionClient[]> => {
+        return apiRequest<PromotionClient[]>(`/api/promociones/${campaignId}/clientes`)
+    },
+
+    addClient: async (campaignId: number, clientId: string): Promise<PromotionClient> => {
+        return apiRequest<PromotionClient>(`/api/promociones/${campaignId}/clientes`, {
+            method: 'POST',
+            body: JSON.stringify({
+                cliente_id: clientId
+            })
+        })
+    },
+
+    removeClient: async (campaignId: number, clientId: string): Promise<void> => {
+        return apiRequest<void>(`/api/promociones/${campaignId}/clientes/${clientId}`, {
+            method: 'DELETE'
+        })
+    }
+}
