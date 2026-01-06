@@ -127,8 +127,13 @@ export default function ClientesPage() {
           direccion_texto: editingCliente.direccion_texto || '',
           lista_precios_id: editingCliente.lista_precios_id,
           zona_comercial_id: editingCliente.zona_comercial_id,
-          latitud: editingCliente.latitud,
-          longitud: editingCliente.longitud,
+          // Extraer coordenadas de ubicacion_gps (GeoJSON format) o usar latitud/longitud si existen
+          latitud: editingCliente.ubicacion_gps?.coordinates 
+            ? editingCliente.ubicacion_gps.coordinates[1]  // lat es el segundo elemento
+            : editingCliente.latitud,
+          longitud: editingCliente.ubicacion_gps?.coordinates
+            ? editingCliente.ubicacion_gps.coordinates[0]  // lng es el primer elemento
+            : editingCliente.longitud,
           // Campos de contacto no se editan en modo edición
           contacto_nombre: '',
           contacto_email: '',

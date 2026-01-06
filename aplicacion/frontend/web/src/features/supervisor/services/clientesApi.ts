@@ -18,6 +18,7 @@ export interface Cliente {
   dias_plazo: number
   bloqueado: boolean
   direccion_texto: string | null
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
   latitud?: number | null
   longitud?: number | null
   created_at: string
@@ -40,8 +41,7 @@ export interface CreateClienteDto {
   limite_credito?: number
   dias_plazo?: number
   direccion_texto?: string
-  latitud?: number
-  longitud?: number
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
 }
 
 export interface ZonaComercial {

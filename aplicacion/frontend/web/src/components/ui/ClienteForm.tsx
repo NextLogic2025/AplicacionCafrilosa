@@ -18,6 +18,7 @@ export type ClienteFormValues = {
   zona_comercial_id: number | null
   latitud?: number | null
   longitud?: number | null
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
 }
 
 export type ZonaOption = { 
@@ -46,6 +47,7 @@ export const CLIENTE_FORM_DEFAULT: ClienteFormValues = {
   zona_comercial_id: null,
   latitud: null,
   longitud: null,
+  ubicacion_gps: null,
 }
 
 export function validateClienteForm(value: ClienteFormValues, mode: 'create' | 'edit'): Record<string, string> {
@@ -113,6 +115,7 @@ export function ClienteForm({
   step = 1,
 }: ClienteFormProps) {
   const update = <K extends keyof ClienteFormValues>(key: K, val: ClienteFormValues[K]) => {
+    console.log('🔄 Update llamado - key:', key, 'val:', val)
     onChange({ ...value, [key]: val })
   }
 
@@ -379,8 +382,18 @@ export function ClienteForm({
             isLoaded={isLoaded}
             loadError={loadError}
             onChange={(pos) => {
-              update('latitud', pos.lat)
-              update('longitud', pos.lng)
+              console.log('📍 Ubicación seleccionada:', pos)
+              // Guardar directamente en GeoJSON format como el compañero
+              onChange({
+                ...value,
+                latitud: pos.lat,
+                longitud: pos.lng,
+                ubicacion_gps: {
+                  type: 'Point',
+                  coordinates: [pos.lng, pos.lat]
+                }
+              })
+              console.log('📍 Valores actualizados - lat:', pos.lat, 'lng:', pos.lng)
             }}
           />
         </div>

@@ -41,6 +41,12 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
   
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [formData, setFormData] = useState<ClienteFormValues>({ ...CLIENTE_FORM_DEFAULT, ...initialData })
+  
+  // Wrapper para setFormData con logging
+  const updateFormData = (data: ClienteFormValues) => {
+    console.log('📝 FormData actualizado:', data)
+    setFormData(data)
+  }
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCatalogLoading, setIsCatalogLoading] = useState(false)
@@ -185,6 +191,11 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
       return
     }
 
+    console.log('🚀 Enviando cliente con coordenadas:', {
+      ubicacion_gps: formData.ubicacion_gps,
+      direccion_texto: formData.direccion_texto
+    })
+
     setIsSubmitting(true)
 
     try {
@@ -215,8 +226,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
           dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
           direccion_texto: formData.direccion_texto || undefined,
-          latitud: formData.latitud ?? undefined,
-          longitud: formData.longitud ?? undefined,
+          ubicacion_gps: formData.ubicacion_gps || undefined,
         })
         clienteId = nuevoCliente.id
       } else if (initialData?.id) {
@@ -233,8 +243,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
           dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
           direccion_texto: formData.direccion_texto || undefined,
-          latitud: formData.latitud ?? undefined,
-          longitud: formData.longitud ?? undefined,
+          ubicacion_gps: formData.ubicacion_gps || undefined,
         })
       } else {
         throw new Error('No se pudo identificar el cliente a actualizar')
@@ -346,7 +355,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             isCatalogLoading={isCatalogLoading}
             zonas={zonas}
             listasPrecios={listasPrecios}
-            onChange={setFormData}
+            onChange={updateFormData}
             step={1}
           />
         )}
@@ -361,7 +370,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             isCatalogLoading={isCatalogLoading}
             zonas={zonas}
             listasPrecios={listasPrecios}
-            onChange={setFormData}
+            onChange={updateFormData}
             step={2}
           />
         )}
