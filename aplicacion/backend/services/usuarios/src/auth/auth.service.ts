@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -258,13 +258,33 @@ export class AuthService {
     return usuarios;
   }
 
-  // Deactivate a user (only intended for deactivating clients)
-  async desactivarUsuario(usuarioId: string) {
+  // Deactivate a user. Supervisors/admins can deactivate other users (admins protected).
+  async desactivarUsuario(usuarioId: string, requester?: { sub?: string; role?: string | string[]; rolId?: string | number }) {
     const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    const rolNombre = String(usuario.rol?.nombre || '').toLowerCase();
-    // Only allow deactivating clients via this endpoint
-    if (rolNombre !== 'cliente' && usuario.rol?.id !== 3) {
+    const rolNombreTarget = String(usuario.rol?.nombre || '').toLowerCase();
+
+    const requesterRoles = Array.isArray(requester?.role)
+      ? requester.role.map((r) => String(r).toLowerCase())
+      : [String(requester?.role || '').toLowerCase()];
+    const isSupervisor = requesterRoles.includes('supervisor') || Number(requester?.rolId) === 2;
+    const isAdmin = requesterRoles.includes('admin') || Number(requester?.rolId) === 1;
+
+    // If requester is admin, allow any deactivation
+    if (isAdmin) {
+      await this.usuarioRepo.update(usuarioId, { activo: false } as Partial<Usuario>);
+      return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    }
+
+    // Supervisor may deactivate non-admin users
+    if (isSupervisor) {
+      if (rolNombreTarget === 'admin') throw new BadRequestException('No autorizado para desactivar administradores');
+      await this.usuarioRepo.update(usuarioId, { activo: false } as Partial<Usuario>);
+      return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    }
+
+    // Default: only allow deactivating clientes (backwards-compatible)
+    if (rolNombreTarget !== 'cliente' && usuario.rol?.id !== 3) {
       throw new BadRequestException('Sólo se pueden desactivar usuarios con rol cliente');
     }
 
@@ -272,16 +292,79 @@ export class AuthService {
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 
-  async activarUsuario(usuarioId: string) {
+  async activarUsuario(usuarioId: string, requester?: { sub?: string; role?: string | string[]; rolId?: string | number }) {
     const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    const rolNombre = String(usuario.rol?.nombre || '').toLowerCase();
-    // Only allow activating clients via this endpoint
-    if (rolNombre !== 'cliente' && usuario.rol?.id !== 3) {
+    const rolNombreTarget = String(usuario.rol?.nombre || '').toLowerCase();
+
+    const requesterRoles = Array.isArray(requester?.role)
+      ? requester.role.map((r) => String(r).toLowerCase())
+      : [String(requester?.role || '').toLowerCase()];
+    const isSupervisor = requesterRoles.includes('supervisor') || Number(requester?.rolId) === 2;
+    const isAdmin = requesterRoles.includes('admin') || Number(requester?.rolId) === 1;
+
+    if (isAdmin) {
+      await this.usuarioRepo.update(usuarioId, { activo: true } as Partial<Usuario>);
+      return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    }
+
+    if (isSupervisor) {
+      if (rolNombreTarget === 'admin') throw new BadRequestException('No autorizado para activar administradores');
+      await this.usuarioRepo.update(usuarioId, { activo: true } as Partial<Usuario>);
+      return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    }
+
+    if (rolNombreTarget !== 'cliente' && usuario.rol?.id !== 3) {
       throw new BadRequestException('Sólo se pueden activar usuarios con rol cliente');
     }
 
     await this.usuarioRepo.update(usuarioId, { activo: true } as Partial<Usuario>);
+    return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+  }
+
+  // Update user with role-change protections: a cliente cannot change role or update other users
+  async actualizarUsuario(
+    usuarioId: string,
+    dto: Partial<CreateUsuarioDto | import('./dto/update-usuario.dto').UpdateUsuarioDto>,
+    requester: { sub?: string; role?: string | string[]; rolId?: string | number },
+  ) {
+    const target = await this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+    if (!target) throw new NotFoundException('Usuario no encontrado');
+
+    const requesterRoles = Array.isArray(requester?.role)
+      ? requester.role.map((r) => String(r).toLowerCase())
+      : [String(requester?.role || '').toLowerCase()];
+    const isCliente = requesterRoles.includes('cliente') || Number(requester?.rolId) === 6;
+
+    if (isCliente) {
+      // Clientes may only update their own profile
+      if (String(requester.sub) !== String(usuarioId)) throw new ForbiddenException('No autorizado');
+      // Prevent role escalation: strip role/rolId if present
+      if ('rolId' in dto) delete dto.rolId;
+      if ('password' in dto) delete dto.password; // password change should use dedicated flow
+    }
+
+    // If non-cliente, allow updates but do not permit setting arbitrary rolId to invalid value
+    // normalize incoming rolId if present (from either CreateUsuarioDto or UpdateUsuarioDto)
+    const incoming = dto as Partial<CreateUsuarioDto & import('./dto/update-usuario.dto').UpdateUsuarioDto>;
+    if (incoming.rolId) {
+      const rol = await this.roleRepo.findOne({ where: { id: incoming.rolId } });
+      if (!rol) throw new BadRequestException('Rol no válido');
+    }
+
+    // Only allow certain fields to be updated directly
+    const up: Partial<Usuario> = {};
+    if (dto && typeof dto === 'object') {
+      const d = dto as Partial<import('./dto/update-usuario.dto').UpdateUsuarioDto>;
+      if (d.nombre !== undefined) up.nombre = d.nombre;
+      if (d.telefono !== undefined) up.telefono = d.telefono;
+      if (d.avatarUrl !== undefined) up.avatarUrl = d.avatarUrl;
+      if ('emailVerificado' in d) up.emailVerificado = Boolean(d.emailVerificado);
+      if ('activo' in d) up.activo = Boolean(d.activo);
+      if ('rolId' in d && d.rolId) up.rol = { id: d.rolId } as Role;
+    }
+
+    await this.usuarioRepo.update(usuarioId, up as Partial<Usuario>);
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 

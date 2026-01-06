@@ -18,6 +18,8 @@ export interface Cliente {
   dias_plazo: number
   bloqueado: boolean
   direccion_texto: string | null
+  latitud?: number | null
+  longitud?: number | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -38,6 +40,8 @@ export interface CreateClienteDto {
   limite_credito?: number
   dias_plazo?: number
   direccion_texto?: string
+  latitud?: number
+  longitud?: number
 }
 
 export interface ZonaComercial {
