@@ -60,7 +60,6 @@ export default function ClientesPage() {
   }
 
   const handleEdit = (cliente: Cliente) => {
-    console.log('Editando cliente:', cliente)
     setEditingCliente(cliente)
     setIsModalOpen(true)
   }

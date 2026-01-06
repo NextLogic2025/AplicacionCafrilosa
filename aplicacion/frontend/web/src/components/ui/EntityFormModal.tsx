@@ -102,14 +102,15 @@ export function EntityFormModal<T extends Record<string, any>>({
     setSubmitMessage(null)
   }
 
-  // Actualizar formData cuando cambie initialData o se abra el modal
+  // Actualizar formData solo cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
       setFormData(initialData)
       setErrors({})
       setSubmitMessage(null)
     }
-  }, [initialData, isOpen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   return (
     <Modal isOpen={isOpen} title={title} onClose={handleClose} headerGradient={headerGradient} maxWidth="md">

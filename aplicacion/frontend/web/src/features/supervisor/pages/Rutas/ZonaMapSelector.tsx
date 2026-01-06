@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react'
 import { GoogleMap, Polygon, DrawingManager, useJsApiLoader } from '@react-google-maps/api'
 import { Alert } from 'components/ui/Alert'
 
+const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+
 interface ZonaMapSelectorProps {
   apiKey: string | undefined
   polygon: google.maps.LatLngLiteral[]
@@ -21,7 +23,7 @@ const defaultCenter: google.maps.LatLngLiteral = {
 export function ZonaMapSelector({ apiKey, polygon, onPolygonChange }: ZonaMapSelectorProps) {
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? '',
-    libraries: ['drawing'],
+    libraries: GOOGLE_MAP_LIBRARIES,
   })
 
   const gmaps = typeof window !== 'undefined'

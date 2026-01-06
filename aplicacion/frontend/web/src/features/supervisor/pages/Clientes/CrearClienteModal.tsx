@@ -37,16 +37,8 @@ interface CrearClienteModalProps {
 type Step = 1 | 2 | 3
 
 export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mode = 'create' }: CrearClienteModalProps) {
-  console.log('CrearClienteModal renderizado - isOpen:', isOpen, 'mode:', mode)
-  
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [formData, setFormData] = useState<ClienteFormValues>({ ...CLIENTE_FORM_DEFAULT, ...initialData })
-  
-  // Wrapper para setFormData con logging
-  const updateFormData = (data: ClienteFormValues) => {
-    console.log('📝 FormData actualizado:', data)
-    setFormData(data)
-  }
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCatalogLoading, setIsCatalogLoading] = useState(false)
@@ -66,7 +58,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
   const [canSubmit, setCanSubmit] = useState(false)
 
   useEffect(() => {
-    console.log('useEffect ejecutado - isOpen:', isOpen, 'initialData:', initialData)
     if (isOpen) {
       setCurrentStep(1)
       setSucursalesTemp([])
@@ -136,7 +127,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
   }
 
   const handleNext = () => {
-    console.log('➡️ handleNext ejecutado - Paso actual:', currentStep)
     // Limpiar mensaje de submit al cambiar de paso
     setSubmitMessage(null)
     
@@ -174,11 +164,9 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🔴 handleSubmit ejecutado - Paso actual:', currentStep, 'canSubmit:', canSubmit)
     
     // Bloquear submit si no es intencional
     if (!canSubmit || currentStep !== 3) {
-      console.log('⚠️ Submit bloqueado - canSubmit:', canSubmit, 'currentStep:', currentStep)
       setCanSubmit(false) // Resetear flag
       return
     }
@@ -190,11 +178,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
     if (!validateForm()) {
       return
     }
-
-    console.log('🚀 Enviando cliente con coordenadas:', {
-      ubicacion_gps: formData.ubicacion_gps,
-      direccion_texto: formData.direccion_texto
-    })
 
     setIsSubmitting(true)
 
@@ -355,7 +338,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             isCatalogLoading={isCatalogLoading}
             zonas={zonas}
             listasPrecios={listasPrecios}
-            onChange={updateFormData}
+            onChange={setFormData}
             step={1}
           />
         )}
@@ -370,7 +353,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             isCatalogLoading={isCatalogLoading}
             zonas={zonas}
             listasPrecios={listasPrecios}
-            onChange={updateFormData}
+            onChange={setFormData}
             step={2}
           />
         )}

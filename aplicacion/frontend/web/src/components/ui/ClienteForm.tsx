@@ -2,6 +2,9 @@ import { TextField } from './TextField'
 import { GoogleMap, Polygon, Marker, useJsApiLoader } from '@react-google-maps/api'
 import { useMemo, useState, useEffect } from 'react'
 
+// Mantener librerías como constante estática para evitar recargas
+const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+
 export type ClienteFormValues = {
   contacto_nombre: string
   contacto_email: string
@@ -115,7 +118,6 @@ export function ClienteForm({
   step = 1,
 }: ClienteFormProps) {
   const update = <K extends keyof ClienteFormValues>(key: K, val: ClienteFormValues[K]) => {
-    console.log('🔄 Update llamado - key:', key, 'val:', val)
     onChange({ ...value, [key]: val })
   }
 
@@ -125,8 +127,7 @@ export function ClienteForm({
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
-    libraries: ['drawing'],
-    id: 'google-map-script-cliente-form',
+    libraries: GOOGLE_MAP_LIBRARIES,
   })
 
   // Paso 1: Datos de acceso, información personal y configuración
@@ -382,8 +383,7 @@ export function ClienteForm({
             isLoaded={isLoaded}
             loadError={loadError}
             onChange={(pos) => {
-              console.log('📍 Ubicación seleccionada:', pos)
-              // Guardar directamente en GeoJSON format como el compañero
+              // Guardar directamente en GeoJSON format
               onChange({
                 ...value,
                 latitud: pos.lat,
@@ -393,7 +393,6 @@ export function ClienteForm({
                   coordinates: [pos.lng, pos.lat]
                 }
               })
-              console.log('📍 Valores actualizados - lat:', pos.lat, 'lng:', pos.lng)
             }}
           />
         </div>
@@ -574,7 +573,6 @@ function LocationPicker({ position, zonaId, zonas, isLoaded, loadError, onChange
   const handleMapClick = (e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
       const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() }
-      console.log('Mapa clickeado:', newPos)
       setTempMarker(newPos)
       onChange(newPos)
     }

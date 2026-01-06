@@ -3,6 +3,7 @@ import { Alert } from 'components/ui/Alert'
 import { Modal } from 'components/ui/Modal'
 import { type ZonaComercial } from '../../services/zonasApi'
 
+const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
 const containerStyle = { width: '100%', height: '320px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
@@ -18,7 +19,7 @@ export function ZonaDetailModal({ zona, isOpen, onClose }: ZonaDetailModalProps)
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? '',
-    libraries: ['drawing'],
+    libraries: GOOGLE_MAP_LIBRARIES,
   })
 
   return (

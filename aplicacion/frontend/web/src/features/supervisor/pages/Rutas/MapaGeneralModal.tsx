@@ -4,6 +4,7 @@ import { Alert } from 'components/ui/Alert'
 import { Modal } from 'components/ui/Modal'
 import { type ZonaComercial } from '../../services/zonasApi'
 
+const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
 const containerStyle = { width: '100%', height: '70vh' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -1.831239, lng: -78.183406 } // Ecuador centro
 
@@ -18,7 +19,7 @@ export function MapaGeneralModal({ zonas, isOpen, onClose }: MapaGeneralModalPro
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? '',
-    libraries: ['drawing'],
+    libraries: GOOGLE_MAP_LIBRARIES,
   })
 
   const zonasConPoligono = useMemo(() => {
