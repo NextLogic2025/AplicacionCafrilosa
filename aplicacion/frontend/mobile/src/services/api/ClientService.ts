@@ -72,5 +72,9 @@ export const ClientService = {
         return apiRequest<void>(`/api/clientes/${id}/desbloquear`, {
             method: 'PUT'
         })
+    },
+
+    getBlockedClients: async (): Promise<Client[]> => {
+        return apiRequest<Client[]>('/api/clientes/bloqueados')
     }
 }

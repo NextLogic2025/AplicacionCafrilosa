@@ -189,27 +189,25 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                     />
                 </View>
                 <TouchableOpacity
-                    className="ml-3 rounded-xl items-center justify-center px-5 h-12 shadow-sm"
+                    className="w-12 h-12 rounded-xl items-center justify-center shadow-sm ml-3"
+                    style={{ backgroundColor: BRAND_COLORS.red }}
                     onPress={handleOpenCreate}
-                    style={{ backgroundColor: BRAND_COLORS.red || '#EF4444' }}
                 >
-                    <Text className="text-white font-bold text-base">Crear</Text>
+                    <Ionicons name="add" size={30} color="white" />
                 </TouchableOpacity>
             </View>
 
-            <View className="flex-1 px-5 mt-2">
-                <GenericList
-                    items={filteredLists}
-                    isLoading={loading}
-                    onRefresh={fetchLists}
-                    renderItem={renderItem}
-                    emptyState={{
-                        icon: 'pricetags-outline',
-                        title: 'Sin Listas',
-                        message: 'No hay listas de precios configuradas.'
-                    }}
-                />
-            </View>
+            <GenericList
+                items={filteredLists}
+                isLoading={loading}
+                onRefresh={fetchLists}
+                renderItem={renderItem}
+                emptyState={{
+                    icon: 'pricetags-outline',
+                    title: 'Sin Listas',
+                    message: 'No hay listas de precios configuradas.'
+                }}
+            />
 
             {/* Create/Edit Modal */}
             <GenericModal

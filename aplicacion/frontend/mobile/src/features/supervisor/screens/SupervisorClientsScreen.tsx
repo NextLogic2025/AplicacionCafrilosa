@@ -1,9 +1,7 @@
-import React, { useState, useCallback } from 'react'
-import { View, Text, TouchableOpacity } from 'react-native'
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import React, { useState, useEffect } from 'react'
+import { View, Text, TouchableOpacity, Alert, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { ClientService, Client } from '../../../services/api/ClientService'
@@ -12,27 +10,46 @@ import { ZoneService } from '../../../services/api/ZoneService'
 import { AssignmentService } from '../../../services/api/AssignmentService'
 import { UserService } from '../../../services/api/UserService'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
-export function SupervisorClientsScreen() {
-    const navigation = useNavigation<any>()
+export function SupervisorClientsScreen({ navigation }: any) {
     const [clients, setClients] = useState<Client[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [priceLists, setPriceLists] = useState<PriceList[]>([])
-    const [selectedListId, setSelectedListId] = useState<number | null>(null)
+
+    // Unified Filter ID: 'active' | 'blocked' | 'list_ID'
+    const [filterMode, setFilterMode] = useState<string>('active')
+
+    // Feedback State
+    const [feedbackVisible, setFeedbackVisible] = useState(false)
+    const [feedbackConfig, setFeedbackConfig] = useState<{
+        type: FeedbackType,
+        title: string,
+        message: string,
+        onConfirm?: () => void,
+        showCancel?: boolean,
+        confirmText?: string
+    }>({ type: 'info', title: '', message: '' })
 
     const fetchData = async () => {
         setLoading(true)
         try {
-            // Fetch Users as well to resolve "Nombre de la cuenta" (usuario_principal_id)
-            const [clientsData, listsData, zonesData, assignmentsData, vendorsData, usersData] = await Promise.all([
+            console.log('Fetching Clients...')
+            // Fetch All Data Including Blocked
+            const [activeClients, blockedClients, listsData, zonesData, assignmentsData, vendorsData, usersData] = await Promise.all([
                 ClientService.getClients(),
+                ClientService.getBlockedClients(),
                 PriceService.getLists(),
                 ZoneService.getZones(),
                 AssignmentService.getAllAssignments(),
                 UserService.getVendors(),
                 UserService.getUsers()
             ])
+
+            console.log(`Fetched: ${activeClients.length} active, ${blockedClients.length} blocked`)
+
+            const allClientsRaw = [...activeClients, ...blockedClients]
 
             // 1. Build Lookup Maps
             const zoneMap = new Map()
@@ -52,7 +69,7 @@ export function SupervisorClientsScreen() {
             })
 
             // 2. Enhance Clients
-            const enhancedClients = clientsData.map(c => {
+            const enhancedClients = allClientsRaw.map(c => {
                 const zoneName = c.zona_comercial_id ? zoneMap.get(c.zona_comercial_id) : null
                 const vendorName = c.zona_comercial_id ? zoneToVendorMap.get(c.zona_comercial_id) : null
                 const linkedUserName = c.usuario_principal_id ? userNameMap.get(c.usuario_principal_id) : null
@@ -74,24 +91,116 @@ export function SupervisorClientsScreen() {
         }
     }
 
-    useFocusEffect(
-        useCallback(() => {
+    useEffect(() => {
+        fetchData()
+        const unsubscribe = navigation.addListener('focus', () => {
             fetchData()
-        }, [])
-    )
+        })
+        return unsubscribe
+    }, [navigation])
 
+    // Main Filter Logic
     const filteredClients = clients.filter(c => {
+        // 1. Search (Always applies)
         const matchesSearch = c.razon_social.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.identificacion.includes(searchQuery)
-        const matchesList = selectedListId ? c.lista_precios_id === selectedListId : true
-        return matchesSearch && matchesList
+
+        if (!matchesSearch) return false
+
+        // 2. Mode Filter
+        if (filterMode === 'active') {
+            return !c.bloqueado
+        } else if (filterMode === 'blocked') {
+            return c.bloqueado
+        } else if (filterMode.startsWith('list_')) {
+            // Price List Filter (Implies Active)
+            const listId = Number(filterMode.replace('list_', ''))
+            return c.lista_precios_id === listId && !c.bloqueado
+        }
+
+        return true
     })
 
     const getListName = (id: number) => {
         return priceLists.find(l => l.id === id)?.nombre || 'General'
     }
 
-    const renderItem = (item: any) => (
+    const confirmToggleStatus = (client: Client) => {
+        const isBlocked = client.bloqueado
+        const actionVerb = isBlocked ? 'Activar' : 'Suspender'
+
+        setFeedbackConfig({
+            type: 'warning',
+            title: `¿${actionVerb} Cliente?`,
+            message: `¿Estás seguro de que deseas ${actionVerb.toLowerCase()} al cliente ${client.razon_social}?`,
+            showCancel: true,
+            confirmText: 'Sí, continuar',
+            onConfirm: () => executeToggleStatus(client)
+        })
+        setFeedbackVisible(true)
+    }
+
+    const executeToggleStatus = async (client: Client) => {
+        setFeedbackVisible(false)
+        setLoading(true)
+
+        try {
+            if (client.bloqueado) {
+                await ClientService.unblockClient(client.id)
+                // Success Modal Config
+                setTimeout(() => {
+                    setFeedbackConfig({
+                        type: 'success',
+                        title: 'Cliente Activado',
+                        message: 'El cliente ha sido activado correctamente.',
+                        showCancel: false,
+                        confirmText: 'Entendido',
+                        onConfirm: () => setFeedbackVisible(false)
+                    })
+                    setFeedbackVisible(true)
+                }, 300)
+            } else {
+                await ClientService.deleteClient(client.id)
+                // Success Modal Config
+                setTimeout(() => {
+                    setFeedbackConfig({
+                        type: 'success',
+                        title: 'Cliente Suspendido',
+                        message: 'El cliente ha sido suspendido correctamente.',
+                        showCancel: false,
+                        confirmText: 'Entendido',
+                        onConfirm: () => setFeedbackVisible(false)
+                    })
+                    setFeedbackVisible(true)
+                }, 300)
+            }
+            fetchData()
+        } catch (e) {
+            console.error(e)
+            setTimeout(() => {
+                setFeedbackConfig({
+                    type: 'error',
+                    title: 'Error',
+                    message: 'No se pudo actualizar el estado del cliente.',
+                    showCancel: false,
+                    confirmText: 'Cerrar',
+                    onConfirm: () => setFeedbackVisible(false)
+                })
+                setFeedbackVisible(true)
+            }, 300)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Prepare Filter Categories
+    const filterCategories = [
+        { id: 'active', name: 'Activos' },
+        { id: 'blocked', name: 'Suspendidos' },
+        ...priceLists.map(l => ({ id: `list_${l.id}`, name: l.nombre }))
+    ]
+
+    const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity
             className="bg-white p-4 mb-3 rounded-xl shadow-sm border border-neutral-100"
             activeOpacity={0.7}
@@ -100,9 +209,10 @@ export function SupervisorClientsScreen() {
             {/* Header: Name and Status */}
             <View className="flex-row justify-between items-start mb-2">
                 <View className="flex-1 mr-2">
-                    <Text className="font-bold text-neutral-900 text-base" numberOfLines={1}>{item.razon_social}</Text>
+                    <Text className="font-bold text-neutral-900 text-base" numberOfLines={1}>
+                        {item.nombre_comercial || item.razon_social}
+                    </Text>
 
-                    {/* Linked Account Name - Prominent */}
                     {item._linkedUserName && (
                         <View className="flex-row items-center mt-1">
                             <Ionicons name="person" size={12} color="#7e22ce" />
@@ -110,15 +220,24 @@ export function SupervisorClientsScreen() {
                         </View>
                     )}
 
-                    {item.nombre_comercial && (
-                        <Text className="text-neutral-400 text-[10px] italic mt-0.5" numberOfLines={1}>{item.nombre_comercial}</Text>
+                    {item.nombre_comercial && item.nombre_comercial !== item.razon_social && (
+                        <Text className="text-neutral-400 text-[10px] italic mt-0.5" numberOfLines={1}>
+                            {item.razon_social}
+                        </Text>
                     )}
                 </View>
-                <View className={`px-2 py-1 rounded-md ${item.bloqueado ? 'bg-red-100' : 'bg-green-100'}`}>
-                    <Text className={`text-[10px] font-bold uppercase ${item.bloqueado ? 'text-red-700' : 'text-green-700'}`}>
-                        {item.bloqueado ? 'Bloqueado' : 'Activo'}
-                    </Text>
-                </View>
+
+                {/* Status Icon Button */}
+                <TouchableOpacity
+                    onPress={() => confirmToggleStatus(item)}
+                    className={`p-2 rounded-full ${item.bloqueado ? 'bg-red-100' : 'bg-green-100'}`}
+                >
+                    <Ionicons
+                        name={item.bloqueado ? "ban" : "checkmark-circle"}
+                        size={16}
+                        color={item.bloqueado ? "#b91c1c" : "#15803d"}
+                    />
+                </TouchableOpacity>
             </View>
 
             {/* Row 1: Identification */}
@@ -129,9 +248,8 @@ export function SupervisorClientsScreen() {
                 </View>
             </View>
 
-            {/* Row 2: Price List & Operational Context (Zone/Vendor) */}
+            {/* Row 2: Price List & Operational Context */}
             <View className="flex-row flex-wrap gap-2 pt-2 border-t border-dashed border-neutral-100">
-                {/* Price List Badge - Highlighted */}
                 <View className="bg-teal-50 px-2 py-1 rounded-md border border-teal-100 flex-row items-center">
                     <Ionicons name="pricetag" size={12} color="#0d9488" />
                     <Text className="text-teal-700 text-[10px] font-bold ml-1">
@@ -166,7 +284,7 @@ export function SupervisorClientsScreen() {
                         <SearchBar
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            placeholder="Buscar cliente..." // RUC o Razón Social
+                            placeholder="Buscar cliente..."
                             onClear={() => setSearchQuery('')}
                         />
                     </View>
@@ -179,32 +297,54 @@ export function SupervisorClientsScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Filter Chips */}
+                {/* Simplified Chips Logic */}
                 <View className="mb-2">
                     <CategoryFilter
-                        categories={[
-                            { id: 'all', name: 'Todos' },
-                            ...priceLists.map(l => ({ id: l.id, name: l.nombre }))
-                        ]}
-                        selectedId={selectedListId || 'all'}
-                        onSelect={(id) => setSelectedListId(id === 'all' ? null : Number(id))}
+                        categories={filterCategories}
+                        selectedId={filterMode}
+                        onSelect={(id) => setFilterMode(String(id))}
                     />
                 </View>
             </View>
 
             <View className="flex-1 px-5 mt-2">
-                <GenericList
-                    items={filteredClients}
-                    isLoading={loading}
-                    onRefresh={fetchData}
-                    renderItem={renderItem}
-                    emptyState={{
-                        icon: 'people-outline',
-                        title: 'Sin Clientes',
-                        message: 'No se encontraron clientes con los filtros seleccionados.'
-                    }}
-                />
+                {loading && clients.length === 0 ? (
+                    <View className="flex-1 justify-center items-center">
+                        <ActivityIndicator size="large" color={BRAND_COLORS.red} />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredClients}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={renderItem}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl refreshing={loading} onRefresh={fetchData} tintColor={BRAND_COLORS.red} />
+                        }
+                        ListEmptyComponent={
+                            <View className="items-center justify-center py-10">
+                                <View className="p-4 rounded-full mb-4 bg-red-50">
+                                    <Ionicons name="people-outline" size={40} color={BRAND_COLORS.red} />
+                                </View>
+                                <Text className="text-lg font-bold text-neutral-900 mb-2">Sin Clientes</Text>
+                                <Text className="text-neutral-500 text-sm text-center">No se encontraron clientes con los filtros seleccionados.</Text>
+                            </View>
+                        }
+                    />
+                )}
             </View>
+
+            <FeedbackModal
+                visible={feedbackVisible}
+                type={feedbackConfig.type}
+                title={feedbackConfig.title}
+                message={feedbackConfig.message}
+                onClose={() => setFeedbackVisible(false)}
+                onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText={feedbackConfig.confirmText}
+            />
         </View>
     )
 }

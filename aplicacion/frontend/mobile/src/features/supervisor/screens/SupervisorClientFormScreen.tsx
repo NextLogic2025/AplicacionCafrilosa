@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Alert, TouchableOpacity, Text } from 'react-native'
+import { View, Alert, TouchableOpacity, Text, Switch } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
@@ -33,7 +33,12 @@ export function SupervisorClientFormScreen() {
     // Feedback State
     const [feedbackVisible, setFeedbackVisible] = useState(false)
     const [feedbackConfig, setFeedbackConfig] = useState<{
-        type: FeedbackType, title: string, message: string, onConfirm?: () => void
+        type: FeedbackType,
+        title: string,
+        message: string,
+        onConfirm?: () => void,
+        showCancel?: boolean,
+        confirmText?: string
     }>({ type: 'info', title: '', message: '' })
 
     // --- FORM DATA ---
@@ -238,34 +243,38 @@ export function SupervisorClientFormScreen() {
         const isCurrentlyBlocked = client.bloqueado
         const actionVerb = isCurrentlyBlocked ? 'Activar' : 'Suspender'
 
-        Alert.alert(
-            `¿${actionVerb} Cliente?`,
-            `¿Estás seguro de que deseas ${actionVerb.toLowerCase()} este cliente?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Confirmar',
-                    style: isCurrentlyBlocked ? 'default' : 'destructive',
-                    onPress: async () => {
-                        setLoading(true)
-                        try {
-                            if (isCurrentlyBlocked) {
-                                await ClientService.unblockClient(client.id)
-                                showFeedback('success', 'Cliente Activado', 'El cliente ha sido activado correctamente.', () => navigation.goBack())
-                            } else {
-                                await ClientService.deleteClient(client.id)
-                                showFeedback('success', 'Cliente Suspendido', 'El cliente ha sido suspendido correctamente.', () => navigation.goBack())
-                            }
-                        } catch (error) {
-                            console.error(error)
-                            showFeedback('error', 'Error', 'No se pudo actualizar el estado del cliente.')
-                        } finally {
-                            setLoading(false)
-                        }
+        setFeedbackConfig({
+            type: 'warning',
+            title: `¿${actionVerb} Cliente?`,
+            message: `¿Estás seguro de que deseas ${actionVerb.toLowerCase()} este cliente?`,
+            showCancel: true,
+            confirmText: 'Confirmar',
+            onConfirm: async () => {
+                setFeedbackVisible(false)
+                setLoading(true)
+                try {
+                    if (isCurrentlyBlocked) {
+                        await ClientService.unblockClient(client.id)
+                        setTimeout(() => {
+                            showFeedback('success', 'Cliente Activado', 'El cliente ha sido activado correctamente.', () => navigation.goBack())
+                        }, 300)
+                    } else {
+                        await ClientService.deleteClient(client.id)
+                        setTimeout(() => {
+                            showFeedback('success', 'Cliente Suspendido', 'El cliente ha sido suspendido correctamente.', () => navigation.goBack())
+                        }, 300)
                     }
+                } catch (error) {
+                    console.error(error)
+                    setTimeout(() => {
+                        showFeedback('error', 'Error', 'No se pudo actualizar el estado del cliente.')
+                    }, 300)
+                } finally {
+                    setLoading(false)
                 }
-            ]
-        )
+            }
+        })
+        setFeedbackVisible(true)
     }
 
     return (
@@ -276,22 +285,28 @@ export function SupervisorClientFormScreen() {
                 onBackPress={() => navigation.goBack()}
             />
 
-            {/* Suspend/Activate Button for Edit Mode */}
+            {/* Status Switch Card for Edit Mode */}
             {isEditing && (
-                <View className="px-5 py-2 flex-row justify-end">
-                    <TouchableOpacity
-                        onPress={handleToggleBlock}
-                        className={`flex-row items-center px-3 py-1.5 rounded-lg border ${client?.bloqueado ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
-                    >
-                        <Ionicons
-                            name={client?.bloqueado ? "checkmark-circle-outline" : "trash-outline"}
-                            size={16}
-                            color={client?.bloqueado ? "#16A34A" : "#EF4444"}
+                <View className="px-5 mt-4">
+                    <View className="bg-white p-4 rounded-xl shadow-sm border border-neutral-100 flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-3">
+                            <View className={`w-10 h-10 rounded-full items-center justify-center ${!client?.bloqueado ? 'bg-green-100' : 'bg-red-100'}`}>
+                                <Ionicons name="power" size={20} color={!client?.bloqueado ? '#16A34A' : '#EF4444'} />
+                            </View>
+                            <View>
+                                <Text className="text-base font-bold text-neutral-900">Estado de Cuenta</Text>
+                                <Text className="text-xs text-neutral-500">
+                                    {client?.bloqueado ? 'Cuenta suspendida' : 'Acceso habilitado'}
+                                </Text>
+                            </View>
+                        </View>
+                        <Switch
+                            value={!client?.bloqueado}
+                            onValueChange={() => handleToggleBlock()}
+                            trackColor={{ false: "#EF4444", true: "#16A34A" }}
+                            thumbColor={"#ffffff"}
                         />
-                        <Text className={`ml-1.5 text-xs font-bold ${client?.bloqueado ? 'text-green-700' : 'text-red-700'}`}>
-                            {client?.bloqueado ? 'ACTIVAR CLIENTE' : 'SUSPENDER CLIENTE'}
-                        </Text>
-                    </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
@@ -339,6 +354,8 @@ export function SupervisorClientFormScreen() {
                 message={feedbackConfig.message}
                 onClose={() => setFeedbackVisible(false)}
                 onConfirm={feedbackConfig.onConfirm}
+                showCancel={feedbackConfig.showCancel}
+                confirmText={feedbackConfig.confirmText}
             />
         </View>
     )

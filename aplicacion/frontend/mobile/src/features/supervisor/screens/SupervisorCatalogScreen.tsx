@@ -66,7 +66,7 @@ export function SupervisorCatalogScreen() {
         <TouchableOpacity
             className="flex-row bg-white p-4 mb-3 rounded-2xl shadow-sm border border-neutral-100"
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('SupervisorProductForm' as never, { product: item } as never)}
+            onPress={() => (navigation as any).navigate('SupervisorProductForm', { product: item })}
         >
             {/* Image Placeholder */}
             <View className="w-16 h-16 bg-neutral-100 rounded-xl items-center justify-center mr-4">
@@ -104,13 +104,22 @@ export function SupervisorCatalogScreen() {
             />
 
             <View className="bg-white shadow-sm z-10 pb-2">
-                <View className="px-5 py-4">
-                    <SearchBar
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder="Buscar producto por nombre o SKU..."
-                        onClear={() => setSearchQuery('')}
-                    />
+                <View className="px-5 py-4 flex-row items-center">
+                    <View className="flex-1 mr-3">
+                        <SearchBar
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Buscar producto..."
+                            onClear={() => setSearchQuery('')}
+                        />
+                    </View>
+                    <TouchableOpacity
+                        className="w-12 h-12 rounded-xl items-center justify-center shadow-sm"
+                        style={{ backgroundColor: BRAND_COLORS.red }}
+                        onPress={() => (navigation as any).navigate('SupervisorProductForm')}
+                    >
+                        <Ionicons name="add" size={30} color="white" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Categories Filter */}
@@ -121,20 +130,17 @@ export function SupervisorCatalogScreen() {
                 />
             </View>
 
-            <View className="flex-1 px-5 mt-4">
-                <GenericList
-                    items={filteredProducts}
-                    isLoading={loading}
-                    onRefresh={fetchData}
-                    renderItem={renderProductItem}
-                    emptyState={{
-                        icon: 'cube-outline',
-                        title: 'Sin Productos',
-                        message: 'No se encontraron productos con ese criterio.'
-                    }}
-
-                />
-            </View>
+            <GenericList
+                items={filteredProducts}
+                isLoading={loading}
+                onRefresh={fetchData}
+                renderItem={renderProductItem}
+                emptyState={{
+                    icon: 'cube-outline',
+                    title: 'Sin Productos',
+                    message: 'No se encontraron productos con ese criterio.'
+                }}
+            />
             {/* Main Management FAB */}
             <ExpandableFab
                 actions={[
@@ -144,36 +150,13 @@ export function SupervisorCatalogScreen() {
                         color: '#2563EB', // Blue
                         onPress: () => navigation.navigate('SupervisorCategories' as never),
                     },
-                    {
-                        icon: 'add-circle-outline',
-                        label: 'Nuevo Producto',
-                        color: '#16A34A', // Green
-                        onPress: () => navigation.navigate('SupervisorProductForm' as never),
-                    },
+
                     {
                         icon: 'pricetags-outline',
                         label: 'Listas de Precios',
                         color: '#D97706', // Amber
                         onPress: () => navigation.navigate('SupervisorPriceLists' as never),
-                    },
-                    {
-                        icon: 'megaphone-outline',
-                        label: 'Promociones',
-                        color: '#DB2777', // Pink
-                        onPress: () => navigation.navigate('SupervisorPromotions' as never),
-                    },
-                    {
-                        icon: 'map-outline',
-                        label: 'Zonas',
-                        color: '#7C3AED', // Violet
-                        onPress: () => navigation.navigate('SupervisorZones' as never),
-                    },
-                    {
-                        icon: 'shield-checkmark-outline',
-                        label: 'Auditoría',
-                        color: '#4B5563', // Gray
-                        onPress: () => navigation.navigate('SupervisorAudit' as never),
-                    },
+                    }
                 ]}
             />
         </View>

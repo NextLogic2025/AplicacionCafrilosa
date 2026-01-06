@@ -80,13 +80,17 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
     }
 
     return (
-        <View style={[StyleSheet.absoluteFill, styles.rootContainer]} pointerEvents="box-none">
-
+        <>
             {/* Backdrop (Fondo oscuro) */}
             <Animated.View
                 style={[
                     StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(0,0,0,0.4)', opacity }
+                    {
+                        backgroundColor: 'rgba(0,0,0,0.4)',
+                        opacity,
+                        zIndex: 9990,
+                        elevation: 1
+                    }
                 ]}
                 pointerEvents={isOpen ? 'auto' : 'none'}
             >
@@ -110,7 +114,7 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                                     closeMenu()
                                     action.onPress()
                                 }}
-                                style={styles.actionItem}
+                                style={styles.actionButtonContent}
                             >
                                 <View style={styles.labelContainer}>
                                     <Text style={styles.label}>{action.label}</Text>
@@ -130,29 +134,26 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                 {/* FAB Principal */}
                 <Pressable
                     onPress={toggleMenu}
-                    style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isOpen ? 0 : 6 }]} // Remove elevation when open to avoid shadow stacking weirdness if needed, or keep it.
+                    style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isOpen ? 0 : 5 }]}
                 >
                     <Animated.View style={{ transform: [{ rotate: rotation }] }}>
                         <Ionicons name="add" size={32} color="white" />
                     </Animated.View>
                 </Pressable>
             </View>
-        </View>
+        </>
     )
 }
 
 const styles = StyleSheet.create({
-    rootContainer: {
-        zIndex: 9999, // Super high to be on top of everything
-        elevation: 99,
-    },
     fabContainer: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110,
         right: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100,
+        zIndex: 9999,
+        backgroundColor: 'transparent',
     },
     fab: {
         width: 56,
@@ -164,8 +165,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
-        elevation: 6,
-        zIndex: 10,
+        elevation: 5,
+        zIndex: 50,
     },
     actionsContainer: {
         position: 'absolute',
@@ -173,21 +174,25 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'flex-end',
         width: 60,
-        height: 650, // Increased height for 7 items
-        zIndex: 20,
-        elevation: 20, // Critical for android touches
+        height: 650,
+        zIndex: 40,
+        backgroundColor: 'transparent', // Ensure no shadow from this
     },
     actionItem: {
         position: 'absolute',
         bottom: 0,
         right: 8,
         width: 200,
+        alignItems: 'flex-end', // Align content to right
+        justifyContent: 'center',
+        paddingRight: 0,
+        zIndex: 45,
+        backgroundColor: 'transparent', // Ensure no shadow from this
+    },
+    actionButtonContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingRight: 0,
-        zIndex: 30, // Higher than container
-        elevation: 30,
     },
     miniFab: {
         width: 40,
@@ -199,8 +204,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     labelContainer: {
         marginRight: 12,
@@ -212,8 +216,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     label: {
         fontSize: 12,

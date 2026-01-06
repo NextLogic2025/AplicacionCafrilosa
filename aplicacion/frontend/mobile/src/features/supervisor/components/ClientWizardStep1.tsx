@@ -28,6 +28,7 @@ export function ClientWizardStep1({
     isEditing, onNext
 }: Props) {
     const [showZoneModal, setShowZoneModal] = React.useState(false)
+    const [showPassword, setShowPassword] = React.useState(false)
 
     // Calculate region for mini map based on selected zone
     const selectedZone = zones.find(z => z.id === clientData.zona_comercial_id)
@@ -78,13 +79,18 @@ export function ClientWizardStep1({
                     />
 
                     <Text className="text-neutral-500 font-medium mb-1">Contraseña</Text>
-                    <TextInput
-                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-1 text-neutral-900"
-                        value={userData.password}
-                        onChangeText={t => setUserData({ ...userData, password: t })}
-                        placeholder="********"
-                        secureTextEntry
-                    />
+                    <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-xl px-3 mb-1">
+                        <TextInput
+                            className="flex-1 py-3 text-neutral-900"
+                            value={userData.password}
+                            onChangeText={t => setUserData({ ...userData, password: t })}
+                            placeholder="********"
+                            secureTextEntry={!showPassword}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                            <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9ca3af" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
@@ -94,6 +100,14 @@ export function ClientWizardStep1({
                     <Ionicons name="business-outline" size={20} color={BRAND_COLORS.red} />
                     <Text className="text-neutral-900 font-bold text-lg ml-2">Información Comercial</Text>
                 </View>
+
+                <Text className="text-neutral-500 font-medium mb-1">Nombre Comercial</Text>
+                <TextInput
+                    className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3 text-neutral-900"
+                    value={clientData.nombre_comercial}
+                    onChangeText={t => setClientData({ ...clientData, nombre_comercial: t })}
+                    placeholder="Ej. Tienda Doña María"
+                />
 
                 <Text className="text-neutral-500 font-medium mb-1">Razón Social</Text>
                 <TextInput
@@ -111,6 +125,26 @@ export function ClientWizardStep1({
                     placeholder="Ej. 1777777777001"
                     keyboardType="numeric"
                 />
+
+                <Text className="text-neutral-500 font-medium mb-1">Tipo de Cliente (Lista de Precios)</Text>
+                <View className="flex-row flex-wrap gap-2 mb-4">
+                    {priceLists.map((list) => (
+                        <TouchableOpacity
+                            key={list.id}
+                            onPress={() => setClientData({ ...clientData, lista_precios_id: list.id })}
+                            className={`px-4 py-2 rounded-full border ${clientData.lista_precios_id === list.id
+                                ? 'bg-red-600 border-red-600'
+                                : 'bg-neutral-50 border-neutral-200'
+                                }`}
+                            style={clientData.lista_precios_id === list.id ? { backgroundColor: BRAND_COLORS.red, borderColor: BRAND_COLORS.red } : {}}
+                        >
+                            <Text className={`font-semibold ${clientData.lista_precios_id === list.id ? 'text-white' : 'text-neutral-600'
+                                }`}>
+                                {list.nombre}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
 
                 <Text className="text-neutral-500 font-medium mb-1">Zona Comercial</Text>
                 <TouchableOpacity

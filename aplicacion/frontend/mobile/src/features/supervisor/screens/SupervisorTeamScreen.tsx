@@ -92,51 +92,49 @@ export function SupervisorTeamScreen() {
                 </View>
             </View>
 
-            <View className="flex-1 px-4 pt-2">
-                <GenericList
-                    items={filteredEmployees}
-                    onRefresh={fetchEmployees}
-                    isLoading={loading}
-                    renderItem={(item: UserProfile) => (
-                        <TouchableOpacity
-                            className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 flex-row items-center shadow-sm"
-                            onPress={() => navigation.navigate('SupervisorTeamDetail', { user: item })}
-                        >
-                            {/* Avatar */}
-                            <View className="w-12 h-12 rounded-full bg-red-50 items-center justify-center mr-4 border border-red-100">
-                                {item.photoUrl ? (
-                                    <Text>IMG</Text>
-                                ) : (
-                                    <Text className="text-red-500 font-bold text-lg">{item.name.charAt(0).toUpperCase()}</Text>
-                                )}
-                            </View>
-
-                            <View className="flex-1">
-                                <Text className="font-bold text-neutral-900 text-base">{item.name}</Text>
-                                <Text className="text-neutral-500 text-sm capitalize">{item.role}</Text>
-                            </View>
-
-                            {/* Status Indicator */}
-                            {item.active ? (
-                                <View className="bg-green-100 px-2 py-1 rounded-full">
-                                    <Text className="text-green-700 text-xs font-medium">Activo</Text>
-                                </View>
+            <GenericList
+                items={filteredEmployees}
+                onRefresh={fetchEmployees}
+                isLoading={loading}
+                renderItem={(item: UserProfile) => (
+                    <TouchableOpacity
+                        className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 flex-row items-center shadow-sm"
+                        onPress={() => navigation.navigate('SupervisorTeamDetail', { user: item })}
+                    >
+                        {/* Avatar */}
+                        <View className="w-12 h-12 rounded-full bg-red-50 items-center justify-center mr-4 border border-red-100">
+                            {item.photoUrl ? (
+                                <Text>IMG</Text>
                             ) : (
-                                <View className="bg-red-100 px-2 py-1 rounded-full">
-                                    <Text className="text-red-700 text-xs font-medium">Inactivo</Text>
-                                </View>
+                                <Text className="text-red-500 font-bold text-lg">{item.name.charAt(0).toUpperCase()}</Text>
                             )}
+                        </View>
 
-                            <Ionicons name="chevron-forward" size={20} color="#9ca3af" className="ml-2" />
-                        </TouchableOpacity>
-                    )}
-                    emptyState={{
-                        icon: 'people-outline',
-                        title: 'Sin Resultados',
-                        message: 'No se encontraron miembros con los filtros actuales.'
-                    }}
-                />
-            </View>
+                        <View className="flex-1">
+                            <Text className="font-bold text-neutral-900 text-base">{item.name}</Text>
+                            <Text className="text-neutral-500 text-sm capitalize">{item.role}</Text>
+                        </View>
+
+                        {/* Status Indicator */}
+                        {item.active ? (
+                            <View className="bg-green-100 px-2 py-1 rounded-full">
+                                <Text className="text-green-700 text-xs font-medium">Activo</Text>
+                            </View>
+                        ) : (
+                            <View className="bg-red-100 px-2 py-1 rounded-full">
+                                <Text className="text-red-700 text-xs font-medium">Inactivo</Text>
+                            </View>
+                        )}
+
+                        <Ionicons name="chevron-forward" size={20} color="#9ca3af" className="ml-2" />
+                    </TouchableOpacity>
+                )}
+                emptyState={{
+                    icon: 'people-outline',
+                    title: 'Sin Resultados',
+                    message: 'No se encontraron miembros con los filtros actuales.'
+                }}
+            />
         </View>
     )
 }

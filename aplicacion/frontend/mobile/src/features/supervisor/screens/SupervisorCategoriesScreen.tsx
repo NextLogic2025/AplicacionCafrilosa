@@ -74,7 +74,7 @@ export function SupervisorCategoriesScreen() {
             setName(category.nombre)
             setDescription(category.descripcion || '')
             setImageUrl(category.imagen_url || '')
-            setActive(category.activo)
+            setActive(category.activo ?? true)
         } else {
             setEditingCategory(null)
             setName('')
@@ -186,13 +186,22 @@ export function SupervisorCategoriesScreen() {
         <View className="flex-1 bg-neutral-50">
             <Header title="Categorías" variant="standard" onBackPress={() => navigation.goBack()} />
 
-            <View className="px-5 py-4 bg-white shadow-sm z-10 mb-2">
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Buscar categoría..."
-                    onClear={() => setSearchQuery('')}
-                />
+            <View className="px-5 py-4 bg-white shadow-sm z-10 mb-2 flex-row items-center">
+                <View className="flex-1 mr-3">
+                    <SearchBar
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Buscar categoría..."
+                        onClear={() => setSearchQuery('')}
+                    />
+                </View>
+                <TouchableOpacity
+                    className="w-12 h-12 rounded-xl items-center justify-center shadow-sm"
+                    style={{ backgroundColor: BRAND_COLORS.red }}
+                    onPress={() => handleOpenModal()}
+                >
+                    <Ionicons name="add" size={30} color="white" />
+                </TouchableOpacity>
             </View>
 
             <GenericList
@@ -207,14 +216,7 @@ export function SupervisorCategoriesScreen() {
                 }}
             />
 
-            {/* FAB for Add */}
-            <TouchableOpacity
-                className="absolute bottom-6 right-6 w-14 h-14 bg-red-600 rounded-full items-center justify-center shadow-lg shadow-red-500/40 z-50 elevation-5"
-                onPress={() => handleOpenModal()}
-                style={{ position: 'absolute', bottom: 30, right: 30 }}
-            >
-                <Ionicons name="add" size={30} color="white" />
-            </TouchableOpacity>
+
 
             {/* Modal Edit/Create */}
             <GenericModal

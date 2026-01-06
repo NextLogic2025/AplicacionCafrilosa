@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { View, Text, StyleSheet } from 'react-native'
+import { TabNavigation } from '../components/ui/TabNavigation'
 
 import { SupervisorDashboardScreen } from '../features/supervisor/screens/SupervisorDashboardScreen'
 import { SupervisorOrdersScreen } from '../features/supervisor/screens/SupervisorOrdersScreen'
@@ -38,33 +39,8 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
     return (
         <View style={{ flex: 1 }}>
             <Tab.Navigator
-                screenOptions={({ route }) => ({
-                    headerShown: false,
-                    tabBarActiveTintColor: BRAND_COLORS.red,
-                    tabBarInactiveTintColor: 'gray',
-                    tabBarStyle: {
-                        height: 60,
-                        paddingBottom: 8,
-                        paddingTop: 8,
-                    },
-                    tabBarIcon: ({ focused, color, size }) => {
-                        let iconName: any
-
-                        if (route.name === 'Inicio') {
-                            iconName = focused ? 'home' : 'home-outline'
-                        } else if (route.name === 'Pedidos') {
-                            iconName = focused ? 'cart' : 'cart-outline'
-                        } else if (route.name === 'Entregas') {
-                            iconName = focused ? 'truck' : 'truck-outline'
-                        } else if (route.name === 'Equipo') {
-                            iconName = focused ? 'people' : 'people-outline'
-                        } else if (route.name === 'Perfil') {
-                            iconName = focused ? 'person' : 'person-outline'
-                        }
-
-                        return <Ionicons name={iconName} size={size} color={color} />
-                    },
-                })}
+                tabBar={(props) => <TabNavigation {...props} />}
+                screenOptions={{ headerShown: false }}
             >
                 <Tab.Screen name="Inicio" component={SupervisorDashboardScreen} />
                 <Tab.Screen name="Pedidos" component={SupervisorOrdersScreen} />
@@ -115,6 +91,11 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         label: 'Promociones',
                         onPress: () => navigation.navigate('SupervisorPromotions'),
                     },
+                    {
+                        icon: 'shield-checkmark-outline',
+                        label: 'Auditoría',
+                        onPress: () => navigation.navigate('SupervisorAudit'),
+                    },
                 ]}
             />
         </View>
@@ -137,7 +118,7 @@ export function SupervisorNavigator() {
             {/* Catalog Modules */}
             <Stack.Screen name="SupervisorCatalog" component={SupervisorCatalogScreen} />
             <Stack.Screen name="SupervisorCategories" component={SupervisorCategoriesScreen} />
-            <Stack.Screen name="SupervisorProductForm" component={SupervisorProductFormScreen} />
+            <Stack.Screen name="SupervisorProductForm" component={SupervisorProductFormScreen as any} />
             <Stack.Screen name="SupervisorPriceLists" component={SupervisorPriceListsScreen} />
             <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
             <Stack.Screen name="SupervisorPromotionForm" component={SupervisorPromotionFormScreen} />
