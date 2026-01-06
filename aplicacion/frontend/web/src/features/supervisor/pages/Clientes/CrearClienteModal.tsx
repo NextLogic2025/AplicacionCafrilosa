@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Modal } from 'components/ui/Modal'
 import { Alert } from 'components/ui/Alert'
 import { Button } from 'components/ui/Button'
 import { Check } from 'lucide-react'
+import { GoogleMap, Polygon, Marker, useJsApiLoader } from '@react-google-maps/api'
 import {
   crearCliente,
   actualizarCliente,
@@ -50,6 +51,9 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
     direccion_entrega?: string
     contacto_nombre?: string
     contacto_telefono?: string
+    latitud?: number | null
+    longitud?: number | null
+    ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
   }>>([])
   const [submitMessage, setSubmitMessage] = useState<{
     type: 'success' | 'error'
@@ -240,6 +244,11 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               cliente_id: clienteId,
               nombre_sucursal: sucursal.nombre_sucursal,
               direccion_entrega: sucursal.direccion_entrega,
+              ubicacion_gps: sucursal.ubicacion_gps
+                ? sucursal.ubicacion_gps
+                : sucursal.latitud && sucursal.longitud
+                  ? { type: 'Point', coordinates: [sucursal.longitud, sucursal.latitud] }
+                  : undefined,
               contacto_nombre: sucursal.contacto_nombre,
               contacto_telefono: sucursal.contacto_telefono,
               activo: true,
@@ -369,6 +378,9 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               updated[index] = sucursal
               setSucursalesTemp(updated)
             }}
+            zonaId={formData.zona_comercial_id}
+            zonas={zonas}
+            ubicacionMatriz={formData.latitud && formData.longitud ? { lat: formData.latitud, lng: formData.longitud } : null}
           />
         )}
 
@@ -416,18 +428,35 @@ interface SucursalesStepProps {
     direccion_entrega?: string
     contacto_nombre?: string
     contacto_telefono?: string
+    latitud?: number | null
+    longitud?: number | null
+    ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
   }>
-  onAddSucursal: (sucursal: { nombre_sucursal: string; direccion_entrega?: string; contacto_nombre?: string; contacto_telefono?: string }) => void
+  onAddSucursal: (sucursal: { 
+    nombre_sucursal: string
+    direccion_entrega?: string
+    contacto_nombre?: string
+    contacto_telefono?: string
+    latitud?: number | null
+    longitud?: number | null
+    ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
+  }) => void
   onRemoveSucursal: (index: number) => void
   onUpdateSucursal: (index: number, sucursal: any) => void
+  zonaId: number | null
+  zonas: ZonaOption[]
+  ubicacionMatriz: google.maps.LatLngLiteral | null
 }
 
-function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateSucursal }: SucursalesStepProps) {
+function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateSucursal, zonaId, zonas, ubicacionMatriz }: SucursalesStepProps) {
   const [newSucursal, setNewSucursal] = useState({
     nombre_sucursal: '',
     direccion_entrega: '',
     contacto_nombre: '',
     contacto_telefono: '',
+    latitud: null as number | null,
+    longitud: null as number | null,
+    ubicacion_gps: null as { type: 'Point'; coordinates: [number, number] } | null,
   })
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
@@ -439,6 +468,9 @@ function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateS
       direccion_entrega: '',
       contacto_nombre: '',
       contacto_telefono: '',
+      latitud: null,
+      longitud: null,
+      ubicacion_gps: null,
     })
   }
 
@@ -482,6 +514,25 @@ function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateS
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
             />
           </div>
+
+          {/* Mapa para ubicación de sucursal */}
+          <SucursalLocationPicker
+            position={newSucursal.latitud && newSucursal.longitud ? { lat: newSucursal.latitud, lng: newSucursal.longitud } : null}
+            zonaId={zonaId}
+            zonas={zonas}
+            ubicacionMatriz={ubicacionMatriz}
+            onChange={(pos) => {
+              setNewSucursal({
+                ...newSucursal,
+                latitud: pos.lat,
+                longitud: pos.lng,
+                ubicacion_gps: {
+                  type: 'Point',
+                  coordinates: [pos.lng, pos.lat]
+                }
+              })
+            }}
+          />
           
           <button
             type="button"
@@ -513,6 +564,9 @@ function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateS
                   {sucursal.contacto_telefono && (
                     <p className="text-xs text-gray-600">📞 {sucursal.contacto_telefono}</p>
                   )}
+                  {sucursal.latitud && sucursal.longitud && (
+                    <p className="text-xs text-green-700 font-medium">🗺️ Ubicación: {sucursal.latitud.toFixed(6)}, {sucursal.longitud.toFixed(6)}</p>
+                  )}
                 </div>
                 
                 <button
@@ -537,4 +591,199 @@ function SucursalesStep({ sucursales, onAddSucursal, onRemoveSucursal, onUpdateS
       )}
     </div>
   )
+}
+
+const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+const sucursalMapStyle = { width: '100%', height: '350px' }
+const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
+
+interface SucursalLocationPickerProps {
+  position: google.maps.LatLngLiteral | null
+  zonaId: number | null
+  zonas: ZonaOption[]
+  ubicacionMatriz: google.maps.LatLngLiteral | null
+  onChange: (position: google.maps.LatLngLiteral) => void
+}
+
+function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatriz, onChange }: SucursalLocationPickerProps) {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey,
+    libraries: GOOGLE_MAP_LIBRARIES,
+  })
+  
+  const [tempMarker, setTempMarker] = useState<google.maps.LatLngLiteral | null>(position)
+
+  // Obtener el polígono de la zona
+  const zonaPath = useMemo(() => {
+    if (!zonaId) return []
+    const zona = zonas.find((z) => z.id === zonaId)
+    if (!zona || !('poligono_geografico' in zona)) return []
+    const raw = (zona as any).poligono_geografico
+    return parseGeoPolygonForSucursal(raw)
+  }, [zonaId, zonas])
+
+  // Calcular centro del mapa
+  const mapCenter = useMemo(() => {
+    if (tempMarker) return tempMarker
+    if (ubicacionMatriz) return ubicacionMatriz
+    if (zonaPath.length > 0) return zonaPath[0]
+    return defaultCenter
+  }, [tempMarker, ubicacionMatriz, zonaPath])
+
+  useEffect(() => {
+    setTempMarker(position)
+  }, [position])
+
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() }
+      setTempMarker(newPos)
+      onChange(newPos)
+    }
+  }
+
+  if (!apiKey) {
+    return (
+      <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+        <p className="text-xs text-yellow-800">Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa.</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+        <p className="text-xs text-red-800">No se pudo cargar Google Maps.</p>
+      </div>
+    )
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-[350px] items-center justify-center rounded-lg bg-gray-50">
+        <p className="text-sm text-gray-600">Cargando mapa...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-800">Ubicación de la Sucursal</p>
+        <span className="text-xs text-gray-500">Haz clic en el mapa para marcar</span>
+      </div>
+      
+      <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+        <GoogleMap
+          mapContainerStyle={sucursalMapStyle}
+          center={mapCenter}
+          zoom={zonaPath.length > 0 ? 13 : tempMarker || ubicacionMatriz ? 15 : 12}
+          onClick={handleMapClick}
+          options={{
+            fullscreenControl: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+            clickableIcons: false,
+          }}
+        >
+          {/* Polígono de la zona */}
+          {zonaPath.length > 0 && (
+            <Polygon
+              path={zonaPath}
+              options={{
+                fillColor: '#f0412d',
+                fillOpacity: 0.15,
+                strokeColor: '#f0412d',
+                strokeOpacity: 0.7,
+                strokeWeight: 2,
+                clickable: false,
+              }}
+            />
+          )}
+          
+          {/* Pin de la ubicación matriz (rojo) */}
+          {ubicacionMatriz && (
+            <Marker
+              position={ubicacionMatriz}
+              icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+              title="Ubicación Matriz"
+            />
+          )}
+          
+          {/* Pin de la sucursal (azul) */}
+          {tempMarker && (
+            <Marker
+              position={tempMarker}
+              icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
+              animation={google.maps.Animation.DROP}
+              title="Ubicación Sucursal"
+            />
+          )}
+        </GoogleMap>
+      </div>
+      
+      <div className="flex flex-col gap-1 text-xs">
+        {ubicacionMatriz && (
+          <p className="text-red-700 flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+            Matriz: {ubicacionMatriz.lat.toFixed(6)}, {ubicacionMatriz.lng.toFixed(6)}
+          </p>
+        )}
+        {tempMarker && (
+          <p className="text-blue-700 font-medium flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500"></span>
+            Sucursal: {tempMarker.lat.toFixed(6)}, {tempMarker.lng.toFixed(6)}
+          </p>
+        )}
+        {zonaPath.length > 0 && (
+          <p className="text-gray-600">Polígono de la zona comercial visible</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function parseGeoPolygonForSucursal(value: unknown): google.maps.LatLngLiteral[] {
+  if (!value) return []
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return parseGeoPolygonForSucursal(parsed)
+    } catch (e) {
+      return []
+    }
+  }
+
+  if (Array.isArray(value) && value.every((p: any) => typeof p?.lat === 'number' && typeof p?.lng === 'number')) {
+    return dedupeClosingPointForSucursal(value as google.maps.LatLngLiteral[])
+  }
+
+  if (typeof value === 'object' && value !== null && 'coordinates' in (value as any)) {
+    const coordinates = (value as any).coordinates?.[0]
+    if (Array.isArray(coordinates)) {
+      const path = coordinates
+        .map((pair: any) => {
+          if (!Array.isArray(pair) || pair.length < 2) return null
+          const [lng, lat] = pair
+          if (typeof lat !== 'number' || typeof lng !== 'number') return null
+          return { lat, lng }
+        })
+        .filter(Boolean) as google.maps.LatLngLiteral[]
+      return dedupeClosingPointForSucursal(path)
+    }
+  }
+
+  return []
+}
+
+function dedupeClosingPointForSucursal(path: google.maps.LatLngLiteral[]): google.maps.LatLngLiteral[] {
+  if (path.length < 2) return path
+  const first = path[0]
+  const last = path[path.length - 1]
+  if (first.lat === last.lat && first.lng === last.lng) {
+    return path.slice(0, -1)
+  }
+  return path
 }

@@ -6,12 +6,14 @@ import { useState, useEffect } from 'react'
 import { obtenerClientes, eliminarCliente, obtenerZonas, obtenerListasPrecios, type Cliente, type ZonaComercial, type ListaPrecio } from '../../services/clientesApi'
 import { ClienteList } from './ClienteList'
 import { CrearClienteModal } from './CrearClienteModal'
+import { ClienteDetailModal } from './ClienteDetailModal'
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
+  const [detailCliente, setDetailCliente] = useState<Cliente | null>(null)
   const [zonas, setZonas] = useState<ZonaComercial[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
 
@@ -55,6 +57,10 @@ export default function ClientesPage() {
     setEditingCliente(null)
   }
 
+  const handleCloseDetail = () => {
+    setDetailCliente(null)
+  }
+
   const handleSuccessCreate = () => {
     cargarClientes()
   }
@@ -62,6 +68,10 @@ export default function ClientesPage() {
   const handleEdit = (cliente: Cliente) => {
     setEditingCliente(cliente)
     setIsModalOpen(true)
+  }
+
+  const handleView = (cliente: Cliente) => {
+    setDetailCliente(cliente)
   }
 
   const handleDelete = async (cliente: Cliente) => {
@@ -103,6 +113,7 @@ export default function ClientesPage() {
         isLoading={isLoading}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onView={handleView}
         zonas={zonas}
         listasPrecios={listasPrecios}
       />
@@ -139,6 +150,14 @@ export default function ClientesPage() {
           contacto_password: '',
         } : undefined}
         mode={editingCliente ? 'edit' : 'create'}
+      />
+
+      <ClienteDetailModal
+        isOpen={!!detailCliente}
+        onClose={handleCloseDetail}
+        cliente={detailCliente}
+        zonas={zonas}
+        listasPrecios={listasPrecios}
       />
     </div>
   )

@@ -7,7 +7,7 @@ export interface Sucursal {
   cliente_id: string
   nombre_sucursal: string
   direccion_entrega: string | null
-  ubicacion_gps?: { lat: number; lng: number } | null
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
   contacto_nombre: string | null
   contacto_telefono: string | null
   activo: boolean
@@ -19,7 +19,7 @@ export interface CreateSucursalDto {
   cliente_id: string
   nombre_sucursal: string
   direccion_entrega?: string
-  ubicacion_gps?: { lat: number; lng: number }
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] }
   contacto_nombre?: string
   contacto_telefono?: string
   activo?: boolean
@@ -28,7 +28,7 @@ export interface CreateSucursalDto {
 export interface UpdateSucursalDto {
   nombre_sucursal?: string
   direccion_entrega?: string
-  ubicacion_gps?: { lat: number; lng: number }
+  ubicacion_gps?: { type: 'Point'; coordinates: [number, number] }
   contacto_nombre?: string
   contacto_telefono?: string
   activo?: boolean

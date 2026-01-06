@@ -11,11 +11,12 @@ interface ClienteCardProps {
   cliente: Cliente
   onEdit?: (cliente: Cliente) => void
   onDelete?: (cliente: Cliente) => void
+  onView?: (cliente: Cliente) => void
   zonas: ZonaComercial[]
   listasPrecios: ListaPrecio[]
 }
 
-export function ClienteCard({ cliente, onEdit, onDelete, zonas, listasPrecios }: ClienteCardProps) {
+export function ClienteCard({ cliente, onEdit, onDelete, onView, zonas, listasPrecios }: ClienteCardProps) {
   const estado = cliente.bloqueado ? 'bloqueado' : cliente.deleted_at ? 'inactivo' : 'activo'
   const estadoColor = ESTADO_COLORES[estado] || 'bg-gray-100 text-gray-800'
 
@@ -118,8 +119,16 @@ export function ClienteCard({ cliente, onEdit, onDelete, zonas, listasPrecios }:
         Creado: {new Date(cliente.created_at).toLocaleDateString('es-ES')}
       </div>
 
-      {(onEdit || onDelete) && (
+      {(onEdit || onDelete || onView) && (
         <div className="mt-4 flex justify-end gap-2">
+          {onView && (
+            <button
+              onClick={() => onView(cliente)}
+              className="rounded-lg px-3 py-1 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              Ver detalles
+            </button>
+          )}
           {onEdit && (
             <button
               onClick={() => onEdit(cliente)}
