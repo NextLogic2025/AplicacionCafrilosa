@@ -118,11 +118,12 @@ export function ClienteForm({
 
   const listaChips = listasPrecios.length > 0 ? listasPrecios : [{ id: 0, nombre: 'General' }]
 
-  // Cargar Google Maps una sola vez para todo el formulario
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+  // Cargar Google Maps (hooks deben llamarse incondicionalmente)
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? '',
+    googleMapsApiKey: apiKey,
     libraries: ['drawing'],
+    id: 'google-map-script-cliente-form',
   })
 
   // Paso 1: Datos de acceso, información personal y configuración
