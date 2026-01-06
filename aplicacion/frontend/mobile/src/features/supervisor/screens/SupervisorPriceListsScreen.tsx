@@ -10,8 +10,8 @@ import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { GenericModal } from '../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
-export function SupervisorPriceListsScreen() {
-    const navigation = useNavigation()
+export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) {
+    // const navigation = useNavigation() // Switched to props for safety
     const [lists, setLists] = useState<PriceList[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')

@@ -118,7 +118,7 @@ export function SupervisorDeliveriesScreen() {
                 onRefresh={loadDeliveries}
                 renderItem={renderItem}
                 emptyState={{
-                    icon: 'truck-outline',
+                    icon: 'cube-outline',
                     title: 'Sin Entregas',
                     message: 'No hay entregas activas en este momento.'
                 }}

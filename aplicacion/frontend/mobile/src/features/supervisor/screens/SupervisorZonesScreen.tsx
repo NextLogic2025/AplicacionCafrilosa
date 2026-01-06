@@ -1,4 +1,6 @@
 import React, { useState, useCallback } from 'react'
+import { CategoryFilter } from '../../../components/ui/CategoryFilter'
+
 import { View, TouchableOpacity, Text } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Header } from '../../../components/ui/Header'
@@ -16,6 +18,7 @@ export function SupervisorZonesScreen() {
     const [filteredZones, setFilteredZones] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
     const fetchData = async () => {
         setLoading(true)
@@ -64,26 +67,39 @@ export function SupervisorZonesScreen() {
 
     // Filter effect
     React.useEffect(() => {
-        if (!searchQuery) {
-            setFilteredZones(zones)
-        } else {
+        let result = zones
+
+        // 1. Search Query
+        if (searchQuery) {
             const query = searchQuery.toLowerCase()
-            const filtered = zones.filter(z =>
+            result = result.filter(z =>
                 z.nombre.toLowerCase().includes(query) ||
                 z.codigo.toLowerCase().includes(query) ||
                 (z.vendorName && z.vendorName.toLowerCase().includes(query)) ||
                 (z.ciudad && z.ciudad.toLowerCase().includes(query))
             )
-            setFilteredZones(filtered)
         }
-    }, [searchQuery, zones])
+
+        // 2. Status Filter
+        if (statusFilter !== 'all') {
+            const isActive = statusFilter === 'active'
+            // Check explicit true/false or truthy/falsy
+            result = result.filter(z => (z.activo === true) === isActive)
+        }
+
+        setFilteredZones(result)
+    }, [searchQuery, zones, statusFilter])
+
+
+
+    // ... existing code ...
 
     return (
         <View className="flex-1 bg-neutral-50">
             <Header title="Zonas Comerciales" variant="standard" onBackPress={() => navigation.goBack()} />
 
-            <View className="px-5 py-4 bg-white shadow-sm z-10">
-                <View className="flex-row items-center">
+            <View className="bg-white shadow-sm z-10 pb-0">
+                <View className="px-5 py-2 flex-row items-center">
                     <View className="flex-1 mr-3">
                         <SearchBar
                             value={searchQuery}
@@ -100,6 +116,19 @@ export function SupervisorZonesScreen() {
                         <Ionicons name="add" size={28} color="white" />
                     </TouchableOpacity>
                 </View>
+
+                {/* Filter Chips via CategoryFilter */}
+                <View className="mb-2">
+                    <CategoryFilter
+                        categories={[
+                            { id: 'all', name: 'Todas' },
+                            { id: 'active', name: 'Activas' },
+                            { id: 'inactive', name: 'Inactivas' }
+                        ]}
+                        selectedId={statusFilter}
+                        onSelect={(id: number | string) => setStatusFilter(id as any)}
+                    />
+                </View>
             </View>
 
             <View className="flex-1 px-4 pt-4">
@@ -109,24 +138,36 @@ export function SupervisorZonesScreen() {
                     onRefresh={fetchData}
                     renderItem={(item: any) => (
                         <TouchableOpacity
-                            className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 flex-row items-center shadow-sm active:bg-neutral-50"
+                            className={`p-4 mb-3 rounded-2xl border flex-row items-center shadow-sm active:bg-neutral-50 ${!item.activo ? 'bg-neutral-50 border-neutral-200 opacity-80' : 'bg-white border-neutral-100'}`}
                             onPress={() => navigation.navigate('SupervisorZoneDetail', { zone: item })}
                         >
                             {/* Icon Container */}
-                            <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${item.vendorName ? 'bg-blue-50' : 'bg-neutral-100'}`}>
+                            <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${!item.activo ? 'bg-neutral-200' : (item.vendorName ? 'bg-blue-50' : 'bg-neutral-100')}`}>
                                 <Ionicons
-                                    name={item.vendorName ? "map" : "map-outline"}
+                                    name={!item.activo ? "close-circle-outline" : (item.vendorName ? "map" : "map-outline")}
                                     size={24}
-                                    color={item.vendorName ? '#3b82f6' : '#9ca3af'}
+                                    color={!item.activo ? '#9CA3AF' : (item.vendorName ? '#3b82f6' : '#9ca3af')}
                                 />
                             </View>
 
                             {/* Content */}
                             <View className="flex-1">
-                                <View className="flex-row justify-between items-center mb-1">
-                                    <Text className="font-bold text-neutral-900 text-base flex-1 mr-2" numberOfLines={1}>{item.nombre}</Text>
-                                    <View className="bg-neutral-100 px-2 py-0.5 rounded-md">
-                                        <Text className="text-xs font-bold text-neutral-500">{item.codigo}</Text>
+                                <View className="flex-row justify-between items-start mb-1">
+                                    <Text className={`font-bold text-base flex-1 mr-2 ${!item.activo ? 'text-neutral-500 line-through' : 'text-neutral-900'}`} numberOfLines={1}>
+                                        {item.nombre}
+                                    </Text>
+
+                                    <View className="items-end gap-1">
+                                        <View className="bg-neutral-100 px-2 py-0.5 rounded-md self-end">
+                                            <Text className="text-[10px] font-bold text-neutral-500">{item.codigo}</Text>
+                                        </View>
+
+                                        {/* Status Badge */}
+                                        <View className={`px-2 py-0.5 rounded-full ${item.activo ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                            <Text className={`text-[10px] font-bold ${item.activo ? 'text-green-700' : 'text-orange-700'}`}>
+                                                {item.activo ? 'ACTIVO' : 'INACTIVO'}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
 
@@ -136,8 +177,8 @@ export function SupervisorZonesScreen() {
 
                                 {item.vendorName ? (
                                     <View className="flex-row items-center mt-1">
-                                        <Ionicons name="person-circle-outline" size={14} color="#2563EB" />
-                                        <Text className="text-blue-600 text-xs font-bold ml-1">{item.vendorName}</Text>
+                                        <Ionicons name="person-circle-outline" size={14} color={!item.activo ? '#9CA3AF' : "#2563EB"} />
+                                        <Text className={`text-xs font-bold ml-1 ${!item.activo ? 'text-neutral-400' : 'text-blue-600'}`}>{item.vendorName}</Text>
                                     </View>
                                 ) : (
                                     <Text className="text-neutral-400 text-xs italic mt-1">Sin Vendedor Asignado</Text>
@@ -154,6 +195,15 @@ export function SupervisorZonesScreen() {
                     }}
                 />
             </View>
+
+            {/* Map FAB */}
+            <TouchableOpacity
+                className="absolute bottom-24 right-6 w-14 h-14 rounded-full items-center justify-center shadow-xl z-50 transform active:scale-95"
+                style={{ backgroundColor: BRAND_COLORS.red }}
+                onPress={() => navigation.navigate('SupervisorZoneMap')}
+            >
+                <Ionicons name="map" size={28} color="white" />
+            </TouchableOpacity>
         </View>
     )
 }

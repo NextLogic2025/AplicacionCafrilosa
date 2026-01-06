@@ -21,6 +21,7 @@ import { SupervisorReportsScreen } from '../features/supervisor/screens/Supervis
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/SupervisorAlertsScreen'
 import { SupervisorZonesScreen } from '../features/supervisor/screens/SupervisorZonesScreen'
 import { SupervisorZoneDetailScreen } from '../features/supervisor/screens/SupervisorZoneDetailScreen'
+import { SupervisorZoneMapScreen } from '../features/supervisor/screens/SupervisorZoneMapScreen'
 import { SupervisorCatalogScreen } from '../features/supervisor/screens/SupervisorCatalogScreen'
 import { SupervisorCategoriesScreen } from '../features/supervisor/screens/SupervisorCategoriesScreen'
 import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
@@ -142,6 +143,7 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorPromotionForm" component={SupervisorPromotionFormScreen} />
             <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
             <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
+            <Stack.Screen name="SupervisorZoneMap" component={SupervisorZoneMapScreen} />
             <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>
     )

@@ -24,7 +24,8 @@
           "apiKey": "AIzaSyDoftE8Lg_aqWrrJKQDprE5EkEuN5ChvEE"
         }
       },
-      "package": "com.cafrilosa.mobile"
+      "package": "com.cafrilosa.mobile",
+      "usesCleartextTraffic": true
     },
     "ios": {
       "supportsTablet": true,

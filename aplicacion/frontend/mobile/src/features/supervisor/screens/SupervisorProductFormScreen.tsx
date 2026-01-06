@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native'
+import { RouteProp } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
 import { GenericModal } from '../../../components/ui/GenericModal'
@@ -10,12 +10,11 @@ import { CatalogService, Category } from '../../../services/api/CatalogService'
 import { PriceService, PriceList } from '../../../services/api/PriceService'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import type { RootStackParamList } from '../../../navigation/types'
+import { PriceListItem } from '../components/PriceListItem'
 
 type ProductFormRouteProp = RouteProp<RootStackParamList, 'SupervisorProductForm'>
 
-export function SupervisorProductFormScreen() {
-    const navigation = useNavigation()
-    const route = useRoute<ProductFormRouteProp>()
+export function SupervisorProductFormScreen({ navigation, route }: { navigation: any, route: ProductFormRouteProp }) {
     const params = route.params || {}
     const isEditing = !!params.product
 
@@ -55,11 +54,12 @@ export function SupervisorProductFormScreen() {
         active: true
     })
 
-    useFocusEffect(
-        useCallback(() => {
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
             loadData()
-        }, [])
-    )
+        })
+        return unsubscribe
+    }, [navigation])
 
     useEffect(() => {
         if (isEditing && params.product) {
@@ -182,12 +182,20 @@ export function SupervisorProductFormScreen() {
         )
     }
 
-    const handlePriceChange = (listId: number, text: string) => {
+    const handleTogglePrice = useCallback((list: PriceList) => {
+        if (priceValues[list.id] !== undefined) {
+            handleConfirmDeletePrice(list)
+        } else {
+            setPriceValues(prev => ({ ...prev, [list.id]: '' }))
+        }
+    }, [priceValues, handleConfirmDeletePrice])
+
+    const handlePriceValueChange = useCallback((listId: number, text: string) => {
         // Validate numeric input
         if (/^\d*\.?\d*$/.test(text)) {
             setPriceValues(prev => ({ ...prev, [listId]: text }))
         }
-    }
+    }, [])
 
     const handleSave = async () => {
         if (!form.nombre.trim() || !form.sku.trim()) {
@@ -418,77 +426,16 @@ export function SupervisorProductFormScreen() {
                         </View>
                     ) : (
                         <View className="gap-3">
-                            {priceLists.map((list) => {
-                                const isGeneral = list.nombre.toLowerCase().includes('general')
-                                const isActive = priceValues[list.id] !== undefined
-
-                                // Dynamic Styles
-                                const containerStyle = isActive
-                                    ? (isGeneral ? 'bg-blue-50 border-blue-200' : 'bg-white border-green-200 shadow-sm')
-                                    : 'bg-neutral-50 border-neutral-200 opacity-80'
-
-                                const titleColor = isActive
-                                    ? (isGeneral ? 'text-blue-800' : 'text-green-700')
-                                    : 'text-neutral-500'
-
-                                return (
-                                    <View
-                                        key={list.id}
-                                        className={`p-3 rounded-xl border ${containerStyle}`}
-                                    >
-                                        <View className="flex-row items-center justify-between mb-2">
-                                            <View className="flex-row items-center">
-                                                {isGeneral && (
-                                                    <Ionicons name="star" size={14} color="#2563EB" style={{ marginRight: 4 }} />
-                                                )}
-                                                <Text className={`font-bold ${titleColor}`}>
-                                                    {list.nombre}
-                                                </Text>
-                                            </View>
-
-                                            {/* Action Buttons */}
-                                            <TouchableOpacity
-                                                onPress={() => {
-                                                    if (isActive) {
-                                                        handleConfirmDeletePrice(list)
-                                                    } else {
-                                                        // Activate: Set empty string or '0' to enable input
-                                                        setPriceValues(prev => ({ ...prev, [list.id]: '' }))
-                                                    }
-                                                }}
-                                                className={`px-3 py-1 rounded-full border ${isActive
-                                                    ? 'bg-red-50 border-red-100'
-                                                    : 'bg-neutral-200 border-neutral-300'}`}
-                                            >
-                                                <Text className={`text-xs font-bold ${isActive ? 'text-red-600' : 'text-neutral-600'}`}>
-                                                    {isActive ? 'Desactivar' : 'Activar'}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-
-                                        {isActive ? (
-                                            <View className="flex-row items-center bg-white border border-neutral-200 rounded-xl px-3 h-12">
-                                                <Text className="text-neutral-400 mr-2 text-lg">$</Text>
-                                                <TextInput
-                                                    className="flex-1 text-neutral-900 font-bold text-lg text-right"
-                                                    placeholder="0.00"
-                                                    placeholderTextColor="#D1D5DB"
-                                                    keyboardType="numeric"
-                                                    value={priceValues[list.id]}
-                                                    onChangeText={(text) => handlePriceChange(list.id, text)}
-                                                    selectTextOnFocus
-                                                />
-                                            </View>
-                                        ) : (
-                                            <View className="h-10 justify-center">
-                                                <Text className="text-xs text-neutral-400 italic text-center">
-                                                    Precio inactivo. Pulse activar para asignar.
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                )
-                            })}
+                            {priceLists.map((list) => (
+                                <PriceListItem
+                                    key={list.id}
+                                    list={list}
+                                    isActive={priceValues[list.id] !== undefined}
+                                    value={priceValues[list.id]}
+                                    onToggle={() => handleTogglePrice(list)}
+                                    onChange={(text) => handlePriceValueChange(list.id, text)}
+                                />
+                            ))}
                         </View>
                     )}
                 </View>

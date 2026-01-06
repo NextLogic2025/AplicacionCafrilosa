@@ -16,6 +16,10 @@ export interface Client {
     dias_plazo: number
     bloqueado: boolean
     direccion_texto?: string
+    ubicacion_gps?: {
+        type: 'Point'
+        coordinates: [number, number]
+    } | null
     vendedor_asignado_id?: string | null
     // Add other fields as needed
 }

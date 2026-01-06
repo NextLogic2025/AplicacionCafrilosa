@@ -21,6 +21,7 @@ export function SupervisorTeamDetailScreen() {
     const [name, setName] = useState(user?.name || '')
     const [email, setEmail] = useState(user?.email || '')
     const [password, setPassword] = useState('') // Only for creation
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false)
     const [role, setRole] = useState(user?.role || 'vendedor') // Default to 'vendedor'
     const [isActive, setIsActive] = useState(user ? user.active : true) // Initialize with user.active
 
@@ -127,9 +128,10 @@ export function SupervisorTeamDetailScreen() {
         if (!isEditing && !password) {
             return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
         }
-        if (role.toLowerCase() === 'vendedor' && !selectedZone) {
-            return showFeedback('warning', 'Zona Requerida', 'Debes asignar una zona al vendedor.')
-        }
+        // Zone is now optional for Vendors
+        // if (role.toLowerCase() === 'vendedor' && !selectedZone) {
+        //    return showFeedback('warning', 'Zona Requerida', 'Debes asignar una zona al vendedor.')
+        // }
 
         setLoading(true)
         try {
@@ -160,21 +162,33 @@ export function SupervisorTeamDetailScreen() {
                 targetUserId = result.userId
             }
 
-            // --- HANDLE ZONE ASSIGNMENT (Only for Vendedor) ---
-            if (role.toLowerCase() === 'vendedor' && targetUserId && selectedZone) {
+            // --- HANDLE ZONE ASSIGNMENT LOGIC ---
+            const isVendedor = role.toLowerCase() === 'vendedor'
+            const shouldHaveAssignment = isActive && isVendedor
+
+            // 1. Release Zone if: User Deactivated OR Role changed from Vendedor OR Explicitly removed zone (if we supported that)
+            if (!shouldHaveAssignment && currentAssignmentId) {
+                await AssignmentService.removeAssignment(currentAssignmentId)
+                setCurrentAssignmentId(null)
+            }
+
+            // 2. Create/Update Assignment if: Vendedor AND Active AND Zone Selected
+            if (shouldHaveAssignment && targetUserId && selectedZone) {
                 if (currentAssignmentId) {
-                    // Update existing assignment
+                    // Update existing assignment (Move to new zone)
                     await AssignmentService.updateAssignment(currentAssignmentId, {
                         zona_id: selectedZone.id,
                         vendedor_usuario_id: targetUserId,
-                        es_principal: true
+                        es_principal: true,
+                        nombre_vendedor_cache: name // Include cache name also on update if needed/supported
                     })
                 } else {
                     // Create new assignment
                     await AssignmentService.assignVendor({
                         zona_id: selectedZone.id,
                         vendedor_usuario_id: targetUserId,
-                        es_principal: true
+                        es_principal: true,
+                        nombre_vendedor_cache: name
                     })
                 }
             }
@@ -263,13 +277,26 @@ export function SupervisorTeamDetailScreen() {
                         {!isEditing && (
                             <>
                                 <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Contraseña Temporal</Text>
-                                <TextInput
-                                    className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    placeholder="********"
-                                    secureTextEntry
-                                />
+                                <View className="flex-row items-center bg-neutral-50 rounded-xl border border-neutral-200 mb-2">
+                                    <TextInput
+                                        className="flex-1 p-4 text-neutral-900"
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        placeholder="********"
+                                        secureTextEntry={!isPasswordVisible}
+                                    />
+                                    <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} className="px-4">
+                                        <Ionicons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={24} color="#9ca3af" />
+                                    </TouchableOpacity>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={() => setPassword('mipass123')}
+                                    className="self-end mb-4 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100"
+                                >
+                                    <Text className="text-red-500 font-bold text-xs uppercase">
+                                        Generar: mipass123
+                                    </Text>
+                                </TouchableOpacity>
                             </>
                         )}
                     </View>
@@ -404,32 +431,14 @@ export function SupervisorTeamDetailScreen() {
                             // Check if zone is occupied by SOMEONE ELSE
                             const occupiedBy = occupiedZones.get(item.id)
                             const isMyZone = selectedZone?.id === item.id
-                            // It is unavailable if it is occupied AND (it's not my current zone OR I am creating a new user so I have no zones)
-                            // Actually simplified: If occupiedBy exists and it's NOT the Zone I already have selected (which implies "My" zone in this context logic is fuzzy if I change selection),
-                            // Better logic: 
-                            // If `occupiedBy` exists:
-                            //    If I am editing and `selectedZone` was loaded from backend as THIS item, then it's MY zone. -> Allow
-                            //    Else -> It is someone else's zone. -> Warn/Disable.
-
-                            // Wait, if I change selection, `selectedZone` updates. I need to know my *original* assignment. 
-                            // But `currentAssignmentId` tells me if I have one.
-                            // Let's rely on: If occupiedBy is defined, show it.
-
-                            // Does `occupiedBy` include ME? `loadData` set occupied map based on ALL assignments.
-                            // If I am `user.id`, I might be in that map.
-                            // Let's check names.
-
                             const isOccupied = !!occupiedBy
-                            // If I am editing, my name might be in occupiedBy? No, occupiedBy is a name string.
-                            // Let's just show the name. If it's me, it's fine.
-                            // We can block selection if it is occupied.
 
                             return (
                                 <TouchableOpacity
                                     className={`p-4 mb-2 rounded-xl flex-row items-center justify-between border ${selectedZone?.id === item.id ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-neutral-100'} ${isOccupied && !isMyZone ? 'opacity-70 bg-gray-50' : ''}`}
                                     onPress={() => {
                                         if (isOccupied && !isMyZone) {
-                                            Alert.alert('Zona Ocupada', `Esta zona ya está asignada a: ${occupiedBy}. No se puede seleccionar.`)
+                                            showFeedback('warning', 'Zona Ocupada', `Esta zona ya está asignada a: ${occupiedBy}. No se puede seleccionar.`)
                                             return
                                         }
                                         setSelectedZone(item)

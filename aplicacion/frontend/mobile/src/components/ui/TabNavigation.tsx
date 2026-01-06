@@ -52,7 +52,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         case 'TransportistaOrders':
             return isFocused ? 'receipt' : 'receipt-outline'
         case 'TransportistaDeliveries':
-            return isFocused ? 'bus' : 'bus-outline' // or truck-outline if available, maybe bus/car/bicycle
+            return isFocused ? 'cube' : 'cube-outline'
         case 'TransportistaProfile':
             return isFocused ? 'person' : 'person-outline'
         default:
