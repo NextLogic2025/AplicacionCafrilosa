@@ -60,6 +60,7 @@ export default function ClientesPage() {
   }
 
   const handleEdit = (cliente: Cliente) => {
+    console.log('Editando cliente:', cliente)
     setEditingCliente(cliente)
     setIsModalOpen(true)
   }
@@ -111,7 +112,28 @@ export default function ClientesPage() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleSuccessCreate}
-        initialData={editingCliente ? { ...editingCliente, nombre_comercial: editingCliente.nombre_comercial || undefined } : undefined}
+        initialData={editingCliente ? {
+          id: editingCliente.id,
+          usuario_principal_id: editingCliente.usuario_principal_id,
+          identificacion: editingCliente.identificacion,
+          tipo_identificacion: editingCliente.tipo_identificacion,
+          razon_social: editingCliente.razon_social,
+          nombre_comercial: editingCliente.nombre_comercial || '',
+          tiene_credito: editingCliente.tiene_credito,
+          limite_credito: typeof editingCliente.limite_credito === 'string' 
+            ? parseFloat(editingCliente.limite_credito) || 0 
+            : editingCliente.limite_credito,
+          dias_plazo: editingCliente.dias_plazo,
+          direccion_texto: editingCliente.direccion_texto || '',
+          lista_precios_id: editingCliente.lista_precios_id,
+          zona_comercial_id: editingCliente.zona_comercial_id,
+          latitud: editingCliente.latitud,
+          longitud: editingCliente.longitud,
+          // Campos de contacto no se editan en modo edición
+          contacto_nombre: '',
+          contacto_email: '',
+          contacto_password: '',
+        } : undefined}
         mode={editingCliente ? 'edit' : 'create'}
       />
     </div>

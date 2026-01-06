@@ -60,6 +60,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
   const [canSubmit, setCanSubmit] = useState(false)
 
   useEffect(() => {
+    console.log('useEffect ejecutado - isOpen:', isOpen, 'initialData:', initialData)
     if (isOpen) {
       setCurrentStep(1)
       setSucursalesTemp([])
