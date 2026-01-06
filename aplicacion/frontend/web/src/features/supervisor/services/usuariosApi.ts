@@ -8,7 +8,7 @@ export interface CreateUsuarioDto {
 }
 
 export interface CreateUsuarioResponse {
-  id: number
+  id: string
   email: string
   nombre: string
   rolId: number
@@ -45,6 +45,7 @@ export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuar
   const response = await http<CreateUsuarioResponse>('/auth/registro', {
     method: 'POST',
     body: data,
+    auth: false, // registro no requiere token; evita problemas si hay un token inválido
   })
   return response
 }

@@ -58,16 +58,14 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
     return null
   }, [cliente])
 
-  const markersSucursales = useMemo(() => {
-    return sucursales
-      .map((s) => {
-        if ((s as any).ubicacion_gps?.coordinates) {
-          const coords = (s as any).ubicacion_gps.coordinates as [number, number]
-          return { ...s, _marker: { lat: coords[1], lng: coords[0] } as google.maps.LatLngLiteral }
-        }
-        return s
-      })
-      .filter((s) => (s as any)._marker)
+  const markersSucursales = useMemo<Array<Sucursal & { _marker: google.maps.LatLngLiteral }>>(() => {
+    return sucursales.reduce((acc, s) => {
+      const coords = (s as any).ubicacion_gps?.coordinates as [number, number] | undefined
+      if (coords && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+        acc.push({ ...s, _marker: { lat: coords[1], lng: coords[0] } })
+      }
+      return acc
+    }, [] as Array<Sucursal & { _marker: google.maps.LatLngLiteral }>)
   }, [sucursales])
 
   const mapCenter = mainLocation || markersSucursales[0]?._marker || zonaPath[0] || defaultCenter
@@ -80,7 +78,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
     : '0.00'
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente" headerGradient="red" maxWidth="4xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente" headerGradient="red" maxWidth="2xl">
       {!cliente && <p className="text-sm text-gray-600">Selecciona un cliente para ver detalles.</p>}
       {cliente && (
         <div className="space-y-4">
@@ -122,7 +120,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
           <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">Mapa general</p>
-              <span className="text-xs text-gray-500">Pin azul: matriz · Pins rojos: sucursales</span>
+              <span className="text-xs text-gray-500">Pin rojo: matriz · Pins azules: sucursales</span>
             </div>
             {!apiKey && <p className="text-xs text-yellow-700">Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa.</p>}
             {loadError && <p className="text-xs text-red-700">No se pudo cargar Google Maps.</p>}
