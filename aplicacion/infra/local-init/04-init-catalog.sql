@@ -277,6 +277,8 @@ CREATE TRIGGER trg_audit_promos_clientes AFTER INSERT OR UPDATE OR DELETE ON pro
 -- =========================================
 CREATE INDEX idx_productos_busqueda ON productos(nombre, codigo_sku) WHERE deleted_at IS NULL;
 CREATE INDEX idx_clientes_ruc ON clientes(identificacion) WHERE deleted_at IS NULL;
+-- Index to speed up lookups by usuario_principal_id used by catalog microservice
+CREATE INDEX IF NOT EXISTS idx_clientes_usuario_principal ON clientes(usuario_principal_id);
 CREATE INDEX idx_zonas_poligono ON zonas_comerciales USING GIST(poligono_geografico);
 CREATE INDEX idx_clientes_gps ON clientes USING GIST(ubicacion_gps);
 CREATE INDEX idx_promos_activas ON campañas_promocionales(fecha_inicio, fecha_fin) WHERE activo = TRUE AND deleted_at IS NULL;

@@ -1,79 +1,96 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Query, Req, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { ClientesService } from '../clientes/clientes.service';
 import { PreciosService } from '../precios/precios.service';
 
 import { ProductsService } from './products.service';
-import { Product } from './entities/product.entity';
+import { CreateProductDto } from './dto/create-product.dto'; // Importa tu DTO
 
 @Controller('products')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class ProductsController {
-  constructor(private readonly svc: ProductsService, private readonly preciosService: PreciosService) {}
+  private readonly logger = new Logger(ProductsController.name);
+
+  constructor(
+    private readonly svc: ProductsService,
+    private readonly clientesService: ClientesService,
+    private readonly preciosService: PreciosService,
+  ) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
-  findAll(@Query('page') page: string, @Query('per_page') per_page: string, @Query('q') q: string, @Req() req: any) {
-    const roles = Array.isArray(req.user?.role) ? req.user.role.map((r: any) => String(r).toLowerCase()) : [String(req.user?.role).toLowerCase()];
-    const pageNum = page ? Number(page) : undefined;
-    const perPageNum = per_page ? Number(per_page) : undefined;
-    // If user is cliente, try to obtain cliente.lista_precios_id via injected ClientesModule (available in module)
-    const clienteListaId = req.user && req.user.role && roles.includes('cliente') ? (req.user['lista_precios_id'] ?? null) : null;
-    return this.svc.findAll({ page: pageNum, per_page: perPageNum, q, role: roles, userId: req.user?.userId, clienteListaId });
+  async findAll(
+    @Query('page') page: string, 
+    @Query('per_page') perPage: string, 
+    @Query('q') q: string, 
+    @Req() req: any
+  ) {
+    const { roles, clienteListaId } = await this.resolveClientContext(req);
+    
+    return this.svc.findAll({
+      page: Number(page) || 1,
+      per_page: Number(perPage) || 20,
+      q,
+      roles,
+      clienteListaId
+    });
   }
 
-  @Get('deleted')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Get(':id')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    const { roles, clienteListaId } = await this.resolveClientContext(req);
+    return this.svc.findOne(id, { roles, clienteListaId });
+  }
+
+  @Post()
   @Roles('admin', 'supervisor')
-  findDeleted() {
-    return this.svc.findDeleted();
+  create(@Body() dto: CreateProductDto) {
+    return this.svc.create(dto);
+  }
+
+  @Put(':id')
+  @Roles('admin', 'supervisor')
+  update(@Param('id') id: string, @Body() dto: Partial<CreateProductDto>) {
+    return this.svc.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles('admin', 'supervisor')
+  remove(@Param('id') id: string) {
+    return this.svc.softDelete(id);
   }
 
   @Post(':id/restore')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   restore(@Param('id') id: string) {
     return this.svc.restore(id);
   }
 
-  @Get('lista/:listaId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
-  productosPorLista(@Param('listaId') listaId: string, @Query('page') page: string, @Query('per_page') per_page: string, @Query('q') q: string, @Req() req: any) {
-    const roles = Array.isArray(req.user?.role) ? req.user.role.map((r: any) => String(r).toLowerCase()) : [String(req.user?.role).toLowerCase()];
-    const pageNum = page ? Number(page) : undefined;
-    const perPageNum = per_page ? Number(per_page) : undefined;
-    const clienteListaId = req.user && req.user.role && roles.includes('cliente') ? (req.user['lista_precios_id'] ?? null) : null;
-    return this.preciosService.productosConPrecioParaLista(Number(listaId), { page: pageNum, per_page: perPageNum, q, role: roles, userId: req.user?.userId, clienteListaId });
-  }
+  // --- Helper Privado para Contexto ---
+  private async resolveClientContext(req: any) {
+    const roles = Array.isArray(req.user?.role) 
+      ? req.user.role.map((r: any) => String(r).toLowerCase()) 
+      : [String(req.user?.role || '').toLowerCase()];
 
-  @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
-  findOne(@Param('id') id: string) {
-    return this.svc.findOne(id);
-  }
+    let clienteListaId: number | null = null;
 
-  @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  create(@Body() dto: Partial<Product>) {
-    return this.svc.create(dto);
-  }
+    if (roles.includes('cliente')) {
+      // 1. Intentar obtener del token
+      clienteListaId = req.user['lista_precios_id'] ?? null;
 
-  @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  update(@Param('id') id: string, @Body() dto: Partial<Product>) {
-    return this.svc.update(id, dto);
-  }
+      // 2. Si no está en token, buscar en DB
+      if (!clienteListaId && req.user?.userId) {
+        const cliente = await this.clientesService.findByUsuarioPrincipalId(req.user.userId);
+        if (cliente) {
+          clienteListaId = (cliente as any).lista_precios_id ?? null;
+        }
+      }
+    }
 
-  @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  remove(@Param('id') id: string) {
-    return this.svc.softDelete(id);
+    return { roles, clienteListaId };
   }
 }

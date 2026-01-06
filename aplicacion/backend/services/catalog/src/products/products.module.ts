@@ -7,6 +7,7 @@ import { ProductoPromocion } from '../promociones/entities/producto-promocion.en
 import { CampaniaPromocional } from '../promociones/entities/campania.entity';
 import { ClientesModule } from '../clientes/clientes.module';
 import { PreciosModule } from '../precios/precios.module';
+import { PromocionesModule } from '../promociones/promociones.module';
 
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
@@ -17,6 +18,7 @@ import { Product } from './entities/product.entity';
     TypeOrmModule.forFeature([Product, Category, PrecioItem, ProductoPromocion, CampaniaPromocional]),
     ClientesModule,
     PreciosModule,
+    PromocionesModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService]

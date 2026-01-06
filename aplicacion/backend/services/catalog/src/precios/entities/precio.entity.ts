@@ -15,11 +15,13 @@ export class PrecioItem {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   precio: number;
 
-  @ManyToOne(() => ListaPrecio)
+  // RELACIONES
+  // eager: false para no traerlas automáticamente a menos que se pida
+  @ManyToOne(() => ListaPrecio, (lista) => lista.precios, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'lista_id' })
   lista: ListaPrecio;
 
-  @ManyToOne(() => Product)
+  @ManyToOne(() => Product, (producto) => producto.precios, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'producto_id' })
   producto: Product;
 }
