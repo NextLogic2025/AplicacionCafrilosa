@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PlusCircle, MapPin, RefreshCcw } from 'lucide-react'
+import { PlusCircle, MapPin, RefreshCcw, Map } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { Alert } from 'components/ui/Alert'
@@ -10,6 +10,7 @@ import { useZonas } from './useZonas'
 import { ZonasTable } from './ZonasTable'
 import { CrearZonaForm } from './CrearZonaForm'
 import { ZonaDetailModal } from './ZonaDetailModal'
+import { MapaGeneralModal } from './MapaGeneralModal'
 
 type ModalMode = 'crear' | 'editar'
 
@@ -23,6 +24,7 @@ export default function RutasPage() {
   const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string>('')
   const [zonaEditando, setZonaEditando] = useState<ZonaComercial | null>(null)
   const [zonaDetalle, setZonaDetalle] = useState<ZonaComercial | null>(null)
+  const [isMapaGeneralOpen, setIsMapaGeneralOpen] = useState(false)
   const emptyForm: CreateZonaDto = {
     codigo: '',
     nombre: '',
@@ -145,6 +147,14 @@ export default function RutasPage() {
         <div className="flex gap-2">
           <button
             type="button"
+            onClick={() => setIsMapaGeneralOpen(true)}
+            className="inline-flex items-center justify-center rounded-xl px-4 py-3 font-extrabold transition bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            <Map className="mr-2 h-4 w-4" />
+            Ver mapa general
+          </button>
+          <button
+            type="button"
             onClick={loadZonas}
             className="inline-flex items-center justify-center rounded-xl px-4 py-3 font-extrabold transition bg-white text-brand-red border border-brand-red hover:bg-brand-red/5"
           >
@@ -205,6 +215,7 @@ export default function RutasPage() {
       </Modal>
 
       <ZonaDetailModal zona={zonaDetalle} isOpen={!!zonaDetalle} onClose={handleCloseDetalle} />
+      <MapaGeneralModal zonas={zonas} isOpen={isMapaGeneralOpen} onClose={() => setIsMapaGeneralOpen(false)} />
     </div>
   )
 }

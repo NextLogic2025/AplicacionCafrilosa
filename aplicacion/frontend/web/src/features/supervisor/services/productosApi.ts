@@ -7,7 +7,11 @@ export interface Product {
   codigo_sku: string
   nombre: string
   descripcion: string | null
-  categoria_id: number | null
+  categoria_id?: number | null
+  categoria?: {
+    id: number
+    nombre: string
+  } | null
   peso_unitario_kg: string
   volumen_m3: string | null
   requiere_frio: boolean
