@@ -109,7 +109,7 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                     )}
 
                     {/* Draggable Marker */}
-                    {markerCoord ? (
+                    {markerCoord && (
                         <Marker
                             coordinate={markerCoord}
                             draggable
@@ -119,17 +119,20 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                         >
                             <Ionicons name="location" size={40} color={BRAND_COLORS.red} />
                         </Marker>
-                    ) : (
-                        <View className="absolute bottom-10 left-0 right-0 items-center px-4">
-                            <View className="bg-neutral-900/80 px-4 py-3 rounded-full shadow-lg flex-row items-center">
-                                <Ionicons name="hand-right-outline" size={20} color="white" />
-                                <Text className="text-white ml-2 font-bold text-sm text-center">
-                                    Toca cualquier punto del mapa para fijar la ubicación
-                                </Text>
-                            </View>
-                        </View>
                     )}
                 </MapView>
+
+                {/* Instruction Overlay (Moved outside MapView) */}
+                {!markerCoord && (
+                    <View className="absolute bottom-32 left-0 right-0 items-center px-4 pointer-events-none">
+                        <View className="bg-neutral-900/80 px-4 py-3 rounded-full shadow-lg flex-row items-center">
+                            <Ionicons name="hand-right-outline" size={20} color="white" />
+                            <Text className="text-white ml-2 font-bold text-sm text-center">
+                                Toca cualquier punto del mapa para fijar la ubicación
+                            </Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* Floating Navigation Buttons */}
                 <View className="absolute bottom-8 left-5 right-5 flex-row justify-between gap-4">

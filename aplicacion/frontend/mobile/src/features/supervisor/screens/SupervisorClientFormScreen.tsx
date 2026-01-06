@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { View, Alert } from 'react-native'
+import { View, Alert, TouchableOpacity, Text } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
+import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 import { UserService, UserProfile } from '../../../services/api/UserService'
@@ -230,42 +231,105 @@ export function SupervisorClientFormScreen() {
         }
     }
 
+    // --- BLOCK/UNBLOCK ---
+    const handleToggleBlock = async () => {
+        if (!client) return
+
+        const isCurrentlyBlocked = client.bloqueado
+        const actionVerb = isCurrentlyBlocked ? 'Activar' : 'Suspender'
+
+        Alert.alert(
+            `¿${actionVerb} Cliente?`,
+            `¿Estás seguro de que deseas ${actionVerb.toLowerCase()} este cliente?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Confirmar',
+                    style: isCurrentlyBlocked ? 'default' : 'destructive',
+                    onPress: async () => {
+                        setLoading(true)
+                        try {
+                            if (isCurrentlyBlocked) {
+                                await ClientService.unblockClient(client.id)
+                                showFeedback('success', 'Cliente Activado', 'El cliente ha sido activado correctamente.', () => navigation.goBack())
+                            } else {
+                                await ClientService.deleteClient(client.id)
+                                showFeedback('success', 'Cliente Suspendido', 'El cliente ha sido suspendido correctamente.', () => navigation.goBack())
+                            }
+                        } catch (error) {
+                            console.error(error)
+                            showFeedback('error', 'Error', 'No se pudo actualizar el estado del cliente.')
+                        } finally {
+                            setLoading(false)
+                        }
+                    }
+                }
+            ]
+        )
+    }
+
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header title={isEditing ? 'Editar Cliente' : 'Nuevo Cliente'} variant="standard" onBackPress={() => navigation.goBack()} />
+            <Header
+                title={isEditing ? 'Editar Cliente' : 'Nuevo Cliente'}
+                variant="standard"
+                onBackPress={() => navigation.goBack()}
+            />
 
-            <View className="mt-4 flex-1">
+            {/* Suspend/Activate Button for Edit Mode */}
+            {isEditing && (
+                <View className="px-5 py-2 flex-row justify-end">
+                    <TouchableOpacity
+                        onPress={handleToggleBlock}
+                        className={`flex-row items-center px-3 py-1.5 rounded-lg border ${client?.bloqueado ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
+                    >
+                        <Ionicons
+                            name={client?.bloqueado ? "checkmark-circle-outline" : "trash-outline"}
+                            size={16}
+                            color={client?.bloqueado ? "#16A34A" : "#EF4444"}
+                        />
+                        <Text className={`ml-1.5 text-xs font-bold ${client?.bloqueado ? 'text-green-700' : 'text-red-700'}`}>
+                            {client?.bloqueado ? 'ACTIVAR CLIENTE' : 'SUSPENDER CLIENTE'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            <View className="mt-2 flex-1">
                 <WizardProgress currentStep={currentStep} />
 
-                {currentStep === 1 && (
-                    <ClientWizardStep1
-                        userData={userData} setUserData={setUserData}
-                        clientData={clientData} setClientData={setClientData}
-                        zones={zones} priceLists={priceLists}
-                        isEditing={isEditing}
-                        onNext={() => { if (validateStep1()) setCurrentStep(2) }}
-                    />
-                )}
+                {/* Wrapper to fix addViewAt crash */}
+                <View className="flex-1">
+                    {currentStep === 1 && (
+                        <ClientWizardStep1
+                            userData={userData} setUserData={setUserData}
+                            clientData={clientData} setClientData={setClientData}
+                            zones={zones} priceLists={priceLists}
+                            isEditing={isEditing}
+                            onNext={() => { if (validateStep1()) setCurrentStep(2) }}
+                        />
+                    )}
 
-                {currentStep === 2 && (
-                    <ClientWizardStep2
-                        clientData={clientData} setClientData={setClientData}
-                        zones={zones}
-                        onNext={() => { if (validateStep2()) setCurrentStep(3) }}
-                        onBack={() => setCurrentStep(1)}
-                    />
-                )}
+                    {currentStep === 2 && (
+                        <ClientWizardStep2
+                            clientData={clientData} setClientData={setClientData}
+                            zones={zones}
+                            onNext={() => { if (validateStep2()) setCurrentStep(3) }}
+                            onBack={() => setCurrentStep(1)}
+                        />
+                    )}
 
-                {currentStep === 3 && (
-                    <ClientWizardStep3
-                        branches={branches} setBranches={setBranches}
-                        loading={loading}
-                        onSubmit={handleFinalSubmit}
-                        onBack={() => setCurrentStep(2)}
-                        zones={zones}
-                        clientData={clientData}
-                    />
-                )}
+                    {currentStep === 3 && (
+                        <ClientWizardStep3
+                            branches={branches} setBranches={setBranches}
+                            loading={loading}
+                            onSubmit={handleFinalSubmit}
+                            onBack={() => setCurrentStep(2)}
+                            zones={zones}
+                            clientData={clientData}
+                        />
+                    )}
+                </View>
             </View>
 
             <FeedbackModal

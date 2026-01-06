@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Switch, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native'
 import { RouteProp } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
@@ -8,9 +7,7 @@ import { GenericModal } from '../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 import { CatalogService, Category } from '../../../services/api/CatalogService'
 import { PriceService, PriceList } from '../../../services/api/PriceService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import type { RootStackParamList } from '../../../navigation/types'
-import { PriceListItem } from '../components/PriceListItem'
 
 type ProductFormRouteProp = RouteProp<RootStackParamList, 'SupervisorProductForm'>
 
@@ -23,11 +20,14 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
     const [categoryModalVisible, setCategoryModalVisible] = useState(false)
     const [selectedCategoryName, setSelectedCategoryName] = useState('')
 
-    // Price Management State
-    const [priceLists, setPriceLists] = useState<PriceList[]>([])
+    // --- Dynamic Price State ---
+    const [activeLists, setActiveLists] = useState<PriceList[]>([])
+    // Stores simple key-value: { [listaId: number]: string_price }
     const [priceValues, setPriceValues] = useState<Record<number, string>>({})
+    // Keep track of which prices existed originally to know when to delete vs ignore
+    const [initialPriceValues, setInitialPriceValues] = useState<Record<number, string>>({})
 
-    // Feedback State
+    // --- Feedback State ---
     const [feedbackVisible, setFeedbackVisible] = useState(false)
     const [feedbackConfig, setFeedbackConfig] = useState<{
         type: FeedbackType
@@ -54,58 +54,32 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
         active: true
     })
 
+    // Mount Logic
     useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            loadData()
-        })
-        return unsubscribe
-    }, [navigation])
-
-    useEffect(() => {
-        if (isEditing && params.product) {
-            const p = params.product
-            setForm({
-                nombre: p.nombre,
-                sku: p.codigo_sku,
-                description: p.descripcion || '',
-                categoryId: p.categoria_id || p.categoria?.id || 0,
-                unit: p.unidad_medida || 'UNIDAD',
-                weight: p.peso_unitario_kg?.toString() || '',
-                volume: p.volumen_m3?.toString() || '',
-                imageUrl: p.imagen_url || '',
-                requiresCold: p.requiere_frio,
-                active: p.activo
-            })
-            // Load existing prices separately if needed, or include in loadData
-            loadExistingPrices(p.id)
-        }
-    }, [isEditing, params.product])
-
-    useEffect(() => {
-        if (categories.length > 0 && form.categoryId) {
-            const cat = categories.find(c => c.id === form.categoryId)
-            if (cat) setSelectedCategoryName(cat.nombre)
-        }
-    }, [categories, form.categoryId])
+        loadData()
+    }, [])
 
     const loadData = async () => {
         try {
+            // Parallel Fetch: Categories + Price Lists
             const [cats, lists] = await Promise.all([
                 CatalogService.getCategories(),
                 PriceService.getLists()
             ])
             setCategories(cats)
 
-            // Sort: General first, then others alphabetically
-            const activeLists = lists.filter(l => l.activa).sort((a, b) => {
+            // Filter ONLY active lists for the form
+            // Sort: General first, then alphabetical
+            const active = lists.filter(l => l.activa).sort((a, b) => {
                 const isAGen = a.nombre.toLowerCase().includes('general')
                 const isBGen = b.nombre.toLowerCase().includes('general')
                 if (isAGen && !isBGen) return -1
                 if (!isAGen && isBGen) return 1
                 return a.nombre.localeCompare(b.nombre)
             })
-            setPriceLists(activeLists)
+            setActiveLists(active)
 
+            // Fill Form if Editing
             if (isEditing && params.product) {
                 const p = params.product
                 setForm({
@@ -121,93 +95,54 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     active: p.activo
                 })
 
-                // Load existing prices
+                if (p.categoria?.nombre) {
+                    setSelectedCategoryName(p.categoria.nombre)
+                } else if (p.categoria_id) {
+                    const c = cats.find(x => x.id === p.categoria_id)
+                    if (c) setSelectedCategoryName(c.nombre)
+                }
+
+                // Load existing prices for this product
                 loadExistingPrices(p.id)
             }
         } catch (error) {
             console.error('Failed to load initial data', error)
+            showFeedback('error', 'Error de Carga', 'No se pudieron cargar los datos necesarios.')
         }
     }
 
     const loadExistingPrices = async (productId: string) => {
         try {
-            const prices = await PriceService.getByProduct(productId)
+            const existingPrices = await PriceService.getByProduct(productId)
             const map: Record<number, string> = {}
-            prices.forEach((p: any) => {
+            existingPrices.forEach((p: any) => {
+                // p structure: { lista_id: number, precio: string, ... }
                 if (p.lista_id) {
-                    map[p.lista_id] = p.precio.toString()
+                    map[p.lista_id] = p.precio ? p.precio.toString() : ''
                 }
             })
             setPriceValues(map)
+            setInitialPriceValues(map) // Save snapshot of initial state
         } catch (error) {
-            console.warn('Could not load prices for product', error)
+            console.warn('Could not load existing prices', error)
         }
     }
 
-    const showFeedback = (type: FeedbackType, title: string, message: string, onConfirm?: () => void, showCancel = false) => {
+    const showFeedback = useCallback((type: FeedbackType, title: string, message: string, onConfirm?: () => void, showCancel = false) => {
         setFeedbackConfig({ type, title, message, onConfirm, showCancel })
         setFeedbackVisible(true)
-    }
-
-    const handleConfirmDeletePrice = (list: PriceList) => {
-        if (!params.product?.id) {
-            // Only local state clear if product not created yet
-            const newPrices = { ...priceValues }
-            delete newPrices[list.id]
-            setPriceValues(newPrices)
-            return
-        }
-
-        showFeedback(
-            'warning',
-            'Eliminar Precio',
-            `¿Deseas eliminar el precio de la lista "${list.nombre}"? Se borrará de la base de datos.`,
-            async () => {
-                try {
-                    setLoading(true)
-                    await PriceService.deletePrice(params.product!.id, list.id)
-
-                    const newPrices = { ...priceValues }
-                    delete newPrices[list.id]
-                    setPriceValues(newPrices)
-
-                    showFeedback('success', 'Eliminado', 'Precio eliminado correctamente.')
-                } catch (error) {
-                    showFeedback('error', 'Error', 'No se pudo eliminar el precio.')
-                } finally {
-                    setLoading(false)
-                }
-            },
-            true
-        )
-    }
-
-    const handleTogglePrice = useCallback((list: PriceList) => {
-        if (priceValues[list.id] !== undefined) {
-            handleConfirmDeletePrice(list)
-        } else {
-            setPriceValues(prev => ({ ...prev, [list.id]: '' }))
-        }
-    }, [priceValues, handleConfirmDeletePrice])
-
-    const handlePriceValueChange = useCallback((listId: number, text: string) => {
-        // Validate numeric input
-        if (/^\d*\.?\d*$/.test(text)) {
-            setPriceValues(prev => ({ ...prev, [listId]: text }))
-        }
     }, [])
 
     const handleSave = async () => {
+        // Validation
         if (!form.nombre.trim() || !form.sku.trim()) {
             showFeedback('warning', 'Campos Requeridos', 'El nombre y el SKU son obligatorios.')
             return
         }
-
         if (!form.categoryId) {
             showFeedback('warning', 'Campo Requerido', 'Debes seleccionar una categoría.')
             return
         }
-
         const weightVal = parseFloat(form.weight)
         if (isNaN(weightVal) || weightVal <= 0) {
             showFeedback('warning', 'Valor Inválido', 'El peso debe ser mayor a 0.')
@@ -216,58 +151,77 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
 
         setLoading(true)
         try {
+            // 1. Prepare Product Payload
             const productData = {
                 codigo_sku: form.sku,
                 nombre: form.nombre,
                 descripcion: form.description,
                 categoria_id: form.categoryId,
-                peso_unitario_kg: parseFloat(form.weight) || 0,
+                peso_unitario_kg: parseFloat(form.weight),
                 volumen_m3: parseFloat(form.volume) || 0,
                 unidad_medida: form.unit,
                 requiere_frio: form.requiresCold,
-                activo: form.active, // CatalogService uses 'activo' (product)
+                activo: form.active,
                 imagen_url: form.imageUrl,
             }
 
-            let productId = params.product?.id
-
-            if (isEditing && productId) {
-                await CatalogService.updateProduct(productId, productData)
-                showFeedback('success', 'Producto Actualizado', 'Los cambios se guardaron correctamente.')
+            // 2. Create or Update Product
+            let targetProductId = params.product?.id
+            if (isEditing && targetProductId) {
+                await CatalogService.updateProduct(targetProductId, productData)
             } else {
                 const newProduct = await CatalogService.createProduct(productData)
-                productId = newProduct.id // Backend returns string UUID
-                showFeedback('success', 'Producto Creado', 'El nuevo producto se agregó al catálogo.')
+                targetProductId = newProduct.id
             }
 
-            // Save Prices
-            if (productId) {
-                // Filter only active lists
-                const activeLists = priceLists.filter(l => l.activa)
+            // 3. Assign/Delete Prices (Parallel)
+            if (targetProductId) {
+                const pricePromises = activeLists.map(async (list) => {
+                    const rawVal = priceValues[list.id]
 
-                const pricePromises = activeLists.map(list => {
-                    const val = priceValues[list.id]
-                    if (val && parseFloat(val) >= 0) {
-                        return PriceService.assignPrice({
-                            productoId: productId!,
-                            listaId: list.id,
-                            precio: parseFloat(val)
-                        })
+                    // Case A: Value exists and is valid -> Create/Update
+                    if (rawVal && rawVal.trim() !== '') {
+                        const numVal = parseFloat(rawVal)
+                        if (!isNaN(numVal) && numVal >= 0) {
+                            return PriceService.assignPrice({
+                                productoId: targetProductId!,
+                                listaId: list.id,
+                                precio: numVal
+                            })
+                        }
                     }
+
+                    // Case B: Value is empty -> Delete ONLY if it existed primarily
+                    // This prevents 404 errors when trying to delete a price that never existed
+                    const hadPriceOriginally = !!initialPriceValues[list.id]
+
+                    if (isEditing && hadPriceOriginally && (!rawVal || rawVal.trim() === '')) {
+                        try {
+                            await PriceService.deletePrice(targetProductId!, list.id)
+                        } catch (error) {
+                            // Now real errors (like 500) will still throw, 
+                            // but 404 shouldn't happen if we checks hadPriceOriginally.
+                            // However, let's still catch to be safe.
+                            console.log('Delete skipped or failed', error)
+                        }
+                    }
+
                     return Promise.resolve()
                 })
 
                 await Promise.all(pricePromises)
             }
 
-            showFeedback('success', 'Éxito', isEditing ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.', () => {
-                navigation.goBack()
-            })
+            showFeedback(
+                'success',
+                'Éxito',
+                isEditing ? 'Producto actualizado correctamente.' : 'Producto creado correctamente.',
+                () => navigation.goBack()
+            )
 
         } catch (error: any) {
-            if (error?.message !== 'SESSION_EXPIRED') {
-                showFeedback('error', 'Error', 'No se pudo guardar el producto. Verifica tu conexión.')
-            }
+            console.error('Save failed', error)
+            showFeedback('error', 'Error', 'Ocurrió un error al guardar. Verifica tu conexión.')
         } finally {
             setLoading(false)
         }
@@ -281,7 +235,7 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                 onBackPress={() => navigation.goBack()}
             />
 
-            <ScrollView className="flex-1 px-5 pt-6 pb-20">
+            <ScrollView className="flex-1 px-5 pt-6 pb-20" keyboardShouldPersistTaps="handled">
                 {/* 1. Información Principal */}
                 <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
                     <Text className="text-neutral-900 font-bold text-lg mb-4">Información Principal</Text>
@@ -318,6 +272,7 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                                 value={form.sku}
                                 onChangeText={t => setForm({ ...form, sku: t })}
                                 maxLength={50}
+                                autoCapitalize="characters"
                             />
                         </View>
                         <View className="flex-1">
@@ -355,9 +310,10 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                             <Text className="text-neutral-500 font-medium mb-1.5">Cant. / U. Medida</Text>
                             <TextInput
                                 className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900"
-                                placeholder="Ej. UNIDAD, KG"
+                                placeholder="Ej. UNIDAD"
                                 value={form.unit}
                                 onChangeText={t => setForm({ ...form, unit: t })}
+                                autoCapitalize="characters"
                             />
                         </View>
                         <View className="flex-1">
@@ -398,43 +354,54 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     </View>
                 </View>
 
-                {/* 3. Estrategia de Precios */}
+                {/* 3. Estrategia de Precios (DINÁMICO) */}
                 <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
                     <View className="flex-row items-center justify-between mb-4">
                         <View>
-                            <Text className="text-neutral-900 font-bold text-lg">Estrategia de Precios</Text>
-                            <Text className="text-neutral-500 text-xs">Define el valor para cada canal</Text>
+                            <Text className="text-neutral-900 font-bold text-lg">Precios por Lista</Text>
+                            <Text className="text-neutral-500 text-xs">Asigna el valor para cada canal activo</Text>
                         </View>
-                        <TouchableOpacity onPress={() => loadData()} className="bg-neutral-50 p-2 rounded-full">
+                        <TouchableOpacity onPress={loadData} className="bg-neutral-50 p-2 rounded-full">
                             <Ionicons name="refresh" size={20} color="#6B7280" />
                         </TouchableOpacity>
                     </View>
 
-                    {priceLists.length === 0 ? (
-                        <View className="items-center py-6 bg-orange-50 rounded-xl border border-orange-100">
-                            <Ionicons name="pricetags-outline" size={32} color="#F97316" className="mb-2" />
-                            <Text className="text-orange-800 font-medium mb-1">Sin Listas Configuradas</Text>
-                            <Text className="text-orange-600 text-center px-4 text-xs mb-3">
-                                No se encontraron listas de precios activas.
-                            </Text>
-                            <TouchableOpacity
-                                onPress={() => navigation.navigate('SupervisorPriceLists' as never)}
-                                className="bg-white px-4 py-2 rounded-lg border border-orange-200 shadow-sm"
-                            >
-                                <Text className="text-orange-700 font-bold text-sm">Gestionar Listas</Text>
-                            </TouchableOpacity>
+                    {/* Rendering Dynamic Inputs */}
+                    {activeLists.length === 0 ? (
+                        <View className="py-4 items-center">
+                            <Text className="text-neutral-400">No hay listas de precios activas.</Text>
                         </View>
                     ) : (
                         <View className="gap-3">
-                            {priceLists.map((list) => (
-                                <PriceListItem
-                                    key={list.id}
-                                    list={list}
-                                    isActive={priceValues[list.id] !== undefined}
-                                    value={priceValues[list.id]}
-                                    onToggle={() => handleTogglePrice(list)}
-                                    onChange={(text) => handlePriceValueChange(list.id, text)}
-                                />
+                            {activeLists.map((list) => (
+                                <View key={list.id} className="flex-row items-center gap-3">
+                                    <View className="flex-1">
+                                        <Text className="text-neutral-700 font-medium mb-1 text-sm">
+                                            {list.nombre} ({list.moneda})
+                                        </Text>
+                                        <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-xl px-3">
+                                            <Text className="text-neutral-500 text-lg mr-2">$</Text>
+                                            <TextInput
+                                                className="flex-1 py-3 text-neutral-900 text-base font-medium"
+                                                placeholder="0.00"
+                                                keyboardType="numeric"
+                                                value={priceValues[list.id] || ''}
+                                                onChangeText={(val) => {
+                                                    setPriceValues(prev => ({ ...prev, [list.id]: val }))
+                                                }}
+                                            />
+                                            {/* Delete Button: Shows only if has value */}
+                                            {priceValues[list.id] && priceValues[list.id] !== '' ? (
+                                                <TouchableOpacity
+                                                    onPress={() => setPriceValues(prev => ({ ...prev, [list.id]: '' }))}
+                                                    className="p-2"
+                                                >
+                                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                                                </TouchableOpacity>
+                                            ) : null}
+                                        </View>
+                                    </View>
+                                </View>
                             ))}
                         </View>
                     )}
@@ -456,7 +423,7 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                 </View>
 
                 <TouchableOpacity
-                    className="bg-brand-red p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-8"
+                    className="p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-8"
                     onPress={handleSave}
                     disabled={loading}
                     style={{ backgroundColor: '#EF4444' }}
@@ -472,36 +439,39 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
 
             </ScrollView>
 
+            {/* Category Selection Modal */}
             <GenericModal
                 visible={categoryModalVisible}
                 onClose={() => setCategoryModalVisible(false)}
                 title="Seleccionar Categoría"
                 height="70%"
             >
-                {categories.map((cat) => (
-                    <TouchableOpacity
-                        key={cat.id}
-                        className="p-4 border-b border-neutral-100 flex-row items-center justify-between bg-neutral-50 rounded-xl mb-2"
-                        onPress={() => {
-                            setForm({ ...form, categoryId: cat.id })
-                            setSelectedCategoryName(cat.nombre)
-                            setCategoryModalVisible(false)
-                        }}
-                    >
-                        <View>
-                            <Text className="text-base font-semibold text-neutral-800">{cat.nombre}</Text>
-                            {cat.descripcion ? <Text className="text-sm text-neutral-500">{cat.descripcion}</Text> : null}
+                <ScrollView>
+                    {categories.map((cat) => (
+                        <TouchableOpacity
+                            key={cat.id}
+                            className="p-4 border-b border-neutral-100 flex-row items-center justify-between bg-neutral-50 rounded-xl mb-2"
+                            onPress={() => {
+                                setForm({ ...form, categoryId: cat.id })
+                                setSelectedCategoryName(cat.nombre)
+                                setCategoryModalVisible(false)
+                            }}
+                        >
+                            <View>
+                                <Text className="text-base font-semibold text-neutral-800">{cat.nombre}</Text>
+                                {cat.descripcion ? <Text className="text-sm text-neutral-500">{cat.descripcion}</Text> : null}
+                            </View>
+                            {form.categoryId === cat.id && (
+                                <Ionicons name="checkmark-circle" size={24} color={'#2563EB'} />
+                            )}
+                        </TouchableOpacity>
+                    ))}
+                    {categories.length === 0 && (
+                        <View className="items-center py-10">
+                            <Text className="text-neutral-400">No hay categorías disponibles</Text>
                         </View>
-                        {form.categoryId === cat.id && (
-                            <Ionicons name="checkmark-circle" size={24} color={'#2563EB'} />
-                        )}
-                    </TouchableOpacity>
-                ))}
-                {categories.length === 0 && (
-                    <View className="items-center py-10">
-                        <Text className="text-neutral-400">No hay categorías disponibles</Text>
-                    </View>
-                )}
+                    )}
+                </ScrollView>
             </GenericModal>
 
             {/* Feedback Modal */}
@@ -517,4 +487,3 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
         </View>
     )
 }
-

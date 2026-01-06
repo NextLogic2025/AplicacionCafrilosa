@@ -66,5 +66,11 @@ export const ClientService = {
         return apiRequest<void>(`/api/clientes/${id}`, {
             method: 'DELETE'
         })
+    },
+
+    unblockClient: async (id: string): Promise<void> => {
+        return apiRequest<void>(`/api/clientes/${id}/desbloquear`, {
+            method: 'PUT'
+        })
     }
 }
