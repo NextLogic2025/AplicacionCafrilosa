@@ -1,13 +1,14 @@
 import { IsUUID, IsNumber, IsInt, Min } from 'class-validator';
 
-export class AsignarPrecioDto {
+export class CreatePrecioDto {
   @IsUUID()
   productoId: string;
 
   @IsInt()
-  listaId: number; // 1, 2, o 3
+  @Min(1)
+  listaId: number;
 
   @IsNumber()
-  @Min(0)
+  @Min(0.01, { message: 'El precio debe ser mayor a 0' })
   precio: number;
 }
