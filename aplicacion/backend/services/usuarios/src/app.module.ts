@@ -2,9 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthModule } from './auth/auth.module';
-import { AuthAuditoria } from './entities/auth-auditoria.entity';
-import { AuthRefreshToken } from './entities/auth-token.entity';
-import { Dispositivo } from './entities/dispositivo.entity';
 import { Role } from './entities/role.entity';
 import { Usuario } from './entities/usuario.entity';
 
@@ -22,7 +19,7 @@ import { Usuario } from './entities/usuario.entity';
       password: process.env.DB_PASSWORD || 'root',
       database: process.env.DB_NAME || 'usuarios_db',
       
-      entities: [Usuario, Role, AuthRefreshToken, Dispositivo, AuthAuditoria],
+      entities: [Usuario, Role],
       
       // 2. SEGURIDAD
       // En false porque usas scripts SQL manuales (Evita que TypeORM borre datos)

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -6,6 +6,7 @@ import { Cliente } from './entities/cliente.entity';
 
 @Injectable()
 export class ClientesService {
+  private readonly logger = new Logger(ClientesService.name);
   constructor(
     @InjectRepository(Cliente)
     private repo: Repository<Cliente>,
@@ -33,8 +34,22 @@ export class ClientesService {
   }
 
   async update(id: string, data: Partial<Cliente>) {
-    await this.repo.update(id, data as any);
-    return this.findOne(id);
+    this.logger.debug({ id, data });
+    const cliente = await this.findOne(id);
+    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+
+    // Apply only provided fields to avoid accidental overwrite
+    Object.keys(data).forEach((k) => {
+      // @ts-ignore
+      cliente[k] = (data as any)[k];
+    });
+
+    // Update timestamp
+    cliente.updated_at = new Date();
+
+    const saved = await this.repo.save(cliente as any);
+    this.logger.debug({ saved });
+    return saved;
   }
 
   remove(id: string) {

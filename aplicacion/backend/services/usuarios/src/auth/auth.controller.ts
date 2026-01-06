@@ -1,12 +1,9 @@
 // placeholder (Auth controller)
-import { Controller, Post, Body, Get, Req, UseGuards, Put, Param } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards, Put, Param, Body } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthService } from './auth.service';
-import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './jwt.guard';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
@@ -23,43 +20,6 @@ type AuthRequest = Request & { user?: JwtUser };
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-
-  @Post('registro')
-  registrar(@Body() dto: CreateUsuarioDto) {
-    return this.authService.registro(dto);
-  }
-
-  @Post('login')
-  login(@Body() dto: LoginDto, @Req() _req: AuthRequest) {
-    const ip = _req.ip;
-    const userAgent = _req.get('user-agent');
-    return this.authService.login(dto, ip, userAgent);
-  }
-
-  @Post('refresh')
-  refresh(@Body() body: RefreshTokenDto, @Req() _req: AuthRequest) {
-    const ip = _req.ip;
-    const userAgent = _req.get('user-agent');
-    return this.authService.refreshTokens(body.refresh_token, body.device_id, ip, userAgent);
-  }
-
-  @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  logout(@Req() _req: AuthRequest) {
-    const usuarioId = _req.user?.sub;
-    const ip = _req.ip;
-    const userAgent = _req.get('user-agent');
-    const authHeader = _req.headers['authorization'] || '';
-    const token = typeof authHeader === 'string' ? authHeader.split(' ')[1] : undefined;
-    return this.authService.logout(usuarioId, token, ip, userAgent);
-  }
-
-  @Post('dispositivo')
-  @UseGuards(JwtAuthGuard)
-  registrarDispositivo(@Body() body: { device_id: string }, @Req() _req: AuthRequest) {
-    const usuarioId = _req.user?.sub;
-    return this.authService.registrarDispositivo(usuarioId, body.device_id, _req.ip);
-  }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
