@@ -30,16 +30,12 @@ export function RuteroMapa({ zona, clientes, isLoading }: RuteroMapaProps) {
 
   // Actualizar centro cuando cambie la zona
   useEffect(() => {
-    if (clientes.length > 0) {
-      const primerCliente = clientes[0]
-      if (primerCliente.ubicacion_gps) {
-        const coords = primerCliente.ubicacion_gps.coordinates
-        setCenter({
-          lng: coords[0],
-          lat: coords[1],
-        })
-        setZoom(12)
-      }
+    // Si hay filtrados por zona, usa esos; si no, usa todos
+    const listaBase = clientes.filter((c) => c.ubicacion_gps)
+    if (listaBase.length > 0) {
+      const coords = listaBase[0].ubicacion_gps!.coordinates
+      setCenter({ lng: coords[0], lat: coords[1] })
+      setZoom(12)
     }
   }, [zona, clientes])
 
@@ -59,16 +55,24 @@ export function RuteroMapa({ zona, clientes, isLoading }: RuteroMapaProps) {
     return parseGeoPolygon(val)
   }, [zona])
 
+  // Filtrar clientes dentro del polígono seleccionado
+  const clientesFiltrados = useMemo(() => {
+    const conCoords = clientes.filter((c) => c.ubicacion_gps)
+    if (!zonaPaths.length) return conCoords
+    return conCoords.filter((c) => {
+      const [lng, lat] = c.ubicacion_gps!.coordinates
+      return isPointInPolygon({ lat, lng }, zonaPaths)
+    })
+  }, [clientes, zonaPaths])
+
   // Generar marcadores de clientes
-  const clienteMarkers = clientes
-    .filter((c) => c.ubicacion_gps)
-    .map((cliente) => ({
-      cliente,
-      position: {
-        lat: cliente.ubicacion_gps!.coordinates[1],
-        lng: cliente.ubicacion_gps!.coordinates[0],
-      },
-    }))
+  const clienteMarkers = clientesFiltrados.map((cliente) => ({
+    cliente,
+    position: {
+      lat: cliente.ubicacion_gps!.coordinates[1],
+      lng: cliente.ubicacion_gps!.coordinates[0],
+    },
+  }))
 
   // Generar línea de ruta conectando clientes en orden
   const routePath = clienteMarkers.map((m) => m.position)
@@ -226,4 +230,19 @@ function dedupeClosingPoint(path: { lat: number; lng: number }[]): { lat: number
     return path.slice(0, -1)
   }
   return path
+}
+
+// Ray-casting algorithm for point in polygon
+function isPointInPolygon(point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng
+    const yi = polygon[i].lat
+    const xj = polygon[j].lng
+    const yj = polygon[j].lat
+
+    const intersect = yi > point.lat !== yj > point.lat && point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi + 1e-9) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
 }
