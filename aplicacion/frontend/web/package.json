@@ -8,8 +8,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@cafrilosa/shared-types": "0.0.0",
+    "@cafrilosa/shared-types": "file:../../shared/types",
     "@hookform/resolvers": "^5.2.2",
+    "lucide-react": "^0.468.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.62.0",

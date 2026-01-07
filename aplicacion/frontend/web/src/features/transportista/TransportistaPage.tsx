@@ -1,8 +1,31 @@
+import React from 'react'
+import { Truck } from 'lucide-react'
+import { Outlet, useNavigate } from 'react-router-dom'
+
+import { useAuth } from '../../hooks/useAuth'
+import { RoleLayout } from 'components/layout/RoleLayout'
+import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { TRANSPORTISTA_NAV_ITEMS } from '../../config/navigation'
+
 export default function TransportistaPage() {
+  const navigate = useNavigate()
+  const auth = useAuth()
+
+  const handleSignOut = () => {
+    auth.signOut()
+    navigate('/login', { replace: true })
+  }
+
   return (
-    <section className="grid gap-2 rounded-2xl border border-neutral-200 bg-white p-6">
-      <h2 className="text-xl font-extrabold tracking-tight text-neutral-950">Transportista</h2>
-      <p className="text-sm text-neutral-600">Vista base lista para conectar con backend.</p>
-    </section>
+    <RoleLayout
+      roleLabel="Transportista"
+      avatarText="TR"
+      navItems={TRANSPORTISTA_NAV_ITEMS}
+      onSignOut={handleSignOut}
+    >
+      <React.Suspense fallback={<div className="py-8"><LoadingSpinner /></div>}>
+        <Outlet />
+      </React.Suspense>
+    </RoleLayout>
   )
 }

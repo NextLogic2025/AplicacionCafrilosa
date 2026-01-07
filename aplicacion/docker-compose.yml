@@ -1,0 +1,121 @@
+services:
+  # --- BASE DE DATOS (Ya la tenías) ---
+  database:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: gcp-sql-local
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/local-init:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # --- PGADMIN (Ya lo tenías) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin-local
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "8080:80"
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO USUARIOS ---
+  usuarios-service:
+    build:
+      context: ./backend/services/usuarios  # 👈 Docker buscará el Dockerfile aquí
+      dockerfile: Dockerfile
+    container_name: usuarios-service
+    restart: on-failure
+    ports:
+      - "3002:3000"  # 👈 Tu PC (3002) -> Contenedor (3000)
+    environment:
+      # Como están en el mismo compose, aquí "database" SÍ funciona seguro
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=usuarios_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO CATALOG ---
+  catalog-service:
+    build:
+      context: ./backend/services/catalog
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    restart: on-failure
+    ports:
+      - "3003:3000"  # Host 3003 -> Contenedor 3000
+    environment:
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=catalog_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO ORDERS ---
+  orders-service:
+    build:
+      context: ./backend/services/orders
+      dockerfile: Dockerfile
+    container_name: orders-service
+    restart: on-failure
+    ports:
+      - "3004:3000"  # Host 3004 -> Contenedor 3000
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=orders_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO AUTH (login/refresh/logout) ---
+  auth-service:
+    build:
+      context: ./backend/services/auth
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: on-failure
+    ports:
+      - "3001:3000"  # Host 3001 -> Contenedor 3000
+    environment:
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=usuarios_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
