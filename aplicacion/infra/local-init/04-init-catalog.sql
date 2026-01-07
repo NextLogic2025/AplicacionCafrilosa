@@ -233,7 +233,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_changed_by UUID;
     v_ip INET := inet_client_addr();
-    v_record_id TEXT
+    v_record_id TEXT;
 BEGIN
     BEGIN
         v_changed_by := current_setting('app.current_user', true)::uuid;
