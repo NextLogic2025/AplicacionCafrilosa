@@ -1,4 +1,8 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, DeleteDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+
+import { Category } from '../../categories/entities/category.entity';
+import { PrecioItem } from '../../precios/entities/precio.entity';
+import { ProductoPromocion } from '../../promociones/entities/producto-promocion.entity';
 
 @Entity({ name: 'productos' })
 export class Product {
@@ -6,7 +10,7 @@ export class Product {
   id: string;
 
   @Column({ name: 'codigo_sku', unique: true })
-  codigo_sku: string;
+  codigoSku: string; // CamelCase en propiedad, snake_case en DB
 
   @Column()
   nombre: string;
@@ -15,29 +19,39 @@ export class Product {
   descripcion: string;
 
   @Column({ name: 'categoria_id', type: 'int', nullable: true })
-  categoria_id: number;
+  categoriaId: number;
+
+  @ManyToOne(() => Category, { eager: false })
+  @JoinColumn({ name: 'categoria_id' })
+  categoria: Category;
 
   @Column({ name: 'peso_unitario_kg', type: 'decimal', precision: 10, scale: 3 })
-  peso_unitario_kg: string;
+  pesoUnitarioKg: number; // TypeORM puede mapear decimal a number si se configura, sino string
 
   @Column({ name: 'volumen_m3', type: 'decimal', precision: 10, scale: 4, nullable: true })
-  volumen_m3: string;
+  volumenM3: number;
 
   @Column({ name: 'requiere_frio', default: false })
-  requiere_frio: boolean;
+  requiereFrio: boolean;
 
   @Column({ name: 'unidad_medida', default: 'UNIDAD' })
-  unidad_medida: string;
+  unidadMedida: string;
 
   @Column({ name: 'imagen_url', type: 'text', nullable: true })
-  imagen_url: string;
+  imagenUrl: string;
 
   @Column({ default: true })
   activo: boolean;
 
-  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
-  created_at: Date;
+  @OneToMany(() => PrecioItem, (precio) => precio.producto)
+  precios: PrecioItem[];
 
-  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-  deleted_at: Date | null;
+  @OneToMany(() => ProductoPromocion, (promo) => promo.producto)
+  promociones: ProductoPromocion[];
+
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  createdAt: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', select: false })
+  deletedAt: Date;
 }

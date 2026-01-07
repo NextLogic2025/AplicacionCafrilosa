@@ -7,9 +7,12 @@ import { UsuarioCard } from './UsuarioCard'
 interface EquipoListProps {
   usuarios: Usuario[]
   isLoading: boolean
+  onEdit: (usuario: Usuario) => void
+  onDeactivate: (usuario: Usuario) => void
+  onActivate: (usuario: Usuario) => void
 }
 
-export function EquipoList({ usuarios, isLoading }: EquipoListProps) {
+export function EquipoList({ usuarios, isLoading, onEdit, onDeactivate, onActivate }: EquipoListProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -31,7 +34,13 @@ export function EquipoList({ usuarios, isLoading }: EquipoListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       {usuarios.map((usuario) => (
-        <UsuarioCard key={usuario.id} usuario={usuario} />
+        <UsuarioCard 
+          key={usuario.id} 
+          usuario={usuario}
+          onEdit={onEdit}
+          onDeactivate={onDeactivate}
+          onActivate={onActivate}
+        />
       ))}
     </div>
   )

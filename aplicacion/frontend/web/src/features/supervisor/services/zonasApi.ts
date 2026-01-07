@@ -1,6 +1,4 @@
-import { getToken } from '../../../services/storage/tokenStorage'
-
-const CATALOG_BASE_URL = 'http://localhost:3002'
+import { httpCatalogo } from '../../../services/api/http'
 
 export interface ZonaComercial {
   id: number
@@ -35,57 +33,12 @@ export interface CreateZonaDto {
   poligono_geografico?: unknown
 }
 
-class ZonasApiError extends Error {
-  readonly status: number
-  readonly payload?: unknown
-
-  constructor(message: string, status: number, payload?: unknown) {
-    super(message)
-    this.name = 'ZonasApiError'
-    this.status = status
-    this.payload = payload
-  }
-}
-
-async function zonasHttp<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  const token = getToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  const fullPath = `${CATALOG_BASE_URL}/api${path.startsWith('/') ? '' : '/'}${path}`
-  const res = await fetch(fullPath, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  })
-
-  if (res.status === 204) return undefined as T
-
-  const data = (await res.json().catch(() => null)) as T | { message?: string; error?: string } | null
-  if (!res.ok) {
-    let message = 'Error de API'
-    if (data && typeof data === 'object' && 'message' in data && typeof (data as any).message === 'string') {
-      message = (data as any).message
-    } else if (data && typeof data === 'object' && 'error' in data && typeof (data as any).error === 'string') {
-      message = (data as any).error
-    }
-    throw new ZonasApiError(message, res.status, data)
-  }
-  if (data == null) throw new ZonasApiError('Respuesta inválida del servidor', res.status)
-  return data as T
-}
-
 export async function getAllZonas(): Promise<ZonaComercial[]> {
-  return zonasHttp<ZonaComercial[]>('/zonas')
+  return httpCatalogo<ZonaComercial[]>('/zonas')
 }
 
 export async function getAllAsignaciones(): Promise<AsignacionVendedor[]> {
-  return zonasHttp<AsignacionVendedor[]>('/asignacion')
+  return httpCatalogo<AsignacionVendedor[]>('/asignacion')
 }
 
 export async function getZonasConVendedores(): Promise<ZonaComercial[]> {
@@ -119,7 +72,7 @@ export async function createZona(data: CreateZonaDto): Promise<ZonaComercial> {
   if (data.macrorregion) payload.macrorregion = data.macrorregion
   if (data.poligono_geografico) payload.poligono_geografico = data.poligono_geografico
 
-  return zonasHttp<ZonaComercial>('/zonas', {
+  return httpCatalogo<ZonaComercial>('/zonas', {
     method: 'POST',
     body: payload,
   })
@@ -134,40 +87,40 @@ export async function updateZona(id: number, data: Partial<CreateZonaDto>): Prom
   if (data.macrorregion !== undefined) payload.macrorregion = data.macrorregion
   if (data.poligono_geografico !== undefined) payload.poligono_geografico = data.poligono_geografico
 
-  return zonasHttp<ZonaComercial>(`/zonas/${id}`, {
+  return httpCatalogo<ZonaComercial>(`/zonas/${id}`, {
     method: 'PUT',
     body: payload,
   })
 }
 
 export async function toggleZonaActivo(id: number, nuevoEstado: boolean): Promise<ZonaComercial> {
-  return zonasHttp<ZonaComercial>(`/zonas/${id}`, {
+  return httpCatalogo<ZonaComercial>(`/zonas/${id}`, {
     method: 'PUT',
     body: { activo: nuevoEstado },
   })
 }
 
 export async function asignarVendedorAZona(data: AsignacionVendedor): Promise<AsignacionVendedor> {
-  return zonasHttp<AsignacionVendedor>('/asignacion', {
+  return httpCatalogo<AsignacionVendedor>('/asignacion', {
     method: 'POST',
     body: data,
   })
 }
 
 export async function actualizarAsignacionVendedor(id: number, data: Partial<AsignacionVendedor>): Promise<AsignacionVendedor> {
-  return zonasHttp<AsignacionVendedor>(`/asignacion/${id}`, {
+  return httpCatalogo<AsignacionVendedor>(`/asignacion/${id}`, {
     method: 'PUT',
     body: data,
   })
 }
 
 export async function eliminarAsignacionVendedor(id: number): Promise<void> {
-  await zonasHttp<void>(`/asignacion/${id}`, {
+  await httpCatalogo<void>(`/asignacion/${id}`, {
     method: 'DELETE',
   })
 }
 
 export async function obtenerAsignacionesDeZona(zonaId: number): Promise<AsignacionVendedor[]> {
-  const todas = await zonasHttp<AsignacionVendedor[]>('/asignacion')
+  const todas = await httpCatalogo<AsignacionVendedor[]>('/asignacion')
   return (todas || []).filter((a) => a.zona_id === zonaId)
 }

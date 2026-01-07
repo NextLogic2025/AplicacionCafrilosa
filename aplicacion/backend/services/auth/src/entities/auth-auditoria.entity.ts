@@ -12,7 +12,7 @@ export class AuthAuditoria {
   email_intentado: string;
 
   @Column({ type: 'varchar', length: 50 })
-  evento: string; // LOGIN, LOGOUT, FAIL, REFRESH, REUSE_DETECTED
+  evento: string;
 
   @Column({ type: 'text', nullable: true })
   descripcion: string;

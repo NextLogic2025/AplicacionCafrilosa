@@ -21,9 +21,9 @@ export type HttpOptions = {
   auth?: boolean
 }
 
-export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {
-  const baseUrl = env.api.baseUrl
-  if (!baseUrl) throw new Error('API base URL no configurada (VITE_API_BASE_URL)')
+// Función HTTP genérica interna
+async function httpRequest<T>(baseUrl: string, path: string, options: HttpOptions = {}): Promise<T> {
+  if (!baseUrl) throw new Error('URL base no configurada')
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers ?? {}) }
   if (options.auth !== false) {
@@ -50,4 +50,28 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
   }
   if (data == null) throw new ApiError('Respuesta inválida del servidor', res.status)
   return data as T
+}
+
+// Función para servicio de Autenticación (puerto 3001)
+export async function httpAuth<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  return httpRequest<T>(env.api.auth, path, options)
+}
+
+// Función para servicio de Usuarios (puerto 3002) - incluye /auth prefix
+export async function httpUsuarios<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  const pathWithAuth = path.startsWith('/auth') ? path : `/auth${path.startsWith('/') ? '' : '/'}${path}`
+  return httpRequest<T>(env.api.usuarios, pathWithAuth, options)
+}
+
+// Función para servicio de Catálogo (puerto 3003) - incluye /api prefix
+export async function httpCatalogo<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  const pathWithApi = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`
+  return httpRequest<T>(env.api.catalogo, pathWithApi, options)
+}
+
+// Exportar también la versión genérica (deprecada, usar las específicas)
+/** @deprecated Usa httpAuth, httpUsuarios o httpCatalogo según el servicio */
+export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  // Por compatibilidad, usa auth por defecto
+  return httpAuth<T>(path, options)
 }

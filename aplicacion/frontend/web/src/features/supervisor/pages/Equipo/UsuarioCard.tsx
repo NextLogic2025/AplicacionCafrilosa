@@ -1,4 +1,5 @@
-import { Mail, Shield, CheckCircle, XCircle } from 'lucide-react'
+import { Mail, Shield, CheckCircle, XCircle, Edit2, UserX, UserCheck } from 'lucide-react'
+import { Button } from 'components/ui/Button'
 import { type Usuario } from '../../services/usuariosApi'
 
 const ROLE_COLORS: Record<string, string> = {
@@ -10,9 +11,12 @@ const ROLE_COLORS: Record<string, string> = {
 
 interface UsuarioCardProps {
   usuario: Usuario
+  onEdit: (usuario: Usuario) => void
+  onDeactivate: (usuario: Usuario) => void
+  onActivate: (usuario: Usuario) => void
 }
 
-export function UsuarioCard({ usuario }: UsuarioCardProps) {
+export function UsuarioCard({ usuario, onEdit, onDeactivate, onActivate }: UsuarioCardProps) {
   const roleColor = ROLE_COLORS[usuario.rol.nombre] || 'bg-gray-100 text-gray-800'
 
   return (
@@ -77,6 +81,34 @@ export function UsuarioCard({ usuario }: UsuarioCardProps) {
       {/* Fecha de creación */}
       <div className="mt-3 text-xs text-gray-500">
         Creado: {new Date(usuario.createdAt).toLocaleDateString('es-ES')}
+      </div>
+
+      {/* Acciones */}
+      <div className="mt-4 flex gap-2 border-t pt-4">
+        <Button
+          onClick={() => onEdit(usuario)}
+          className="flex flex-1 items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Edit2 className="h-4 w-4" />
+          Editar
+        </Button>
+        {usuario.activo ? (
+          <Button
+            onClick={() => onDeactivate(usuario)}
+            className="flex flex-1 items-center justify-center gap-2 bg-orange-600 text-white hover:bg-orange-700"
+          >
+            <UserX className="h-4 w-4" />
+            Desactivar
+          </Button>
+        ) : (
+          <Button
+            onClick={() => onActivate(usuario)}
+            className="flex flex-1 items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700"
+          >
+            <UserCheck className="h-4 w-4" />
+            Activar
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { http } from '../../../services/api/http'
+import { httpAuth, httpUsuarios } from '../../../services/api/http'
 
 export interface CreateUsuarioDto {
   email: string
@@ -37,42 +37,54 @@ export interface UpdateUsuarioDto {
   nombre?: string
   telefono?: string | null
   rolId?: number
+  activo?: boolean
 }
 
 export interface Vendedor extends Usuario {}
 
+// Registro de usuario - usa la ruta de autenticación en puerto 3001
 export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuarioResponse> {
-  const response = await http<CreateUsuarioResponse>('/auth/registro', {
+  const response = await httpAuth<CreateUsuarioResponse>('/auth/registro', {
     method: 'POST',
     body: data,
-    auth: false, // registro no requiere token; evita problemas si hay un token inválido
+    auth: false,
   })
   return response
 }
 
+// Operaciones de usuarios - usan puerto 3002
 export async function obtenerEquipo(): Promise<Usuario[]> {
-  const response = await http<Usuario[]>('/auth/usuarios', {
-    method: 'GET',
-  })
-  return response
+  return httpUsuarios<Usuario[]>('/usuarios')
 }
 
 export async function getUsuario(id: string): Promise<Usuario> {
-  const response = await http<Usuario>(`/auth/usuarios/${id}`)
-  return response
+  return httpUsuarios<Usuario>(`/usuarios/${id}`)
 }
 
 export async function updateUsuario(id: string, data: UpdateUsuarioDto): Promise<Usuario> {
-  const response = await http<Usuario>(`/auth/usuarios/${id}`, {
-    method: 'PATCH',
+  return httpUsuarios<Usuario>(`/usuarios/${id}`, {
+    method: 'PUT',
     body: data,
   })
-  return response
+}
+
+export async function desactivarUsuario(id: string): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}/desactivar`, {
+    method: 'PUT',
+  })
+}
+
+export async function activarUsuario(id: string): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}/activar`, {
+    method: 'PUT',
+  })
 }
 
 export async function obtenerVendedores(): Promise<Vendedor[]> {
-  const response = await http<Vendedor[]>('/auth/vendedores', {
-    method: 'GET',
-  })
-  return response
+  return httpUsuarios<Vendedor[]>('/vendedores')
 }
+
+export async function listarUsuariosDesactivados(): Promise<Usuario[]> {
+  return httpUsuarios<Usuario[]>('/usuarios/desactivados')
+}
+

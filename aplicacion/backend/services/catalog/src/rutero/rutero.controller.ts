@@ -24,7 +24,8 @@ export class RuteroController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   mio(@Req() req: any) {
-    const vendedorId = req.user?.userId;
+    // Support tokens that set the subject as `sub` or `userId`
+    const vendedorId = req.user?.userId ?? req.user?.sub;
     return this.svc.findForVendedor(vendedorId);
   }
 

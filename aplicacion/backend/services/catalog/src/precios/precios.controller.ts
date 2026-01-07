@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/roles.guard';
@@ -6,91 +6,103 @@ import { Roles } from '../auth/roles.decorator';
 import { ClientesService } from '../clientes/clientes.service';
 
 import { PreciosService } from './precios.service';
-import { AsignarPrecioDto } from './dto/asignar-precio.dto';
-import { ListaPrecioDto } from './dto/lista-precio.dto';
-import { UpdateListaPrecioDto } from './dto/update-lista-precio.dto';
+import { CreatePrecioDto } from './dto/create-precio.dto';
+import { CreateListaPrecioDto } from './dto/create-lista-precio.dto';
 
 @Controller('precios')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class PreciosController {
-  constructor(private readonly preciosService: PreciosService, private readonly clientesService: ClientesService) { }
+  constructor(
+    private readonly preciosService: PreciosService,
+    private readonly clientesService: ClientesService
+  ) {}
 
-  // POST /precios -> Para guardar o actualizar un precio individual
+  // --- GESTIÓN DE PRECIOS ---
+
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  asignar(@Body() dto: AsignarPrecioDto) {
+  asignar(@Body() dto: CreatePrecioDto) {
     return this.preciosService.asignarPrecio(dto);
   }
 
-  // GET /precios/producto/:id -> Para ver la tabla de precios al editar
   @Get('producto/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
   async verPrecios(@Param('id') id: string, @Req() req: any) {
-    const user = req.user;
-    // If the requester is a cliente, limit prices to the client's assigned price list
-    const roles = Array.isArray(user?.role) ? user.role.map((r: any) => String(r).toLowerCase()) : [String(user?.role).toLowerCase()];
-    if (roles.includes('cliente')) {
-      const cliente = await this.clientesService.findByUsuarioPrincipalId(user.userId);
-      const listaId = cliente?.lista_precios_id;
-      if (listaId) return this.preciosService.obtenerPreciosDeProductoParaLista(id, listaId);
-      // If client has no price list assigned, return empty array
-      return [];
+    // Verificar si es cliente y restringir
+    const clientListaId = await this.resolveClientListaId(req);
+    
+    if (clientListaId) {
+      // Si es cliente, pedir directamente al servicio el precio para su lista
+      return this.preciosService.obtenerPreciosDeProductoParaLista(id, clientListaId);
     }
 
+    // Admin/Staff ven todos
     return this.preciosService.obtenerPreciosDeProducto(id);
   }
 
-  // CRUD para listas de precios
-  @Get('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Delete('lista/:listaId/producto/:productoId')
   @Roles('admin', 'supervisor')
+  removePrecio(
+    @Param('listaId', ParseIntPipe) listaId: number, 
+    @Param('productoId') productoId: string
+  ) {
+    return this.preciosService.removePrecio(listaId, productoId);
+  }
+
+  // --- GESTIÓN DE LISTAS ---
+
+  @Get('listas')
+  @Roles('admin', 'supervisor', 'vendedor')
   listarListas() {
-    return this.preciosService.listAllListas();
+    return this.preciosService.findAllListas();
   }
 
   @Post('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  crearLista(@Body() body: ListaPrecioDto) {
-    return this.preciosService.createLista(body as any);
+  crearLista(@Body() dto: CreateListaPrecioDto) {
+    return this.preciosService.createLista(dto);
   }
 
   @Patch('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  actualizarLista(@Param('id') id: string, @Body() body: UpdateListaPrecioDto) {
-    return this.preciosService.updateLista(Number(id), body as any);
+  actualizarLista(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateListaPrecioDto>) {
+    return this.preciosService.updateLista(id, dto);
   }
 
   @Delete('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  eliminarLista(@Param('id') id: string) {
-    return this.preciosService.deleteLista(Number(id));
+  eliminarLista(@Param('id', ParseIntPipe) id: number) {
+    return this.preciosService.deleteLista(id);
   }
 
-  // Listado: solo productos que tengan precio en la lista (ej. para clientes mayoristas)
+  // --- VISTAS ESPECIALES ---
+
   @Get('lista/:id/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
-  listarProductosConPrecio(@Param('id') id: string) {
-    return this.preciosService.productosConPrecioParaLista(Number(id));
+  @Roles('admin', 'supervisor', 'vendedor')
+  listarProductosConPrecio(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page') page: string,
+    @Query('q') q: string
+  ) {
+    return this.preciosService.productosConPrecioParaLista(id, { 
+      page: Number(page), 
+      q 
+    });
   }
 
-  // Eliminar un precio asignado a un producto en una lista
-  @Delete('lista/:listaId/producto/:productoId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  removePrecio(@Param('listaId') listaId: string, @Param('productoId') productoId: string) {
-    return this.preciosService.removePrecio(Number(listaId), productoId);
-  }
+  // --- HELPER PRIVADO ---
+  
+  private async resolveClientListaId(req: any): Promise<number | null> {
+    const user = req.user;
+    const roles = Array.isArray(user?.role) 
+      ? user.role.map((r: any) => String(r).toLowerCase()) 
+      : [String(user?.role || '').toLowerCase()];
 
-  // Listado: todos los productos y, si existe, su precio según la lista (para supervisor)
-  @Get('lista/:id/productos-all')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  async listarTodosProductosConPrecio(@Param('id') id: string) {
-    return this.preciosService.todosProductosConPrecioParaLista(Number(id));
+    if (roles.includes('cliente')) {
+      // Buscar lista asignada al cliente
+      const cliente = await this.clientesService.findByUsuarioPrincipalId(user.userId);
+      return cliente?.lista_precios_id || null;
+    }
+    return null;
   }
 }

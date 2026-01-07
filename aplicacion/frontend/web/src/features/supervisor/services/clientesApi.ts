@@ -1,6 +1,4 @@
-import { getToken } from '../../../services/storage/tokenStorage'
-
-const CATALOG_BASE_URL = 'http://localhost:3002'
+import { httpCatalogo } from '../../../services/api/http'
 
 export interface Cliente {
   id: string
@@ -57,81 +55,38 @@ export interface ListaPrecio {
   activo?: boolean
 }
 
-class ClienteApiError extends Error {
-  readonly status: number
-  readonly payload?: unknown
-
-  constructor(message: string, status: number, payload?: unknown) {
-    super(message)
-    this.name = 'ClienteApiError'
-    this.status = status
-    this.payload = payload
-  }
-}
-
-async function clienteHttp<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  const token = getToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  const fullPath = `${CATALOG_BASE_URL}/api${path.startsWith('/') ? '' : '/'}${path}`
-  const res = await fetch(fullPath, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  })
-
-  if (res.status === 204) return undefined as T
-
-  const data = (await res.json().catch(() => null)) as T | { message?: string } | null
-  if (!res.ok) {
-    const message =
-      typeof (data as { message?: string } | null)?.message === 'string'
-        ? (data as { message: string }).message
-        : 'Error de API'
-    throw new ClienteApiError(message, res.status, data)
-  }
-  if (data == null) throw new ClienteApiError('Respuesta inválida del servidor', res.status)
-  return data as T
-}
-
 export async function obtenerClientes(): Promise<Cliente[]> {
-  return clienteHttp<Cliente[]>('/clientes')
+  return httpCatalogo<Cliente[]>('/clientes')
 }
 
 export async function obtenerCliente(id: string): Promise<Cliente> {
-  return clienteHttp<Cliente>(`/clientes/${id}`)
+  return httpCatalogo<Cliente>(`/clientes/${id}`)
 }
 
 export async function crearCliente(data: CreateClienteDto): Promise<Cliente> {
-  return clienteHttp<Cliente>('/clientes', {
+  return httpCatalogo<Cliente>('/clientes', {
     method: 'POST',
     body: data,
   })
 }
 
 export async function actualizarCliente(id: string, data: Partial<CreateClienteDto>): Promise<Cliente> {
-  return clienteHttp<Cliente>(`/clientes/${id}`, {
+  return httpCatalogo<Cliente>(`/clientes/${id}`, {
     method: 'PUT',
     body: data,
   })
 }
 
 export async function eliminarCliente(id: string): Promise<void> {
-  await clienteHttp<void>(`/clientes/${id}`, {
+  await httpCatalogo<void>(`/clientes/${id}`, {
     method: 'DELETE',
   })
 }
 
 export async function obtenerZonas(): Promise<ZonaComercial[]> {
-  return clienteHttp<ZonaComercial[]>('/zonas')
+  return httpCatalogo<ZonaComercial[]>('/zonas')
 }
 
 export async function obtenerListasPrecios(): Promise<ListaPrecio[]> {
-  return clienteHttp<ListaPrecio[]>('/precios/listas')
+  return httpCatalogo<ListaPrecio[]>('/precios/listas')
 }

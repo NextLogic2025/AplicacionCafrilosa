@@ -37,7 +37,7 @@ services:
     container_name: usuarios-service
     restart: on-failure
     ports:
-      - "3001:3000"  # 👈 Tu PC (3001) -> Contenedor (3000)
+      - "3002:3000"  # 👈 Tu PC (3002) -> Contenedor (3000)
     environment:
       # Como están en el mismo compose, aquí "database" SÍ funciona seguro
       - JWT_SECRET=MiSecretoSuperSeguro2025
@@ -59,7 +59,7 @@ services:
     container_name: catalog-service
     restart: on-failure
     ports:
-      - "3002:3000"  # Host 3002 -> Contenedor 3000
+      - "3003:3000"  # Host 3003 -> Contenedor 3000
     environment:
       - JWT_SECRET=MiSecretoSuperSeguro2025
       - DB_HOST=database
@@ -67,6 +67,47 @@ services:
       - DB_USER=admin
       - DB_PASSWORD=root
       - DB_NAME=catalog_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO ORDERS ---
+  orders-service:
+    build:
+      context: ./backend/services/orders
+      dockerfile: Dockerfile
+    container_name: orders-service
+    restart: on-failure
+    ports:
+      - "3004:3000"  # Host 3004 -> Contenedor 3000
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=orders_db
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO AUTH (login/refresh/logout) ---
+  auth-service:
+    build:
+      context: ./backend/services/auth
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: on-failure
+    ports:
+      - "3001:3000"  # Host 3001 -> Contenedor 3000
+    environment:
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=root
+      - DB_NAME=usuarios_db
     depends_on:
       - database
     networks:

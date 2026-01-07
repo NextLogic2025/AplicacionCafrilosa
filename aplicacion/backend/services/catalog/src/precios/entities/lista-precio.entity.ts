@@ -1,4 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+
+import { PrecioItem } from './precio.entity';
 
 @Entity('listas_precios')
 export class ListaPrecio {
@@ -13,4 +15,7 @@ export class ListaPrecio {
 
   @Column({ default: 'USD' })
   moneda: string;
+
+  @OneToMany(() => PrecioItem, (p) => p.lista)
+  precios: PrecioItem[];
 }

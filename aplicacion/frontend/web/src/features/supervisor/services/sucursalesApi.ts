@@ -1,6 +1,4 @@
-import { getToken } from '../../../services/storage/tokenStorage'
-
-const CATALOG_BASE_URL = 'http://localhost:3002'
+import { httpCatalogo } from '../../../services/api/http'
 
 export interface Sucursal {
   id: string
@@ -35,51 +33,18 @@ export interface UpdateSucursalDto {
 }
 
 export async function crearSucursal(clienteId: string, data: CreateSucursalDto): Promise<Sucursal> {
-  const token = getToken()
-  const response = await fetch(`${CATALOG_BASE_URL}/api/clientes/${clienteId}/sucursales`, {
+  return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
+    body: data,
   })
-
-  if (!response.ok) {
-    throw new Error(`Error creating sucursal: ${response.statusText}`)
-  }
-
-  return response.json()
 }
 
 export async function obtenerSucursales(clienteId: string): Promise<Sucursal[]> {
-  const token = getToken()
-  const response = await fetch(`${CATALOG_BASE_URL}/api/clientes/${clienteId}/sucursales`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`Error fetching sucursales: ${response.statusText}`)
-  }
-
-  return response.json()
+  return httpCatalogo<Sucursal[]>(`/clientes/${clienteId}/sucursales`)
 }
 
 export async function obtenerSucursal(clienteId: string, sucursalId: string): Promise<Sucursal> {
-  const token = getToken()
-  const response = await fetch(`${CATALOG_BASE_URL}/api/clientes/${clienteId}/sucursales/${sucursalId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`Error fetching sucursal: ${response.statusText}`)
-  }
-
-  return response.json()
+  return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales/${sucursalId}`)
 }
 
 export async function actualizarSucursal(
@@ -87,35 +52,14 @@ export async function actualizarSucursal(
   sucursalId: string,
   data: UpdateSucursalDto
 ): Promise<Sucursal> {
-  const token = getToken()
-  const response = await fetch(`${CATALOG_BASE_URL}/api/clientes/${clienteId}/sucursales/${sucursalId}`, {
+  return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales/${sucursalId}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
+    body: data,
   })
-
-  if (!response.ok) {
-    throw new Error(`Error updating sucursal: ${response.statusText}`)
-  }
-
-  return response.json()
 }
 
 export async function eliminarSucursal(clienteId: string, sucursalId: string): Promise<{ id: string; deleted: boolean }> {
-  const token = getToken()
-  const response = await fetch(`${CATALOG_BASE_URL}/api/clientes/${clienteId}/sucursales/${sucursalId}`, {
+  return httpCatalogo<{ id: string; deleted: boolean }>(`/clientes/${clienteId}/sucursales/${sucursalId}`, {
     method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   })
-
-  if (!response.ok) {
-    throw new Error(`Error deleting sucursal: ${response.statusText}`)
-  }
-
-  return response.json()
 }

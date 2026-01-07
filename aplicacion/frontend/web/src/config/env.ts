@@ -7,12 +7,12 @@ function normalizeBaseUrl(url: string) {
 }
 
 export const env = {
-  auth: {
-    loginUrl: readEnv('VITE_AUTH_LOGIN_URL'),
-    forgotPasswordUrl: readEnv('VITE_AUTH_FORGOT_PASSWORD_URL'),
-    logoutUrl: readEnv('VITE_AUTH_LOGOUT_URL'),
-  },
   api: {
-    baseUrl: normalizeBaseUrl(readEnv('VITE_API_BASE_URL')),
+    auth: normalizeBaseUrl(readEnv('VITE_AUTH_BASE_URL')),
+    usuarios: normalizeBaseUrl(readEnv('VITE_USUARIOS_BASE_URL')),
+    catalogo: normalizeBaseUrl(readEnv('VITE_CATALOGO_BASE_URL')),
+  },
+  googleMaps: {
+    apiKey: readEnv('VITE_GOOGLE_MAPS_API_KEY'),
   },
 } as const

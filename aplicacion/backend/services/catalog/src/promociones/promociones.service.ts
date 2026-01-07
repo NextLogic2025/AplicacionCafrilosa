@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { CampaniaPromocional } from './entities/campania.entity';
 import { ProductoPromocion } from './entities/producto-promocion.entity';
@@ -16,6 +16,38 @@ export class PromocionesService {
     @InjectRepository(PromocionClientePermitido)
     private clientePromoRepo: Repository<PromocionClientePermitido>,
   ) {}
+
+  // Devuelve promociones aplicables a una lista de productos para un cliente/lista específica
+  async findPromosForCliente(productIds: string[], clienteId?: string, listaId?: number) {
+    if (!productIds || productIds.length === 0) return [];
+
+    const promos = await this.prodPromoRepo.find({ where: { producto_id: In(productIds) }, relations: ['campania'] });
+
+    const result: ProductoPromocion[] = [];
+    for (const p of promos) {
+      const camp = p.campania as any as CampaniaPromocional;
+      if (!camp || !camp.activo || camp.deleted_at) continue;
+
+      // alcance: GLOBAL | POR_LISTA | POR_CLIENTE
+      const alcance = (camp.alcance || 'GLOBAL').toString().toUpperCase();
+      if (alcance === 'GLOBAL') {
+        result.push(p);
+        continue;
+      }
+      if (alcance === 'POR_LISTA') {
+        if (listaId && camp.lista_precios_objetivo_id === listaId) result.push(p);
+        continue;
+      }
+      if (alcance === 'POR_CLIENTE') {
+        if (!clienteId) continue;
+        const permit = await this.clientePromoRepo.findOne({ where: { campania_id: camp.id, cliente_id: clienteId } });
+        if (permit) result.push(p);
+        continue;
+      }
+    }
+
+    return result;
+  }
 
   // ===== CAMPAÑAS CRUD =====
   findCampanias(includeDeleted = false) {

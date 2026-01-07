@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Alert } from 'components/ui/Alert'
 import { Button } from 'components/ui/Button'
-import { createUsuario } from '../../services/usuariosApi'
+import { createUsuario, updateUsuario, type Usuario } from '../../services/usuariosApi'
 
 const ROLES = [
   { id: 2, nombre: 'Supervisor' },
@@ -23,10 +23,25 @@ interface CrearUsuarioModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
+  initialData?: Usuario | null
+  mode?: 'create' | 'edit'
 }
 
-export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioModalProps) {
+export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mode = 'create' }: CrearUsuarioModalProps) {
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
+
+  useEffect(() => {
+    if (isOpen && initialData && mode === 'edit') {
+      setFormData({
+        nombre: initialData.nombre,
+        email: initialData.email,
+        password: '',
+        rolId: initialData.rol.id,
+      })
+    } else if (isOpen && mode === 'create') {
+      setFormData(INITIAL_FORM_STATE)
+    }
+  }, [isOpen, initialData, mode])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState<{
@@ -47,9 +62,9 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
       newErrors.email = 'Email inválido'
     }
 
-    if (!formData.password) {
+    if (mode === 'create' && !formData.password) {
       newErrors.password = 'La contraseña es requerida'
-    } else if (formData.password.length < 6) {
+    } else if (formData.password && formData.password.length < 6) {
       newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
     }
 
@@ -75,17 +90,32 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
     setIsSubmitting(true)
 
     try {
-      await createUsuario({
-        nombre: formData.nombre,
-        email: formData.email,
-        password: formData.password,
-        rolId: formData.rolId,
-      })
-
-      setSubmitMessage({
-        type: 'success',
-        message: 'Usuario creado exitosamente',
-      })
+      if (mode === 'edit' && initialData) {
+        const updatePayload: any = {
+          nombre: formData.nombre,
+          email: formData.email,
+          rolId: formData.rolId,
+        }
+        if (formData.password) {
+          updatePayload.password = formData.password
+        }
+        await updateUsuario(initialData.id, updatePayload)
+        setSubmitMessage({
+          type: 'success',
+          message: 'Usuario actualizado exitosamente',
+        })
+      } else {
+        await createUsuario({
+          nombre: formData.nombre,
+          email: formData.email,
+          password: formData.password,
+          rolId: formData.rolId,
+        })
+        setSubmitMessage({
+          type: 'success',
+          message: 'Usuario creado exitosamente',
+        })
+      }
 
       setTimeout(() => {
         handleClose()
@@ -94,7 +124,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
     } catch (error: any) {
       setSubmitMessage({
         type: 'error',
-        message: error.response?.data?.message || 'Error al crear el usuario',
+        message: error.message || 'Error al guardar el usuario',
       })
     } finally {
       setIsSubmitting(false)
@@ -104,7 +134,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
   return (
     <Modal
       isOpen={isOpen}
-      title="Crear Usuario"
+      title={mode === 'edit' ? 'Editar Usuario' : 'Crear Usuario'}
       onClose={handleClose}
       headerGradient="red"
       maxWidth="md"
@@ -141,10 +171,10 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
         />
 
         <TextField
-          label="Contraseña"
+          label={mode === 'edit' ? 'Nueva contraseña (opcional)' : 'Contraseña'}
           tone="light"
           type="password"
-          placeholder="Mínimo 6 caracteres"
+          placeholder={mode === 'edit' ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'}
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           error={errors.password}
@@ -181,7 +211,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess }: CrearUsuarioMo
             className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creando...' : 'Crear usuario'}
+            {isSubmitting ? (mode === 'edit' ? 'Guardando...' : 'Creando...') : (mode === 'edit' ? 'Guardar cambios' : 'Crear usuario')}
           </Button>
         </div>
       </form>

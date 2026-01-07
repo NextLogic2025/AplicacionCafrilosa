@@ -5,7 +5,6 @@ import {
   createZona, 
   updateZona,
   toggleZonaActivo,
-  deleteZona,
   asignarVendedorAZona,
   actualizarAsignacionVendedor,
   eliminarAsignacionVendedor,
@@ -119,10 +118,6 @@ export function useZonas() {
     await toggleZonaActivo(zona.id, !zona.activo)
   }
 
-  const eliminarZona = async (id: number) => {
-    await deleteZona(id)
-  }
-
   return {
     zonas,
     vendedores,
@@ -132,6 +127,5 @@ export function useZonas() {
     crearZonaConVendedor,
     actualizarZonaConVendedor,
     toggleEstadoZona,
-    eliminarZona,
   }
 }

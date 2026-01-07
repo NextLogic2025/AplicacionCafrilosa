@@ -3,9 +3,6 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { AuthAuditoria } from '../entities/auth-auditoria.entity';
-import { AuthRefreshToken } from '../entities/auth-token.entity';
-import { Dispositivo } from '../entities/dispositivo.entity';
 import { Role } from '../entities/role.entity';
 import { Usuario } from '../entities/usuario.entity';
 
@@ -16,7 +13,7 @@ import { RolesGuard } from './roles.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Usuario, Role, AuthRefreshToken, Dispositivo, AuthAuditoria]),
+    TypeOrmModule.forFeature([Usuario, Role]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'dev-secret-change-me',
       signOptions: { expiresIn: '1h' },

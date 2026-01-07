@@ -1,10 +1,11 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
+  private readonly logger = new Logger(RolesGuard.name);
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -13,6 +14,9 @@ export class RolesGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const user = req.user;
+
+    // avoid logging user details in production — keep silent for successful checks
+
     if (!user) return false;
 
     // Normalize required roles to lowercase for case-insensitive compare
@@ -32,11 +36,14 @@ export class RolesGuard implements CanActivate {
     // Support tokens that include a numeric `rolId` claim instead of role name
     // Map known role names to IDs used in `usuarios` DB. Ajusta los IDs si es necesario.
     const ROLE_NAME_TO_ID: Record<string, number> = { admin: 1, supervisor: 2, bodeguero: 3, vendedor: 4, transportista: 5, cliente: 6 };
-    if (user.rolId && typeof user.rolId === 'number') {
-      const neededIds = required
-        .map((r) => ROLE_NAME_TO_ID[r])
-        .filter((v) => typeof v === 'number') as number[];
-      if (neededIds.includes(user.rolId)) return true;
+    if (user.rolId) {
+      const numericRolId = Number(user.rolId);
+      if (!Number.isNaN(numericRolId)) {
+        const neededIds = required
+          .map((r) => ROLE_NAME_TO_ID[r])
+          .filter((v) => typeof v === 'number') as number[];
+        if (neededIds.includes(numericRolId)) return true;
+      }
     }
 
     // Optional: allow by numeric role_level if provided and required includes a level indicator (not used now)
@@ -44,6 +51,7 @@ export class RolesGuard implements CanActivate {
       // Future extension: map required roles to levels and compare
     }
 
+    this.logger.warn('RolesGuard denied: insufficient roles');
     return false;
   }
 }
