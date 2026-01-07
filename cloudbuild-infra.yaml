@@ -1,0 +1,15 @@
+steps:
+  # Inicializar Terraform
+  - name: 'hashicorp/terraform:1.6.0'
+    args: ['init']
+    dir: 'infra'
+
+  # Planificar infraestructura
+  - name: 'hashicorp/terraform:1.6.0'
+    args: ['plan', '-out=tfplan']
+    dir: 'infra'
+
+  # Aplicar solo si es la rama main
+  - name: 'hashicorp/terraform:1.6.0'
+    args: ['apply', '-auto-approve', 'tfplan']
+    dir: 'infra'

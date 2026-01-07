@@ -23,3 +23,9 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Ignorar directorios de Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
