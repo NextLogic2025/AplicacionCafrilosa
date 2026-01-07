@@ -1,7 +1,7 @@
 services:
   # --- BASE DE DATOS (Ya la tenías) ---
   database:
-    image: postgis/postgis:15-3.3-alpine
+    image: postgis/postgis:17-3.4-alpine
     container_name: gcp-sql-local
     restart: always
     environment:
