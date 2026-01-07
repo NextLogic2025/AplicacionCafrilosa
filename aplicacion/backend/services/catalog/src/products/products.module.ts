@@ -23,8 +23,4 @@ import { Product } from './entities/product.entity';
   controllers: [ProductsController],
   providers: [ProductsService]
 })
-<<<<<<< HEAD
 export class ProductsModule {}
-=======
-export class ProductsModule {}
->>>>>>> origin/omer

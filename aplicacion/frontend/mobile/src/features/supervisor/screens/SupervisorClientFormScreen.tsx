@@ -43,7 +43,7 @@ export function SupervisorClientFormScreen() {
 
     // --- FORM DATA ---
     const [userData, setUserData] = useState({
-        nombre: '', email: '', password: '', rolId: 4
+        nombre: '', email: '', password: '', rolId: 6
     })
 
     const [clientData, setClientData] = useState({
@@ -179,7 +179,7 @@ export function SupervisorClientFormScreen() {
                     email: userData.email,
                     password: userData.password,
                     nombre: userData.nombre || clientData.razon_social,
-                    rolId: 4
+                    rolId: 6
                 })
                 if (!userResponse.success || !userResponse.userId) throw new Error(userResponse.message || 'Error al crear usuario')
                 userId = userResponse.userId

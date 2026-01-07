@@ -19,11 +19,7 @@ type AuthRequest = Request & { user?: JwtUser };
 
 @Controller('auth')
 export class AuthController {
-<<<<<<< HEAD
-  constructor(private readonly authService: AuthService) { }
-=======
   constructor(private readonly authService: AuthService) {}
->>>>>>> origin/omer
 
   @Get('me')
   @UseGuards(JwtAuthGuard)

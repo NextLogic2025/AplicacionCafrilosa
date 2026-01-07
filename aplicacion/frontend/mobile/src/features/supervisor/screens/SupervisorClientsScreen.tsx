@@ -213,12 +213,7 @@ export function SupervisorClientsScreen({ navigation }: any) {
                         {item.nombre_comercial || item.razon_social}
                     </Text>
 
-                    {item._linkedUserName && (
-                        <View className="flex-row items-center mt-1">
-                            <Ionicons name="person" size={12} color="#7e22ce" />
-                            <Text className="text-purple-700 text-xs font-bold ml-1">{item._linkedUserName}</Text>
-                        </View>
-                    )}
+
 
                     {item.nombre_comercial && item.nombre_comercial !== item.razon_social && (
                         <Text className="text-neutral-400 text-[10px] italic mt-0.5" numberOfLines={1}>

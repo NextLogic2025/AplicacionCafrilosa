@@ -17,8 +17,4 @@ import { ListaPrecio } from './entities/lista-precio.entity';
   controllers: [PreciosController],
   exports: [PreciosService],
 })
-<<<<<<< HEAD
 export class PreciosModule {}
-=======
-export class PreciosModule {}
->>>>>>> origin/omer

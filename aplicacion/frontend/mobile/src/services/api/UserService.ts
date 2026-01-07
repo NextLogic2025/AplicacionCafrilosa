@@ -14,8 +14,8 @@ export interface UserProfile {
 export const UserService = {
     getProfile: async (): Promise<UserProfile | null> => {
         try {
-            // Using full URL to override default catalogUrl in client
-            const data = await apiRequest<any>(`${env.api.baseUrl}/auth/me`)
+            // Using usersUrl for user-related data
+            const data = await apiRequest<any>(`${env.api.usersUrl}/auth/me`)
 
             return {
                 id: data.id,
@@ -52,8 +52,8 @@ export const UserService = {
 
     getUsers: async (): Promise<UserProfile[]> => {
         try {
-            // Correct endpoint is /auth/usuarios
-            const data = await apiRequest<any[]>(`${env.api.baseUrl}/auth/usuarios`)
+            // Users service endpoints
+            const data = await apiRequest<any[]>(`${env.api.usersUrl}/auth/usuarios`)
 
             return data.map((u: any) => ({
                 id: u.id,
@@ -72,7 +72,7 @@ export const UserService = {
 
     getVendors: async (): Promise<UserProfile[]> => {
         try {
-            const data = await apiRequest<any[]>(`${env.api.baseUrl}/auth/vendedores`)
+            const data = await apiRequest<any[]>(`${env.api.usersUrl}/auth/vendedores`)
 
             return data.map((u: any) => ({
                 id: u.id,
@@ -92,7 +92,7 @@ export const UserService = {
     updateUser: async (userId: string, data: Partial<{ nombre: string; activo: boolean; rolId: number }>): Promise<{ success: boolean; message?: string }> => {
         try {
             // 1. Update basic info (Name, Role, etc.)
-            await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}`, {
+            await apiRequest(`${env.api.usersUrl}/auth/usuarios/${userId}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             })
@@ -100,7 +100,7 @@ export const UserService = {
             // 2. Handle Activation/Deactivation Explicitly if provided
             if (data.activo !== undefined) {
                 const action = data.activo ? 'activar' : 'desactivar'
-                await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}/${action}`, {
+                await apiRequest(`${env.api.usersUrl}/auth/usuarios/${userId}/${action}`, {
                     method: 'PUT'
                 })
             }
@@ -114,7 +114,7 @@ export const UserService = {
 
     deleteUser: async (userId: string): Promise<{ success: boolean; message?: string }> => {
         try {
-            await apiRequest(`${env.api.baseUrl}/auth/usuarios/${userId}`, {
+            await apiRequest(`${env.api.usersUrl}/auth/usuarios/${userId}`, {
                 method: 'DELETE'
             })
             return { success: true, message: 'Usuario eliminado correctamente' }
