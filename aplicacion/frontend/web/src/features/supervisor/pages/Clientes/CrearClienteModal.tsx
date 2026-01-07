@@ -11,6 +11,7 @@ import {
   type ZonaComercial,
   type ListaPrecio,
 } from '../../services/clientesApi'
+import { obtenerAsignacionesDeZona } from '../../services/zonasApi'
 import { crearSucursal } from '../../services/sucursalesApi'
 import { createUsuario } from '../../services/usuariosApi'
 import {
@@ -74,6 +75,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         typeof initialData?.zona_comercial_id === 'string'
           ? parseInt(initialData.zona_comercial_id, 10)
           : initialData?.zona_comercial_id ?? null,
+      vendedor_asignado_id: initialData?.vendedor_asignado_id ?? null,
       latitud: initialData?.latitud ?? null,
       longitud: initialData?.longitud ?? null,
     })
@@ -95,6 +97,32 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
     }
     loadCatalog()
   }, [isOpen, initialData])
+
+  // Auto-asignar vendedor cuando cambia la zona
+  useEffect(() => {
+    const loadVendorForZone = async () => {
+      if (formData.zona_comercial_id) {
+        try {
+          const asignaciones = await obtenerAsignacionesDeZona(formData.zona_comercial_id)
+          const asignacionPrincipal = asignaciones.find(a => a.es_principal)
+          if (asignacionPrincipal && asignacionPrincipal.vendedor_usuario_id) {
+            setFormData(prev => ({ ...prev, vendedor_asignado_id: asignacionPrincipal.vendedor_usuario_id }))
+          } else {
+            setFormData(prev => ({ ...prev, vendedor_asignado_id: null }))
+          }
+        } catch (error) {
+          console.error('Error al obtener asignaciones de vendedor:', error)
+          setFormData(prev => ({ ...prev, vendedor_asignado_id: null }))
+        }
+      } else {
+        setFormData(prev => ({ ...prev, vendedor_asignado_id: null }))
+      }
+    }
+    
+    if (formData.zona_comercial_id) {
+      loadVendorForZone()
+    }
+  }, [formData.zona_comercial_id])
 
   const validateForm = (): boolean => {
     const newErrors = validateClienteForm(formData, mode)
@@ -170,6 +198,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           usuario_principal_id: usuarioId,
           lista_precios_id: formData.lista_precios_id,
           zona_comercial_id: formData.zona_comercial_id,
+          vendedor_asignado_id: formData.vendedor_asignado_id || undefined,
           tiene_credito: formData.tiene_credito,
           limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
           dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
@@ -186,6 +215,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           usuario_principal_id: usuarioId,
           lista_precios_id: formData.lista_precios_id,
           zona_comercial_id: formData.zona_comercial_id,
+          vendedor_asignado_id: formData.vendedor_asignado_id || undefined,
           tiene_credito: formData.tiene_credito,
           limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
           dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,

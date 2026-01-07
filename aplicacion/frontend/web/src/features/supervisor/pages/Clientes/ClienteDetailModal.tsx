@@ -256,7 +256,8 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
             ubicacionMatriz={mainLocation}
             onSubmit={async (vals) => {
               if (!cliente) return
-              const commonData = {
+              const commonData: any = {
+                cliente_id: cliente.id,
                 nombre_sucursal: vals.nombre_sucursal,
                 direccion_entrega: vals.direccion_entrega || undefined,
                 contacto_nombre: vals.contacto_nombre || undefined,
@@ -264,7 +265,9 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
                 ubicacion_gps: vals.posicion ? { type: 'Point' as const, coordinates: [vals.posicion.lng, vals.posicion.lat] as [number, number] } : undefined,
               }
               if (editingSucursal?.id) {
-                await actualizarSucursal(cliente.id, editingSucursal.id, commonData)
+                const updateData = { ...commonData }
+                delete updateData.cliente_id
+                await actualizarSucursal(cliente.id, editingSucursal.id, updateData)
               } else {
                 await crearSucursal(cliente.id, commonData)
               }

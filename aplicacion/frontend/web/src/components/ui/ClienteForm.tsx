@@ -19,6 +19,7 @@ export type ClienteFormValues = {
   direccion_texto: string
   lista_precios_id: number | null
   zona_comercial_id: number | null
+  vendedor_asignado_id?: string | null
   latitud?: number | null
   longitud?: number | null
   ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
@@ -29,6 +30,11 @@ export type ZonaOption = {
   nombre: string; 
   descripcion?: string;
   poligono_geografico?: unknown;
+  vendedor_asignado?: {
+    id: number
+    vendedor_usuario_id: string
+    nombre_vendedor_cache: string | null
+  } | null
 }
 export type ListaPrecioOption = { id: number; nombre: string; descripcion?: string; activo?: boolean }
 
@@ -48,6 +54,7 @@ export const CLIENTE_FORM_DEFAULT: ClienteFormValues = {
   direccion_texto: '',
   lista_precios_id: null,
   zona_comercial_id: null,
+  vendedor_asignado_id: null,
   latitud: null,
   longitud: null,
   ubicacion_gps: null,
@@ -317,6 +324,15 @@ export function ClienteForm({
               ))}
             </select>
           </div>
+
+          {/* Vendedor Asignado - Mostrar si hay uno asociado a la zona */}
+          {value.vendedor_asignado_id && (
+            <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-200">
+              <p className="text-xs text-emerald-800 font-semibold">
+                ✓ Vendedor asignado a la zona cargado automáticamente
+              </p>
+            </div>
+          )}
 
           {/* Mapa de la zona seleccionada */}
           {value.zona_comercial_id && (

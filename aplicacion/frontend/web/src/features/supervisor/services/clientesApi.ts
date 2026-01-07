@@ -46,6 +46,11 @@ export interface ZonaComercial {
   id: number
   nombre: string
   descripcion?: string
+  vendedor_asignado?: {
+    id: number
+    vendedor_usuario_id: string
+    nombre_vendedor_cache: string | null
+  } | null
 }
 
 export interface ListaPrecio {

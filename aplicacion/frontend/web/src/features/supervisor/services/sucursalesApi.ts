@@ -35,7 +35,7 @@ export interface UpdateSucursalDto {
 export async function crearSucursal(clienteId: string, data: CreateSucursalDto): Promise<Sucursal> {
   return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales`, {
     method: 'POST',
-    body: { cliente_id: clienteId, ...data },
+    body: data,
   })
 }
 
