@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, Platform } from 'react-native'
+import { View, Text, Modal, TouchableOpacity, ScrollView, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { RoutePlan } from '../../../services/api/RouteService'
@@ -34,34 +34,50 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View className="flex-1 bg-black/50 justify-end">
-                <View className="bg-white rounded-t-3xl p-6 h-[70%]">
-                    <View className="flex-row justify-between items-center mb-6">
-                        <Text className="text-xl font-bold text-neutral-900">Detalles de Visita</Text>
-                        <TouchableOpacity onPress={onClose} className="p-2 bg-neutral-100 rounded-full">
-                            <Ionicons name="close" size={24} color="#6B7280" />
-                        </TouchableOpacity>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+                <View style={{ backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '70%' }}>
+                    {/* Header */}
+                    <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>Detalles de Visita</Text>
+                            <TouchableOpacity onPress={onClose} style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 }}>
+                                <Ionicons name="close" size={24} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false}>
+                    <ScrollView style={{ flex: 1, padding: 20 }} showsVerticalScrollIndicator={false}>
                         {/* Client Info */}
-                        <View className="mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-100">
-                            <Text className="text-sm font-bold text-neutral-500 uppercase mb-1">Cliente</Text>
-                            <Text className="text-lg font-bold text-neutral-800">{routeItem._cliente?.nombre_comercial}</Text>
-                            <Text className="text-sm text-neutral-600">{routeItem._cliente?.razon_social}</Text>
+                        <View style={{ marginBottom: 24, padding: 16, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FEE2E2' }}>
+                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#9CA3AF', marginBottom: 8 }}>CLIENTE</Text>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>{routeItem._cliente?.nombre_comercial}</Text>
+                            {routeItem._cliente?.razon_social && routeItem._cliente.razon_social !== routeItem._cliente.nombre_comercial && (
+                                <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>{routeItem._cliente?.razon_social}</Text>
+                            )}
                         </View>
 
                         {/* Frequency */}
-                        <View className="mb-6">
-                            <Text className="text-sm font-bold text-neutral-900 mb-3">Frecuencia de Visita</Text>
-                            <View className="flex-row gap-2">
+                        <View style={{ marginBottom: 24 }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Frecuencia de Visita</Text>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
                                 {['SEMANAL', 'QUINCENAL', 'MENSUAL'].map((opt) => (
                                     <TouchableOpacity
                                         key={opt}
                                         onPress={() => setData({ ...data, frecuencia: opt as any })}
-                                        className={`flex-1 py-3 items-center rounded-xl border ${data.frecuencia === opt ? 'bg-red-50 border-red-500' : 'bg-white border-neutral-200'}`}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 12,
+                                            alignItems: 'center',
+                                            borderRadius: 12,
+                                            borderWidth: 1,
+                                            backgroundColor: data.frecuencia === opt ? '#FEF2F2' : 'white',
+                                            borderColor: data.frecuencia === opt ? BRAND_COLORS.red : '#D1D5DB'
+                                        }}
                                     >
-                                        <Text className={`font-bold ${data.frecuencia === opt ? 'text-red-700' : 'text-neutral-600'}`}>
+                                        <Text style={{
+                                            fontWeight: 'bold',
+                                            color: data.frecuencia === opt ? BRAND_COLORS.red : '#6B7280'
+                                        }}>
                                             {opt.charAt(0) + opt.slice(1).toLowerCase()}
                                         </Text>
                                     </TouchableOpacity>
@@ -70,21 +86,32 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                         </View>
 
                         {/* Priority */}
-                        <View className="mb-6">
-                            <Text className="text-sm font-bold text-neutral-900 mb-3">Prioridad</Text>
-                            <View className="flex-row gap-2">
+                        <View style={{ marginBottom: 24 }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Prioridad</Text>
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
                                 {[
-                                    { id: 'ALTA', color: 'bg-red-100 border-red-200 text-red-700' },
-                                    { id: 'MEDIA', color: 'bg-yellow-100 border-yellow-200 text-yellow-800' },
-                                    { id: 'BAJA', color: 'bg-green-100 border-green-200 text-green-700' }
+                                    { id: 'ALTA', color: '#EF4444' },
+                                    { id: 'MEDIA', color: '#F59E0B' },
+                                    { id: 'BAJA', color: '#10B981' }
                                 ].map((opt) => (
                                     <TouchableOpacity
                                         key={opt.id}
                                         onPress={() => setData({ ...data, prioridad_visita: opt.id as any })}
-                                        className={`flex-1 py-3 items-center rounded-xl border ${data.prioridad_visita === opt.id ? `border-2 ${opt.color.split(' ')[1]}` : 'border-neutral-200 bg-white'}`}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 12,
+                                            alignItems: 'center',
+                                            borderRadius: 12,
+                                            borderWidth: data.prioridad_visita === opt.id ? 2 : 1,
+                                            backgroundColor: data.prioridad_visita === opt.id ? '#FEF2F2' : 'white',
+                                            borderColor: data.prioridad_visita === opt.id ? BRAND_COLORS.red : '#D1D5DB'
+                                        }}
                                     >
-                                        <View className={`w-3 h-3 rounded-full mr-1 ${opt.color.split(' ')[0]} mb-1`} />
-                                        <Text className={`font-bold ${data.prioridad_visita === opt.id ? 'text-neutral-900' : 'text-neutral-500'}`}>
+                                        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: opt.color, marginBottom: 4 }} />
+                                        <Text style={{
+                                            fontWeight: 'bold',
+                                            color: data.prioridad_visita === opt.id ? '#111827' : '#6B7280'
+                                        }}>
                                             {opt.id}
                                         </Text>
                                     </TouchableOpacity>
@@ -93,13 +120,20 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                         </View>
 
                         {/* Estimated Time */}
-                        <View className="mb-8">
-                            <Text className="text-sm font-bold text-neutral-900 mb-2">Hora Estimada (HH:MM)</Text>
+                        <View style={{ marginBottom: 32 }}>
+                            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>Hora Estimada (HH:MM)</Text>
                             <TouchableOpacity
                                 onPress={() => setShowTimePicker(true)}
-                                className="w-full bg-neutral-50 px-4 py-3 rounded-xl border border-neutral-200"
+                                style={{
+                                    backgroundColor: '#F9FAFB',
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 12,
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: '#D1D5DB'
+                                }}
                             >
-                                <Text className="text-lg font-medium text-neutral-900">
+                                <Text style={{ fontSize: 18, fontWeight: '500', color: '#111827' }}>
                                     {data.hora_estimada_arribo || 'Seleccionar Hora'}
                                 </Text>
                             </TouchableOpacity>
@@ -115,7 +149,7 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                                     })()}
                                     mode="time"
                                     is24Hour={true}
-                                    display="spinner" // or 'default'
+                                    display="spinner"
                                     onChange={(event, selectedDate) => {
                                         setShowTimePicker(Platform.OS === 'ios')
                                         if (selectedDate) {
@@ -125,17 +159,24 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                                     }}
                                 />
                             )}
-                            <Text className="text-xs text-neutral-400 mt-1">Selecciona la hora estimada de visita</Text>
+                            <Text style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Selecciona la hora estimada de visita</Text>
                         </View>
                     </ScrollView>
 
                     {/* Actions */}
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        className="bg-red-500 rounded-xl py-4 items-center mb-4 shadow-lg"
-                    >
-                        <Text className="text-white font-bold text-base">Guardar Cambios</Text>
-                    </TouchableOpacity>
+                    <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+                        <TouchableOpacity
+                            onPress={handleSave}
+                            style={{
+                                backgroundColor: BRAND_COLORS.red,
+                                borderRadius: 12,
+                                paddingVertical: 16,
+                                alignItems: 'center'
+                            }}
+                        >
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Guardar Cambios</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </Modal>

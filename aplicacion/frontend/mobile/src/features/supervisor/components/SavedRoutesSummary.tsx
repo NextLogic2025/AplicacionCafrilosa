@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { RouteService, RoutePlan } from '../../../services/api/RouteService'
 import { ZoneService, Zone } from '../../../services/api/ZoneService'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
 
 interface Props {
     onSelectRoute: (zoneId: number, day: number) => void
@@ -12,6 +14,21 @@ interface Props {
 export function SavedRoutesSummary({ onSelectRoute }: Props) {
     const [loading, setLoading] = useState(true)
     const [summary, setSummary] = useState<any[]>([])
+
+    // Feedback Modal State
+    const [feedbackModal, setFeedbackModal] = useState<{
+        visible: boolean
+        type: FeedbackType
+        title: string
+        message: string
+        onConfirm?: () => void
+        showCancel?: boolean
+    }>({
+        visible: false,
+        type: 'success',
+        title: '',
+        message: ''
+    })
 
     useEffect(() => {
         loadData()
@@ -68,36 +85,109 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
         )
     }
 
+    const handleDeleteRoute = (zoneId: number, day: number, zoneName: string) => {
+        setFeedbackModal({
+            visible: true,
+            type: 'warning',
+            title: 'Eliminar Ruta',
+            message: `¿Estás seguro de eliminar la ruta de ${zoneName} - ${getDayName(day)}?`,
+            showCancel: true,
+            onConfirm: async () => {
+                setFeedbackModal({ ...feedbackModal, visible: false })
+                try {
+                    const routes = await RouteService.getAll()
+                    const toDelete = routes.filter(r => r.zona_id === zoneId && r.dia_semana === day)
+                    await Promise.all(toDelete.map(r => RouteService.delete(r.id)))
+                    loadData()
+                    setFeedbackModal({
+                        visible: true,
+                        type: 'success',
+                        title: 'Ruta Eliminada',
+                        message: 'La ruta se eliminó correctamente'
+                    })
+                } catch (error) {
+                    setFeedbackModal({
+                        visible: true,
+                        type: 'error',
+                        title: 'Error al eliminar',
+                        message: 'No se pudo eliminar la ruta. Intenta nuevamente'
+                    })
+                }
+            }
+        })
+    }
+
     return (
         <ScrollView className="flex-1 bg-neutral-50 p-4">
             {summary.map((item) => (
-                <View key={item.key} className="bg-white rounded-xl p-4 mb-3 border border-neutral-100 shadow-sm">
-                    <View className="flex-row justify-between items-start">
-                        <View>
-                            <Text className="text-lg font-bold text-neutral-800">{item.zona_nombre}</Text>
-                            <View className="flex-row items-center gap-2 mt-1">
-                                <View className="bg-red-50 px-2 py-0.5 rounded text-xs border border-red-100">
-                                    <Text className="text-red-700 font-bold text-xs">{getDayName(item.dia_semana)}</Text>
+                <View key={item.key} className="bg-white rounded-2xl mb-4 overflow-hidden shadow-md border border-neutral-100">
+                    {/* Header with gradient */}
+                    <View className="bg-red-50 px-4 py-3 border-b border-red-100">
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                                <View className="w-12 h-12 rounded-xl bg-red-500 items-center justify-center mr-3 shadow-sm">
+                                    <Ionicons name="map" size={24} color="white" />
                                 </View>
-                                <Text className="text-neutral-500 text-xs">{item.count} Clientes</Text>
+                                <View className="flex-1">
+                                    <Text className="text-lg font-bold text-neutral-900">{item.zona_nombre}</Text>
+                                    <Text className="text-xs text-neutral-500 mt-0.5">Ruta planificada</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Content */}
+                    <View className="px-4 py-3">
+                        {/* Info Row */}
+                        <View className="flex-row items-center justify-between mb-4">
+                            <View className="flex-row items-center gap-3">
+                                <StatusBadge
+                                    label={getDayName(item.dia_semana)}
+                                    variant="primary"
+                                    icon="calendar"
+                                    size="md"
+                                />
+                                <View className="flex-row items-center">
+                                    <Ionicons name="people" size={16} color="#6B7280" />
+                                    <Text className="text-neutral-600 font-bold text-sm ml-1">
+                                        {item.count} {item.count === 1 ? 'Cliente' : 'Clientes'}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
 
+                        {/* Action Buttons */}
                         <View className="flex-row gap-2">
                             <TouchableOpacity
                                 onPress={() => onSelectRoute(item.zona_id, item.dia_semana)}
-                                className="bg-white border border-red-200 px-4 py-2 rounded-lg"
+                                className="flex-1 bg-red-500 py-3 rounded-xl flex-row items-center justify-center shadow-sm"
                             >
-                                <Text className="text-red-600 font-bold text-sm">Ver / Editar</Text>
+                                <Ionicons name="create" size={18} color="white" />
+                                <Text className="text-white font-bold text-sm ml-2">Ver / Editar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity className="bg-red-50 p-2 rounded-lg border border-red-100">
-                                <Ionicons name="trash-outline" size={18} color={BRAND_COLORS.red} />
+
+                            <TouchableOpacity
+                                onPress={() => handleDeleteRoute(item.zona_id, item.dia_semana, item.zona_nombre)}
+                                className="bg-neutral-100 px-4 py-3 rounded-xl border border-neutral-200"
+                            >
+                                <Ionicons name="trash-outline" size={20} color="#DC2626" />
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
             ))}
             <View className="h-20" />
+
+            <FeedbackModal
+                visible={feedbackModal.visible}
+                type={feedbackModal.type}
+                title={feedbackModal.title}
+                message={feedbackModal.message}
+                onClose={() => setFeedbackModal({ ...feedbackModal, visible: false })}
+                onConfirm={feedbackModal.onConfirm}
+                showCancel={feedbackModal.showCancel}
+                confirmText={feedbackModal.type === 'warning' ? 'Eliminar' : 'Entendido'}
+            />
         </ScrollView>
     )
 }

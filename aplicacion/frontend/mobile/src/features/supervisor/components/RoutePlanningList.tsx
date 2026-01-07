@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { RoutePlan } from '../../../services/api/RouteService'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 
 interface Props {
     routes: RoutePlan[]
@@ -23,12 +24,21 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
         )
     }
 
-    const getPriorityColor = (p: string) => {
+    const getPriorityVariant = (p: string): 'error' | 'warning' | 'success' => {
         switch (p) {
-            case 'ALTA': return 'bg-red-100 text-red-800 border-red-200'
-            case 'MEDIA': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-            case 'BAJA': return 'bg-green-100 text-green-800 border-green-200'
-            default: return 'bg-gray-100 text-gray-800 border-gray-200'
+            case 'ALTA': return 'error'
+            case 'MEDIA': return 'warning'
+            case 'BAJA': return 'success'
+            default: return 'warning'
+        }
+    }
+
+    const getFrequencyIcon = (f: string): keyof typeof Ionicons.glyphMap => {
+        switch (f) {
+            case 'SEMANAL': return 'calendar'
+            case 'QUINCENAL': return 'calendar-outline'
+            case 'MENSUAL': return 'calendar-clear-outline'
+            default: return 'calendar'
         }
     }
 
@@ -37,82 +47,120 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
             {routes.map((item, index) => (
                 <View
                     key={item.id || `temp-${index}`}
-                    className={`bg-white rounded-xl mb-3 flex-row items-center shadow-sm border ${item.id.startsWith('temp') ? 'border-neutral-200 opacity-80' : 'border-neutral-100'}`}
+                    className={`bg-white rounded-2xl mb-4 overflow-hidden shadow-md border ${item.id.startsWith('temp') ? 'border-dashed border-neutral-300 opacity-90' : 'border-neutral-100'}`}
                 >
-                    {/* Handle / Index */}
-                    <View className="pl-3 pr-2 py-4 items-center justify-center border-r border-neutral-100 bg-neutral-50 rounded-l-xl">
-                        <Text className="text-neutral-400 font-bold mb-1">{index + 1}</Text>
-                        <Ionicons name="git-commit-outline" size={16} color="#9CA3AF" />
-                    </View>
-
-                    {/* Content */}
-                    <TouchableOpacity
-                        className="flex-1 p-3"
-                        onPress={() => onEdit(item)}
-                    >
-                        {/* Header: Name + Time */}
-                        <View className="flex-row justify-between items-start mb-1">
-                            {/* Info */}
-                            <View className="flex-1 mr-2">
-                                <Text className="font-bold text-neutral-800 text-base" numberOfLines={1}>
-                                    {item._cliente?.nombre_comercial || 'Cliente sin nombre'}
-                                </Text>
-
-                                {/* Owner / Legal Name */}
-                                {item._cliente?.razon_social && item._cliente.razon_social !== item._cliente.nombre_comercial && (
-                                    <Text className="text-neutral-500 text-xs mb-0.5" numberOfLines={1}>
-                                        <Ionicons name="person-outline" size={10} /> {item._cliente?.razon_social}
+                    {/* Header Section with Order Number */}
+                    <View className="bg-red-50 px-4 py-3 border-b border-neutral-100">
+                        <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center flex-1">
+                                <View className="w-10 h-10 rounded-full bg-red-500 items-center justify-center mr-3 shadow-sm">
+                                    <Text className="text-white font-bold text-lg">{index + 1}</Text>
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="font-bold text-neutral-900 text-base" numberOfLines={1}>
+                                        {item._cliente?.nombre_comercial || 'Cliente sin nombre'}
                                     </Text>
-                                )}
-
-                                {/* Address / ID */}
-                                <Text className="text-neutral-400 text-[10px]" numberOfLines={1}>
-                                    {item._cliente?.identificacion ? `ID: ${item._cliente.identificacion} • ` : ''}
-                                    {item._cliente?.direccion || 'Sin dirección'}
-                                </Text>
+                                    {item._cliente?.razon_social && item._cliente.razon_social !== item._cliente.nombre_comercial && (
+                                        <Text className="text-neutral-500 text-xs mt-0.5" numberOfLines={1}>
+                                            {item._cliente?.razon_social}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                             {item.hora_estimada_arribo && (
-                                <View className="flex-row items-center bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                                    <Ionicons name="time-outline" size={10} color="#2563EB" />
-                                    <Text className="text-blue-700 text-[10px] font-bold ml-1">{item.hora_estimada_arribo}</Text>
+                                <View className="bg-blue-500 px-3 py-1.5 rounded-full shadow-sm ml-2">
+                                    <View className="flex-row items-center">
+                                        <Ionicons name="time" size={12} color="white" />
+                                        <Text className="text-white text-xs font-bold ml-1">
+                                            {item.hora_estimada_arribo}
+                                        </Text>
+                                    </View>
                                 </View>
                             )}
                         </View>
+                    </View>
 
-                        {/* Subheader: Badges */}
-                        <View className="flex-row flex-wrap gap-2 mt-1">
-                            {/* Priority Badge */}
-                            <View className={`px-2 py-0.5 rounded border ${getPriorityColor(item.prioridad_visita).replace('text-', '').replace('bg-', '')} bg-opacity-20`}>
-                                <Text className={`text-[10px] font-bold ${getPriorityColor(item.prioridad_visita).split(' ')[1]}`}>
-                                    {item.prioridad_visita}
+                    {/* Content Section */}
+                    <TouchableOpacity
+                        onPress={() => onEdit(item)}
+                        className="px-4 py-3"
+                        activeOpacity={0.7}
+                    >
+                        {/* Address Section */}
+                        <View className="flex-row items-start mb-3">
+                            <Ionicons name="location" size={16} color="#DC2626" style={{ marginTop: 2 }} />
+                            <View className="flex-1 ml-2">
+                                <Text className="text-neutral-700 text-sm" numberOfLines={2}>
+                                    {item._cliente?.direccion || 'Sin dirección registrada'}
                                 </Text>
+                                {item._cliente?.identificacion && (
+                                    <Text className="text-neutral-400 text-xs mt-1">
+                                        ID: {item._cliente.identificacion}
+                                    </Text>
+                                )}
                             </View>
+                        </View>
 
-                            {/* Frequency Badge */}
-                            <View className="px-2 py-0.5 rounded bg-neutral-100 border border-neutral-200">
-                                <Text className="text-neutral-600 text-[10px] font-bold">
-                                    {item.frecuencia.substring(0, 3)}
-                                </Text>
-                            </View>
+                        {/* Badges Section */}
+                        <View className="flex-row flex-wrap gap-2 mb-2">
+                            <StatusBadge
+                                label={item.prioridad_visita}
+                                variant={getPriorityVariant(item.prioridad_visita)}
+                                size="sm"
+                                icon="flag"
+                            />
+                            <StatusBadge
+                                label={item.frecuencia}
+                                variant="info"
+                                size="sm"
+                                icon={getFrequencyIcon(item.frecuencia)}
+                            />
+                            {item.id.startsWith('temp') && (
+                                <StatusBadge
+                                    label="Sin guardar"
+                                    variant="neutral"
+                                    size="sm"
+                                    icon="alert-circle"
+                                    outline
+                                />
+                            )}
+                        </View>
+
+                        {/* Edit Hint */}
+                        <View className="flex-row items-center justify-center py-2 mt-1 border-t border-neutral-100">
+                            <Ionicons name="create-outline" size={14} color="#9CA3AF" />
+                            <Text className="text-neutral-400 text-xs ml-1 font-medium">
+                                Toca para editar detalles
+                            </Text>
                         </View>
                     </TouchableOpacity>
 
-                    {/* Reorder Actions */}
-                    <View className="flex-col items-center justify-between p-2 gap-1 border-l border-neutral-100">
+                    {/* Reorder Controls */}
+                    <View className="flex-row border-t border-neutral-100 bg-neutral-50">
                         <TouchableOpacity
                             onPress={() => index > 0 && onReorder(index, index - 1)}
-                            className={`p-1 rounded-full ${index === 0 ? 'opacity-20' : 'bg-neutral-50 active:bg-neutral-200'}`}
+                            className={`flex-1 py-3 items-center border-r border-neutral-100 ${index === 0 ? 'opacity-30' : 'active:bg-neutral-200'}`}
                             disabled={index === 0}
                         >
-                            <Ionicons name="chevron-up" size={18} color="#4B5563" />
+                            <View className="flex-row items-center">
+                                <Ionicons name="arrow-up" size={16} color={index === 0 ? '#D1D5DB' : '#DC2626'} />
+                                <Text className={`text-xs font-bold ml-1 ${index === 0 ? 'text-neutral-300' : 'text-red-600'}`}>
+                                    Subir
+                                </Text>
+                            </View>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() => index < routes.length - 1 && onReorder(index, index + 1)}
-                            className={`p-1 rounded-full ${index === routes.length - 1 ? 'opacity-20' : 'bg-neutral-50 active:bg-neutral-200'}`}
+                            className={`flex-1 py-3 items-center ${index === routes.length - 1 ? 'opacity-30' : 'active:bg-neutral-200'}`}
                             disabled={index === routes.length - 1}
                         >
-                            <Ionicons name="chevron-down" size={18} color="#4B5563" />
+                            <View className="flex-row items-center">
+                                <Ionicons name="arrow-down" size={16} color={index === routes.length - 1 ? '#D1D5DB' : '#DC2626'} />
+                                <Text className={`text-xs font-bold ml-1 ${index === routes.length - 1 ? 'text-neutral-300' : 'text-red-600'}`}>
+                                    Bajar
+                                </Text>
+                            </View>
                         </TouchableOpacity>
                     </View>
                 </View>

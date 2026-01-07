@@ -26,28 +26,50 @@ type Props = {
 export function ExpandableFab({ actions, onPressMain }: Props) {
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
+    const backdropOpacity = React.useRef(new Animated.Value(0)).current
 
     const toggleMenu = () => {
         const toValue = isOpen ? 0 : 1
 
-        Animated.spring(animation, {
-            toValue,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
+        if (!isOpen) {
+            setIsOpen(true)
+        }
 
-        setIsOpen(!isOpen)
+        Animated.parallel([
+            Animated.spring(animation, {
+                toValue,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue,
+                duration: 200,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            if (isOpen) {
+                setIsOpen(false)
+            }
+        })
     }
 
     const closeMenu = () => {
-        Animated.spring(animation, {
-            toValue: 0,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
-        setIsOpen(false)
+        Animated.parallel([
+            Animated.spring(animation, {
+                toValue: 0,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            setIsOpen(false)
+        })
     }
 
     const rotation = animation.interpolate({
@@ -81,15 +103,14 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
 
     return (
         <>
-            {/* Backdrop (Fondo oscuro) */}
+            {/* Backdrop (Fondo oscuro) - Always mounted, controlled by opacity */}
             <Animated.View
                 style={[
                     StyleSheet.absoluteFill,
                     {
                         backgroundColor: 'rgba(0,0,0,0.4)',
-                        opacity,
+                        opacity: backdropOpacity,
                         zIndex: 9990,
-                        elevation: 1
                     }
                 ]}
                 pointerEvents={isOpen ? 'auto' : 'none'}

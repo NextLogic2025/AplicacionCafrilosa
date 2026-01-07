@@ -61,7 +61,25 @@ export const PromotionService = {
 
     // --- Products ---
     getProducts: async (campaignId: number): Promise<PromotionProduct[]> => {
-        return apiRequest<PromotionProduct[]>(`/api/promociones/${campaignId}/productos`)
+        const response = await apiRequest<{ items: any[] }>(`/api/promociones/${campaignId}/productos`)
+        // Backend returns { items: [...] }, extract the array
+        if (response && typeof response === 'object' && 'items' in response) {
+            return (response.items || []).map((item: any) => ({
+                campania_id: campaignId,
+                producto_id: item.id,
+                precio_oferta_fijo: item.precio_oferta || 0,
+                producto: {
+                    id: item.id,
+                    codigo_sku: item.codigo_sku,
+                    nombre: item.nombre,
+                    descripcion: item.descripcion,
+                    unidad_medida: item.unidad_medida,
+                    imagen_url: item.imagen_url,
+                    activo: item.activo
+                }
+            }))
+        }
+        return []
     },
 
     addProduct: async (campaignId: number, productId: string, precioOferta?: number): Promise<PromotionProduct> => {
