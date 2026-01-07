@@ -28,28 +28,68 @@ export class ProductsController {
     @Query('q') q: string, 
     @Req() req: any
   ) {
-    const { roles, clienteListaId } = await this.resolveClientContext(req);
+    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req);
     
     return this.svc.findAll({
       page: Number(page) || 1,
       per_page: Number(perPage) || 20,
       q,
       roles,
-      clienteListaId
+      clienteListaId,
+      clienteId,
+    });
+  }
+
+  @Get('deleted')
+  @Roles('admin', 'supervisor')
+  findDeleted() {
+    return this.svc.findDeleted();
+  }
+
+  @Get('categoria/:categoriaId')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  async productosPorCategoria(
+    @Param('categoriaId') categoriaId: string,
+    @Query('page') page: string,
+    @Query('per_page') perPage: string,
+    @Query('q') q: string,
+    @Req() req: any,
+  ) {
+    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req);
+    return this.svc.findByCategory(Number(categoriaId), {
+      page: Number(page) || 1,
+      per_page: Number(perPage) || 20,
+      q,
+      roles,
+      clienteListaId,
+      clienteId,
     });
   }
 
   @Get(':id')
   @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
   async findOne(@Param('id') id: string, @Req() req: any) {
-    const { roles, clienteListaId } = await this.resolveClientContext(req);
-    return this.svc.findOne(id, { roles, clienteListaId });
+    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req);
+    return this.svc.findOne(id, { roles, clienteListaId, clienteId });
   }
 
   @Post()
   @Roles('admin', 'supervisor')
-  create(@Body() dto: CreateProductDto) {
-    return this.svc.create(dto);
+  create(@Body() body: any) {
+    // Normalizar payload aceptando snake_case desde el cliente
+    const dto: any = {
+      codigoSku: body.codigo_sku ?? body.codigoSku,
+      nombre: body.nombre,
+      descripcion: body.descripcion ?? body.description ?? null,
+      categoriaId: body.categoria_id ?? body.categoriaId ?? undefined,
+      pesoUnitarioKg: body.peso_unitario_kg != null ? Number(body.peso_unitario_kg) : (body.pesoUnitarioKg != null ? Number(body.pesoUnitarioKg) : undefined),
+      volumenM3: body.volumen_m3 != null ? Number(body.volumen_m3) : (body.volumenM3 != null ? Number(body.volumenM3) : undefined),
+      requiereFrio: body.requiere_frio ?? body.requiereFrio ?? false,
+      unidadMedida: body.unidad_medida ?? body.unidadMedida ?? undefined,
+      imagenUrl: body.imagen_url ?? body.imagenUrl ?? null,
+    };
+
+    return this.svc.create(dto as CreateProductDto);
   }
 
   @Put(':id')
@@ -77,20 +117,23 @@ export class ProductsController {
       : [String(req.user?.role || '').toLowerCase()];
 
     let clienteListaId: number | null = null;
+    let clienteId: string | undefined = undefined;
 
     if (roles.includes('cliente')) {
       // 1. Intentar obtener del token
       clienteListaId = req.user['lista_precios_id'] ?? null;
+      clienteId = req.user?.userId ?? undefined;
 
       // 2. Si no está en token, buscar en DB
       if (!clienteListaId && req.user?.userId) {
         const cliente = await this.clientesService.findByUsuarioPrincipalId(req.user.userId);
         if (cliente) {
           clienteListaId = (cliente as any).lista_precios_id ?? null;
+          clienteId = (cliente as any).id ?? clienteId;
         }
       }
     }
 
-    return { roles, clienteListaId };
+    return { roles, clienteListaId, clienteId };
   }
 }

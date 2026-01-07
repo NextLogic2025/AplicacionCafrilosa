@@ -16,6 +16,8 @@ interface RuteroAgendaProps {
   isLoading: boolean
   onReordenar: (clienteId: string, nuevoOrden: number) => void
   onUpdateHora: (clienteId: string, hora: string) => void
+  onUpdatePrioridad: (clienteId: string, prioridad: 'ALTA' | 'MEDIA' | 'BAJA') => void
+  onUpdateFrecuencia: (clienteId: string, frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL') => void
 }
 
 export function RuteroAgenda({
@@ -28,6 +30,8 @@ export function RuteroAgenda({
   isLoading,
   onReordenar,
   onUpdateHora,
+  onUpdatePrioridad,
+  onUpdateFrecuencia,
 }: RuteroAgendaProps) {
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
@@ -123,6 +127,8 @@ export function RuteroAgenda({
                           <ClienteRuteroCard
                             cliente={cliente}
                             onUpdateHora={onUpdateHora}
+                            onUpdatePrioridad={onUpdatePrioridad}
+                            onUpdateFrecuencia={onUpdateFrecuencia}
                             isDragging={snapshot.isDragging}
                           />
                         </div>

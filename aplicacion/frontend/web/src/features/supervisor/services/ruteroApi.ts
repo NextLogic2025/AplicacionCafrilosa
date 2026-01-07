@@ -19,8 +19,6 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
       MIERCOLES: 4,
       JUEVES: 5,
       VIERNES: 6,
-      SABADO: 7,
-      DOMINGO: 1,
     }
     return map[d] ?? 2
   }
@@ -33,8 +31,11 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
     cliente_id: r.cliente_id,
     zona_id: r.zona_id,
     dia_semana: diaSemana,
+    frecuencia: r.frecuencia ?? 'SEMANAL',
+    prioridad_visita: r.prioridad_visita ?? 'MEDIA',
     orden_sugerido: r.orden_sugerido ?? 999,
     hora_estimada: r.hora_estimada_arribo ?? r.hora_estimada ?? null,
+    activo: r.activo ?? true,
   })) as RuteroPlanificado[]
 }
 
@@ -48,8 +49,6 @@ export async function guardarRutero(datos: RuteroPlanificado[]): Promise<void> {
       MIERCOLES: 4,
       JUEVES: 5,
       VIERNES: 6,
-      SABADO: 7,
-      DOMINGO: 1,
     }
     return map[d] ?? 2
   }
@@ -59,11 +58,11 @@ export async function guardarRutero(datos: RuteroPlanificado[]): Promise<void> {
       cliente_id: item.cliente_id,
       zona_id: item.zona_id,
       dia_semana: diaToNumber(item.dia_semana),
-      frecuencia: 'SEMANAL',
-      prioridad_visita: 'MEDIA',
+      frecuencia: item.frecuencia || 'SEMANAL',
+      prioridad_visita: item.prioridad_visita || 'MEDIA',
       orden_sugerido: item.orden_sugerido,
       hora_estimada_arribo: item.hora_estimada || '09:00:00',
-      activo: true,
+      activo: item.activo ?? true,
     }
     await httpCatalogo<void>('/rutero', {
       method: 'POST',

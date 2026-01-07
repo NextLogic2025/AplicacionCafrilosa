@@ -1,0 +1,3403 @@
+{
+	"info": {
+		"_postman_id": "d2231f8b-bf3f-4543-85af-add2ad5f2ecb",
+		"name": "Cafrilaes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "40076252",
+		"_collection_link": "https://cafri6.postman.co/workspace/Cafri-Workspace~90d5ac05-9b03-4e40-88ca-0d8add0469eb/collection/40076252-d2231f8b-bf3f-4543-85af-add2ad5f2ecb?action=share&source=collection_link&creator=40076252"
+	},
+	"item": [
+		{
+			"name": "Usuarios",
+			"item": [
+				{
+					"name": "Registro",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"aa@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"a\",\r\n  \"rolId\": 2\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{auth}}/auth/registro",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"registro"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"aa@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{auth}}/auth/login",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOWE4ZjM0OC1mNjVjLTQwMTMtOGI2MC0wNzBlNzhmNDFjODEiLCJlbWFpbCI6InRvcGRvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2NzU5MTMyNiwiZXhwIjoxNzY3NjM0NTI2fQ.5tBHKDJt4Xt8fBxKQm1batXSQtNbxDHvFA1hakEZGd0",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{auth}}/auth/logout",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pefil",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiNzg1NmQ4ZC01ZTE4LTQ2NmMtOGJmYy0xZjVlYjMzMzI5NDQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY3Njc0NzA2LCJleHAiOjE3Njc3MTc5MDZ9.xONWekZJp8ZT7YFokNKmqD8pwV8TFJvXk2B0CcTMcN0",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{usu}}/auth/me",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Vendedores",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYzM2OTk0Mi1hNTIxLTQ1YjEtYmI4Ny01MWY1MDcyMjZhZTYiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTg2NTkzLCJleHAiOjE3Njc2Mjk3OTN9.bD7vryb6DHDA6C1UUHPGI3H4QKqx_yjLgaTwmgSGq3k",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{usu}}/auth/vendedores",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"vendedores"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Desactivar Usuario",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/desactivar",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios",
+								"8f588f4f-6887-464f-ab93-861b6eb4f385",
+								"desactivar"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Desactivados",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{usu}}/auth/usuarios/desactivados",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios",
+								"desactivados"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Activar",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/activar",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios",
+								"8f588f4f-6887-464f-ab93-861b6eb4f385",
+								"activar"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar usuario Sin Clientes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{usu}}/auth/usuarios",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Editar Usuario",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"nombre\": \"Nuevo\", \"telefono\": \"12345678\", \"avatarUrl\": \"https://..\", \"emailVerificado\": true,\"rolId\": 3 }"
+						},
+						"url": {
+							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios",
+								"8f588f4f-6887-464f-ab93-861b6eb4f385"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "gfdgdgdf",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"nombre\": \"Nuevo\", \"telefono\": \"12345678\", \"avatarUrl\": \"https://..\", \"emailVerificado\": true,\"rolId\": 3 }"
+						},
+						"url": {
+							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385",
+							"host": [
+								"{{usu}}"
+							],
+							"path": [
+								"auth",
+								"usuarios",
+								"8f588f4f-6887-464f-ab93-861b6eb4f385"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Catalogo",
+			"item": [
+				{
+					"name": "categorias",
+					"item": [
+						{
+							"name": "ingresar Categorias",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\"nombre\":\"Bebidas\",\"descripcion\":\"Bebidas frías y calientes\"}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/categories",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Categorias",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/api/categories",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Categorias Id",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/api/categories/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Categoria",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\"nombre\":\"Bebidas Actualizadas\",\r\n\"activo\":true}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/categories/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Borrar Categorias",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/categories/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Categorias eliminadas",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "",
+										"value": "",
+										"type": "text",
+										"disabled": true
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/categories/deleted",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories",
+										"deleted"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Restaurar Categotias",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/categories/1/restore",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"categories",
+										"1",
+										"restore"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Productos",
+					"item": [
+						{
+							"name": "Listar Productos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/products?page=1&per_page=20",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar un Producto",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/products/897b9ae0-125b-4f70-b2cc-313e053251d6",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"897b9ae0-125b-4f70-b2cc-313e053251d6"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Productos",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"codigo_sku\":\"TEST-SKU-003\",\r\n\"nombre\":\"Salchicha\",\r\n\"descripcion\":\"Descripción\",\r\n\"categoria_id\": 1,\r\n\"peso_unitario_kg\":\"1.000\",\r\n\"volumen_m3\":\"0.0010\",\r\n\"requiere_frio\": false,\r\n\"unidad_medida\":\"UNIDAD\",\r\n\"imagen_url\": null\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/products",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Producto",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"codigo_sku\":\"TEST-SKU-001\",\r\n\"nombre\":\"Mortadela\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/products/69cbca07-47c3-430a-a9e1-3068495b75ca",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"69cbca07-47c3-430a-a9e1-3068495b75ca"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Producto",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"codigo_sku\":\"TEST-SKU-001\",\r\n\"nombre\":\"Mortadela\"\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/products/69cbca07-47c3-430a-a9e1-3068495b75ca",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"69cbca07-47c3-430a-a9e1-3068495b75ca"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "listar productos por categoria",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/products/lista/2?page=1&per_page=20",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"lista",
+										"2"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Productos Eliminados",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/products/deleted",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"deleted"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Restaurar Producto",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/products/69cbca07-47c3-430a-a9e1-3068495b75ca/restore",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products",
+										"69cbca07-47c3-430a-a9e1-3068495b75ca",
+										"restore"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Precios",
+					"item": [
+						{
+							"name": "Asignar Precios",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"productoId\": \"9be7bbd9-6882-4941-8852-87fec15e71a1\",\r\n  \"listaId\": 1,\r\n  \"precio\": 9\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Ver precios de un Producto",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/precios/producto/9a0ccdba-fbbc-4356-aefe-055ae454efe1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"producto",
+										"9a0ccdba-fbbc-4356-aefe-055ae454efe1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Traer Listas",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"productoId\": \"9a0ccdba-fbbc-4356-aefe-055ae454efe1\",\r\n  \"listaId\": 1,\r\n  \"precio\": 10.50\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios/listas",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"listas"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear una Lista",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\"nombre\":\"Restaurantesss\",\"activa\":true,\"moneda\":\"PEN\"}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios/listas",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"listas"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Ediatar Lista Precios",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\"moneda\":\"USD\"}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios/listas/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"listas",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Precios",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios/listas/4",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"listas",
+										"4"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Productos que solo tengan precio",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/precios/lista/2/productos?page=1&per_page=20",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"lista",
+										"2",
+										"productos"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Todos los productos mas precio",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/precios/lista/1/productos",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"lista",
+										"1",
+										"productos"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Precio",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"productoId\": \"9be7bbd9-6882-4941-8852-87fec15e71a1\",\r\n  \"listaId\": 1,\r\n  \"precio\": 11\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/precios",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Precio Asignado",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/precios/lista/2/producto/9a0ccdba-fbbc-4356-aefe-055ae454efe1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"lista",
+										"2",
+										"producto",
+										"9a0ccdba-fbbc-4356-aefe-055ae454efe1"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Zonas",
+					"item": [
+						{
+							"name": "Listar Zonas",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Zonas",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzY3NDgyNiwiZXhwIjoxNzY3NzE4MDI2fQ.h9D8JqTtie__J4MUta02jLcmEJFEKQ09L_0JapeGig4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"codigo\": \"Z-001\",\r\n  \"nombre\": \"Zonadasww Centwwwro aaaa\",\r\n  \"ciudad\": \"Quitawwawwdaswoa\",\r\n  \"macrorregion\": \"Sierraa\",\r\n  \"poligono_geografico\": null\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar una Zona",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Zona",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"codigo\": \"Z-001\",\r\n   \"ciudad\": \"Loja\"\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Zona",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Activar Zona",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/zonas/1/aprobar",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"zonas",
+										"1",
+										"aprobar"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Asignar Vendedores",
+					"item": [
+						{
+							"name": "Asignar Vendedor a Zona",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTU2YzA1My1jMTA3LTQ5MGQtYmUwNi00ZGJjZjM2ZDQyZGIiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY4OTgyLCJleHAiOjE3Njc3MTIxODJ9.YWtwkizwJtPtT9nyDWTXW7qM3mzSsuwPkfVuwvWi6hQ",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"zona_id\": 1,\r\n\"vendedor_usuario_id\": \"815b651e-e6a8-40e9-81cf-c8ab47fde042\",\r\n\"nombre_vendedor_cache\": \"Vendedor\",\r\n\"fecha_inicio\": \"2026-01-04\",\r\n\"fecha_fin\": null,\r\n\"es_principal\": true\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/asignacion",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"asignacion"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Asignacion",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTU2YzA1My1jMTA3LTQ5MGQtYmUwNi00ZGJjZjM2ZDQyZGIiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY4OTgyLCJleHAiOjE3Njc3MTIxODJ9.YWtwkizwJtPtT9nyDWTXW7qM3mzSsuwPkfVuwvWi6hQ",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/asignacion",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"asignacion"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Asignacion de Zona",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTA0MjA0LCJleHAiOjE3Njc1NDc0MDR9.LbFb82m07iQ3w-XXWRXoc0wiXQzu_cowCg7u4-HsyBo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"zona_id\": 2,\r\n    \"vendedor_usuario_id\": \"cc21bcc0-63e0-44e2-ae84-2620f98fdcbb\",\r\n    \"nombre_vendedor_cache\": \"Ale\",\r\n    \"fecha_inicio\": \"2026-01-04\",\r\n    \"fecha_fin\": null,\r\n    \"es_principal\": false\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/asignacion/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"asignacion",
+										"1"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Clientes",
+					"item": [
+						{
+							"name": "Sucrusales",
+							"item": [
+								{
+									"name": "Crear Sucursal",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n\"cliente_id\": \"79863b0c-f9a5-4598-8b52-64cc761d5da4\",\r\n\"nombre_sucursal\": \"Ele\",\r\n\"direccion_entrega\": \"Calle 123\",\r\n\"ubicacion_gps\": null,\r\n\"contacto_nombre\": \"Juan Perez\",\r\n\"contacto_telefono\": \"12345678\",\r\n\"activo\": true\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"clientes",
+												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"sucursales"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Listar Sucursales",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/sucursales",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"sucursales"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Listar sucursales de un Usuario",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"clientes",
+												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"sucursales"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Editar Sucursal",
+									"request": {
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n    \"cliente_id\": \"79863b0c-f9a5-4598-8b52-64cc761d5da4\",\r\n    \"nombre_sucursal\": \"Eleeeeeee\"\r\n \r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/sucursales/0ecb6b2b-f1a3-4672-b23c-95c60771cc15",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"sucursales",
+												"0ecb6b2b-f1a3-4672-b23c-95c60771cc15"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Eliminar Sucursal",
+									"request": {
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/sucursales/0ecb6b2b-f1a3-4672-b23c-95c60771cc15",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"sucursales",
+												"0ecb6b2b-f1a3-4672-b23c-95c60771cc15"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Listar Sucursales Desactivadas",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/sucursales/desactivadas",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"sucursales",
+												"desactivadas"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Lisrtar suscursale desactivas de un usuario",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales/desactivadas",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"clientes",
+												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"sucursales",
+												"desactivadas"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Activar sucursales",
+									"request": {
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Authorization",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"type": "text"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": ""
+										},
+										"url": {
+											"raw": "{{baseURL}}/api/sucursales/0ecb6b2b-f1a3-4672-b23c-95c60771cc15/activar",
+											"host": [
+												"{{baseURL}}"
+											],
+											"path": [
+												"api",
+												"sucursales",
+												"0ecb6b2b-f1a3-4672-b23c-95c60771cc15",
+												"activar"
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Crear Cliente",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"usuario_principal_id\": \"b875d060-5988-4566-9785-61d3c97df85b\",\r\n  \"identificacion\": \"1234567890\",\r\n  \"razon_social\": \"Cliente Uno SRL\",\r\n  \"lista_precios_id\": 1,\r\n  \"zona_comercial_id\": 1\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Cliente",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTU2YzA1My1jMTA3LTQ5MGQtYmUwNi00ZGJjZjM2ZDQyZGIiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY4OTgyLCJleHAiOjE3Njc3MTIxODJ9.YWtwkizwJtPtT9nyDWTXW7qM3mzSsuwPkfVuwvWi6hQ",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Cliente id",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOWE4ZjM0OC1mNjVjLTQwMTMtOGI2MC0wNzBlNzhmNDFjODEiLCJlbWFpbCI6InRvcGRvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2NzU4ODAzMCwiZXhwIjoxNzY3NjMxMjMwfQ.5X1ciIB-_V0JPFzdV0Ao3YuI6Xq-XwLIPocUo-9BXxM",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/19a8f348-f65c-4013-8b60-070e78f41c81",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"19a8f348-f65c-4013-8b60-070e78f41c81"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Editar Cliente",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTU2YzA1My1jMTA3LTQ5MGQtYmUwNi00ZGJjZjM2ZDQyZGIiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY4OTgyLCJleHAiOjE3Njc3MTIxODJ9.YWtwkizwJtPtT9nyDWTXW7qM3mzSsuwPkfVuwvWi6hQ",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"identificacion\": \"1234567890\",\r\n    \"razon_social\": \"Cliente Uno SRL\",\r\n    \"lista_precios_id\": 1,\r\n    \"zona_comercial_id\": 1,\r\n    \"nombre_comercial\": null,\r\n    \"vendedor_asignado_id\": \"815b651e-e6a8-40e9-81cf-c8ab47fde042\",\r\n    \"direccion_texto\": null,\r\n    \"ubicacion_gps\": null,\r\n    \"deleted_at\": null,\r\n    \"id\": \"0b00f2a8-2241-4eac-9073-65053e37a06b\",\r\n    \"tipo_identificacion\": \"RUC\"\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/0b00f2a8-2241-4eac-9073-65053e37a06b",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"0b00f2a8-2241-4eac-9073-65053e37a06b"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Clientes Bloqueados",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/bloqueados",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"bloqueados"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Cliente",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"79863b0c-f9a5-4598-8b52-64cc761d5da4"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/desbloquear",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+										"desbloquear"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Campañas",
+					"item": [
+						{
+							"name": "Crear campaña General",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"nombre\": \"Descuento Verano 2026\",\r\n  \"descripcion\": \"Promoción global de verano con 20% off\",\r\n  \"fecha_inicio\": \"2026-01-01T00:00:00Z\",\r\n  \"fecha_fin\": \"2026-01-31T23:59:59Z\",\r\n  \"tipo_descuento\": \"PORCENTAJE\",\r\n  \"valor_descuento\": 20,\r\n  \"alcance\": \"GLOBAL\",\r\n  \"imagen_banner_url\": \"https://example.com/banner.jpg\",\r\n  \"activo\": true\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "CREAR CAMPAÑA (POR LISTA DE PRECIOS)",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"nombre\": \"Descuento Mayoristas\",\r\n  \"descripcion\": \"20% off solo para lista Mayorista\",\r\n  \"fecha_inicio\": \"2026-01-01T00:00:00Z\",\r\n  \"fecha_fin\": \"2026-01-31T23:59:59Z\",\r\n  \"tipo_descuento\": \"PORCENTAJE\",\r\n  \"valor_descuento\": 20,\r\n  \"alcance\": \"POR_LISTA\",\r\n  \"lista_precios_objetivo_id\": 2,\r\n  \"activo\": true\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "CREAR CAMPAÑA (POR CLIENTE)",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"nombre\": \"Descuento VIP Clientes Seleccionados\",\r\n  \"descripcion\": \"$5 de descuento en mortadelas\",\r\n  \"fecha_inicio\": \"2026-01-01T00:00:00Z\",\r\n  \"fecha_fin\": \"2026-01-31T23:59:59Z\",\r\n  \"tipo_descuento\": \"MONTO_FIJO\",\r\n  \"valor_descuento\": 5,\r\n  \"alcance\": \"POR_CLIENTE\",\r\n  \"activo\": true\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "listar campañas",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"productoId\": \"9a0ccdba-fbbc-4356-aefe-055ae454efe1\",\r\n  \"listaId\": 1,\r\n  \"precio\": 10.50\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "OBTENER CAMPAÑA POR ID",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "ACTUALIZAR CAMPAÑA",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"nombre\": \"Descuento Verano 2026 - ACTUALIZADO\",\r\n  \"valor_descuento\": 25,\r\n  \"activo\": true\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Campaña",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Asignar Productos a campañas",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"producto_id\": \"3098bcc6-7004-4dae-9872-da190332b602\",\r\n  \"precio_oferta_fijo\": 15\r\n}\r\n\r\no tambien si usa el PORCENTAJE de la Promoción\r\n{\r\n  \"producto_id\": \"3098bcc6-7004-4dae-9872-da190332b602\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/2/productos",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"2",
+										"productos"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "LISTAR PRODUCTOS EN CAMPAÑA",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/2/productos",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"2",
+										"productos"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Productos de la campaña",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/2/productos/3098bcc6-7004-4dae-9872-da190332b602",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"2",
+										"productos",
+										"3098bcc6-7004-4dae-9872-da190332b602"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Asignar Clientes a campañas",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"cliente_id\": \"79863b0c-f9a5-4598-8b52-64cc761d5da4\"\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1/clientes",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1",
+										"clientes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "listar clientes permitidos",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1/clientes",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1",
+										"clientes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Elimanar cliente de campaña",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/promociones/1/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"promociones",
+										"1",
+										"clientes",
+										"79863b0c-f9a5-4598-8b52-64cc761d5da4"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Rutero",
+					"item": [
+						{
+							"name": "Listar Ruteros",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzY2Y2E0MC0xZDg3LTRlNjUtOWQxYi02ZjZiNDc4MDQ0NDgiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY3MTYxLCJleHAiOjE3Njc3MTAzNjF9.LKsEGfqGv_sqlNmdepFXCsregp1gVzGD0cZTqBmrxAo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Crear Rutero",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTU2YzA1My1jMTA3LTQ5MGQtYmUwNi00ZGJjZjM2ZDQyZGIiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY4OTgyLCJleHAiOjE3Njc3MTIxODJ9.YWtwkizwJtPtT9nyDWTXW7qM3mzSsuwPkfVuwvWi6hQ",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"cliente_id\": \"0b00f2a8-2241-4eac-9073-65053e37a06b\",\r\n\"zona_id\": 1,\r\n\"dia_semana\": 2,\r\n\"frecuencia\": \"SEMANAL\",\r\n\"prioridad_visita\": \"ALTA\",\r\n\"orden_sugerido\": 1,\r\n\"hora_estimada_arribo\": \"09:30:00\",\r\n\"activo\": true\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Rutero por cliente",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzY2Y2E0MC0xZDg3LTRlNjUtOWQxYi02ZjZiNDc4MDQ0NDgiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY3MTYxLCJleHAiOjE3Njc3MTAzNjF9.LKsEGfqGv_sqlNmdepFXCsregp1gVzGD0cZTqBmrxAo",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero/cliente/79863b0c-f9a5-4598-8b52-64cc761d5da4",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero",
+										"cliente",
+										"79863b0c-f9a5-4598-8b52-64cc761d5da4"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar mi Ruta",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MTViNjUxZS1lNmE4LTQwZTktODFjZi1jOGFiNDdmZGUwNDIiLCJlbWFpbCI6InZlbmRlZG9yQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoidmVuZGVkb3IiLCJpYXQiOjE3Njc2Njk3MjEsImV4cCI6MTc2NzcxMjkyMX0.AXgU7-2UXEPOkqnypZQFapyBs6NvE0Ja-fnXSU7O_7g",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero/mio",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero",
+										"mio"
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {},
+								"exec": [
+									""
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {},
+								"exec": [
+									""
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Usuario Cliente",
+			"item": [
+				{
+					"name": "Logueo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"cliente@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{auth}}/auth/login",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Registro",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"cliente@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"cliente\",\r\n  \"rolId\": 6\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{auth}}/auth/registro",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"registro"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOWE4ZjM0OC1mNjVjLTQwMTMtOGI2MC0wNzBlNzhmNDFjODEiLCJlbWFpbCI6InRvcGRvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2NzU5MTMyNiwiZXhwIjoxNzY3NjM0NTI2fQ.5tBHKDJt4Xt8fBxKQm1batXSQtNbxDHvFA1hakEZGd0",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"cliente@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{auth}}/auth/logout",
+							"host": [
+								"{{auth}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "listar Productos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODc1ZDA2MC01OTg4LTQ1NjYtOTc4NS02MWQzYzk3ZGY4NWIiLCJlbWFpbCI6ImNsaWVudGVAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY3NzE4NzA3LCJleHAiOjE3Njc3NjE5MDd9.P2IBwt6r8ZFOSXrTNAdfX08WT2OzzZZCzU2n8DJvy24",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/api/products?page=1&per_page=20",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar productos por Id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODc1ZDA2MC01OTg4LTQ1NjYtOTc4NS02MWQzYzk3ZGY4NWIiLCJlbWFpbCI6ImNsaWVudGVAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY3NzE4NzA3LCJleHAiOjE3Njc3NjE5MDd9.P2IBwt6r8ZFOSXrTNAdfX08WT2OzzZZCzU2n8DJvy24",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/api/products/9be7bbd9-6882-4941-8852-87fec15e71a1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"products",
+								"9be7bbd9-6882-4941-8852-87fec15e71a1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Detalle del prodcto",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODc1ZDA2MC01OTg4LTQ1NjYtOTc4NS02MWQzYzk3ZGY4NWIiLCJlbWFpbCI6ImNsaWVudGVAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY3NzE4NzA3LCJleHAiOjE3Njc3NjE5MDd9.P2IBwt6r8ZFOSXrTNAdfX08WT2OzzZZCzU2n8DJvy24",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/api/precios/producto/9be7bbd9-6882-4941-8852-87fec15e71a1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"precios",
+								"producto",
+								"9be7bbd9-6882-4941-8852-87fec15e71a1"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmFlZTFmMy03Nzk0LTQwZmYtYmJkNC05Y2YwMTMwNmJiZWUiLCJlbWFpbCI6Imp1YW5AY2Fmcmlsb3NhLmNvbSIsInJvbElkIjoyLCJpYXQiOjE3NjcwNDQzNzYsImV4cCI6MTc2NzA0NDk3Nn0.3MsxyhARncDC1DPCFEVDfivj2d8YkQeaeeFTlsJ65lY",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": " { \"nombre\": \"Bebidas\", \"descripcion\": \"Bebidas frías\" }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/categories",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"categories"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:3002/api/precios",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmFlZTFmMy03Nzk0LTQwZmYtYmJkNC05Y2YwMTMwNmJiZWUiLCJlbWFpbCI6Imp1YW5AY2Fmcmlsb3NhLmNvbSIsInJvbElkIjoyLCJpYXQiOjE3NjcwNDQzNzYsImV4cCI6MTc2NzA0NDk3Nn0.3MsxyhARncDC1DPCFEVDfivj2d8YkQeaeeFTlsJ65lY",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"productoId\": \"1\",\r\n  \"listaId\": 2,\r\n  \"precio\": 0.85\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/precios",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"precios"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:3002/api/products",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/api/products",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:3002/api/precios/producto/a9ced4e6-9d69-422f-ab1c-1967d31141c1",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmFlZTFmMy03Nzk0LTQwZmYtYmJkNC05Y2YwMTMwNmJiZWUiLCJlbWFpbCI6Imp1YW5AY2Fmcmlsb3NhLmNvbSIsInJvbElkIjoyLCJpYXQiOjE3NjcwNDczMDYsImV4cCI6MTc2NzA0NzkwNn0._zUOL8GCyybZuVtJ-PQXIANObLjp-YVthaQN2jlRceQ",
+						"type": "text",
+						"disabled": true
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\"productoId\": \"a9ced4e6-9d69-422f-ab1c-1967d31141c1\",\r\n\"listaId\": 2,\r\n\"precio\": 0.90\r\n}"
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/precios/producto/a9ced4e6-9d69-422f-ab1c-1967d31141c1",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"precios",
+						"producto",
+						"a9ced4e6-9d69-422f-ab1c-1967d31141c1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:3002/api/products",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmFlZTFmMy03Nzk0LTQwZmYtYmJkNC05Y2YwMTMwNmJiZWUiLCJlbWFpbCI6Imp1YW5AY2Fmcmlsb3NhLmNvbSIsInJvbElkIjoyLCJpYXQiOjE3NjcwNDUwMTAsImV4cCI6MTc2NzA0NTYxMH0.V6Kj_9JM2uLoLTFb5e2kyx1_2LUa4voaNTeNbySOkmM",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"codigo_sku\": \"SKU-1002\",\r\n  \"nombre\": \"Coca Cola 100ml\",\r\n  \"descripcion\": \"Refresco\",\r\n  \"categoria_id\": 1,\r\n  \"peso_unitario_kg\": 0.5,\r\n  \"volumen_m3\": 0.0005,\r\n  \"requiere_frio\": false,\r\n  \"unidad_medida\": \"UNIDAD\",\r\n  \"imagen_url\": null,\r\n  \"activo\": true\r\n}"
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/products",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:3002/api/zonas",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyOGQ4MmQxZC03YWIzLTRlNzgtYmI0Yy0wNjhjNmEzMTBkZTciLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzQ3MTA0MSwiZXhwIjoxNzY3NDcxNjQxfQ._OtS29MBVxPNFFr83Y3z_YniS5xqQV07r8J_pPFrTRs",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"codigo\": \"Z-1\",\r\n  \"nombre\": \"Zona 1\",\r\n  \"ciudad\": \"Ciudad X\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/zonas",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"zonas"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": ""
+		},
+		{
+			"key": "auth",
+			"value": ""
+		},
+		{
+			"key": "usu",
+			"value": ""
+		}
+	]
+}

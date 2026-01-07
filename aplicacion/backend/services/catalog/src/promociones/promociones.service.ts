@@ -91,7 +91,7 @@ export class PromocionesService {
   findPromosByCampania(campaniaId: number) {
     return this.prodPromoRepo.find({
       where: { campania_id: campaniaId },
-      relations: ['producto'],
+      relations: ['producto', 'producto.categoria', 'campania'],
     });
   }
 

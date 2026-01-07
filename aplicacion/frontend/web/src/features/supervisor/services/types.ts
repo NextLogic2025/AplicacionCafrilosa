@@ -3,8 +3,10 @@ export interface ClienteRutero {
   nombre: string
   razon_social: string
   prioridad: 'ALTA' | 'MEDIA' | 'BAJA'
+  frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
   orden: number
   hora_estimada: string | null
+  activo: boolean
   ubicacion_gps?: {
     type: 'Point'
     coordinates: [number, number]
@@ -25,8 +27,11 @@ export interface RuteroPlanificado {
   cliente_id: string
   zona_id: number
   dia_semana: DiaSemana
+  frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
+  prioridad_visita: 'ALTA' | 'MEDIA' | 'BAJA'
   orden_sugerido: number
   hora_estimada: string
+  activo: boolean
   created_by?: string
   updated_at?: string
 }

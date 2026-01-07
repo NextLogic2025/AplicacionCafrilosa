@@ -3,7 +3,7 @@ import { IsString, IsNumber, IsBoolean, IsOptional, Min, IsNotEmpty } from 'clas
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
-  codigo_sku: string;
+  codigoSku: string;
 
   @IsString()
   @IsNotEmpty()
@@ -15,30 +15,27 @@ export class CreateProductDto {
 
   @IsNumber()
   @IsOptional()
-  categoria_id?: number;
+  categoriaId?: number;
 
   @IsNumber()
   @Min(0)
-  peso_unitario_kg: number;
+  pesoUnitarioKg: number;
 
   @IsNumber()
   @IsOptional()
-  @Min(0)
-  volumen_m3?: number;
+  volumenM3?: number;
 
   @IsString()
   @IsOptional()
-  unidad_medida?: string;
+  unidadMedida?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  requiereFrio?: boolean;
 
   @IsString()
   @IsOptional()
-  imagen_url?: string;
+  imagenUrl?: string | null;
 
-  @IsBoolean()
-  @IsOptional()
-  requiere_frio?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
-  activo?: boolean;
+  // Agrega más validaciones según necesites
 }

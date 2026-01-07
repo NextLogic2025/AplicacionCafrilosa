@@ -48,7 +48,9 @@ export function useRutero() {
           ...cliente,
           orden: rutero?.orden_sugerido ?? 999,
           hora_estimada: rutero?.hora_estimada ?? null,
-          prioridad: cliente.prioridad ?? 'MEDIA',
+          prioridad: rutero?.prioridad_visita ?? cliente.prioridad ?? 'MEDIA',
+          frecuencia: rutero?.frecuencia ?? 'SEMANAL',
+          activo: rutero?.activo ?? true,
         }
       })
 
@@ -91,6 +93,18 @@ export function useRutero() {
     )
   }, [])
 
+  const handleActualizarPrioridad = useCallback((clienteId: string, prioridad: 'ALTA' | 'MEDIA' | 'BAJA') => {
+    setClientes((prev) =>
+      prev.map((c) => (c.id === clienteId ? { ...c, prioridad } : c))
+    )
+  }, [])
+
+  const handleActualizarFrecuencia = useCallback((clienteId: string, frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL') => {
+    setClientes((prev) =>
+      prev.map((c) => (c.id === clienteId ? { ...c, frecuencia } : c))
+    )
+  }, [])
+
   const handleGuardar = useCallback(async () => {
     if (!zonaSeleccionada) return
 
@@ -102,8 +116,11 @@ export function useRutero() {
         cliente_id: cliente.id,
         zona_id: zonaSeleccionada,
         dia_semana: diaSeleccionado,
+        frecuencia: cliente.frecuencia,
+        prioridad_visita: cliente.prioridad,
         orden_sugerido: cliente.orden,
         hora_estimada: cliente.hora_estimada || '',
+        activo: cliente.activo,
       }))
 
       await guardarRutero(ruteroData)
@@ -127,6 +144,8 @@ export function useRutero() {
     error,
     handleReordenar,
     handleActualizarHora,
+    handleActualizarPrioridad,
+    handleActualizarFrecuencia,
     handleGuardar,
     recargar: cargarClientesRutero,
   }

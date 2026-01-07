@@ -6,9 +6,10 @@ import { PromocionesController } from './promociones.controller';
 import { CampaniaPromocional } from './entities/campania.entity';
 import { ProductoPromocion } from './entities/producto-promocion.entity';
 import { PromocionClientePermitido } from './entities/promocion-cliente-permitido.entity';
+import { PreciosModule } from '../precios/precios.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CampaniaPromocional, ProductoPromocion, PromocionClientePermitido])],
+  imports: [TypeOrmModule.forFeature([CampaniaPromocional, ProductoPromocion, PromocionClientePermitido]), PreciosModule],
   providers: [PromocionesService],
   controllers: [PromocionesController],
   exports: [PromocionesService],

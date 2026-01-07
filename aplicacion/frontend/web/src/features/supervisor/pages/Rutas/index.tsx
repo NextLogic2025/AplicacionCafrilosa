@@ -18,6 +18,8 @@ export default function RutasPage() {
     setDiaSeleccionado,
     handleReordenar,
     handleActualizarHora,
+    handleActualizarPrioridad,
+    handleActualizarFrecuencia,
     handleGuardar,
   } = useRutero()
 
@@ -88,6 +90,8 @@ export default function RutasPage() {
             isLoading={isLoading}
             onReordenar={handleReordenar}
             onUpdateHora={handleActualizarHora}
+            onUpdatePrioridad={handleActualizarPrioridad}
+            onUpdateFrecuencia={handleActualizarFrecuencia}
           />
 
           {/* Panel Derecho - Mapa */}
