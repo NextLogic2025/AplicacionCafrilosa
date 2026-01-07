@@ -42,6 +42,8 @@ export default function EquipoPage() {
   }
 
   const handleSuccessCreate = () => {
+    setGlobalMessage({ type: 'success', message: editingUsuario ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente' })
+    setTimeout(() => setGlobalMessage(null), 3000)
     cargarEquipo()
   }
 

@@ -54,37 +54,37 @@ export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuar
 
 // Operaciones de usuarios - usan puerto 3002
 export async function obtenerEquipo(): Promise<Usuario[]> {
-  return httpUsuarios<Usuario[]>('/usuarios')
+  return httpUsuarios<Usuario[]>('/auth/usuarios')
 }
 
 export async function getUsuario(id: string): Promise<Usuario> {
-  return httpUsuarios<Usuario>(`/usuarios/${id}`)
+  return httpUsuarios<Usuario>(`/auth/usuarios/${id}`)
 }
 
 export async function updateUsuario(id: string, data: UpdateUsuarioDto): Promise<Usuario> {
-  return httpUsuarios<Usuario>(`/usuarios/${id}`, {
+  return httpUsuarios<Usuario>(`/auth/usuarios/${id}`, {
     method: 'PUT',
     body: data,
   })
 }
 
 export async function desactivarUsuario(id: string): Promise<Usuario> {
-  return httpUsuarios<Usuario>(`/usuarios/${id}/desactivar`, {
+  return httpUsuarios<Usuario>(`/auth/usuarios/${id}/desactivar`, {
     method: 'PUT',
   })
 }
 
 export async function activarUsuario(id: string): Promise<Usuario> {
-  return httpUsuarios<Usuario>(`/usuarios/${id}/activar`, {
+  return httpUsuarios<Usuario>(`/auth/usuarios/${id}/activar`, {
     method: 'PUT',
   })
 }
 
 export async function obtenerVendedores(): Promise<Vendedor[]> {
-  return httpUsuarios<Vendedor[]>('/vendedores')
+  return httpUsuarios<Vendedor[]>('/auth/vendedores')
 }
 
 export async function listarUsuariosDesactivados(): Promise<Usuario[]> {
-  return httpUsuarios<Usuario[]>('/usuarios/desactivados')
+  return httpUsuarios<Usuario[]>('/auth/usuarios/desactivados')
 }
 

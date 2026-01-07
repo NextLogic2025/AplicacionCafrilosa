@@ -33,10 +33,10 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
   useEffect(() => {
     if (isOpen && initialData && mode === 'edit') {
       setFormData({
-        nombre: initialData.nombre,
-        email: initialData.email,
+        nombre: initialData.nombre || '',
+        email: initialData.email || '',
         password: '',
-        rolId: initialData.rol.id,
+        rolId: initialData.rol?.id || 4,
       })
     } else if (isOpen && mode === 'create') {
       setFormData(INITIAL_FORM_STATE)
@@ -93,10 +93,9 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
       if (mode === 'edit' && initialData) {
         const updatePayload: any = {
           nombre: formData.nombre,
-          email: formData.email,
           rolId: formData.rolId,
         }
-        if (formData.password) {
+        if (formData.password && formData.password.trim()) {
           updatePayload.password = formData.password
         }
         await updateUsuario(initialData.id, updatePayload)
@@ -167,7 +166,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           error={errors.email}
-          disabled={isSubmitting}
+          disabled={isSubmitting || mode === 'edit'}
         />
 
         <TextField
