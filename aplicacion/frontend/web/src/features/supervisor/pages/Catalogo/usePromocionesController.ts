@@ -17,7 +17,7 @@ import {
   type ClienteCampania,
 } from '../../services/promocionesApi'
 import { obtenerListasPrecios, obtenerCliente, type ListaPrecio, type Cliente } from '../../services/clientesApi'
-import { getAllProducts, type Product } from '../../services/productosApi'
+import { getAllProducts, getProductById, type Product } from '../../services/productosApi'
 
 const EMPTY_FORM: CreateCampaniaDto = {
   nombre: '',
@@ -118,7 +118,39 @@ export function usePromocionesController() {
   const loadProductosByCampania = async (campaniaId: number) => {
     try {
       const data = await getProductosByCampania(campaniaId)
-      setProductosAsignados(data)
+      // Enriquecer con datos completos del producto para mostrar nombre/SKU
+      const enriquecidos = await Promise.all(
+        data.map(async (pp) => {
+          const id = pp.producto_id || pp.producto?.id
+          const prodLocal = id ? productos.find((p) => p.id === id) : undefined
+          if (prodLocal) {
+            return {
+              ...pp,
+              producto: {
+                id: prodLocal.id,
+                codigo_sku: prodLocal.codigo_sku,
+                nombre: prodLocal.nombre,
+              },
+            }
+          }
+          // Si no se encuentra localmente, intentar obtener por API
+          if (id) {
+            const prodRemoto = await getProductById(id)
+            if (prodRemoto) {
+              return {
+                ...pp,
+                producto: {
+                  id: prodRemoto.id,
+                  codigo_sku: prodRemoto.codigo_sku,
+                  nombre: prodRemoto.nombre,
+                },
+              }
+            }
+          }
+          return pp
+        })
+      )
+      setProductosAsignados(enriquecidos)
     } catch (err) {
       console.error('Error al cargar productos de campaña:', err)
       setProductosAsignados([])

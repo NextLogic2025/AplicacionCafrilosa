@@ -13,6 +13,7 @@ interface ProductSelectorModalProps {
   productosAsignados: ProductoPromocion[]
   onAddProduct: (productoId: string, precioOferta?: number) => Promise<void>
   onDeleteProduct: (productoId: string) => Promise<void>
+  hideAssigned?: boolean
 }
 
 export function ProductSelectorModal({
@@ -22,6 +23,7 @@ export function ProductSelectorModal({
   productosAsignados,
   onAddProduct,
   onDeleteProduct,
+  hideAssigned = false,
 }: ProductSelectorModalProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('')
   const [precioOferta, setPrecioOferta] = useState<number>(0)
@@ -63,39 +65,50 @@ export function ProductSelectorModal({
       maxWidth="lg"
     >
       <div className="space-y-6">
-        {/* Productos asignados */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-900">Productos asignados</h4>
-          {productosAsignadosArray.length === 0 ? (
-            <p className="text-sm text-gray-500">No hay productos asignados</p>
-          ) : (
-            <div className="space-y-2">
-              {productosAsignadosArray.map((pp) => (
-                <div
-                  key={pp.producto_id}
-                  className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {pp.producto?.nombre || pp.producto_id}
-                    </p>
-                    {pp.precio_oferta_fijo && (
-                      <p className="text-xs text-gray-600">Precio oferta: ${pp.precio_oferta_fijo}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteProduct(pp.producto_id)}
-                    className="text-gray-400 hover:text-red-500"
-                    title="Eliminar"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Productos asignados (opcional) */}
+        {!hideAssigned && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Productos asignados</h4>
+            {productosAsignadosArray.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay productos asignados</p>
+            ) : (
+              <div className="space-y-2">
+                {productosAsignadosArray.map((pp, idx) => {
+                  const promoProductoId = pp.producto_id || pp.producto?.id
+                  const productoData = promoProductoId ? productos.find((p) => p.id === promoProductoId) : undefined
+                  const nombreMostrar = productoData?.nombre || pp.producto?.nombre || promoProductoId || 'Producto'
+                  const skuMostrar = productoData?.codigo_sku || pp.producto?.codigo_sku
+                  return (
+                    <div
+                      key={`${promoProductoId || 'sin-id'}-${idx}`}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {nombreMostrar}
+                        </p>
+                        {skuMostrar && (
+                          <p className="text-xs text-gray-600">{skuMostrar}</p>
+                        )}
+                        {pp.precio_oferta_fijo && (
+                          <p className="text-xs text-gray-600">Precio oferta: ${pp.precio_oferta_fijo}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteProduct(promoProductoId || pp.producto_id)}
+                        className="text-gray-400 hover:text-red-500"
+                        title="Eliminar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="border-t border-gray-200 pt-4">
           <h4 className="mb-3 text-sm font-semibold text-gray-900">Agregar nuevo producto</h4>

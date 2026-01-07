@@ -38,6 +38,16 @@ export async function getAllProducts(): Promise<Product[]> {
   return response.items || []
 }
 
+export async function getProductById(id: string): Promise<Product | null> {
+  try {
+    const product = await httpCatalogo<Product>(`/products/${id}`)
+    return product
+  } catch (err) {
+    // Si no existe o falla, devolvemos null para seguir con fallbacks
+    return null
+  }
+}
+
 export async function createProduct(data: CreateProductDto): Promise<Product> {
   return httpCatalogo<Product>('/products', {
     method: 'POST',

@@ -109,6 +109,7 @@ export function PromocionesView() {
         productosAsignados={productosAsignados}
         onAddProduct={handleAddProduct}
         onDeleteProduct={handleDeleteProduct}
+        hideAssigned
       />
 
       <CampaniaDetailModal
