@@ -21,9 +21,21 @@ export class CreateProductDto {
   @Min(0)
   pesoUnitarioKg: number;
 
+  @IsNumber()
+  @IsOptional()
+  volumenM3?: number;
+
+  @IsString()
+  @IsOptional()
+  unidadMedida?: string;
+
   @IsBoolean()
   @IsOptional()
   requiereFrio?: boolean;
+
+  @IsString()
+  @IsOptional()
+  imagenUrl?: string | null;
 
   // Agrega más validaciones según necesites
 }

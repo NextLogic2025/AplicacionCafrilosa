@@ -4,6 +4,7 @@ import { Repository, In, Not, IsNull } from 'typeorm';
 
 import { PrecioItem } from '../precios/entities/precio.entity';
 import { ProductoPromocion } from '../promociones/entities/producto-promocion.entity';
+import { PromocionesService } from '../promociones/promociones.service';
 
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto'; // Asegúrate de crear este archivo
@@ -14,6 +15,7 @@ export type FindOptions = {
   q?: string;
   roles?: string[];
   clienteListaId?: number | null;
+  clienteId?: string | null;
 };
 
 @Injectable()
@@ -22,6 +24,7 @@ export class ProductsService {
     @InjectRepository(Product) private readonly repo: Repository<Product>,
     @InjectRepository(PrecioItem) private readonly precioRepo: Repository<PrecioItem>,
     @InjectRepository(ProductoPromocion) private readonly promoRepo: Repository<ProductoPromocion>,
+    private readonly promocionesService: PromocionesService,
   ) {}
 
   async findAll(opts: FindOptions = {}) {
@@ -50,7 +53,7 @@ export class ProductsService {
     const productIds = products.map(p => p.id);
     const [precios, promos] = await Promise.all([
       this.fetchPrices(productIds, opts),
-      this.fetchPromos(productIds)
+      this.fetchPromos(productIds, opts),
     ]);
 
     // 4. Transformar resultado
@@ -78,7 +81,7 @@ export class ProductsService {
     const productIds = products.map(p => p.id);
     const [precios, promos] = await Promise.all([
       this.fetchPrices(productIds, opts),
-      this.fetchPromos(productIds),
+      this.fetchPromos(productIds, opts),
     ]);
 
     const items = products.map(p => this.transformProduct(p, precios, promos, opts.roles));
@@ -95,7 +98,7 @@ export class ProductsService {
     // Buscar precios y promociones para este producto
     const [precios, promos] = await Promise.all([
       this.fetchPrices([product.id], opts),
-      this.fetchPromos([product.id]),
+      this.fetchPromos([product.id], opts),
     ]);
 
     // Transformar y devolver el objeto final (incluye precios filtrados por lista si aplica)
@@ -144,11 +147,21 @@ export class ProductsService {
     return this.precioRepo.find({ where: whereCondition });
   }
 
-  private async fetchPromos(productIds: string[]) {
-    return this.promoRepo.find({ 
-      where: { producto_id: In(productIds) },
-      relations: ['campania'] // Traer datos de la campaña si es necesario
-    });
+  private async fetchPromos(productIds: string[], opts: FindOptions) {
+    // Si el usuario es admin o supervisor, devolver todas las promociones activas para estos productos
+    if (opts.roles?.some(r => ['admin', 'supervisor'].includes(r))) {
+      const now = new Date();
+      return this.promoRepo.createQueryBuilder('pp')
+        .innerJoinAndSelect('pp.campania', 'c')
+        .where('pp.producto_id IN (:...pids)', { pids: productIds })
+        .andWhere('c.activo = :active', { active: true })
+        .andWhere('c.fecha_inicio <= :now', { now })
+        .andWhere('c.fecha_fin >= :now', { now })
+        .getMany();
+    }
+
+    // Si es Cliente (u otro rol), usar el filtrado por alcance definido en PromocionesService
+    return this.promocionesService.findPromosForCliente(productIds, opts.clienteId ?? undefined, opts.clienteListaId ?? undefined);
   }
 
   private transformProduct(p: Product, allPrices: PrecioItem[], allPromos: ProductoPromocion[], roles: string[] = []) {
@@ -173,14 +186,69 @@ export class ProductsService {
       base.activo = p.activo;
 
       // Mapear precios
-      base.precios = allPrices
+      const preciosProducto = allPrices
         .filter(pr => pr.producto_id === p.id)
         .map(pr => ({ lista_id: pr.lista_id, precio: Number(pr.precio) }));
+      base.precios = preciosProducto;
 
-      // Mapear promociones
-      base.promociones = allPromos
-        .filter(pr => pr.producto_id === p.id && pr.precio_oferta_fijo != null)
-        .map(pr => ({ campana_id: pr.campania_id, precio_oferta: Number(pr.precio_oferta_fijo) }));
+      // Precio base (usar el menor si hay más de uno, o null si no tiene precio)
+      const precioOriginal = preciosProducto.length ? Math.min(...preciosProducto.map(x => x.precio)) : null;
+
+      // Mapear promociones aplicables y calcular mejor oferta
+      const promosProducto = allPromos.filter(pr => pr.producto_id === p.id);
+      const promosMapped: any[] = [];
+      let mejorOferta: { precio_oferta: number; campania_id: number; ahorro: number } | null = null;
+
+      for (const pr of promosProducto) {
+        const camp: any = (pr as any).campania || null;
+        let precioOferta: number | null = null;
+
+        if (precioOriginal == null) {
+          // Si no hay precio base, no podemos calcular oferta
+          precioOferta = null;
+        } else if (pr.precio_oferta_fijo != null) {
+          precioOferta = Number(pr.precio_oferta_fijo);
+        } else if (camp) {
+          const tipo = (camp.tipo_descuento || '').toString().toUpperCase();
+          const valor = Number(camp.valor_descuento || 0);
+          if (tipo === 'PORCENTAJE') {
+            precioOferta = +(precioOriginal * (1 - valor / 100));
+          } else if (tipo === 'MONTO_FIJO') {
+            precioOferta = +(precioOriginal - valor);
+          }
+        }
+
+        if (precioOferta != null) {
+          if (precioOferta < 0) precioOferta = 0;
+          // Redondeo a 2 decimales
+          precioOferta = Math.round(precioOferta * 100) / 100;
+        }
+
+        const mapped = {
+          campana_id: pr.campania_id,
+          precio_oferta: precioOferta,
+          tipo_descuento: (pr as any).campania?.tipo_descuento ?? null,
+          valor_descuento: (pr as any).campania?.valor_descuento ?? null,
+        };
+        promosMapped.push(mapped);
+
+        if (precioOferta != null && precioOriginal != null) {
+          const ahorro = +(precioOriginal - precioOferta);
+          if (!mejorOferta || precioOferta < mejorOferta.precio_oferta) {
+            mejorOferta = { precio_oferta: precioOferta, campania_id: pr.campania_id, ahorro };
+          }
+        }
+      }
+
+      base.promociones = promosMapped;
+      if (mejorOferta) {
+        base.precio_original = precioOriginal;
+        base.precio_oferta = mejorOferta.precio_oferta;
+        base.ahorro = Math.round((mejorOferta.ahorro) * 100) / 100;
+        base.campania_aplicada_id = mejorOferta.campania_id;
+      } else if (precioOriginal != null) {
+        base.precio_original = precioOriginal;
+      }
     }
 
     return base;
