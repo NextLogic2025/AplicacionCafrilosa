@@ -39,6 +39,31 @@ export class ProductsController {
     });
   }
 
+  @Get('deleted')
+  @Roles('admin', 'supervisor')
+  findDeleted() {
+    return this.svc.findDeleted();
+  }
+
+  @Get('categoria/:categoriaId')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  async productosPorCategoria(
+    @Param('categoriaId') categoriaId: string,
+    @Query('page') page: string,
+    @Query('per_page') perPage: string,
+    @Query('q') q: string,
+    @Req() req: any,
+  ) {
+    const { roles, clienteListaId } = await this.resolveClientContext(req);
+    return this.svc.findByCategory(Number(categoriaId), {
+      page: Number(page) || 1,
+      per_page: Number(perPage) || 20,
+      q,
+      roles,
+      clienteListaId,
+    });
+  }
+
   @Get(':id')
   @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
   async findOne(@Param('id') id: string, @Req() req: any) {

@@ -59,6 +59,32 @@ export class ProductsService {
     return this.buildResponse(items, total, page, per_page);
   }
 
+  async findByCategory(categoriaId: number, opts: FindOptions = {}) {
+    const { page = 1, per_page = 20 } = opts;
+
+    const qb = this.repo.createQueryBuilder('p')
+      .leftJoinAndSelect('p.categoria', 'cat')
+      .where('p.activo = :activo', { activo: true })
+      .andWhere('p.categoria_id = :cid', { cid: categoriaId });
+
+    if (opts.q) {
+      qb.andWhere('(p.nombre ILIKE :q OR p.codigoSku ILIKE :q)', { q: `%${opts.q}%` });
+    }
+
+    const [products, total] = await qb.skip((page - 1) * per_page).take(per_page).getManyAndCount();
+
+    if (!products.length) return this.buildResponse([], total, page, per_page);
+
+    const productIds = products.map(p => p.id);
+    const [precios, promos] = await Promise.all([
+      this.fetchPrices(productIds, opts),
+      this.fetchPromos(productIds),
+    ]);
+
+    const items = products.map(p => this.transformProduct(p, precios, promos, opts.roles));
+    return this.buildResponse(items, total, page, per_page);
+  }
+
   async findOne(id: string, opts: FindOptions = {}) {
     const product = await this.repo.findOne({
       where: { id },
