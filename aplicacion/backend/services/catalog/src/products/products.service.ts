@@ -148,7 +148,19 @@ export class ProductsService {
   }
 
   private async fetchPromos(productIds: string[], opts: FindOptions) {
-    // Delegar la lógica de alcance/filtrado al servicio de promociones
+    // Si el usuario es admin o supervisor, devolver todas las promociones activas para estos productos
+    if (opts.roles?.some(r => ['admin', 'supervisor'].includes(r))) {
+      const now = new Date();
+      return this.promoRepo.createQueryBuilder('pp')
+        .innerJoinAndSelect('pp.campania', 'c')
+        .where('pp.producto_id IN (:...pids)', { pids: productIds })
+        .andWhere('c.activo = :active', { active: true })
+        .andWhere('c.fecha_inicio <= :now', { now })
+        .andWhere('c.fecha_fin >= :now', { now })
+        .getMany();
+    }
+
+    // Si es Cliente (u otro rol), usar el filtrado por alcance definido en PromocionesService
     return this.promocionesService.findPromosForCliente(productIds, opts.clienteId ?? undefined, opts.clienteListaId ?? undefined);
   }
 
