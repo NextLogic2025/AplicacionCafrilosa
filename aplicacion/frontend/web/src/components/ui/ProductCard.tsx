@@ -44,7 +44,9 @@ export function ProductCard({ producto, onAddToCart }: ProductCardProps) {
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-2">
           <div>
-            <p className="text-xl font-bold text-brand-red">${producto.price.toFixed(2)}</p>
+            <p className="text-xl font-bold text-brand-red">
+              {typeof producto.price === 'number' ? `$${producto.price.toFixed(2)}` : 'Sin precio'}
+            </p>
             <p className={`text-xs ${producto.inStock ? 'text-emerald-600' : 'text-brand-red'}`}>
               {producto.inStock ? 'En stock' : 'Agotado'}
             </p>

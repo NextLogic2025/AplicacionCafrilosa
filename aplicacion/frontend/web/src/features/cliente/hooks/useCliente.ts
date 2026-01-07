@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Conversacion, Entrega, EstadoPedido, Factura, Notificacion, Pedido, PerfilCliente, Producto, Ticket } from '../types'
-import * as api from '../../../services/cliente'
+import * as api from '../services/clientApi'
 
 export function useCliente() {
   const [perfil, setPerfil] = useState<PerfilCliente | null>(null)
@@ -73,10 +73,10 @@ export function useCliente() {
     }
   }, [])
 
-  const fetchProductos = useCallback(async () => {
+  const fetchProductos = useCallback(async (options?: { page?: number; per_page?: number; category?: string; categoryId?: number }) => {
     setCargando(true)
     try {
-      const res = await api.getProductos()
+      const res = await api.getProductos(options)
       setProductos(res ?? [])
     } catch {
       setProductos([])

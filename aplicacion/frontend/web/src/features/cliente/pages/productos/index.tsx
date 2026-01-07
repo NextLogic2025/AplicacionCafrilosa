@@ -8,6 +8,7 @@ import { SectionHeader } from 'components/ui/SectionHeader'
 import { ProductCard } from 'components/ui/ProductCard'
 import { PageHero } from 'components/ui/PageHero'
 import { Producto } from '../../types'
+import { getAllCategories } from '../../../supervisor/services/catalogApi'
 
 interface FiltrosProductos {
 	category: string
@@ -23,15 +24,36 @@ export default function PaginaProductos() {
 	const [busqueda, setBusqueda] = useState('')
 	const [filtros, setFiltros] = useState<FiltrosProductos>({ category: 'all', minPrice: 0, maxPrice: 10000, inStock: true })
 	const [mostrarFiltros, setMostrarFiltros] = useState(false)
+	const [categoryId, setCategoryId] = useState<string>('')
+	const [categories, setCategories] = useState<{ id: number; nombre: string }[]>([])
 
 	useEffect(() => {
 		const cargar = async () => {
 			setCargando(true)
-			await fetchProductos()
+			if (categoryId && /^\d+$/.test(categoryId)) {
+				await fetchProductos({ categoryId: Number(categoryId) })
+			} else if (filtros.category && filtros.category !== 'all') {
+				await fetchProductos({ category: filtros.category })
+			} else {
+				await fetchProductos()
+			}
 			setCargando(false)
 		}
 		cargar()
-	}, [fetchProductos, filtros.category])
+	}, [fetchProductos, filtros.category, categoryId])
+
+	useEffect(() => {
+		let mounted = true
+		getAllCategories()
+			.then(list => {
+				if (!mounted) return
+				setCategories(list.map(c => ({ id: c.id, nombre: c.nombre })))
+			})
+			.catch(() => {
+				// ignore
+			})
+		return () => { mounted = false }
+	}, [])
 
 	const productosFiltrados = useMemo(
 		() =>
@@ -87,15 +109,28 @@ export default function PaginaProductos() {
 					<div>
 						<label className="mb-2 block text-sm font-medium text-gray-700">Categoría</label>
 						<select
-							value={filtros.category}
-							onChange={e => setFiltros({ ...filtros, category: e.target.value })}
+							value={categoryId || 'all'}
+							onChange={e => {
+								const val = e.target.value
+								if (val === 'all') {
+									setCategoryId('')
+									setFiltros({ ...filtros, category: 'all' })
+									return
+								}
+								setCategoryId(val)
+								const idNum = Number(val)
+								const found = categories.find(c => c.id === idNum)
+								setFiltros({ ...filtros, category: found ? found.nombre : 'all' })
+							}}
 							className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-red-500"
 						>
 							<option value="all">Todas las categorías</option>
-							<option value="embutidos">Embutidos</option>
-							<option value="carnes">Carnes</option>
-							<option value="conservas">Conservas</option>
+							{categories.map(cat => (
+								<option key={cat.id} value={String(cat.id)}>{cat.nombre}</option>
+							))}
 						</select>
+
+
 					</div>
 
 					<div>
