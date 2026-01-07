@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal } from 'components/ui/Modal'
 import { Alert } from 'components/ui/Alert'
 import { GoogleMap, Marker, Polygon, useJsApiLoader } from '@react-google-maps/api'
-import { obtenerSucursales, type Sucursal } from '../../services/sucursalesApi'
+import { obtenerSucursales, crearSucursal, actualizarSucursal, eliminarSucursal, type Sucursal } from '../../services/sucursalesApi'
 import { type Cliente, type ZonaComercial, type ListaPrecio } from '../../services/clientesApi'
+import { SucursalFormModal } from './SucursalFormModal'
+import type { ZonaOption } from 'components/ui/ClienteForm'
 
 const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
 const mapStyle = { width: '100%', height: '320px' }
@@ -21,26 +23,31 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [isLoadingSucursales, setIsLoadingSucursales] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isSucursalModalOpen, setIsSucursalModalOpen] = useState(false)
+  const [editingSucursal, setEditingSucursal] = useState<Sucursal | null>(null)
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey, libraries: GOOGLE_MAP_LIBRARIES })
 
+  const reloadSucursales = async () => {
+    if (!cliente) return
+    try {
+      setIsLoadingSucursales(true)
+      setError(null)
+      const data = await obtenerSucursales(cliente.id)
+      setSucursales(data)
+    } catch (e: any) {
+      setError(e?.message || 'No se pudieron cargar las sucursales')
+    } finally {
+      setIsLoadingSucursales(false)
+    }
+  }
+
   useEffect(() => {
     if (!isOpen || !cliente) return
-    const fetchSucursales = async () => {
-      try {
-        setIsLoadingSucursales(true)
-        setError(null)
-        const data = await obtenerSucursales(cliente.id)
-        setSucursales(data)
-      } catch (e: any) {
-        setError(e?.message || 'No se pudieron cargar las sucursales')
-      } finally {
-        setIsLoadingSucursales(false)
-      }
-    }
-    fetchSucursales()
-  }, [isOpen, cliente])
+    reloadSucursales()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, cliente?.id])
 
   const zona = useMemo(() => zonas.find((z) => z.id === cliente?.zona_comercial_id) || cliente?.zona_comercial, [cliente, zonas])
 
@@ -76,6 +83,8 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
   const creditoDisponible = cliente?.tiene_credito && cliente.limite_credito
     ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
     : '0.00'
+
+  const zonasOptions = useMemo(() => zonas.map((z) => ({ id: z.id, nombre: z.nombre, poligono_geografico: (z as any).poligono_geografico })) as ZonaOption[], [zonas])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente" headerGradient="red" maxWidth="2xl">
@@ -181,7 +190,16 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
           <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">Sucursales ({sucursales.length})</p>
-              {isLoadingSucursales && <span className="text-xs text-gray-500">Cargando...</span>}
+              <div className="flex items-center gap-3">
+                {isLoadingSucursales && <span className="text-xs text-gray-500">Cargando...</span>}
+                <button
+                  type="button"
+                  className="rounded-lg bg-brand-red px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-red/90"
+                  onClick={() => { setEditingSucursal(null); setIsSucursalModalOpen(true) }}
+                >
+                  + Agregar sucursal
+                </button>
+              </div>
             </div>
             {sucursales.length === 0 && !isLoadingSucursales && (
               <p className="text-sm text-gray-600">No hay sucursales registradas.</p>
@@ -198,11 +216,61 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
                     {coords && (
                       <p className="text-xs text-green-700 font-medium">Ubicación: {coords[1].toFixed(6)}, {coords[0].toFixed(6)}</p>
                     )}
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-gray-300 px-2 py-1 text-xs"
+                        onClick={() => { setEditingSucursal(s); setIsSucursalModalOpen(true) }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-md border border-red-300 text-red-700 px-2 py-1 text-xs hover:bg-red-50"
+                        onClick={async () => {
+                          if (!cliente) return
+                          if (!confirm(`¿Eliminar la sucursal "${s.nombre_sucursal}"?`)) return
+                          try {
+                            await eliminarSucursal(cliente.id, s.id)
+                            await reloadSucursales()
+                          } catch (e) {
+                            alert('No se pudo eliminar la sucursal')
+                          }
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 )
               })}
             </div>
           </div>
+
+          <SucursalFormModal
+            isOpen={isSucursalModalOpen}
+            onClose={() => { setIsSucursalModalOpen(false); setEditingSucursal(null) }}
+            initialData={editingSucursal ?? undefined}
+            zonas={zonasOptions}
+            zonaId={cliente?.zona_comercial_id ?? null}
+            ubicacionMatriz={mainLocation}
+            onSubmit={async (vals) => {
+              if (!cliente) return
+              const commonData = {
+                nombre_sucursal: vals.nombre_sucursal,
+                direccion_entrega: vals.direccion_entrega || undefined,
+                contacto_nombre: vals.contacto_nombre || undefined,
+                contacto_telefono: vals.contacto_telefono || undefined,
+                ubicacion_gps: vals.posicion ? { type: 'Point' as const, coordinates: [vals.posicion.lng, vals.posicion.lat] as [number, number] } : undefined,
+              }
+              if (editingSucursal?.id) {
+                await actualizarSucursal(cliente.id, editingSucursal.id, commonData)
+              } else {
+                await crearSucursal(cliente.id, commonData)
+              }
+              await reloadSucursales()
+            }}
+          />
         </div>
       )}
     </Modal>

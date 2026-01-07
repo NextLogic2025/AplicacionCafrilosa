@@ -1,221 +1,99 @@
 import { useState } from 'react'
-import { PlusCircle, MapPin, RefreshCcw, Map } from 'lucide-react'
+import { Save, AlertCircle } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
-import { SectionHeader } from 'components/ui/SectionHeader'
-import { Alert } from 'components/ui/Alert'
-import { Modal } from 'components/ui/Modal'
-import { LoadingSpinner } from 'components/ui/LoadingSpinner'
-import { type ZonaComercial, type CreateZonaDto } from '../../services/zonasApi'
-import { useZonas } from '../../services/useZonas'
-import { ZonasTable } from './ZonasTable'
-import { CrearZonaForm } from './CrearZonaForm'
-import { ZonaDetailModal } from './ZonaDetailModal'
-import { MapaGeneralModal } from './MapaGeneralModal'
-
-type ModalMode = 'crear' | 'editar'
+import { RuteroAgenda } from './RuteroAgenda'
+import { RuteroMapa } from './RuteroMapa'
+import { useRutero } from '../../services/useRutero'
 
 export default function RutasPage() {
-  const { zonas, vendedores, isLoading, error, loadZonas, crearZonaConVendedor, actualizarZonaConVendedor, toggleEstadoZona } = useZonas()
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<ModalMode>('crear')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [vendedorSeleccionado, setVendedorSeleccionado] = useState<string>('')
-  const [zonaEditando, setZonaEditando] = useState<ZonaComercial | null>(null)
-  const [zonaDetalle, setZonaDetalle] = useState<ZonaComercial | null>(null)
-  const [isMapaGeneralOpen, setIsMapaGeneralOpen] = useState(false)
-  const emptyForm: CreateZonaDto = {
-    codigo: '',
-    nombre: '',
-    ciudad: '',
-    macrorregion: '',
-    poligono_geografico: null,
-  }
+  const {
+    zonas,
+    zonaSeleccionada,
+    diaSeleccionado,
+    clientes,
+    isLoading,
+    isSaving,
+    error,
+    setZonaSeleccionada,
+    setDiaSeleccionado,
+    handleReordenar,
+    handleActualizarHora,
+    handleGuardar,
+  } = useRutero()
 
-  const handleOpenDetalle = (zona: ZonaComercial) => {
-    setZonaDetalle(zona)
-  }
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
-  const handleCloseDetalle = () => setZonaDetalle(null)
+  const zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
 
-  const [formData, setFormData] = useState<CreateZonaDto>(emptyForm)
-
-  const handleOpenModalCrear = () => {
-    setModalMode('crear')
-    setZonaEditando(null)
-    setIsModalOpen(true)
-    setFormErrors({})
-    setSubmitMessage(null)
-    setVendedorSeleccionado('')
-    setFormData(emptyForm)
-  }
-
-  const handleOpenModalEditar = (zona: ZonaComercial) => {
-    setModalMode('editar')
-    setZonaEditando(zona)
-    setIsModalOpen(true)
-    setFormErrors({})
-    setSubmitMessage(null)
-    setVendedorSeleccionado(zona.vendedor_asignado?.vendedor_usuario_id || '')
-    setFormData({
-      codigo: zona.codigo,
-      nombre: zona.nombre,
-      ciudad: zona.ciudad || '',
-      macrorregion: zona.macrorregion || '',
-      poligono_geografico: zona.poligono_geografico ?? null,
-    })
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setZonaEditando(null)
-    setFormErrors({})
-    setSubmitMessage(null)
-    setVendedorSeleccionado('')
-    setFormData(emptyForm)
-  }
-
-  const handleToggleEstado = async (zona: ZonaComercial) => {
-    setIsSubmitting(true)
+  const onGuardar = async () => {
     try {
-      await toggleEstadoZona(zona)
-      await loadZonas()
-    } catch (err: any) {
-      alert(err?.message ?? 'No se pudo cambiar el estado de la zona')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {}
-    if (!formData.codigo.trim()) errors.codigo = 'El código es requerido'
-    if (!formData.nombre.trim()) errors.nombre = 'El nombre es requerido'
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitMessage(null)
-
-    if (!validateForm()) return
-
-    setIsSubmitting(true)
-
-    try {
-      if (modalMode === 'crear') {
-        await crearZonaConVendedor(formData, vendedorSeleccionado || undefined)
-        setSubmitMessage({ type: 'success', message: 'Zona creada correctamente' })
-      } else if (zonaEditando) {
-        await actualizarZonaConVendedor(
-          zonaEditando.id, 
-          formData, 
-          vendedorSeleccionado || undefined,
-          zonaEditando.vendedor_asignado?.id
-        )
-        setSubmitMessage({ type: 'success', message: 'Zona actualizada correctamente' })
-      }
-      await loadZonas()
-      setTimeout(() => handleCloseModal(), 1000)
-    } catch (err: any) {
-      setSubmitMessage({ type: 'error', message: err?.message ?? 'No se pudo guardar la zona' })
-    } finally {
-      setIsSubmitting(false)
+      await handleGuardar()
+      setSaveMessage('Rutero guardado exitosamente')
+      setTimeout(() => setSaveMessage(null), 3000)
+    } catch (error) {
+      setSaveMessage('Error al guardar el rutero')
+      setTimeout(() => setSaveMessage(null), 3000)
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full flex-col">
       <PageHero
-        title="Rutas"
-        subtitle="Planifica y gestiona las rutas de distribución"
-        chips={["Logística", "Zonas", "Cobertura"]}
+        title="Rutero"
+        subtitle="Planifica las rutas de visita por zona y día de la semana"
       />
 
-      <SectionHeader
-        title="Zonas comerciales"
-        subtitle="Define las zonas de cobertura para asignar rutas y transportistas"
-      />
+      <div className="flex-1 overflow-hidden p-6">
+        {error && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+            <AlertCircle className="h-5 w-5" />
+            <span>{error}</span>
+          </div>
+        )}
 
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-gray-600">Agrupa pedidos y clientes por zonas para planificar mejor la distribución.</p>
-          <p className="text-xs text-gray-500">Total zonas: {zonas.length}</p>
+        {saveMessage && (
+          <div
+            className={`mb-4 rounded-lg border p-3 text-sm ${
+              saveMessage.includes('Error')
+                ? 'border-red-300 bg-red-50 text-red-800'
+                : 'border-green-300 bg-green-50 text-green-800'
+            }`}
+          >
+            {saveMessage}
+          </div>
+        )}
+
+        {/* Botón Guardar */}
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={onGuardar}
+            disabled={isSaving || !zonaSeleccionada || clientes.length === 0}
+            className="flex items-center gap-2 rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Guardando...' : 'Guardar Rutero'}
+          </button>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setIsMapaGeneralOpen(true)}
-            className="inline-flex items-center justify-center rounded-xl px-4 py-3 font-extrabold transition bg-indigo-600 text-white hover:bg-indigo-700"
-          >
-            <Map className="mr-2 h-4 w-4" />
-            Ver mapa general
-          </button>
-          <button
-            type="button"
-            onClick={loadZonas}
-            className="inline-flex items-center justify-center rounded-xl px-4 py-3 font-extrabold transition bg-white text-brand-red border border-brand-red hover:bg-brand-red/5"
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Actualizar
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenModalCrear}
-            className="inline-flex items-center justify-center rounded-xl px-4 py-3 font-extrabold transition bg-brand-red text-white hover:bg-brand-red/90"
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Nueva zona
-          </button>
+
+        {/* Grid Principal */}
+        <div className="grid h-[calc(100%-5rem)] grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Panel Izquierdo - Agenda */}
+          <RuteroAgenda
+            zonas={zonas}
+            zonaSeleccionada={zonaSeleccionada}
+            onZonaChange={setZonaSeleccionada}
+            diaSeleccionado={diaSeleccionado}
+            onDiaChange={setDiaSeleccionado}
+            clientes={clientes}
+            isLoading={isLoading}
+            onReordenar={handleReordenar}
+            onUpdateHora={handleActualizarHora}
+          />
+
+          {/* Panel Derecho - Mapa */}
+          <RuteroMapa zona={zonaActual} clientes={clientes} isLoading={isLoading} />
         </div>
       </div>
-
-      {error ? (
-        <Alert type="error" message={error} />
-      ) : null}
-
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <LoadingSpinner />
-        </div>
-      ) : zonas.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-            <MapPin className="h-8 w-8 text-gray-400" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">No hay zonas configuradas</h3>
-          <p className="mt-2 text-sm text-gray-600">Crea la primera zona para empezar a planificar rutas.</p>
-        </div>
-      ) : (
-        <ZonasTable zonas={zonas} onView={handleOpenDetalle} onEdit={handleOpenModalEditar} onToggleEstado={handleToggleEstado} />
-      )}
-
-      <Modal
-        isOpen={isModalOpen}
-        title={modalMode === 'crear' ? 'Crear zona' : 'Editar zona'}
-        onClose={handleCloseModal}
-        headerGradient="red"
-        maxWidth="md"
-      >
-        <CrearZonaForm
-          formData={formData}
-          setFormData={setFormData}
-          formErrors={formErrors}
-          vendedores={vendedores}
-          vendedorSeleccionado={vendedorSeleccionado}
-          setVendedorSeleccionado={setVendedorSeleccionado}
-          submitMessage={submitMessage}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSubmit}
-          onCancel={handleCloseModal}
-          isEditing={modalMode === 'editar'}
-        />
-      </Modal>
-
-      <ZonaDetailModal zona={zonaDetalle} isOpen={!!zonaDetalle} onClose={handleCloseDetalle} />
-      <MapaGeneralModal zonas={zonas} isOpen={isMapaGeneralOpen} onClose={() => setIsMapaGeneralOpen(false)} />
     </div>
   )
 }

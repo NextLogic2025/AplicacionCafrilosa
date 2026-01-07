@@ -35,7 +35,7 @@ export interface UpdateSucursalDto {
 export async function crearSucursal(clienteId: string, data: CreateSucursalDto): Promise<Sucursal> {
   return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales`, {
     method: 'POST',
-    body: data,
+    body: { cliente_id: clienteId, ...data },
   })
 }
 
@@ -43,23 +43,23 @@ export async function obtenerSucursales(clienteId: string): Promise<Sucursal[]> 
   return httpCatalogo<Sucursal[]>(`/clientes/${clienteId}/sucursales`)
 }
 
-export async function obtenerSucursal(clienteId: string, sucursalId: string): Promise<Sucursal> {
-  return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales/${sucursalId}`)
+export async function obtenerSucursal(_clienteId: string, sucursalId: string): Promise<Sucursal> {
+  return httpCatalogo<Sucursal>(`/sucursales/${sucursalId}`)
 }
 
 export async function actualizarSucursal(
-  clienteId: string,
+  _clienteId: string,
   sucursalId: string,
   data: UpdateSucursalDto
 ): Promise<Sucursal> {
-  return httpCatalogo<Sucursal>(`/clientes/${clienteId}/sucursales/${sucursalId}`, {
+  return httpCatalogo<Sucursal>(`/sucursales/${sucursalId}`, {
     method: 'PUT',
     body: data,
   })
 }
 
-export async function eliminarSucursal(clienteId: string, sucursalId: string): Promise<{ id: string; deleted: boolean }> {
-  return httpCatalogo<{ id: string; deleted: boolean }>(`/clientes/${clienteId}/sucursales/${sucursalId}`, {
+export async function eliminarSucursal(_clienteId: string, sucursalId: string): Promise<{ id: string; deleted: boolean }> {
+  return httpCatalogo<{ id: string; deleted: boolean }>(`/sucursales/${sucursalId}`, {
     method: 'DELETE',
   })
 }
