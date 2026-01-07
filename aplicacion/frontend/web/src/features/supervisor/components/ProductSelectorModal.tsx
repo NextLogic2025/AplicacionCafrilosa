@@ -45,9 +45,11 @@ export function ProductSelectorModal({
     setSearchProducto('')
   }
 
+  const productosAsignadosArray = Array.isArray(productosAsignados) ? productosAsignados : []
+  
   const productosDisponibles = productos.filter(
     (p) =>
-      !productosAsignados.find((pa) => pa.producto_id === p.id) &&
+      !productosAsignadosArray.find((pa) => pa.producto_id === p.id) &&
       (p.nombre.toLowerCase().includes(searchProducto.toLowerCase()) ||
         p.codigo_sku.toLowerCase().includes(searchProducto.toLowerCase()))
   )
@@ -64,11 +66,11 @@ export function ProductSelectorModal({
         {/* Productos asignados */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold text-gray-900">Productos asignados</h4>
-          {productosAsignados.length === 0 ? (
+          {productosAsignadosArray.length === 0 ? (
             <p className="text-sm text-gray-500">No hay productos asignados</p>
           ) : (
             <div className="space-y-2">
-              {productosAsignados.map((pp) => (
+              {productosAsignadosArray.map((pp) => (
                 <div
                   key={pp.producto_id}
                   className="flex items-center justify-between rounded-lg bg-gray-50 p-3"

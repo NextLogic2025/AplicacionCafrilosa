@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getAllZonas, type ZonaComercial } from './zonasApi'
-import { obtenerClientesPorZona, obtenerRuteroPorZonaYDia, guardarRutero, actualizarOrdenRutero } from './ruteroApi'
+import { 
+  obtenerClientesPorZona, 
+  obtenerRuteroPorZonaYDia, 
+  guardarRutero, 
+  actualizarOrdenRutero,
+  obtenerTodasLasRutas,
+  eliminarRutaPorZonaYDia
+} from './ruteroApi'
 import type { ClienteRutero, RuteroPlanificado, DiaSemana } from './types'
+
+interface RutaGuardada {
+  zona_id: number
+  zona_nombre: string
+  dia_semana: string
+  clientes: RuteroPlanificado[]
+}
 
 export function useRutero() {
   const [zonas, setZonas] = useState<ZonaComercial[]>([])
@@ -11,6 +25,8 @@ export function useRutero() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rutasGuardadas, setRutasGuardadas] = useState<RutaGuardada[]>([])
+  const [isLoadingRutas, setIsLoadingRutas] = useState(false)
 
   // Cargar zonas al inicio
   useEffect(() => {
@@ -132,6 +148,55 @@ export function useRutero() {
     }
   }, [zonaSeleccionada, diaSeleccionado, clientes, cargarClientesRutero])
 
+  const cargarRutasGuardadas = useCallback(async () => {
+    try {
+      setIsLoadingRutas(true)
+      const todasLasRutas = await obtenerTodasLasRutas()
+      
+      // Agrupar por zona y día
+      const agrupadas = todasLasRutas.reduce((acc, ruta) => {
+        const key = `${ruta.zona_id}-${ruta.dia_semana}`
+        if (!acc[key]) {
+          const zona = zonas.find((z) => z.id === ruta.zona_id)
+          acc[key] = {
+            zona_id: ruta.zona_id,
+            zona_nombre: zona?.nombre ?? 'Zona desconocida',
+            dia_semana: ruta.dia_semana,
+            clientes: [],
+          }
+        }
+        acc[key].clientes.push(ruta)
+        return acc
+      }, {} as Record<string, RutaGuardada>)
+
+      // Ordenar clientes dentro de cada ruta
+      Object.values(agrupadas).forEach((ruta) => {
+        ruta.clientes.sort((a, b) => a.orden_sugerido - b.orden_sugerido)
+      })
+
+      setRutasGuardadas(Object.values(agrupadas))
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al cargar rutas guardadas')
+      setRutasGuardadas([])
+    } finally {
+      setIsLoadingRutas(false)
+    }
+  }, [zonas])
+
+  const handleSeleccionarRuta = useCallback((zonaId: number, dia: string) => {
+    setZonaSeleccionada(zonaId)
+    setDiaSeleccionado(dia as DiaSemana)
+  }, [])
+
+  const handleEliminarRuta = useCallback(async (zonaId: number, dia: string) => {
+    try {
+      await eliminarRutaPorZonaYDia(zonaId, dia as DiaSemana)
+      await cargarRutasGuardadas()
+    } catch (err: any) {
+      setError(err?.message ?? 'Error al eliminar ruta')
+    }
+  }, [cargarRutasGuardadas])
+
   return {
     zonas,
     zonaSeleccionada,
@@ -148,5 +213,13 @@ export function useRutero() {
     handleActualizarFrecuencia,
     handleGuardar,
     recargar: cargarClientesRutero,
+    // Nuevas funciones para rutas guardadas
+    rutasGuardadas,
+    isLoadingRutas,
+    cargarRutasGuardadas,
+    handleSeleccionarRuta,
+    handleEliminarRuta,
   }
 }
+
+export type { RutaGuardada }

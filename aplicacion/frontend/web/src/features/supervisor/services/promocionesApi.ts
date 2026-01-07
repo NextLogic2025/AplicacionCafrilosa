@@ -89,7 +89,9 @@ export async function deleteCampania(id: number): Promise<void> {
 }
 
 export async function getProductosByCampania(campaniaId: number): Promise<ProductoPromocion[]> {
-  return httpCatalogo<ProductoPromocion[]>(`/promociones/${campaniaId}/productos`)
+  const response = await httpCatalogo<{ items: ProductoPromocion[] } | ProductoPromocion[]>(`/promociones/${campaniaId}/productos`)
+  // La API puede devolver {items: [...]} o directamente [...]
+  return Array.isArray(response) ? response : (response as any).items || []
 }
 
 export async function addProductoPromo(campaniaId: number, data: AddProductoPromoDto): Promise<ProductoPromocion> {
@@ -106,7 +108,9 @@ export async function deleteProductoPromo(campaniaId: number, productoId: string
 }
 
 export async function getClientesByCampania(campaniaId: number): Promise<ClienteCampania[]> {
-  return httpCatalogo<ClienteCampania[]>(`/promociones/${campaniaId}/clientes`)
+  const response = await httpCatalogo<{ items: ClienteCampania[] } | ClienteCampania[]>(`/promociones/${campaniaId}/clientes`)
+  // La API puede devolver {items: [...]} o directamente [...]
+  return Array.isArray(response) ? response : (response as any).items || []
 }
 
 export async function addClienteCampania(campaniaId: number, data: AddClienteCampaniaDto): Promise<ClienteCampania> {

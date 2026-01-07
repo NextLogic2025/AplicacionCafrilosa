@@ -25,6 +25,9 @@ export function CampaniaDetailModal({
 }: CampaniaDetailModalProps) {
   if (!campania) return null
 
+  const productosArray = Array.isArray(productosAsignados) ? productosAsignados : []
+  const clientesArray = Array.isArray(clientesAsignados) ? clientesAsignados : []
+
   return (
     <Modal
       isOpen={isOpen}
@@ -103,25 +106,25 @@ export function CampaniaDetailModal({
         <div className="space-y-3 border-t border-gray-200 pt-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">
-              Productos en Promoción ({productosAsignados.length})
+              Productos en Promoción ({productosArray.length})
             </h3>
           </div>
 
-          {productosAsignados.length === 0 ? (
+          {productosArray.length === 0 ? (
             <div className="rounded-lg bg-gray-50 p-8 text-center">
               <p className="text-sm text-gray-500">No hay productos asignados a esta campaña</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {productosAsignados.map((pp) => (
+              {productosArray.map((pp, index) => (
                 <div
-                  key={pp.producto_id}
+                  key={pp.producto_id || pp.id || `producto-${index}`}
                   className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{pp.producto?.nombre || pp.producto_id}</p>
-                    {pp.producto?.codigo_sku && (
-                      <p className="text-xs text-gray-500">SKU: {pp.producto.codigo_sku}</p>
+                    <p className="font-medium text-gray-900">{pp.nombre || pp.producto?.nombre || pp.producto_id || pp.id}</p>
+                    {(pp.codigo_sku || pp.producto?.codigo_sku) && (
+                      <p className="text-xs text-gray-500">SKU: {pp.codigo_sku || pp.producto?.codigo_sku}</p>
                     )}
                   </div>
                   {pp.precio_oferta_fijo && (
@@ -131,7 +134,7 @@ export function CampaniaDetailModal({
                     </div>
                   )}
                   <button
-                    onClick={() => onDeleteProduct(pp.producto_id)}
+                    onClick={() => onDeleteProduct(pp.producto_id || pp.id)}
                     className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
                     title="Eliminar de la campaña"
                   >
@@ -148,30 +151,32 @@ export function CampaniaDetailModal({
           <div className="space-y-3 border-t border-gray-200 pt-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">
-                Clientes Asignados ({clientesAsignados.length})
+                Clientes Asignados ({clientesArray.length})
               </h3>
             </div>
 
-            {clientesAsignados.length === 0 ? (
+            {clientesArray.length === 0 ? (
               <div className="rounded-lg bg-gray-50 p-8 text-center">
                 <p className="text-sm text-gray-500">No hay clientes asignados a esta campaña</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {clientesAsignados.map((cc) => (
+                {clientesArray.map((cc, index) => (
                   <div
-                    key={cc.cliente_id}
+                    key={cc.cliente_id || cc.id || `cliente-${index}`}
                     className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
                   >
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">{cc.cliente?.razon_social || cc.cliente_id}</p>
-                      {cc.cliente?.identificacion && (
-                        <p className="text-xs text-gray-500">ID: {cc.cliente.identificacion}</p>
+                      <p className="font-medium text-gray-900">
+                        {cc.razon_social || cc.cliente?.razon_social || cc.nombre || cc.cliente_id || cc.id}
+                      </p>
+                      {(cc.identificacion || cc.cliente?.identificacion) && (
+                        <p className="text-xs text-gray-500">ID: {cc.identificacion || cc.cliente?.identificacion}</p>
                       )}
                     </div>
                     {onDeleteCliente && (
                       <button
-                        onClick={() => onDeleteCliente(cc.cliente_id)}
+                        onClick={() => onDeleteCliente(cc.cliente_id || cc.id)}
                         className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Eliminar de la campaña"
                       >

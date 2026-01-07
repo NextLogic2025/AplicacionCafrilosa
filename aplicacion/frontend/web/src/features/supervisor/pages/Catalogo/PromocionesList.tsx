@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { Pencil, Trash2, Search } from 'lucide-react'
+import { Pencil, Trash2, Search, Package, UserPlus } from 'lucide-react'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { Percent } from 'lucide-react'
 import type { Campania } from '../../services/promocionesApi'
@@ -15,6 +15,8 @@ interface PromocionesListProps {
   onEdit: (campania: Campania) => void
   onDelete: (id: number) => void
   onViewDetails: (campania: Campania) => void
+  onAddProducts?: (campania: Campania) => void
+  onAddClientes?: (campania: Campania) => void
 }
 
 export function PromocionesList({
@@ -27,6 +29,8 @@ export function PromocionesList({
   onEdit,
   onDelete,
   onViewDetails,
+  onAddProducts,
+  onAddClientes,
 }: PromocionesListProps) {
   // Filtrar campañas
   const campaniasFiltradas = useMemo(() => {
@@ -162,7 +166,39 @@ export function PromocionesList({
                 </span>
               </div>
 
-              {/* Action Buttons */}
+              {/* Quick Action Buttons */}
+              {(onAddProducts || (onAddClientes && campania.alcance === 'POR_CLIENTE')) && (
+                <div className="mb-3 flex gap-2">
+                  {onAddProducts && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddProducts(campania)
+                      }}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-100"
+                      title="Agregar productos"
+                    >
+                      <Package className="h-4 w-4" />
+                      <span>Productos</span>
+                    </button>
+                  )}
+                  {onAddClientes && campania.alcance === 'POR_CLIENTE' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddClientes(campania)
+                      }}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-100"
+                      title="Agregar clientes"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span>Clientes</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Main Action Buttons */}
               <div className="flex gap-2">
                 <button
                   onClick={(e) => {

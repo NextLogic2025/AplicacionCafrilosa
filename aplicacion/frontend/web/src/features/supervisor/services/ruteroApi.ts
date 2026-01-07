@@ -85,3 +85,41 @@ export async function actualizarOrdenRutero(
   void nuevoOrden
   void horaEstimada
 }
+
+export async function obtenerTodasLasRutas(): Promise<RuteroPlanificado[]> {
+  const all = await httpCatalogo<any[]>(`/rutero`).catch(() => [])
+  
+  return (all || []).map((r: any) => ({
+    cliente_id: r.cliente_id,
+    zona_id: r.zona_id,
+    dia_semana: numberToDia(r.dia_semana),
+    frecuencia: r.frecuencia ?? 'SEMANAL',
+    prioridad_visita: r.prioridad_visita ?? 'MEDIA',
+    orden_sugerido: r.orden_sugerido ?? 999,
+    hora_estimada: r.hora_estimada_arribo ?? r.hora_estimada ?? null,
+    activo: r.activo ?? true,
+  })) as RuteroPlanificado[]
+}
+
+function numberToDia(num: number): DiaSemana {
+  const map: Record<number, DiaSemana> = {
+    2: 'LUNES',
+    3: 'MARTES',
+    4: 'MIERCOLES',
+    5: 'JUEVES',
+    6: 'VIERNES',
+  }
+  return map[num] ?? 'LUNES'
+}
+
+export async function eliminarRutaPorZonaYDia(zonaId: number, diaSemana: DiaSemana): Promise<void> {
+  // Como no hay endpoint específico, obtenemos las rutas y eliminamos una por una
+  const rutas = await obtenerRuteroPorZonaYDia(zonaId, diaSemana)
+  
+  for (const ruta of rutas) {
+    // Asumiendo que existe DELETE /rutero/:id, ajustar según API real
+    await httpCatalogo(`/rutero/${ruta.cliente_id}`, {
+      method: 'DELETE',
+    }).catch(() => {})
+  }
+}

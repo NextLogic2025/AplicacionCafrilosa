@@ -16,7 +16,7 @@ import {
   type ProductoPromocion,
   type ClienteCampania,
 } from '../../services/promocionesApi'
-import { obtenerListasPrecios, type ListaPrecio } from '../../services/clientesApi'
+import { obtenerListasPrecios, obtenerCliente, type ListaPrecio, type Cliente } from '../../services/clientesApi'
 import { getAllProducts, type Product } from '../../services/productosApi'
 
 const EMPTY_FORM: CreateCampaniaDto = {
@@ -121,20 +121,33 @@ export function usePromocionesController() {
       setProductosAsignados(data)
     } catch (err) {
       console.error('Error al cargar productos de campaña:', err)
+      setProductosAsignados([])
     }
   }
 
   const handleOpenProductModal = async (campania: Campania) => {
     setEditingCampania(campania)
-    await loadProductosByCampania(campania.id)
+    setProductosAsignados([]) // Inicializar como array vacío
     setIsProductModalOpen(true)
+    await loadProductosByCampania(campania.id)
   }
 
   const handleOpenClientModal = async (campaniaId: number) => {
     setCampaniaIdForClientes(campaniaId)
     try {
       const clientes = await getClientesByCampania(campaniaId)
-      setClientesAsignados(clientes)
+      // Enriquecer con datos completos del cliente
+      const clientesEnriquecidos = await Promise.all(
+        clientes.map(async (cc) => {
+          try {
+            const clienteCompleto = await obtenerCliente(cc.cliente_id)
+            return { ...cc, cliente: clienteCompleto }
+          } catch {
+            return cc
+          }
+        })
+      )
+      setClientesAsignados(clientesEnriquecidos)
       setIsClientModalOpen(true)
     } catch (err) {
       console.error('Error al cargar clientes de la campaña:', err)
@@ -149,7 +162,18 @@ export function usePromocionesController() {
     try {
       await addClienteCampania(campaniaIdForClientes, { cliente_id: clienteId })
       const clientes = await getClientesByCampania(campaniaIdForClientes)
-      setClientesAsignados(clientes)
+      // Enriquecer con datos completos del cliente
+      const clientesEnriquecidos = await Promise.all(
+        clientes.map(async (cc) => {
+          try {
+            const clienteCompleto = await obtenerCliente(cc.cliente_id)
+            return { ...cc, cliente: clienteCompleto }
+          } catch {
+            return cc
+          }
+        })
+      )
+      setClientesAsignados(clientesEnriquecidos)
     } catch (err: any) {
       console.error('Error al agregar cliente:', err)
       throw new Error(err.message || 'Error al agregar cliente')
@@ -162,7 +186,18 @@ export function usePromocionesController() {
     try {
       await deleteClienteCampania(campaniaIdForClientes, clienteId)
       const clientes = await getClientesByCampania(campaniaIdForClientes)
-      setClientesAsignados(clientes)
+      // Enriquecer con datos completos del cliente
+      const clientesEnriquecidos = await Promise.all(
+        clientes.map(async (cc) => {
+          try {
+            const clienteCompleto = await obtenerCliente(cc.cliente_id)
+            return { ...cc, cliente: clienteCompleto }
+          } catch {
+            return cc
+          }
+        })
+      )
+      setClientesAsignados(clientesEnriquecidos)
     } catch (err: any) {
       console.error('Error al eliminar cliente:', err)
       throw new Error(err.message || 'Error al eliminar cliente')
@@ -178,7 +213,18 @@ export function usePromocionesController() {
     try {
       await deleteClienteCampania(selectedCampania.id, clienteId)
       const clientes = await getClientesByCampania(selectedCampania.id)
-      setClientesAsignados(clientes)
+      // Enriquecer con datos completos del cliente
+      const clientesEnriquecidos = await Promise.all(
+        clientes.map(async (cc) => {
+          try {
+            const clienteCompleto = await obtenerCliente(cc.cliente_id)
+            return { ...cc, cliente: clienteCompleto }
+          } catch {
+            return cc
+          }
+        })
+      )
+      setClientesAsignados(clientesEnriquecidos)
       setSuccessMessage('✓ Cliente eliminado de la campaña')
       setTimeout(() => setSuccessMessage(''), 3000)
     } catch (err: any) {
@@ -219,19 +265,34 @@ export function usePromocionesController() {
 
   const handleViewDetails = async (campania: Campania) => {
     setSelectedCampania(campania)
+    setProductosAsignados([]) // Inicializar como array vacío
+    setClientesAsignados([]) // Inicializar como array vacío
+    setIsDetailModalOpen(true)
+    
+    // Cargar productos
     await loadProductosByCampania(campania.id)
 
+    // Cargar clientes si es necesario
     if (campania.alcance === 'POR_CLIENTE') {
       try {
         const clientes = await getClientesByCampania(campania.id)
-        setClientesAsignados(clientes)
+        // Enriquecer con datos completos del cliente
+        const clientesEnriquecidos = await Promise.all(
+          clientes.map(async (cc) => {
+            try {
+              const clienteCompleto = await obtenerCliente(cc.cliente_id)
+              return { ...cc, cliente: clienteCompleto }
+            } catch {
+              return cc
+            }
+          })
+        )
+        setClientesAsignados(clientesEnriquecidos)
       } catch (err) {
         console.error('Error al cargar clientes de la campaña:', err)
         setClientesAsignados([])
       }
     }
-
-    setIsDetailModalOpen(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

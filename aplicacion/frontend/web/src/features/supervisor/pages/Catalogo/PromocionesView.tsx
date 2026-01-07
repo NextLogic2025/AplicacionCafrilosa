@@ -87,6 +87,8 @@ export function PromocionesView() {
         onEdit={(campania) => handleOpenModal(campania)}
         onDelete={(id) => handleDelete(id)}
         onViewDetails={(campania) => handleViewDetails(campania)}
+        onAddProducts={(campania) => handleOpenProductModal(campania)}
+        onAddClientes={(campania) => handleOpenClientModal(campania.id)}
       />
 
       <PromocionesForm
