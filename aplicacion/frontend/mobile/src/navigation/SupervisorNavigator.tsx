@@ -28,7 +28,8 @@ import { SupervisorCategoriesScreen } from '../features/supervisor/screens/Super
 import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
 import { SupervisorPriceListsScreen } from '../features/supervisor/screens/SupervisorPriceListsScreen'
 import { SupervisorPromotionsScreen } from '../features/supervisor/screens/SupervisorPromotionsScreen'
-import { SupervisorPromotionFormScreen } from '../features/supervisor/screens/SupervisorPromotionFormScreen'
+import { SupervisorPromotionFormScreen as SupervisorCampaignFormScreen } from '../features/supervisor/screens/SupervisorPromotionFormScreen'
+import { SupervisorRoutesScreen } from '../features/supervisor/screens/SupervisorRoutesScreen'
 
 import { SupervisorAuditScreen } from '../features/supervisor/screens/SupervisorAuditScreen'
 
@@ -56,11 +57,9 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         label: 'Catálogo',
                         onPress: () => navigation.navigate('SupervisorCatalog'),
                     },
-                    {
-                        icon: 'people',
-                        label: 'Clientes',
-                        onPress: () => navigation.navigate('SupervisorClients'),
-                    },
+                    { label: 'Rutas', icon: 'map', onPress: () => navigation.navigate('SupervisorRoutes') },
+                    { label: 'Promociones', icon: 'pricetag', onPress: () => navigation.navigate('SupervisorPromotions') },
+                    { label: 'Clientes', icon: 'people', onPress: () => navigation.navigate('SupervisorClients') },
                     {
                         icon: 'cube',
                         label: 'Bodega',
@@ -85,11 +84,6 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         icon: 'alert-circle',
                         label: 'Alertas',
                         onPress: () => navigation.navigate('SupervisorAlerts'),
-                    },
-                    {
-                        icon: 'pricetag',
-                        label: 'Promociones',
-                        onPress: () => navigation.navigate('SupervisorPromotions'),
                     },
                     {
                         icon: 'shield-checkmark-outline',
@@ -120,8 +114,12 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorCategories" component={SupervisorCategoriesScreen} />
             <Stack.Screen name="SupervisorProductForm" component={SupervisorProductFormScreen as any} />
             <Stack.Screen name="SupervisorPriceLists" component={SupervisorPriceListsScreen} />
-            <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
-            <Stack.Screen name="SupervisorPromotionForm" component={SupervisorPromotionFormScreen} />
+
+            <Stack.Group>
+                <Stack.Screen name="SupervisorRoutes" component={SupervisorRoutesScreen} />
+                <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
+                <Stack.Screen name="SupervisorPromotionForm" component={SupervisorCampaignFormScreen} />
+            </Stack.Group>
             <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
             <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
             <Stack.Screen name="SupervisorZoneMap" component={SupervisorZoneMapScreen} />

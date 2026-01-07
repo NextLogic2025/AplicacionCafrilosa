@@ -149,9 +149,18 @@ export function SupervisorClientFormScreen() {
             showFeedback('warning', 'Faltan Datos', 'Debes seleccionar una Zona Comercial.')
             return false
         }
-        if (!isEditing && (!userData.email.trim() || !userData.password.trim())) {
-            showFeedback('warning', 'Faltan Datos', 'Debes crear un usuario (Email y Contraseña).')
-            return false
+        if (!isEditing) {
+            if (!userData.email.trim() || !userData.password.trim()) {
+                showFeedback('warning', 'Faltan Datos', 'Debes crear un usuario (Email y Contraseña).')
+                return false
+            }
+
+            // Email Validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(userData.email)) {
+                showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).')
+                return false
+            }
         }
         return true
     }
