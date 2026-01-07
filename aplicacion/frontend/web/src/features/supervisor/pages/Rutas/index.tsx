@@ -1,10 +1,59 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Save, AlertCircle, List, Map } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
 import { RuteroAgenda } from './RuteroAgenda'
 import { RuteroMapa } from './RuteroMapa'
 import { RuteroLista } from './RuteroLista'
 import { useRutero } from '../../services/useRutero'
+
+// Helper: Parse GeoJSON polygon to lat/lng array
+function parseGeoPolygon(value: unknown): { lat: number; lng: number }[] {
+  if (!value) return []
+
+  if (Array.isArray(value) && value.every((p: any) => typeof p?.lat === 'number' && typeof p?.lng === 'number')) {
+    return value as { lat: number; lng: number }[]
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return parseGeoPolygon(parsed)
+    } catch {
+      return []
+    }
+  }
+
+  if (typeof value === 'object' && value !== null && 'coordinates' in (value as any)) {
+    const coordinates = (value as any).coordinates?.[0]
+    if (Array.isArray(coordinates)) {
+      return coordinates
+        .map((pair: any) => {
+          if (!Array.isArray(pair) || pair.length < 2) return null
+          const [lng, lat] = pair
+          if (typeof lat !== 'number' || typeof lng !== 'number') return null
+          return { lat, lng }
+        })
+        .filter(Boolean) as { lat: number; lng: number }[]
+    }
+  }
+
+  return []
+}
+
+// Ray-casting algorithm for point in polygon
+function isPointInPolygon(point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng
+    const yi = polygon[i].lat
+    const xj = polygon[j].lng
+    const yj = polygon[j].lat
+
+    const intersect = yi > point.lat !== yj > point.lat && point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi + 1e-9) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
 
 export default function RutasPage() {
   const {
@@ -33,6 +82,20 @@ export default function RutasPage() {
   const [vistaActual, setVistaActual] = useState<'planificar' | 'listar'>('planificar')
 
   const zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
+
+  // Filtrar clientes por zona usando polígono
+  const clientesFiltrados = useMemo(() => {
+    if (!zonaActual?.poligono_geografico) return clientes
+    
+    const zonaPaths = parseGeoPolygon(zonaActual.poligono_geografico)
+    if (!zonaPaths.length) return clientes
+
+    return clientes.filter((c) => {
+      if (!c.ubicacion_gps) return false
+      const [lng, lat] = c.ubicacion_gps.coordinates
+      return isPointInPolygon({ lat, lng }, zonaPaths)
+    })
+  }, [clientes, zonaActual])
 
   useEffect(() => {
     if (vistaActual === 'listar') {
@@ -116,7 +179,7 @@ export default function RutasPage() {
             <div className="mb-4 flex justify-end">
               <button
                 onClick={onGuardar}
-                disabled={isSaving || !zonaSeleccionada || clientes.length === 0}
+                disabled={isSaving || !zonaSeleccionada || clientesFiltrados.length === 0}
                 className="flex items-center gap-2 rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
@@ -133,7 +196,7 @@ export default function RutasPage() {
                 onZonaChange={setZonaSeleccionada}
                 diaSeleccionado={diaSeleccionado}
                 onDiaChange={setDiaSeleccionado}
-                clientes={clientes}
+                clientes={clientesFiltrados}
                 isLoading={isLoading}
                 onReordenar={handleReordenar}
                 onUpdateHora={handleActualizarHora}
@@ -142,7 +205,7 @@ export default function RutasPage() {
               />
 
               {/* Panel Derecho - Mapa */}
-              <RuteroMapa zona={zonaActual} clientes={clientes} isLoading={isLoading} />
+              <RuteroMapa zona={zonaActual} clientes={clientesFiltrados} isLoading={isLoading} />
             </div>
           </>
         )}
