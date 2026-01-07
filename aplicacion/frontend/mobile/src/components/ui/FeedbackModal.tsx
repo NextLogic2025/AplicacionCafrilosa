@@ -88,10 +88,10 @@ export const FeedbackModal = ({
                     </Text>
 
                     {/* Actions */}
-                    <View className="flex-row gap-3 w-full">
+                    <View className="flex-row w-full">
                         {showCancel && (
                             <TouchableOpacity
-                                className="flex-1 py-3 rounded-xl border border-neutral-200 items-center justify-center bg-white"
+                                className="flex-1 py-3 rounded-xl border border-neutral-200 items-center justify-center bg-white mr-3"
                                 onPress={onClose}
                             >
                                 <Text className="text-neutral-600 font-semibold text-base">

@@ -9,6 +9,7 @@ import { ClientService, Client } from '../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../services/api/PriceService'
 import { Header } from '../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../components/ui/FeedbackModal'
+import { ProductPriceDisplay } from '../../../components/ui/ProductPriceDisplay'
 
 export function SupervisorPromotionFormScreen(props: any) {
     const { navigation, route } = props
@@ -46,6 +47,9 @@ export function SupervisorPromotionFormScreen(props: any) {
     // --- Picker UI State ---
     const [pickerType, setPickerType] = useState<'none' | 'products' | 'clients'>('none')
     const [searchText, setSearchText] = useState('')
+
+    // --- Collapse State para productos ---
+    const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({})
 
     // --- Modal State ---
     const [feedbackModal, setFeedbackModal] = useState<{
@@ -90,6 +94,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                 CatalogService.getProducts(),
                 ClientService.getClients()
             ])
+
             setPriceLists(lists)
             setAvailableProducts(prods)
             setAvailableClients(clis)
@@ -100,11 +105,12 @@ export function SupervisorPromotionFormScreen(props: any) {
                     PromotionService.getClients(campaign.id)
                 ])
 
-                // Hydrate Names (Backend might not return relations)
-                const hydratedProducts = rawProducts.map(rp => ({
-                    ...rp,
-                    producto: rp.producto || prods.find(p => p.id === rp.producto_id)
-                }))
+                // El backend ya retorna los productos con precios desde PromotionService.getProducts
+                // Solo necesitamos asegurarnos de que los productos tengan la información completa
+                const hydratedProducts = rawProducts.map(rp => {
+                    // rp.producto ya viene del backend con precios incluidos
+                    return rp
+                })
 
                 const hydratedClients = rawClients.map(rc => ({
                     ...rc,
@@ -239,14 +245,36 @@ export function SupervisorPromotionFormScreen(props: any) {
     const addItem = async (item: any) => {
         try {
             if (pickerType === 'products') {
-                if (promoProducts.some(p => p.producto_id === item.id)) return;
-                const newP: any = { producto_id: item.id, producto: item, precio_oferta_fijo: 0 }
-                if (campaign) await PromotionService.addProduct(campaign.id, item.id, 0)
+                if (promoProducts.some(p => p.producto_id === item.id)) return
+
+                // Buscar el producto en availableProducts que ya tiene los precios cargados
+                const productoCompleto = availableProducts.find(p => p.id === item.id)
+
+                const newP: any = {
+                    producto_id: item.id,
+                    producto: productoCompleto || item,
+                    precio_oferta_fijo: 0,
+                    campania_id: campaign?.id || 0
+                }
+
+                // Por defecto, expandir el producto recién agregado
+                setExpandedProducts(prev => ({ ...prev, [item.id]: true }))
+
+                if (campaign) {
+                    await PromotionService.addProduct(campaign.id, item.id, 0)
+                }
+
                 setPromoProducts([...promoProducts, newP])
             } else {
-                if (promoClients.some(c => c.cliente_id === item.id)) return;
-                const newC: any = { cliente_id: item.id, cliente: item }
-                if (campaign) await PromotionService.addClient(campaign.id, item.id)
+                if (promoClients.some(c => c.cliente_id === item.id)) return
+                const newC: any = {
+                    cliente_id: item.id,
+                    cliente: item,
+                    campania_id: campaign?.id || 0
+                }
+                if (campaign) {
+                    await PromotionService.addClient(campaign.id, item.id)
+                }
                 setPromoClients([...promoClients, newC])
             }
             setPickerType('none')
@@ -255,6 +283,13 @@ export function SupervisorPromotionFormScreen(props: any) {
             console.error(error)
             showModal('error', 'Error', 'No se pudo agregar el item')
         }
+    }
+
+    const toggleProductExpansion = (productId: string) => {
+        setExpandedProducts(prev => ({
+            ...prev,
+            [productId]: !prev[productId]
+        }))
     }
 
     const removeItem = async (id: string, type: 'product' | 'client') => {
@@ -285,8 +320,8 @@ export function SupervisorPromotionFormScreen(props: any) {
                 placeholder="Ej. Descuento Verano"
             />
 
-            <View className="flex-row gap-4 mt-4">
-                <View className="flex-1">
+            <View className="flex-row mt-4">
+                <View className="flex-1 mr-2">
                     <Text className="text-gray-800 font-bold mb-1 text-sm">Inicio</Text>
                     <TouchableOpacity
                         onPress={() => openDatePicker('start')}
@@ -296,7 +331,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                         <Ionicons name="calendar-outline" size={20} color={BRAND_COLORS.red} />
                     </TouchableOpacity>
                 </View>
-                <View className="flex-1">
+                <View className="flex-1 ml-2">
                     <Text className="text-gray-800 font-bold mb-1 text-sm">Fin</Text>
                     <TouchableOpacity
                         onPress={() => openDatePicker('end')}
@@ -310,8 +345,8 @@ export function SupervisorPromotionFormScreen(props: any) {
 
             <View className="mt-4">
                 <Text className="text-gray-800 font-bold mb-1 text-sm">Descuento</Text>
-                <View className="flex-row h-12 gap-2">
-                    <View className="flex-1 flex-row bg-gray-100 rounded-lg p-1">
+                <View className="flex-row h-12">
+                    <View className="flex-1 flex-row bg-gray-100 rounded-lg p-1 mr-2">
                         <TouchableOpacity
                             onPress={() => setTipoDescuento('PORCENTAJE')}
                             style={{ flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 6, backgroundColor: tipoDescuento === 'PORCENTAJE' ? 'white' : 'transparent' }}
@@ -365,16 +400,16 @@ export function SupervisorPromotionFormScreen(props: any) {
         <View className="bg-white mx-4 mt-4 p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
             <Text className="text-gray-500 font-bold text-xs mb-3 uppercase tracking-wider">Alcance de la Promoción</Text>
 
-            <View className="flex-row gap-2 mb-4">
+            <View className="flex-row mb-4">
                 {[
                     { id: 'GLOBAL', icon: 'globe', label: 'Global' },
                     { id: 'POR_LISTA', icon: 'list', label: 'Por Lista' },
                     { id: 'POR_CLIENTE', icon: 'people', label: 'Por Cliente' }
-                ].map(opt => (
+                ].map((opt, idx) => (
                     <TouchableOpacity
                         key={opt.id}
                         onPress={() => setAlcance(opt.id as any)}
-                        className={`flex-1 p-3 rounded-xl items-center border ${alcance === opt.id ? 'bg-red-50 border-red-500' : 'bg-white border-gray-200'}`}
+                        className={`flex-1 p-3 rounded-xl items-center border ${idx !== 0 ? 'ml-2' : ''} ${alcance === opt.id ? 'bg-red-50 border-red-500' : 'bg-white border-gray-200'}`}
                     >
                         <Ionicons name={opt.icon as any} size={20} color={alcance === opt.id ? BRAND_COLORS.red : '#9CA3AF'} />
                         <Text className={`text-[10px] font-bold mt-1 ${alcance === opt.id ? 'text-red-600' : 'text-gray-400'}`}>{opt.label}</Text>
@@ -409,30 +444,64 @@ export function SupervisorPromotionFormScreen(props: any) {
             {/* Scope III: POR CLIENTE */}
             {alcance === 'POR_CLIENTE' && (
                 <View>
-                    <View className="flex-row justify-between items-center mb-2 mt-2">
-                        <Text className="text-xs font-bold text-gray-400">Clientes Seleccionados ({promoClients.length})</Text>
+                    <View className="flex-row justify-between items-center mb-3 mt-2">
+                        <Text className="text-xs font-bold text-neutral-600">
+                            Clientes Seleccionados ({promoClients.length})
+                        </Text>
                         <TouchableOpacity
                             onPress={() => setPickerType('clients')}
-                            className="bg-red-100 px-3 py-1 rounded-full"
+                            className="bg-red-600 px-4 py-2 rounded-lg flex-row items-center"
                         >
-                            <Text className="text-red-600 text-xs font-bold">+ Agregar Cliente</Text>
+                            <Ionicons name="add" size={16} color="white" />
+                            <Text className="text-white text-xs font-bold ml-1">Agregar</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {promoClients.length === 0 && (
-                        <Text className="text-gray-400 text-xs text-center italic py-2">Ningún cliente seleccionado aún.</Text>
-                    )}
-
-                    {promoClients.map(c => (
-                        <View key={c.cliente_id} className="flex-row justify-between items-center py-2 border-b border-gray-50">
-                            {/* @ts-ignore */}
-                            <Text className="text-sm text-gray-700 font-medium flex-1">{c.cliente?.razon_social || `ID: ${c.cliente_id}`}</Text>
-                            <TouchableOpacity onPress={() => removeItem(c.cliente_id, 'client')}>
-                                <Ionicons name="trash" size={16} color="red" />
-                            </TouchableOpacity>
+                    {promoClients.length === 0 ? (
+                        <View className="bg-neutral-50 p-6 rounded-xl items-center border border-dashed border-neutral-300">
+                            <Ionicons name="people-outline" size={40} color="#9CA3AF" />
+                            <Text className="text-neutral-500 text-sm text-center mt-2">
+                                No hay clientes seleccionados
+                            </Text>
+                            <Text className="text-neutral-400 text-xs text-center mt-1">
+                                Toca "Agregar" para seleccionar clientes
+                            </Text>
                         </View>
-                    ))}
+                    ) : (
+                        <View>
+                            {promoClients.map(c => (
+                                <View
+                                    key={c.cliente_id}
+                                    className="bg-white rounded-lg p-3 border border-neutral-100 flex-row items-center mb-2"
+                                >
+                                    {/* Icono */}
+                                    <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-3">
+                                        <Ionicons name="person" size={20} color="#3B82F6" />
+                                    </View>
 
+                                    {/* Información */}
+                                    <View className="flex-1">
+                                        <Text className="text-sm text-neutral-900 font-semibold">
+                                            {c.cliente?.razon_social || c.cliente?.nombre || `ID: ${c.cliente_id}`}
+                                        </Text>
+                                        {c.cliente?.identificacion && (
+                                            <Text className="text-xs text-neutral-500 mt-0.5">
+                                                {c.cliente.identificacion}
+                                            </Text>
+                                        )}
+                                    </View>
+
+                                    {/* Botón eliminar */}
+                                    <TouchableOpacity
+                                        onPress={() => removeItem(c.cliente_id, 'client')}
+                                        className="w-8 h-8 rounded-full bg-red-100 items-center justify-center"
+                                    >
+                                        <Ionicons name="close" size={18} color="#DC2626" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                 </View>
             )}
         </View>
@@ -455,22 +524,94 @@ export function SupervisorPromotionFormScreen(props: any) {
                 {promoProducts.length === 0 ? (
                     <Text className="text-gray-400 text-sm text-center italic py-4">No hay productos seleccionados.</Text>
                 ) : (
-                    promoProducts.map(p => (
-                        <View key={p.producto_id} className="flex-row items-center py-3 border-b border-gray-50">
-                            <View className="h-10 w-10 bg-gray-100 rounded-lg items-center justify-center mr-3">
-                                <Ionicons name="cube" size={20} color="gray" />
+                    promoProducts.map(p => {
+                        // @ts-ignore
+                        const producto = p.producto as Product
+                        const isExpanded = expandedProducts[p.producto_id] ?? false
+                        const hasPrices = producto && producto.precios && producto.precios.length > 0
+
+                        return (
+                            <View key={p.producto_id} className="mb-4 pb-4 border-b border-gray-100">
+                                {/* Header del producto - Clickeable para expandir/contraer */}
+                                <TouchableOpacity
+                                    onPress={() => hasPrices && toggleProductExpansion(p.producto_id)}
+                                    className="flex-row items-center mb-3"
+                                    activeOpacity={hasPrices ? 0.7 : 1}
+                                >
+                                    <View className="h-10 w-10 bg-gray-100 rounded-lg items-center justify-center mr-3">
+                                        <Ionicons name="cube" size={20} color="gray" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="font-bold text-gray-800">{producto?.nombre || 'Producto'}</Text>
+                                        <View className="flex-row items-center">
+                                            <Text className="text-xs text-gray-400">{producto?.codigo_sku || p.producto_id}</Text>
+                                            {hasPrices && (
+                                                <View className="flex-row items-center ml-2">
+                                                    <Ionicons
+                                                        name="pricetags"
+                                                        size={12}
+                                                        color="#10B981"
+                                                    />
+                                                    <Text className="text-[10px] text-green-600 ml-1">
+                                                        {`${producto.precios.length} lista${producto.precios.length !== 1 ? 's' : ''}`}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+
+                                    {/* Botón de expandir/contraer o eliminar */}
+                                    <View className="flex-row items-center">
+                                        {hasPrices && (
+                                            <View className="bg-gray-100 rounded-full px-2 py-1 mr-2">
+                                                <Ionicons
+                                                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                                                    size={16}
+                                                    color="#6B7280"
+                                                />
+                                            </View>
+                                        )}
+                                        <TouchableOpacity
+                                            onPress={() => removeItem(p.producto_id, 'product')}
+                                            className="p-2"
+                                        >
+                                            <Ionicons name="close-circle" size={20} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </TouchableOpacity>
+
+                                {/* Price breakdown - Mostrar precios por lista (colapsable) */}
+                                {hasPrices ? (
+                                    isExpanded && (
+                                        <View className="ml-2">
+                                            <ProductPriceDisplay
+                                                precios={producto.precios}
+                                                priceLists={priceLists}
+                                                showAllPrices={true}
+                                                precioOfertaFijo={p.precio_oferta_fijo}
+                                                tipoDescuento={tipoDescuento}
+                                                valorDescuento={Number(valorDescuento) || undefined}
+                                            />
+                                        </View>
+                                    )
+                                ) : (
+                                    <View className="ml-2 bg-amber-50 p-4 rounded-lg border border-amber-200">
+                                        <View className="flex-row items-center">
+                                            <Ionicons name="warning" size={20} color="#F59E0B" />
+                                            <View className="flex-1 ml-3">
+                                                <Text className="text-amber-800 text-xs font-bold mb-1">
+                                                    Sin precios configurados
+                                                </Text>
+                                                <Text className="text-amber-600 text-[10px]">
+                                                    Este producto necesita precios asignados para calcular descuentos. Ve a Catálogo → Listas de Precios para configurarlos.
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
-                            <View className="flex-1">
-                                {/* @ts-ignore */}
-                                <Text className="font-bold text-gray-800">{p.producto?.nombre}</Text>
-                                {/* @ts-ignore */}
-                                <Text className="text-xs text-gray-400">{p.producto?.codigo_sku}</Text>
-                            </View>
-                            <TouchableOpacity onPress={() => removeItem(p.producto_id, 'product')} className="p-2">
-                                <Ionicons name="close-circle" size={20} color="#EF4444" />
-                            </TouchableOpacity>
-                        </View>
-                    ))
+                        )
+                    })
                 )}
 
             </View>
@@ -485,37 +626,118 @@ export function SupervisorPromotionFormScreen(props: any) {
             : availableProducts.filter(p => !promoProducts.some(pp => pp.producto_id === p.id))
 
         const filtered = items.filter(i => {
-            const label = isClient ? i.razon_social : i.nombre;
-            return (label || '').toLowerCase().includes(searchText.toLowerCase())
+            const label = isClient ? (i.razon_social || i.nombre) : i.nombre
+            const code = isClient ? i.identificacion : i.codigo_sku
+            const searchLower = searchText.toLowerCase()
+            return (label || '').toLowerCase().includes(searchLower) ||
+                   (code || '').toLowerCase().includes(searchLower)
         })
 
         return (
-            <View className="flex-1 bg-white">
-                <View className="pt-12 px-4 pb-4 border-b border-gray-100 flex-row items-center gap-3 bg-white">
-                    <TouchableOpacity onPress={() => setPickerType('none')}>
-                        <Ionicons name="close" size={28} color="black" />
-                    </TouchableOpacity>
-                    <TextInput
-                        className="flex-1 bg-gray-100 rounded-full px-4 h-10 text-base"
-                        placeholder={isClient ? "Buscar Cliente..." : "Buscar Producto..."}
-                        value={searchText}
-                        onChangeText={setSearchText}
-                        autoFocus
-                    />
+            <View className="flex-1 bg-neutral-50">
+                {/* Header mejorado */}
+                <View className="pt-12 px-4 pb-4 bg-white border-b border-neutral-200 shadow-sm">
+                    <View className="flex-row items-center mb-3">
+                        <TouchableOpacity
+                            onPress={() => {
+                                setPickerType('none')
+                                setSearchText('')
+                            }}
+                            className="w-10 h-10 items-center justify-center rounded-full bg-neutral-100 mr-3"
+                        >
+                            <Ionicons name="close" size={24} color="#374151" />
+                        </TouchableOpacity>
+                        <Text className="flex-1 text-lg font-bold text-neutral-900">
+                            {isClient ? 'Seleccionar Cliente' : 'Seleccionar Producto'}
+                        </Text>
+                    </View>
+
+                    {/* Barra de búsqueda mejorada */}
+                    <View className="flex-row items-center bg-neutral-100 rounded-xl px-4 h-12">
+                        <Ionicons name="search" size={20} color="#9CA3AF" />
+                        <TextInput
+                            className="flex-1 ml-2 text-base text-neutral-900"
+                            placeholder={isClient ? "Buscar por nombre o identificación..." : "Buscar por nombre o SKU..."}
+                            placeholderTextColor="#9CA3AF"
+                            value={searchText}
+                            onChangeText={setSearchText}
+                            autoFocus
+                        />
+                        {searchText.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchText('')}>
+                                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* Contador de resultados */}
+                    <Text className="text-xs text-neutral-500 mt-2">
+                        {`${filtered.length} ${filtered.length === 1 ? 'resultado' : 'resultados'}`}
+                    </Text>
                 </View>
-                <ScrollView contentContainerStyle={{ padding: 16 }}>
-                    {filtered.map(item => (
+
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ padding: 16 }}
+                >
+                    {filtered.map((item, index) => (
                         <TouchableOpacity
                             key={item.id}
                             onPress={() => addItem(item)}
-                            className="py-4 border-b border-gray-100"
+                            className="bg-white rounded-xl p-4 mb-3 shadow-sm border border-neutral-100"
+                            activeOpacity={0.7}
                         >
-                            <Text className="font-bold text-gray-800 text-base">{isClient ? item.razon_social : item.nombre}</Text>
-                            <Text className="text-sm text-gray-500">{isClient ? item.identificacion : item.codigo_sku}</Text>
+                            <View className="flex-row items-center">
+                                {/* Icono */}
+                                <View className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${
+                                    isClient ? 'bg-blue-100' : 'bg-purple-100'
+                                }`}>
+                                    <Ionicons
+                                        name={isClient ? "person" : "cube"}
+                                        size={24}
+                                        color={isClient ? "#3B82F6" : "#9333EA"}
+                                    />
+                                </View>
+
+                                {/* Información */}
+                                <View className="flex-1">
+                                    <Text className="font-bold text-neutral-900 text-base mb-1">
+                                        {isClient ? (item.razon_social || item.nombre) : item.nombre}
+                                    </Text>
+                                    <View className="flex-row items-center">
+                                        <Ionicons name="pricetag-outline" size={12} color="#9CA3AF" />
+                                        <Text className="text-sm text-neutral-500 ml-1">
+                                            {isClient ? item.identificacion : item.codigo_sku}
+                                        </Text>
+                                    </View>
+                                    {isClient && item.ciudad && (
+                                        <View className="flex-row items-center mt-1">
+                                            <Ionicons name="location-outline" size={12} color="#9CA3AF" />
+                                            <Text className="text-xs text-neutral-400 ml-1">{item.ciudad}</Text>
+                                        </View>
+                                    )}
+                                </View>
+
+                                {/* Icono de agregar */}
+                                <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center">
+                                    <Ionicons name="add" size={20} color="#DC2626" />
+                                </View>
+                            </View>
                         </TouchableOpacity>
                     ))}
+
                     {filtered.length === 0 && (
-                        <Text className="text-center text-gray-400 mt-10">No se encontraron resultados</Text>
+                        <View className="items-center justify-center py-12">
+                            <View className="w-20 h-20 rounded-full bg-neutral-100 items-center justify-center mb-4">
+                                <Ionicons name="search-outline" size={40} color="#9CA3AF" />
+                            </View>
+                            <Text className="text-center text-neutral-600 font-semibold text-base">
+                                No se encontraron resultados
+                            </Text>
+                            <Text className="text-center text-neutral-400 text-sm mt-1">
+                                Intenta con otros términos de búsqueda
+                            </Text>
+                        </View>
                     )}
                 </ScrollView>
             </View>
@@ -546,10 +768,10 @@ export function SupervisorPromotionFormScreen(props: any) {
                 {renderProductsSection()}
 
                 {/* Buttons Container - INSIDE ScrollView */}
-                <View className="mt-4 mb-10 mx-4 gap-3">
+                <View className="mt-4 mb-10 mx-4">
                     <TouchableOpacity
                         onPress={handleSave}
-                        className="bg-red-600 py-4 rounded-xl shadow-lg items-center"
+                        className="bg-red-600 py-4 rounded-xl shadow-lg items-center mb-3"
                         disabled={loading}
                     >
                         {loading ? <ActivityIndicator color="white" /> : (

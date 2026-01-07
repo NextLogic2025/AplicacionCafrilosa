@@ -35,7 +35,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
     const fetchData = async () => {
         setLoading(true)
         try {
-            console.log('Fetching Clients...')
             // Fetch All Data Including Blocked
             const [activeClients, blockedClients, listsData, zonesData, assignmentsData, vendorsData, usersData] = await Promise.all([
                 ClientService.getClients(),
@@ -46,8 +45,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
                 UserService.getVendors(),
                 UserService.getUsers()
             ])
-
-            console.log(`Fetched: ${activeClients.length} active, ${blockedClients.length} blocked`)
 
             const allClientsRaw = [...activeClients, ...blockedClients]
 
@@ -202,69 +199,87 @@ export function SupervisorClientsScreen({ navigation }: any) {
 
     const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity
-            className="bg-white p-4 mb-3 rounded-xl shadow-sm border border-neutral-100"
+            className="bg-white mb-3 rounded-2xl shadow-md border border-neutral-100 overflow-hidden"
             activeOpacity={0.7}
             onPress={() => navigation.navigate('SupervisorClientForm', { client: item })}
+            style={{ minHeight: 120 }}
         >
-            {/* Header: Name and Status */}
-            <View className="flex-row justify-between items-start mb-2">
-                <View className="flex-1 mr-2">
-                    <Text className="font-bold text-neutral-900 text-base" numberOfLines={1}>
+            {/* Header: Name and Status Toggle */}
+            <View className="flex-row justify-between items-center px-4 pt-4 pb-3 bg-gradient-to-r from-neutral-50">
+                <View className="flex-1 mr-3">
+                    <Text className="font-bold text-neutral-900 text-lg mb-1" numberOfLines={1}>
                         {item.nombre_comercial || item.razon_social}
                     </Text>
-
-
-
                     {item.nombre_comercial && item.nombre_comercial !== item.razon_social && (
-                        <Text className="text-neutral-400 text-[10px] italic mt-0.5" numberOfLines={1}>
+                        <Text className="text-neutral-400 text-xs italic" numberOfLines={1}>
                             {item.razon_social}
                         </Text>
                     )}
                 </View>
 
-                {/* Status Icon Button */}
+                {/* Switch Button - Estilo iOS Moderno */}
                 <TouchableOpacity
                     onPress={() => confirmToggleStatus(item)}
-                    className={`p-2 rounded-full ${item.bloqueado ? 'bg-red-100' : 'bg-green-100'}`}
+                    activeOpacity={0.8}
+                    style={{
+                        width: 51,
+                        height: 31,
+                        borderRadius: 15.5,
+                        backgroundColor: item.bloqueado ? '#D1D5DB' : '#34D399',
+                        padding: 2,
+                        justifyContent: 'center'
+                    }}
                 >
-                    <Ionicons
-                        name={item.bloqueado ? "ban" : "checkmark-circle"}
-                        size={16}
-                        color={item.bloqueado ? "#b91c1c" : "#15803d"}
+                    <View
+                        style={{
+                            width: 27,
+                            height: 27,
+                            borderRadius: 13.5,
+                            backgroundColor: '#FFFFFF',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 2,
+                            elevation: 3,
+                            transform: [{ translateX: item.bloqueado ? 0 : 20 }]
+                        }}
                     />
                 </TouchableOpacity>
             </View>
 
-            {/* Row 1: Identification */}
-            <View className="flex-row flex-wrap gap-2 mb-2">
-                <View className="bg-neutral-50 px-2 py-1 rounded-md border border-neutral-200 flex-row items-center">
-                    <Ionicons name="card-outline" size={12} color="#6b7280" />
-                    <Text className="text-neutral-600 text-[10px] font-bold ml-1">{item.identificacion}</Text>
-                </View>
-            </View>
-
-            {/* Row 2: Price List & Operational Context */}
-            <View className="flex-row flex-wrap gap-2 pt-2 border-t border-dashed border-neutral-100">
-                <View className="bg-teal-50 px-2 py-1 rounded-md border border-teal-100 flex-row items-center">
-                    <Ionicons name="pricetag" size={12} color="#0d9488" />
-                    <Text className="text-teal-700 text-[10px] font-bold ml-1">
-                        {getListName(item.lista_precios_id)}
-                    </Text>
+            {/* Body Content */}
+            <View className="px-4 pb-4">
+                {/* Identification Badge */}
+                <View className="mb-3">
+                    <View className="bg-neutral-50 px-3 py-2 rounded-lg border border-neutral-200 flex-row items-center self-start">
+                        <Ionicons name="card-outline" size={14} color="#6b7280" />
+                        <Text className="text-neutral-700 text-xs font-semibold ml-2">{item.identificacion}</Text>
+                    </View>
                 </View>
 
-                {item._zoneName && (
-                    <View className="bg-orange-50 px-2 py-1 rounded-md border border-orange-100 flex-row items-center">
-                        <Ionicons name="map-outline" size={12} color="#ea580c" />
-                        <Text className="text-orange-700 text-[10px] font-bold ml-1">{item._zoneName}</Text>
+                {/* Info Badges Row */}
+                <View className="flex-row flex-wrap">
+                    <View className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200 flex-row items-center mr-2 mb-2">
+                        <Ionicons name="pricetag" size={13} color="#0d9488" />
+                        <Text className="text-teal-700 text-xs font-bold ml-1.5">
+                            {getListName(item.lista_precios_id)}
+                        </Text>
                     </View>
-                )}
 
-                {item._vendorName && (
-                    <View className="bg-blue-50 px-2 py-1 rounded-md border border-blue-100 flex-row items-center">
-                        <Ionicons name="person-circle-outline" size={12} color="#2563EB" />
-                        <Text className="text-blue-700 text-[10px] font-bold ml-1">{item._vendorName}</Text>
-                    </View>
-                )}
+                    {item._zoneName && (
+                        <View className="bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200 flex-row items-center mr-2 mb-2">
+                            <Ionicons name="map-outline" size={13} color="#ea580c" />
+                            <Text className="text-orange-700 text-xs font-bold ml-1.5">{item._zoneName}</Text>
+                        </View>
+                    )}
+
+                    {item._vendorName && (
+                        <View className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 flex-row items-center mr-2 mb-2">
+                            <Ionicons name="person-circle-outline" size={13} color="#2563EB" />
+                            <Text className="text-blue-700 text-xs font-bold ml-1.5">{item._vendorName}</Text>
+                        </View>
+                    )}
+                </View>
             </View>
         </TouchableOpacity>
     )

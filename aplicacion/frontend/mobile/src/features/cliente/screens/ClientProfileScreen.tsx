@@ -60,6 +60,23 @@ export function ClientProfileScreen() {
 
     useFocusEffect(useCallback(() => { loadProfile() }, []))
 
+    const handleUpdateProfile = async (data: { nombre: string; telefono: string }): Promise<boolean> => {
+        if (!profile) return false
+
+        try {
+            const success = await UserService.updateProfile(profile.id, data)
+            if (success) {
+                // Reload profile to get updated data
+                await loadProfile()
+                return true
+            }
+            return false
+        } catch (error) {
+            console.error('Error updating profile', error)
+            return false
+        }
+    }
+
     const handleLogout = async () => {
         try {
             await signOut()
@@ -85,14 +102,16 @@ export function ClientProfileScreen() {
                     email: profile.email,
                     phone: profile.phone,
                     role: profile.role,
-                    photoUrl: profile.photoUrl
+                    photoUrl: profile.photoUrl,
+                    lastLogin: profile.lastLogin
                 } : {
                     id: '', name: '', email: '', phone: '', role: 'Cargando...'
                 }}
                 commercialInfo={commercialData}
-                isClient={true} // Enable commercial section
+                isClient={true}
                 isLoading={isLoading}
                 onLogout={handleLogout}
+                onUpdateProfile={handleUpdateProfile}
             />
         </>
     )

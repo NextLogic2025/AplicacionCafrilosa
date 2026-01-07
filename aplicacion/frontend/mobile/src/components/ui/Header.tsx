@@ -121,12 +121,12 @@ export function Header({
         )}
 
         {/* DERECHA: Acciones */}
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center">
           {/* Solo mostrar carrito en Home si se pide explicitamente (aunque ahora está en Tabs) */}
           {showCart && (
             <Pressable
               onPress={onCartPress}
-              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="cart-outline" size={22} color="white" />
               {cartCount > 0 && (
@@ -138,7 +138,7 @@ export function Header({
           {showNotification && (
             <Pressable
               onPress={handleNotificationPress}
-              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="notifications-outline" size={22} color="white" />
               {notificationCount > 0 && (

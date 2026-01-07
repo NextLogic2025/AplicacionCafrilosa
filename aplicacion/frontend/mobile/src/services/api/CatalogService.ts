@@ -22,7 +22,18 @@ export interface Product {
     unidad_medida?: string
     imagen_url?: string
     activo: boolean
-    // ... possibly other fields
+    // Pricing & Promotions (from backend)
+    precios?: Array<{ lista_id: number; precio: number }>
+    precio_original?: number
+    precio_oferta?: number
+    ahorro?: number
+    campania_aplicada_id?: number
+    promociones?: Array<{
+        campana_id: number
+        precio_oferta: number | null
+        tipo_descuento: string | null
+        valor_descuento: number | null
+    }>
 }
 
 export interface PriceList {

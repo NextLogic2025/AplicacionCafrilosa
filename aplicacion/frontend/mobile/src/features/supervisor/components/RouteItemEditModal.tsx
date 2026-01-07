@@ -59,8 +59,8 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                         {/* Frequency */}
                         <View style={{ marginBottom: 24 }}>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Frecuencia de Visita</Text>
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                                {['SEMANAL', 'QUINCENAL', 'MENSUAL'].map((opt) => (
+                            <View style={{ flexDirection: 'row' }}>
+                                {['SEMANAL', 'QUINCENAL', 'MENSUAL'].map((opt, idx) => (
                                     <TouchableOpacity
                                         key={opt}
                                         onPress={() => setData({ ...data, frecuencia: opt as any })}
@@ -71,7 +71,8 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                                             borderRadius: 12,
                                             borderWidth: 1,
                                             backgroundColor: data.frecuencia === opt ? '#FEF2F2' : 'white',
-                                            borderColor: data.frecuencia === opt ? BRAND_COLORS.red : '#D1D5DB'
+                                            borderColor: data.frecuencia === opt ? BRAND_COLORS.red : '#D1D5DB',
+                                            marginLeft: idx > 0 ? 8 : 0
                                         }}
                                     >
                                         <Text style={{
@@ -88,12 +89,12 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                         {/* Priority */}
                         <View style={{ marginBottom: 24 }}>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Prioridad</Text>
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <View style={{ flexDirection: 'row' }}>
                                 {[
                                     { id: 'ALTA', color: '#EF4444' },
                                     { id: 'MEDIA', color: '#F59E0B' },
                                     { id: 'BAJA', color: '#10B981' }
-                                ].map((opt) => (
+                                ].map((opt, idx) => (
                                     <TouchableOpacity
                                         key={opt.id}
                                         onPress={() => setData({ ...data, prioridad_visita: opt.id as any })}
@@ -104,7 +105,8 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                                             borderRadius: 12,
                                             borderWidth: data.prioridad_visita === opt.id ? 2 : 1,
                                             backgroundColor: data.prioridad_visita === opt.id ? '#FEF2F2' : 'white',
-                                            borderColor: data.prioridad_visita === opt.id ? BRAND_COLORS.red : '#D1D5DB'
+                                            borderColor: data.prioridad_visita === opt.id ? BRAND_COLORS.red : '#D1D5DB',
+                                            marginLeft: idx > 0 ? 8 : 0
                                         }}
                                     >
                                         <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: opt.color, marginBottom: 4 }} />

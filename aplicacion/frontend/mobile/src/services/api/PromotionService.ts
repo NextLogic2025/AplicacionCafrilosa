@@ -75,7 +75,10 @@ export const PromotionService = {
                     descripcion: item.descripcion,
                     unidad_medida: item.unidad_medida,
                     imagen_url: item.imagen_url,
-                    activo: item.activo
+                    activo: item.activo,
+                    precios: item.precios || [],
+                    categoria: item.categoria || null,
+                    promociones: item.promociones || []
                 }
             }))
         }

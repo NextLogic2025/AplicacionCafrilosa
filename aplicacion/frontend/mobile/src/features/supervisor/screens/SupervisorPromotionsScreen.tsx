@@ -60,53 +60,74 @@ export function SupervisorPromotionsScreen() {
         return true
     })
 
-    const renderItem = (item: PromotionCampaign) => (
-        <TouchableOpacity
-            className="bg-white p-4 mb-3 rounded-xl shadow-sm border border-neutral-100"
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('SupervisorPromotionForm', { campaign: item })}
-        >
-            <View className="flex-row justify-between items-start mb-2">
-                <View className="flex-1 mr-2">
-                    <Text className="font-bold text-neutral-900 text-base">{item.nombre}</Text>
-                    {item.descripcion && (
-                        <Text className="text-neutral-500 text-xs mt-1" numberOfLines={2}>{item.descripcion}</Text>
-                    )}
-                </View>
-                <Switch
-                    trackColor={{ false: '#767577', true: '#bbf7d0' }}
-                    thumbColor={item.activo ? '#16a34a' : '#f4f3f4'}
-                    ios_backgroundColor="#3e3e3e"
-                    onValueChange={() => handleToggleStatus(item)}
-                    value={item.activo}
-                />
-            </View>
+    const renderItem = (item: PromotionCampaign) => {
+        const alcanceLabel = item.alcance === 'GLOBAL' ? 'GLOBAL' :
+                            item.alcance === 'POR_LISTA' ? 'POR_LISTA' :
+                            'POR_CLIENTE'
 
-            {/* Info Row */}
-            <View className="flex-row flex-wrap gap-2 mt-2 pt-2 border-t border-dashed border-neutral-100">
-                <View className="flex-row items-center bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                    <Ionicons name="calendar-outline" size={12} color="#2563EB" />
-                    <Text className="text-blue-700 text-[10px] font-bold ml-1">
-                        {new Date(item.fecha_inicio).toLocaleDateString()} - {new Date(item.fecha_fin).toLocaleDateString()}
-                    </Text>
+        return (
+            <TouchableOpacity
+                className="bg-white mb-3 rounded-xl shadow-sm border border-neutral-100"
+                style={{ minHeight: 140 }}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('SupervisorPromotionForm', { campaign: item })}
+            >
+                {/* Header con título y switch */}
+                <View className="flex-row justify-between items-center px-4 pt-4 pb-2">
+                    <View className="flex-1 mr-3">
+                        <Text className="font-bold text-neutral-900 text-base" numberOfLines={1}>
+                            {item.nombre}
+                        </Text>
+                        <Text className="text-neutral-500 text-xs mt-1">Gestión Móvil</Text>
+                    </View>
+                    <Switch
+                        trackColor={{ false: '#D1D5DB', true: '#bbf7d0' }}
+                        thumbColor={item.activo ? '#16a34a' : '#9CA3AF'}
+                        ios_backgroundColor="#D1D5DB"
+                        onValueChange={() => handleToggleStatus(item)}
+                        value={item.activo}
+                    />
                 </View>
 
-                <View className="flex-row items-center bg-purple-50 px-2 py-1 rounded-md border border-purple-100">
-                    <Ionicons name="pricetag-outline" size={12} color="#9333ea" />
-                    <Text className="text-purple-700 text-[10px] font-bold ml-1">
-                        {item.tipo_descuento === 'PORCENTAJE' ? `${item.valor_descuento}%` : `$${item.valor_descuento}`}
-                    </Text>
-                </View>
+                {/* Badges con altura fija */}
+                <View className="px-4 pb-4">
+                    {/* Fila 1: Fechas */}
+                    <View className="mb-2">
+                        <View className="flex-row items-center bg-blue-50 px-3 py-2 rounded-lg border border-blue-100" style={{ height: 32 }}>
+                            <Ionicons name="calendar-outline" size={14} color="#2563EB" />
+                            <Text className="text-blue-700 text-xs font-semibold ml-2 flex-1" numberOfLines={1}>
+                                {item.fecha_inicio && item.fecha_fin
+                                    ? `${new Date(item.fecha_inicio).toLocaleDateString()} - ${new Date(item.fecha_fin).toLocaleDateString()}`
+                                    : 'Sin fechas'}
+                            </Text>
+                        </View>
+                    </View>
 
-                <View className="flex-row items-center bg-orange-50 px-2 py-1 rounded-md border border-orange-100">
-                    <Ionicons name="people-outline" size={12} color="#ea580c" />
-                    <Text className="text-orange-700 text-[10px] font-bold ml-1">
-                        {item.alcance}
-                    </Text>
+                    {/* Fila 2: Descuento y Alcance */}
+                    <View className="flex-row">
+                        <View className="flex-1 mr-2">
+                            <View className="flex-row items-center bg-purple-50 px-3 py-2 rounded-lg border border-purple-100" style={{ height: 32 }}>
+                                <Ionicons name="pricetag-outline" size={14} color="#9333ea" />
+                                <Text className="text-purple-700 text-xs font-semibold ml-2" numberOfLines={1}>
+                                    {item.tipo_descuento === 'PORCENTAJE'
+                                        ? `${item.valor_descuento ?? 0}%`
+                                        : `$${(item.valor_descuento ?? 0).toLocaleString()}`}
+                                </Text>
+                            </View>
+                        </View>
+                        <View className="flex-1 ml-2">
+                            <View className="flex-row items-center bg-orange-50 px-3 py-2 rounded-lg border border-orange-100" style={{ height: 32 }}>
+                                <Ionicons name="people-outline" size={14} color="#ea580c" />
+                                <Text className="text-orange-700 text-xs font-semibold ml-2" numberOfLines={1}>
+                                    {alcanceLabel}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
                 </View>
-            </View>
-        </TouchableOpacity>
-    )
+            </TouchableOpacity>
+        )
+    }
 
     return (
         <View className="flex-1 bg-neutral-50">

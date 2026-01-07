@@ -80,7 +80,7 @@ export function Snackbar({ message, visible, onDismiss, duration = 3000, type = 
                 { backgroundColor: '#1F2937' } // Dark toast
             ]}
         >
-            <Ionicons name={getIcon()} size={20} color={type === 'success' ? '#34D399' : '#fff'} />
+            <Ionicons name={getIcon()} size={20} color={type === 'success' ? '#34D399' : '#fff'} style={{ marginRight: 12 }} />
             <Text style={styles.text}>{message}</Text>
         </Animated.View>
     )
@@ -96,7 +96,6 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,

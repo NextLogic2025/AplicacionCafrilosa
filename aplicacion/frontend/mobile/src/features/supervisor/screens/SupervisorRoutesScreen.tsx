@@ -308,8 +308,8 @@ export function SupervisorRoutesScreen() {
                                 <Text style={{ fontSize: 14, color: '#4B5563' }}>Selecciona el área de trabajo</Text>
                             </View>
                         </View>
-                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                            {zones.map(z => (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                            {zones.map((z) => (
                                 <TouchableOpacity
                                     key={z.id}
                                     onPress={() => setSelectedZone(z)}
@@ -319,7 +319,9 @@ export function SupervisorRoutesScreen() {
                                         borderRadius: 12,
                                         borderWidth: 2,
                                         backgroundColor: selectedZone?.id === z.id ? '#FEF2F2' : 'white',
-                                        borderColor: selectedZone?.id === z.id ? BRAND_COLORS.red : '#E5E7EB'
+                                        borderColor: selectedZone?.id === z.id ? BRAND_COLORS.red : '#E5E7EB',
+                                        marginRight: 8,
+                                        marginBottom: 8
                                     }}
                                 >
                                     <Text style={{
@@ -345,8 +347,8 @@ export function SupervisorRoutesScreen() {
                                 <Text style={{ fontSize: 14, color: '#4B5563' }}>Elige el día para la ruta</Text>
                             </View>
                         </View>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 4 }}>
-                            {DAYS.map(d => {
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            {DAYS.map((d, idx) => {
                                 const isSelected = selectedDay === d.id
                                 return (
                                     <TouchableOpacity
@@ -355,6 +357,7 @@ export function SupervisorRoutesScreen() {
                                         style={{
                                             flex: 1,
                                             paddingVertical: 12,
+                                            marginLeft: idx > 0 ? 4 : 0,
                                             borderRadius: 12,
                                             alignItems: 'center',
                                             justifyContent: 'center',

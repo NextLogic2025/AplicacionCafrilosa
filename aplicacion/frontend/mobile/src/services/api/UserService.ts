@@ -9,6 +9,7 @@ export interface UserProfile {
     phone: string
     photoUrl?: string
     active: boolean
+    lastLogin?: string
 }
 
 export const UserService = {
@@ -24,11 +25,25 @@ export const UserService = {
                 email: data.email,
                 phone: data.telefono || 'Sin teléfono',
                 photoUrl: data.avatarUrl,
-                active: data.activo
+                active: data.activo,
+                lastLogin: data.lastLogin
             }
         } catch (error) {
             console.error('Error fetching profile:', error)
             return null
+        }
+    },
+
+    updateProfile: async (userId: string, data: { nombre: string; telefono: string }): Promise<boolean> => {
+        try {
+            await apiRequest(`${env.api.usersUrl}/auth/usuarios/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            })
+            return true
+        } catch (error) {
+            console.error('Error updating profile:', error)
+            return false
         }
     },
 
