@@ -30,9 +30,15 @@ export interface CreateListaPrecioDto {
 }
 
 export async function asignarPrecio(data: AsignarPrecioDto): Promise<PrecioItem> {
+  // El backend espera productoId y listaId en camelCase
+  const payload = {
+    productoId: data.productoId,
+    listaId: data.listaId,
+    precio: data.precio
+  }
   return httpCatalogo<PrecioItem>('/precios', {
     method: 'POST',
-    body: data,
+    body: payload,
   })
 }
 

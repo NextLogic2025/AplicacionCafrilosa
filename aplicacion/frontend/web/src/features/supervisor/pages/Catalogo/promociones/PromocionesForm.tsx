@@ -1,6 +1,6 @@
-import { CampaniaFormModal } from '../../components/CampaniaFormModal'
-import type { Campania, CreateCampaniaDto } from '../../services/promocionesApi'
-import type { ListaPrecio } from '../../services/clientesApi'
+import { CampaniaFormModal } from '../../../components/CampaniaFormModal'
+import type { Campania, CreateCampaniaDto } from '../../../services/promocionesApi'
+import type { ListaPrecio } from '../../../services/clientesApi'
 
 interface PromocionesFormProps {
   isOpen: boolean

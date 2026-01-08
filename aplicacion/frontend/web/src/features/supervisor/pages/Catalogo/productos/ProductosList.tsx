@@ -2,8 +2,8 @@ import { useMemo, useCallback, useState } from 'react'
 import { Image as ImageIcon, Package, Tag, Search, Filter, Pencil, Trash2 } from 'lucide-react'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { StatusBadge } from 'components/ui/StatusBadge'
-import { type Product } from '../../services/productosApi'
-import { type Category } from '../../services/catalogApi'
+import { type Product } from '../../../services/productosApi'
+import { type Category } from '../../../services/catalogApi'
 
 interface ProductosListProps {
   products: Product[]

@@ -11,7 +11,7 @@ import type {
   Ticket,
 } from '../types'
 
-async function fetchClienteByUsuarioId(usuarioId: string) {
+export async function fetchClienteByUsuarioId(usuarioId: string) {
   const endpoints = [
     `/clientes/usuario/${usuarioId}`,
     `/clientes/${usuarioId}`,

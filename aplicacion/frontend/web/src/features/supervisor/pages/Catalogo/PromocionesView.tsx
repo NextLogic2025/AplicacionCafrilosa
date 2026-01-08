@@ -1,53 +1,154 @@
 import { Button } from 'components/ui/Button'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
+import { NotificationStack } from 'components/ui/NotificationStack'
 import { PlusCircle } from 'lucide-react'
 import { ProductSelectorModal } from '../../components/ProductSelectorModal'
 import ClienteSelectorModal from '../../components/ClienteSelectorModal'
 import { CampaniaDetailModal } from '../../components/CampaniaDetailModal'
-import { PromocionesList } from './PromocionesList'
-import { PromocionesForm } from './PromocionesForm'
-import { usePromocionesController } from './usePromocionesController'
+import { PromocionesList } from './promociones/PromocionesList'
+import { PromocionesForm } from './promociones/PromocionesForm'
+import { usePromocionesCrud } from '../../services/usePromocionesCrud'
+import { usePromocionesProductos } from '../../services/usePromocionesProductos'
+import { usePromocionesClientes } from '../../services/usePromocionesClientes'
+import { useNotification } from '../../../../hooks/useNotification'
+import { useState } from 'react'
 
 export function PromocionesView() {
+  // CRUD campañas
   const {
     campanias,
     isLoading,
     error,
     successMessage,
-    isModalOpen,
-    editingCampania,
-    listasPrecios,
+    create,
+    update,
+    remove,
+    reload,
+  } = usePromocionesCrud()
+
+  // Notificaciones
+  const { notifications, success, error: notifyError, remove: removeNotification } = useNotification()
+
+  // Estados UI y datos de edición
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingCampania, setEditingCampania] = useState<any | null>(null)
+  const [formData, setFormData] = useState<any>({ nombre: '', descripcion: '', fecha_inicio: '', fecha_fin: '', tipo_descuento: 'PORCENTAJE', valor_descuento: 0, alcance: 'GLOBAL', activo: true })
+  const [listasPrecios, setListasPrecios] = useState<any[]>([])
+  const [filtroEstado, setFiltroEstado] = useState<'todas' | 'activas' | 'inactivas'>('todas')
+  const [filtroAlcance, setFiltroAlcance] = useState<'todos' | 'GLOBAL' | 'POR_LISTA' | 'POR_CLIENTE'>('todos')
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedCampania, setSelectedCampania] = useState<any | null>(null)
+
+  // Productos de campaña
+  const {
     productos,
-    productosAsignados,
-    isProductModalOpen,
-    isClientModalOpen,
-    campaniaIdForClientes,
-    clientesAsignados,
-    filtroEstado,
-    filtroAlcance,
-    isDetailModalOpen,
-    selectedCampania,
-    formData,
-    setFiltroEstado,
-    setFiltroAlcance,
-    handleOpenModal,
-    handleCloseModal,
-    handleOpenProductModal,
-    handleOpenClientModal,
-    handleAddCliente,
-    handleDeleteCliente,
-    handleDeleteClienteFromDetail,
-    handleAddProduct,
-    handleDeleteProduct,
-    handleViewDetails,
-    handleSubmit,
-    handleDelete,
-    setFormData,
-    closeProductModal,
-    closeClientModal,
-    closeDetailModal,
-  } = usePromocionesController()
+    productosPromo: productosAsignados,
+    isLoading: isProductLoading,
+    loadProductos,
+    loadProductosPromo,
+    addProducto,
+    removeProducto,
+  } = usePromocionesProductos()
+
+  // Clientes de campaña
+  const {
+    clientesCampania: clientesAsignados,
+    isLoading: isClientLoading,
+    loadClientesCampania,
+    addCliente,
+    removeCliente,
+  } = usePromocionesClientes()
+
+  // Estados para modales
+  const [campaniaIdForClientes, setCampaniaIdForClientes] = useState<number | null>(null)
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+
+  // Métodos para abrir/cerrar modales y cargar datos
+  const handleOpenModal = (campania?: any) => {
+    if (campania) {
+      setEditingCampania(campania)
+      setFormData({ ...campania })
+    } else {
+      setEditingCampania(null)
+      setFormData({ nombre: '', descripcion: '', fecha_inicio: '', fecha_fin: '', tipo_descuento: 'PORCENTAJE', valor_descuento: 0, alcance: 'GLOBAL', activo: true })
+    }
+    setIsModalOpen(true)
+  }
+  const handleCloseModal = () => setIsModalOpen(false)
+
+  const handleViewDetails = async (campania: any) => {
+    setSelectedCampania(campania)
+    await loadProductosPromo(campania.id)
+    if (campania.alcance === 'POR_CLIENTE') {
+      await loadClientesCampania(campania.id)
+    }
+    setIsDetailModalOpen(true)
+  }
+  const closeDetailModal = () => setIsDetailModalOpen(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editingCampania) {
+      await update(editingCampania.id, formData)
+    } else {
+      await create(formData)
+    }
+    setIsModalOpen(false)
+    reload()
+  }
+  const handleDelete = async (id: string | number) => {
+    await remove(id)
+    reload()
+  }
+
+  // Productos
+  const handleOpenProductModal = async (campania: any) => {
+    setEditingCampania(campania)
+    setIsProductModalOpen(true)
+    await loadProductos();
+    await loadProductosPromo(campania.id);
+  }
+  const closeProductModal = () => setIsProductModalOpen(false)
+  const handleAddProduct = async (productoId: string, precioOferta?: number) => {
+    if (!editingCampania) return
+    const result = await addProducto(editingCampania.id, productoId)
+    if (result.success) {
+      success(result.message)
+    } else {
+      notifyError(result.message)
+    }
+    await loadProductosPromo(editingCampania.id)
+  }
+  const handleDeleteProduct = async (productoId: string) => {
+    if (!editingCampania) return
+    const result = await removeProducto(editingCampania.id, productoId)
+    if (result.success) {
+      success(result.message)
+    } else {
+      notifyError(result.message)
+    }
+    await loadProductosPromo(editingCampania.id)
+  }
+
+  // Clientes
+  const handleOpenClientModal = async (campaniaId: number) => {
+    setCampaniaIdForClientes(campaniaId)
+    setIsClientModalOpen(true)
+    await loadClientesCampania(campaniaId)
+  }
+  const closeClientModal = () => setIsClientModalOpen(false)
+  const handleAddCliente = async (clienteId: string) => {
+    if (!campaniaIdForClientes) return
+    await addCliente(campaniaIdForClientes, clienteId)
+    await loadClientesCampania(campaniaIdForClientes)
+  }
+  const handleDeleteCliente = async (clienteId: string) => {
+    if (!campaniaIdForClientes) return
+    await removeCliente(campaniaIdForClientes, clienteId)
+    await loadClientesCampania(campaniaIdForClientes)
+  }
 
   if (isLoading) {
     return (
@@ -59,6 +160,7 @@ export function PromocionesView() {
 
   return (
     <div className="space-y-6">
+      <NotificationStack notifications={notifications} onRemove={removeNotification} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Campañas Promocionales</h2>
@@ -93,9 +195,9 @@ export function PromocionesView() {
 
       <PromocionesForm
         isOpen={isModalOpen}
-        editingCampania={editingCampania}
-        formData={formData}
-        listasPrecios={listasPrecios}
+        editingCampania={editingCampania ?? null}
+        formData={formData ?? { nombre: '', descripcion: '', fecha_inicio: '', fecha_fin: '', tipo_descuento: 'PORCENTAJE', valor_descuento: 0, alcance: 'GLOBAL', activo: true }}
+        listasPrecios={listasPrecios ?? []}
         onChange={(data) => setFormData(data)}
         onSubmit={handleSubmit}
         onClose={handleCloseModal}
@@ -110,6 +212,8 @@ export function PromocionesView() {
         onAddProduct={handleAddProduct}
         onDeleteProduct={handleDeleteProduct}
         hideAssigned
+        notifications={notifications}
+        onRemoveNotification={removeNotification}
       />
 
       <CampaniaDetailModal
@@ -119,7 +223,7 @@ export function PromocionesView() {
         clientesAsignados={clientesAsignados}
         onClose={closeDetailModal}
         onDeleteProduct={(productoId) => handleDeleteProduct(productoId)}
-        onDeleteCliente={(clienteId) => handleDeleteClienteFromDetail(clienteId)}
+        // onDeleteCliente no implementado en modularización actual
       />
 
       <ClienteSelectorModal

@@ -116,15 +116,18 @@ export function CampaniaDetailModal({
             </div>
           ) : (
             <div className="space-y-2">
-              {productosArray.map((pp, index) => (
+              {productosArray.map((pp, index) => {
+                const nombreMostrar = pp.producto?.nombre || pp.producto_id || pp.producto?.id || 'Producto'
+                const skuMostrar = pp.producto?.codigo_sku
+                return (
                 <div
-                  key={pp.producto_id || pp.id || `producto-${index}`}
+                  key={pp.producto_id || pp.producto?.id || `producto-${index}`}
                   className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{pp.nombre || pp.producto?.nombre || pp.producto_id || pp.id}</p>
-                    {(pp.codigo_sku || pp.producto?.codigo_sku) && (
-                      <p className="text-xs text-gray-500">SKU: {pp.codigo_sku || pp.producto?.codigo_sku}</p>
+                    <p className="font-medium text-gray-900">{nombreMostrar}</p>
+                    {skuMostrar && (
+                      <p className="text-xs text-gray-500">SKU: {skuMostrar}</p>
                     )}
                   </div>
                   {pp.precio_oferta_fijo && (
@@ -134,14 +137,14 @@ export function CampaniaDetailModal({
                     </div>
                   )}
                   <button
-                    onClick={() => onDeleteProduct(pp.producto_id || pp.id)}
+                    onClick={() => onDeleteProduct(pp.producto_id || pp.producto?.id || '')}
                     className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
                     title="Eliminar de la campaña"
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
@@ -163,20 +166,20 @@ export function CampaniaDetailModal({
               <div className="space-y-2">
                 {clientesArray.map((cc, index) => (
                   <div
-                    key={cc.cliente_id || cc.id || `cliente-${index}`}
+                    key={cc.cliente_id || cc.cliente?.id || `cliente-${index}`}
                     className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
                   >
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">
-                        {cc.razon_social || cc.cliente?.razon_social || cc.nombre || cc.cliente_id || cc.id}
+                        {cc.cliente?.razon_social || cc.cliente_id || cc.cliente?.id}
                       </p>
-                      {(cc.identificacion || cc.cliente?.identificacion) && (
-                        <p className="text-xs text-gray-500">ID: {cc.identificacion || cc.cliente?.identificacion}</p>
+                      {(cc.cliente?.identificacion) && (
+                        <p className="text-xs text-gray-500">ID: {cc.cliente?.identificacion}</p>
                       )}
                     </div>
                     {onDeleteCliente && (
                       <button
-                        onClick={() => onDeleteCliente(cc.cliente_id || cc.id)}
+                        onClick={() => onDeleteCliente(cc.cliente_id || cc.cliente?.id || '')}
                         className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Eliminar de la campaña"
                       >

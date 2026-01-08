@@ -1,6 +1,6 @@
 import { Package, Percent } from 'lucide-react'
-import type { Campania, ProductoPromocion } from '../../services/promocionesApi'
-import type { Product } from '../../services/productosApi'
+import type { Campania, ProductoPromocion } from '../../../services/promocionesApi'
+import type { Product } from '../../../services/productosApi'
 
 interface ProductosPromocionesViewProps {
   campanias: Campania[]
@@ -56,7 +56,7 @@ export function ProductosPromocionesView({
         // Obtener productos completos usando el mapa
         const productosCompletos = productosPromo
           .map((pp) => {
-            const producto = productosMap.get(pp.producto_id || pp.id)
+            const producto = productosMap.get(pp.producto_id)
             return producto ? { ...pp, productoData: producto } : null
           })
           .filter((p) => p !== null)
@@ -110,7 +110,7 @@ export function ProductosPromocionesView({
                 const product = item!.productoData
                 return (
                   <div
-                    key={item!.producto_id || item!.id}
+                    key={item!.producto_id}
                     className="rounded-lg border border-neutral-200 bg-neutral-50 p-4"
                   >
                     <div className="flex items-start gap-3">

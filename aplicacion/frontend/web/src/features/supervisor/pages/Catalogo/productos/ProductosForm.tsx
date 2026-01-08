@@ -1,6 +1,6 @@
-import { EntityFormModal, type Field } from '../../../../components/ui/EntityFormModal'
-import { type Product, type CreateProductDto } from '../../services/productosApi'
-import { type Category } from '../../services/catalogApi'
+import { EntityFormModal, type Field } from '../../../../../components/ui/EntityFormModal'
+import { type Product, type CreateProductDto } from '../../../services/productosApi'
+import { type Category } from '../../../services/catalogApi'
 
 interface ProductosFormProps {
   isOpen: boolean
@@ -42,8 +42,7 @@ export function ProductosForm({
         { value: 'UNIDAD', label: 'Unidad' },
         { value: 'GRAMO', label: 'Gramo' },
         { value: 'KILOGRAMO', label: 'Kilogramo' },
-        { value: 'LITRO', label: 'Litro' },
-        { value: 'MILILITRO', label: 'Mililitro' },
+
       ],
     },
     { name: 'imagen_url', label: 'URL de imagen', type: 'url', placeholder: 'https://ejemplo.com/imagen.jpg' },

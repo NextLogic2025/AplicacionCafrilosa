@@ -1,60 +1,43 @@
-import { PlusCircle, Image as ImageIcon, Pencil, Trash2 } from 'lucide-react'
+import { PlusCircle } from 'lucide-react'
 import { Alert } from 'components/ui/Alert'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
-import { StatusBadge } from 'components/ui/StatusBadge'
-import { EntityFormModal, type Field } from '../../../../components/ui/EntityFormModal'
-import { useEntityCrud } from '../../../../hooks/useEntityCrud'
+import { NotificationStack } from 'components/ui/NotificationStack'
 import { useModal } from '../../../../hooks/useModal'
-import { 
-  getAllCategories, 
-  createCategory, 
-  updateCategory,
-  deleteCategory,
-  type Category,
-  type CreateCategoryDto 
-} from '../../services/catalogApi'
+import { useNotification } from '../../../../hooks/useNotification'
+import { CategoriaFormModal } from './categoria/CategoriaFormModal'
+import { CategoriaList } from './categoria/CategoriaList'
+import { useCategoriaCrud } from '../../services/useCategoriaCrud'
+import type { Category, CreateCategoryDto } from '../../services/catalogApi'
 
 export function CategoriasView() {
-  const { data: categories, isLoading, error, create, update, delete: deleteItem } = useEntityCrud<Category, CreateCategoryDto, CreateCategoryDto>({
-    load: getAllCategories,
-    create: createCategory,
-    update: (id, data) => updateCategory(typeof id === 'string' ? parseInt(id) : id, data),
-    delete: (id) => deleteCategory(typeof id === 'string' ? parseInt(id) : id),
-  })
-
+  const { data: categories, isLoading, error, create, update, delete: deleteItem } = useCategoriaCrud()
   const modal = useModal<Category>()
+  const { notifications, success, error: notifyError, remove: removeNotification } = useNotification()
 
-  const handleSubmit = async (data: any) => {
-    const categoryData: CreateCategoryDto = {
-      nombre: data.nombre,
-      descripcion: data.descripcion || undefined,
-      imagen_url: data.imagen_url || undefined,
-      activo: data.activo ?? true,
-    }
-
-    if (modal.editingItem) {
-      await update(modal.editingItem.id.toString(), categoryData)
-    } else {
-      await create(categoryData)
+  const handleSubmit = async (data: CreateCategoryDto) => {
+    try {
+      if (modal.editingItem) {
+        await update(modal.editingItem.id.toString(), data)
+        success('Categoría actualizada exitosamente')
+      } else {
+        await create(data)
+        success('Categoría creada exitosamente')
+      }
+      modal.close()
+    } catch (err: any) {
+      notifyError(err.message || 'Error al guardar la categoría')
     }
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return
-    
     try {
       await deleteItem(id.toString())
+      success('Categoría eliminada exitosamente')
     } catch (error: any) {
-      alert(error.message || 'Error al eliminar la categoría')
+      notifyError(error.message || 'Error al eliminar la categoría')
     }
   }
-
-  const fields: Field[] = [
-    { name: 'nombre', label: 'Nombre de la categoría', required: true, placeholder: 'Ej: Embutidos' },
-    { name: 'descripcion', label: 'Descripción', type: 'textarea', placeholder: 'Describe la categoría...' },
-    { name: 'imagen_url', label: 'URL de imagen', type: 'url', placeholder: 'https://ejemplo.com/imagen.jpg' },
-    { name: 'activo', label: 'Categoría activa', type: 'checkbox' },
-  ]
 
   if (isLoading) {
     return (
@@ -66,6 +49,7 @@ export function CategoriasView() {
 
   return (
     <div className="space-y-6">
+      <NotificationStack notifications={notifications} onRemove={removeNotification} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-neutral-900">Categorías</h2>
@@ -84,88 +68,18 @@ export function CategoriasView() {
 
       {error && <Alert type="error" message={error} />}
 
-      {categories.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 p-12 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-200">
-            <ImageIcon className="h-8 w-8 text-neutral-500" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-neutral-900">
-            No hay categorías
-          </h3>
-          <p className="mt-2 text-sm text-neutral-600">
-            Comienza creando tu primera categoría
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              {category.imagen_url ? (
-                <div className="mb-0 h-32 overflow-hidden rounded-t-2xl bg-neutral-100">
-                  <img
-                    src={category.imagen_url}
-                    alt={category.nombre}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
-                </div>
-              ) : (
-                <div className="mb-0 flex h-32 items-center justify-center rounded-t-2xl bg-gradient-to-br from-neutral-100 to-neutral-200">
-                  <ImageIcon className="h-12 w-12 text-neutral-400" />
-                </div>
-              )}
+      <CategoriaList
+        categories={categories}
+        onEdit={modal.openEdit}
+        onDelete={handleDelete}
+      />
 
-              <div className="px-6 py-6">
-                <h3 className="text-lg font-bold text-neutral-900">
-                  {category.nombre}
-                </h3>
-
-                {category.descripcion && (
-                  <p className="mt-2 text-sm text-neutral-600 line-clamp-2">
-                    {category.descripcion}
-                  </p>
-                )}
-
-                <div className="mt-4 flex items-center justify-between">
-                  <StatusBadge variant={category.activo ? 'success' : 'neutral'}>
-                    {category.activo ? 'Activo' : 'Inactivo'}
-                  </StatusBadge>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => modal.openEdit(category)}
-                      className="flex items-center gap-1.5 rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red transition hover:bg-brand-red/5"
-                      title="Editar categoría"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="flex items-center gap-1.5 rounded-lg border border-red-600 px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-                      title="Eliminar categoría"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <EntityFormModal<Category>
+      <CategoriaFormModal
         isOpen={modal.isOpen}
         onClose={modal.close}
-        title={modal.isEditing ? 'Editar Categoría' : 'Crear Categoría'}
-        fields={fields}
         initialData={modal.editingItem || undefined}
         onSubmit={handleSubmit}
-        headerGradient="red"
+        isEditing={modal.isEditing}
       />
     </div>
   )

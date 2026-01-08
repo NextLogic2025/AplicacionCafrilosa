@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { PlusCircle, Package, Percent } from 'lucide-react'
 import { Alert } from 'components/ui/Alert'
+import { NotificationStack } from 'components/ui/NotificationStack'
 import { useEntityCrud } from '../../../../hooks/useEntityCrud'
 import { useModal } from '../../../../hooks/useModal'
+import { useNotification } from '../../../../hooks/useNotification'
 import { getAllCategories, type Category } from '../../services/catalogApi'
 import {
   getAllProducts,
@@ -13,9 +15,9 @@ import {
   type CreateProductDto,
 } from '../../services/productosApi'
 import { getAllCampanias, type Campania, type ProductoPromocion, getProductosByCampania } from '../../services/promocionesApi'
-import { ProductosList } from './ProductosList'
-import { ProductosForm } from './ProductosForm'
-import { ProductosPromocionesView } from './ProductosPromocionesView'
+import { ProductosList } from './productos/ProductosList'
+import { ProductosForm } from './productos/ProductosForm'
+import { ProductosPromocionesView } from './productos/ProductosPromocionesView'
 
 export function ProductosView() {
   const [vistaActual, setVistaActual] = useState<'productos' | 'promociones'>('productos')
@@ -33,6 +35,7 @@ export function ProductosView() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const modal = useModal<Product>()
+  const { notifications, success, error: notifyError, remove: removeNotification } = useNotification()
 
   useEffect(() => {
     getAllCategories().then(setCategories).catch((err) => console.error('Error al cargar categorías:', err))
@@ -55,9 +58,38 @@ export function ProductosView() {
       await Promise.all(
         campanasData.map(async (campania) => {
           try {
-            const productosPromo = await getProductosByCampania(campania.id)
-            if (productosPromo.length > 0) {
-              productosMap.set(String(campania.id), productosPromo)
+            // La API puede devolver distintos formatos; normalizamos a ProductoPromocion[]
+            const productosPromoRaw = (await getProductosByCampania(campania.id)) as unknown as any[]
+
+            let normalizados: ProductoPromocion[] = []
+            if (Array.isArray(productosPromoRaw) && productosPromoRaw.length > 0) {
+              const first = productosPromoRaw[0] as any
+              if (first && Object.prototype.hasOwnProperty.call(first, 'producto_id')) {
+                // Ya viene en el formato esperado
+                normalizados = productosPromoRaw as ProductoPromocion[]
+              } else {
+                // Viene como productos completos u otro formato: mapeamos
+                normalizados = productosPromoRaw.map((p: any) => {
+                  const productoId = String(p.producto_id ?? p.id)
+                  const codigo_sku = p.codigo_sku ?? p.producto?.codigo_sku ?? ''
+                  const nombre = p.nombre ?? p.producto?.nombre ?? ''
+                  const precioOferta = p.precio_oferta_fijo ?? null
+                  return {
+                    campania_id: campania.id,
+                    producto_id: productoId,
+                    precio_oferta_fijo: precioOferta,
+                    producto: {
+                      id: productoId,
+                      codigo_sku,
+                      nombre,
+                    },
+                  } as ProductoPromocion
+                })
+              }
+            }
+
+            if (normalizados.length > 0) {
+              productosMap.set(String(campania.id), normalizados)
             }
           } catch (err) {
             console.error(`Error al cargar productos de campaña ${campania.id}:`, err)
@@ -77,17 +109,32 @@ export function ProductosView() {
     try {
       if (modal.editingItem) {
         await update(modal.editingItem.id, data)
+        success('Producto actualizado exitosamente')
       } else {
         await create(data as CreateProductDto)
+        success('Producto creado exitosamente')
       }
       modal.close()
+    } catch (err: any) {
+      notifyError(err.message || 'Error al guardar el producto')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const handleDelete = async (id: string | number) => {
+    if (!confirm('¿Estás seguro de eliminar este producto?')) return
+    try {
+      await deleteItem(id)
+      success('Producto eliminado exitosamente')
+    } catch (err: any) {
+      notifyError(err.message || 'Error al eliminar el producto')
+    }
+  }
+
   return (
     <div className="space-y-6">
+      <NotificationStack notifications={notifications} onRemove={removeNotification} />
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -143,7 +190,7 @@ export function ProductosView() {
           categories={categories}
           isLoading={isLoading}
           onEdit={modal.openEdit}
-          onDelete={deleteItem}
+          onDelete={handleDelete}
         />
       )}
 
@@ -153,7 +200,7 @@ export function ProductosView() {
           campanias={campanias}
           productosEnPromociones={productosEnPromociones}
           products={products}
-          isLoading={isLoadingPromos}
+          isLoading={isLoadingPromos || isLoading}
         />
       )}
 

@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { Button } from 'components/ui/Button'
+import { NotificationStack } from 'components/ui/NotificationStack'
 import { X } from 'lucide-react'
 import type { ProductoPromocion } from '../services/promocionesApi'
 import type { Product } from '../services/productosApi'
+import type { Notification } from '../../../hooks/useNotification'
 
 interface ProductSelectorModalProps {
   isOpen: boolean
@@ -14,6 +16,8 @@ interface ProductSelectorModalProps {
   onAddProduct: (productoId: string, precioOferta?: number) => Promise<void>
   onDeleteProduct: (productoId: string) => Promise<void>
   hideAssigned?: boolean
+  notifications?: Notification[]
+  onRemoveNotification?: (id: string) => void
 }
 
 export function ProductSelectorModal({
@@ -24,6 +28,8 @@ export function ProductSelectorModal({
   onAddProduct,
   onDeleteProduct,
   hideAssigned = false,
+  notifications = [],
+  onRemoveNotification,
 }: ProductSelectorModalProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>('')
   const [precioOferta, setPrecioOferta] = useState<number>(0)
@@ -64,7 +70,15 @@ export function ProductSelectorModal({
       headerGradient="blue"
       maxWidth="lg"
     >
-      <div className="space-y-6">
+      <div className="relative space-y-6">
+        {notifications && notifications.length > 0 && (
+          <div className="mb-4">
+            <NotificationStack 
+              notifications={notifications} 
+              onRemove={onRemoveNotification || (() => {})} 
+            />
+          </div>
+        )}
         {/* Productos asignados (opcional) */}
         {!hideAssigned && (
           <div className="space-y-3">

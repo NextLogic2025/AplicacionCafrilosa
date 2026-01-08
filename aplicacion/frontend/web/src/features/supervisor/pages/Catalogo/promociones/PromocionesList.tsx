@@ -2,8 +2,8 @@ import { useMemo, useCallback } from 'react'
 import { Pencil, Trash2, Search, Package, UserPlus } from 'lucide-react'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { Percent } from 'lucide-react'
-import type { Campania } from '../../services/promocionesApi'
-import { PromocionesFilters } from '../../components/PromocionesFilters'
+import type { Campania } from '../../../services/promocionesApi'
+import { PromocionesFilters } from '../../../components/PromocionesFilters'
 
 interface PromocionesListProps {
   campanias: Campania[]
