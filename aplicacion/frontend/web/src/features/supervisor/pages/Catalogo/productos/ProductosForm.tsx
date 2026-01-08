@@ -51,7 +51,7 @@ export function ProductosForm({
   ]
 
   const handleSubmit = async (data: any) => {
-    const productData: Partial<CreateProductDto> = {
+    const productData: Partial<CreateProductDto> & { imagenUrl?: string | null } = {
       codigo_sku: data.codigo_sku,
       nombre: data.nombre,
       descripcion: data.descripcion || undefined,
@@ -60,6 +60,7 @@ export function ProductosForm({
       volumen_m3: data.volumen_m3 ? (typeof data.volumen_m3 === 'string' ? parseFloat(data.volumen_m3) : data.volumen_m3) : undefined,
       unidad_medida: data.unidad_medida,
       imagen_url: data.imagen_url || undefined,
+      imagenUrl: data.imagen_url || undefined, // Enviar alias camelCase por compatibilidad con backend
       requiere_frio: data.requiere_frio ?? false,
       activo: data.activo ?? true,
     }

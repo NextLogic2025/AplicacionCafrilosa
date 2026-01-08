@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { env } from '../../../../config/env'
-import { httpAuth } from '../../../../services/api/http'
 import { Mail, Phone, MapPin, User, Clock } from 'lucide-react'
 
 import { PageHero } from '../../../../components/ui/PageHero'
@@ -31,24 +30,6 @@ export default function VendedorPerfil() {
     let cancelled = false
     ;(async () => {
       try {
-        // First, try calling /auth/me which is more authoritative than decoding a token
-        const me = await httpAuth<Record<string, any>>('/auth/me').catch(() => null)
-        if (me && !cancelled) {
-          const id = (me.sub ?? me.id ?? me.userId ?? me.usuario_id ?? me.uid) as string | undefined
-          setTokenUserId(id ?? null)
-          const tokenEmail = (me.email ?? me.usuario?.email ?? me.user_email) as string | undefined
-          const rawRoleId = me.rolId ?? me.roleId ?? me.rol_id ?? me.role_id
-          const rawRoleName = me.rol ?? me.role ?? (me.roleName ?? me.nombre_rol)
-          const roleId = typeof rawRoleId === 'string' ? Number(rawRoleId) : rawRoleId
-          const roleName = typeof rawRoleName === 'string' ? String(rawRoleName).toLowerCase() : undefined
-          const isSupervisor = roleId === 2 || roleName === 'supervisor'
-          const isSelfById = !!id && profile?.id ? String(id) === String(profile.id) : false
-          const isSelfByEmail = tokenEmail && profile?.email ? String(tokenEmail).toLowerCase() === String(profile.email).toLowerCase() : false
-          setCanEditSelf(isSupervisor || isSelfById || isSelfByEmail)
-          return
-        }
-
-        // Fallback: decode token from storage if /auth/me not available
         const t = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token')
         if (!t) {
           if (!cancelled) {

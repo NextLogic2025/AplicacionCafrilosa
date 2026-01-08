@@ -116,74 +116,69 @@ export function ProductosList({ products, categories, isLoading, onEdit, onDelet
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="group relative overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               {product.imagen_url ? (
-                <div className="mb-0 h-32 overflow-hidden rounded-t-2xl bg-neutral-100">
+                <div className="mb-0 overflow-hidden rounded-t-lg bg-neutral-100 aspect-square">
                   <img src={product.imagen_url} alt={product.nombre} className="h-full w-full object-cover transition group-hover:scale-105" />
                 </div>
               ) : (
-                <div className="mb-0 flex h-32 items-center justify-center rounded-t-2xl bg-gradient-to-br from-neutral-100 to-neutral-200">
-                  <ImageIcon className="h-12 w-12 text-neutral-400" />
+                <div className="mb-0 flex aspect-square items-center justify-center rounded-t-lg bg-gradient-to-br from-neutral-100 to-neutral-200">
+                  <ImageIcon className="h-8 w-8 text-neutral-400" />
                 </div>
               )}
 
-              <div className="px-6 py-6">
-                <p className="text-xs text-neutral-500">SKU: {product.codigo_sku}</p>
-                <h3 className="text-lg font-bold text-neutral-900 truncate">{product.nombre}</h3>
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 shadow-sm">
-                  <Tag className="h-4 w-4" />
-                  <span>{resolveCategoryLabel(product)}</span>
+              <div className="px-3 py-3">
+                <p className="text-xs text-neutral-500 truncate">SKU: {product.codigo_sku}</p>
+                <h3 className="text-sm font-bold text-neutral-900 truncate">{product.nombre}</h3>
+                <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                  <Tag className="h-3 w-3" />
+                  <span className="truncate text-xs">{resolveCategoryLabel(product)}</span>
                 </div>
                 {product.descripcion && (
-                  <p className="mt-1 text-sm text-neutral-600 line-clamp-2">{product.descripcion}</p>
+                  <p className="mt-1 text-xs text-neutral-600 line-clamp-2">{product.descripcion}</p>
                 )}
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-600">
-                  <span className="rounded-full bg-neutral-100 px-3 py-1 font-semibold text-neutral-800">
+                <div className="mt-2 flex flex-wrap gap-1 text-xs text-neutral-600">
+                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-800">
                     {product.peso_unitario_kg} kg
                   </span>
                   {product.volumen_m3 && (
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 font-semibold text-neutral-800">
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-800">
                       {product.volumen_m3} m³
                     </span>
                   )}
-                  <span className="rounded-full bg-neutral-100 px-3 py-1 font-semibold text-neutral-800">
-                    {product.unidad_medida}
-                  </span>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <StatusBadge variant={product.activo ? 'success' : 'neutral'}>
-                      {product.activo ? 'Activo' : 'Inactivo'}
+                <div className="mt-2 flex items-center gap-1">
+                  <StatusBadge variant={product.activo ? 'success' : 'neutral'}>
+                    {product.activo ? 'Activo' : 'Inactivo'}
+                  </StatusBadge>
+                  {product.requiere_frio && (
+                    <StatusBadge variant="info">
+                      Frío
                     </StatusBadge>
-                    {product.requiere_frio && (
-                      <StatusBadge variant="info">
-                        Frío
-                      </StatusBadge>
-                    )}
-                  </div>
+                  )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-end gap-2">
+                <div className="mt-3 flex items-center gap-1">
                   <button
                     onClick={() => onEdit(product)}
-                    className="flex items-center gap-1.5 rounded-lg border border-brand-red px-3 py-1.5 text-sm font-semibold text-brand-red transition hover:bg-brand-red/5"
+                    className="flex-1 flex items-center justify-center gap-1 rounded border border-brand-red px-2 py-1 text-xs font-semibold text-brand-red transition hover:bg-brand-red/5"
                     title="Editar producto"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-3 w-3" />
                     Editar
                   </button>
                   <button
                     onClick={() => handleDelete(product)}
-                    className="flex items-center gap-1.5 rounded-lg border border-red-600 px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                    className="flex-1 flex items-center justify-center gap-1 rounded border border-red-600 px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                     title="Eliminar producto"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                     Eliminar
                   </button>
                 </div>

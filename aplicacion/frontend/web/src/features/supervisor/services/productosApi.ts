@@ -30,6 +30,7 @@ export interface CreateProductDto {
   requiere_frio?: boolean
   unidad_medida?: string
   imagen_url?: string
+  imagenUrl?: string
   activo?: boolean
 }
 

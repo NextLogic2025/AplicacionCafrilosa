@@ -82,14 +82,30 @@ export function useProfile() {
 
   React.useEffect(() => {
     loadProfile()
-    loadVendedores()
-  }, [loadProfile, loadVendedores])
+  }, [loadProfile])
+
+  // Cargar vendedores solo si el usuario tiene permisos (admin/supervisor)
+  React.useEffect(() => {
+    const rol = profile?.rol?.nombre?.toLowerCase?.()
+    if (rol === 'admin' || rol === 'supervisor') {
+      loadVendedores()
+    } else {
+      // Evitar 403 en perfiles de cliente/vendedor: no se consulta y se deja vacío
+      setVendedorMap((prev) => (Object.keys(prev).length ? {} : prev))
+    }
+  }, [profile?.rol?.nombre, loadVendedores])
 
   React.useEffect(() => {
-    if (profile?.id) {
+    const rol = profile?.rol?.nombre?.toLowerCase?.()
+    if (profile?.id && rol === 'cliente') {
       loadClient()
+    } else {
+      // Evitar 404 innecesarios en perfiles que no son cliente
+      if (client !== null) setClient(null)
+      if (clientError) setClientError(null)
+      if (clientLoading) setClientLoading(false)
     }
-  }, [profile?.id, loadClient])
+  }, [profile?.id, profile?.rol?.nombre, loadClient])
 
   return {
     profile,
