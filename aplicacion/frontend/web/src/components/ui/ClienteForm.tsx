@@ -475,7 +475,7 @@ function ZonaMapDisplay({
           center={path[0] ?? defaultCenter}
           zoom={path.length ? 13 : 12}
           options={{
-            fullscreenControl: false,
+            fullscreenControl: true,
             mapTypeControl: false,
             streetViewControl: false,
             clickableIcons: false,

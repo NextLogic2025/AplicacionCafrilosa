@@ -3,35 +3,87 @@ import { useEffect, useState } from 'react'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ProductCard } from '../../../../components/ui/ProductCard'
-import { Package, Search } from 'lucide-react'
+import { Package, Search, Filter } from 'lucide-react'
 import { getAllProducts, Product } from '../../../supervisor/services/productosApi'
-import type { Producto } from '../../cliente/types'
+import type { Producto } from '../../../cliente/types'
+import { getAllCategories } from '../../../supervisor/services/catalogApi'
+import { useMemo } from 'react'
 
 
 export default function VendedorProductos() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
+  const [cargando, setCargando] = useState(true)
+  const [busqueda, setBusqueda] = useState('')
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
+  const [categoryId, setCategoryId] = useState<string>('')
+  const [filtros, setFiltros] = useState({ category: 'all', minPrice: 0, maxPrice: 10000, inStock: true })
+  const [categories, setCategories] = useState<{ id: number; nombre: string }[]>([])
 
   useEffect(() => {
     getAllProducts()
       .then((items: Product[]) => {
         // Mapear Product (backend) a Producto (frontend)
         setProductos(
-          items.map((p) => ({
-            id: p.id,
-            name: p.nombre,
-            description: p.descripcion || '',
-            price: 0, // Aquí puedes mapear el precio real si existe en el backend
-            image: p.imagen_url || '',
-            category: p.categoria?.nombre || '',
-            inStock: p.activo,
-            rating: 0,
-            reviews: 0,
-          }))
+          items.map((p) => {
+            const anyP = p as any
+            const rawBase = anyP.precio_base ?? anyP.precio ?? null
+            const rawOferta = anyP.precio_oferta ?? null
+            const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
+            const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta
+            const price = (precioOferta ?? precioBase ?? 0) as number
+            return {
+              id: p.id,
+              name: p.nombre,
+              description: p.descripcion || '',
+              price,
+              precio_original: typeof precioBase === 'number' && precioOferta != null ? precioBase : (typeof anyP.precio_original === 'number' ? anyP.precio_original : undefined),
+              precio_oferta: typeof precioOferta === 'number' ? precioOferta : undefined,
+              promociones: anyP.promociones || undefined,
+              image: p.imagen_url || '',
+              category: p.categoria?.nombre || '',
+              inStock: p.activo,
+              rating: 0,
+              reviews: 0,
+            }
+          })
         )
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    const cargar = async () => {
+      setCargando(true)
+      setCargando(false)
+    }
+    cargar()
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    getAllCategories()
+      .then(list => {
+        if (!mounted) return
+        setCategories(list.map(c => ({ id: c.id, nombre: c.nombre })))
+      })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [])
+
+  const productosFiltrados = useMemo(
+    () =>
+      productos.filter(producto => {
+        const coincideBusqueda =
+          producto.name.toLowerCase().includes(busqueda.toLowerCase()) ||
+          producto.description.toLowerCase().includes(busqueda.toLowerCase())
+        const coincideCategoria = filtros.category === 'all' || producto.category === filtros.category
+        const coincidePrecio = producto.price >= filtros.minPrice && producto.price <= filtros.maxPrice
+        const coincideStock = !filtros.inStock || producto.inStock
+        return coincideBusqueda && coincideCategoria && coincidePrecio && coincideStock
+      }),
+    [busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos],
+  )
 
   // TODO: Implementar filtros si es necesario
 
@@ -46,48 +98,89 @@ export default function VendedorProductos() {
         ]}
       />
 
-      {/* Filtros (sin funcionalidad por ahora) */}
+      {/* Filtros (igual que cliente) */}
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Buscar Producto
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Nombre o código..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+          <button
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 transition hover:bg-gray-50"
+          >
+            <Filter size={20} />
+            <span>Filtros</span>
+          </button>
+        </div>
+
+        {mostrarFiltros && (
+          <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 mt-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Categoría</label>
+              <select
+                value={categoryId || 'all'}
+                onChange={e => {
+                  const val = e.target.value
+                  if (val === 'all') {
+                    setCategoryId('')
+                    setFiltros({ ...filtros, category: 'all' })
+                    return
+                  }
+                  setCategoryId(val)
+                  const idNum = Number(val)
+                  const found = categories.find(c => c.id === idNum)
+                  setFiltros({ ...filtros, category: found ? found.nombre : 'all' })
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-red-500"
+              >
+                <option value="all">Todas las categorías</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={String(cat.id)}>{cat.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Precio: ${filtros.minPrice} - ${filtros.maxPrice}</label>
               <input
-                type="text"
-                placeholder="Nombre o código..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent"
-                disabled
+                type="range"
+                min="0"
+                max="10000"
+                step="10"
+                value={filtros.maxPrice}
+                onChange={e => setFiltros({ ...filtros, maxPrice: parseInt(e.target.value) })}
+                className="w-full"
               />
             </div>
-          </div>
 
-          <div className="w-48">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Categoría
-            </label>
-            <select className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent" disabled>
-              <option value="">Todas</option>
-              <option value="lacteos">Lácteos</option>
-              <option value="bebidas">Bebidas</option>
-              <option value="snacks">Snacks</option>
-            </select>
-          </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="inStock"
+                checked={filtros.inStock}
+                onChange={e => setFiltros({ ...filtros, inStock: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="inStock" className="text-sm text-gray-700">
+                Solo productos disponibles
+              </label>
+            </div>
 
-          <div className="w-48">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Presentación
-            </label>
-            <select className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent" disabled>
-              <option value="">Todas</option>
-              <option value="unidad">Unidad</option>
-              <option value="caja">Caja</option>
-              <option value="pallet">Pallet</option>
-            </select>
+            <button
+              onClick={() => setMostrarFiltros(false)}
+              className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm transition hover:bg-gray-300"
+            >
+              Cerrar Filtros
+            </button>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Catálogo */}
@@ -102,10 +195,16 @@ export default function VendedorProductos() {
             description="El catálogo de productos se cargará desde el backend"
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {productos.map((producto) => (
-              <ProductCard key={producto.id} producto={producto} onAddToCart={() => {}} />
-            ))}
+          <div>
+            {productosFiltrados.length === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-600">No se encontraron productos con los filtros seleccionados.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {productosFiltrados.map((producto) => (
+                  <ProductCard key={producto.id} producto={producto} onAddToCart={() => {}} fetchPromos />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>

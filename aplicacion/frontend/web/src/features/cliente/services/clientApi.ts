@@ -12,9 +12,10 @@ import type {
 } from '../types'
 
 export async function fetchClienteByUsuarioId(usuarioId: string) {
+  // Prefer the canonical /clientes/:id endpoint (coincide con lo que funciona en Postman)
   const endpoints = [
-    `/clientes/usuario/${usuarioId}`,
     `/clientes/${usuarioId}`,
+    `/clientes/usuario/${usuarioId}`,
   ]
   for (const path of endpoints) {
     const resp = await httpCatalogo<any>(path).catch(() => null)
@@ -24,9 +25,13 @@ export async function fetchClienteByUsuarioId(usuarioId: string) {
 }
 
 export async function getPerfilCliente(): Promise<PerfilCliente | null> {
-  // First try canonical /cliente/perfil (some backends expose this)
-  const direct = await httpCatalogo<PerfilCliente>('/cliente/perfil').catch(() => null)
-  if (direct) return direct
+  // Some backends expose a direct client profile endpoint; try best-effort
+  const direct = await httpCatalogo<any>('/clientes/mis').catch(() => null)
+  if (direct) {
+    // If the endpoint returns an array, take the first; if it returns an object, use it
+    if (Array.isArray(direct) && direct.length > 0) return direct[0] as PerfilCliente
+    if (!Array.isArray(direct) && direct) return direct as PerfilCliente
+  }
 
   // Next try: call `/auth/me` to obtain the authenticated user's id (more reliable than decoding token)
   try {

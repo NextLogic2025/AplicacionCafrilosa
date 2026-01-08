@@ -24,9 +24,11 @@ export default function PerfilCliente() {
   }, [refresh])
 
   // Reset edit modes when switching between steps
+  // Reset edit modes only for the step that is not active.
+  // This prevents activating a step for editing and having the effect immediately clear the edit flag.
   useEffect(() => {
-    setEditing(false)
-    setClientEditing(false)
+    if (activeStep !== 0) setEditing(false)
+    if (activeStep !== 1) setClientEditing(false)
   }, [activeStep])
 
   useEffect(() => {
@@ -40,6 +42,24 @@ export default function PerfilCliente() {
       })
     }
   }, [profile, client])
+
+  function formatGps(gps: any) {
+    try {
+      if (!gps) return '—'
+      if (gps.type && Array.isArray(gps.coordinates)) {
+        const [lng, lat] = gps.coordinates
+        return `${lat?.toFixed?.(6) ?? lat}, ${lng?.toFixed?.(6) ?? lng}`
+      }
+      if (Array.isArray(gps.coordinates)) {
+        const [a, b] = gps.coordinates
+        return `${a}, ${b}`
+      }
+      if (typeof gps === 'object') return JSON.stringify(gps)
+      return String(gps)
+    } catch {
+      return '—'
+    }
+  }
 
   if (loading && !profile) return <LoadingSpinner text="Cargando perfil..." />
 
@@ -115,7 +135,7 @@ export default function PerfilCliente() {
               {!editing ? (
                 <button
                   className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
-                  onClick={() => setEditing(true)}
+                  onClick={() => { setActiveStep(0); setEditing(true) }}
                 >
                   Editar
                 </button>
@@ -133,6 +153,50 @@ export default function PerfilCliente() {
                     className="inline-flex items-center gap-2 rounded-md border px-3 py-1 text-sm font-semibold"
                     onClick={() => { setEditing(false); setForm({ nombre: profile?.nombre ?? '', telefono: profile?.telefono ?? '', avatarUrl: profile?.avatarUrl ?? '' }); setSuccess(null) }}
                     disabled={loading}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeStep === 1 && (
+            <>
+              {!clientEditing ? (
+                <button
+                  className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
+                  onClick={() => { setActiveStep(1); setClientEditing(true) }}
+                >
+                  Editar cliente
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
+                    onClick={async () => {
+                      try {
+                        setSuccess(null)
+                        await updateClient({
+                          identificacion: clientForm.identificacion || null,
+                          tipo_identificacion: clientForm.tipo_identificacion || null,
+                          razon_social: clientForm.razon_social || null,
+                          nombre_comercial: clientForm.nombre_comercial || null,
+                        } as any)
+                        setSuccess('Datos del cliente actualizados')
+                        setClientEditing(false)
+                      } catch (e) {
+                        // error shown by hook's clientError
+                      }
+                    }}
+                    disabled={clientLoading}
+                  >
+                    Guardar cliente
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1 text-sm font-semibold"
+                    onClick={() => { setClientEditing(false); if (client) setClientForm({ identificacion: client.identificacion ?? '', tipo_identificacion: client.tipo_identificacion ?? '', razon_social: client.razon_social ?? '', nombre_comercial: client.nombre_comercial ?? '' }) ; setSuccess(null) }}
+                    disabled={clientLoading}
                   >
                     Cancelar
                   </button>
@@ -183,47 +247,6 @@ export default function PerfilCliente() {
       {activeStep === 1 && (
         <div className="mt-6">
         <h3 className="mb-3 text-sm font-semibold uppercase text-neutral-500">Datos del cliente</h3>
-        <div className="flex justify-end mb-2">
-          {!clientEditing ? (
-            <button
-              className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
-              onClick={() => setClientEditing(true)}
-            >
-              Editar cliente
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
-                onClick={async () => {
-                  try {
-                    setSuccess(null)
-                    await updateClient({
-                      identificacion: clientForm.identificacion || null,
-                      tipo_identificacion: clientForm.tipo_identificacion || null,
-                      razon_social: clientForm.razon_social || null,
-                      nombre_comercial: clientForm.nombre_comercial || null,
-                    } as any)
-                    setSuccess('Datos del cliente actualizados')
-                    setClientEditing(false)
-                  } catch (e) {
-                    // error shown by hook's clientError
-                  }
-                }}
-                disabled={clientLoading}
-              >
-                Guardar cliente
-              </button>
-              <button
-                className="inline-flex items-center gap-2 rounded-md border px-3 py-1 text-sm font-semibold"
-                onClick={() => { setClientEditing(false); if (client) setClientForm({ identificacion: client.identificacion ?? '', tipo_identificacion: client.tipo_identificacion ?? '', razon_social: client.razon_social ?? '', nombre_comercial: client.nombre_comercial ?? '' }) ; setSuccess(null) }}
-                disabled={clientLoading}
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
-        </div>
         {clientLoading && <LoadingSpinner text="Cargando datos del cliente..." />}
         {clientError && <Alert type="info" title="Cliente" message={clientError} />}
         {client && (
@@ -289,7 +312,7 @@ export default function PerfilCliente() {
             <InfoCard label="Días plazo" value={client.dias_plazo != null ? String(client.dias_plazo) : '0'} />
             <InfoCard label="Bloqueado" value={client.bloqueado ? 'Sí' : 'No'} />
             <InfoCard label="Dirección" value={client.direccion_texto ?? '—'} />
-            <InfoCard label="Ubicación GPS" value={client.ubicacion_gps ?? '—'} />
+            <InfoCard label="Ubicación GPS" value={client.ubicacion_gps ? formatGps(client.ubicacion_gps) : '—'} />
             {/* <InfoCard label="Alta" value={client.created_at ? new Date(client.created_at).toLocaleDateString('es-PE') : '—'} /> */}
             {/* <InfoCard label="Última actualización" value={client.updated_at ? new Date(client.updated_at).toLocaleDateString('es-PE') : '—'} /> */}
             <InfoCard label="Eliminado" value={client.deleted_at ? new Date(client.deleted_at).toLocaleDateString('es-PE') : 'No'} />

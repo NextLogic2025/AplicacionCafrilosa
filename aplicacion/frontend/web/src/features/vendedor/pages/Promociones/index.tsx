@@ -5,14 +5,11 @@ import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ProductCard } from '../../../../components/ui/ProductCard'
 import { Percent } from 'lucide-react'
 import { getAllProducts, Product } from '../../../supervisor/services/productosApi'
-// Si tienes un contexto de carrito para vendedor, impórtalo aquí
-// import { useCart } from '../../cart/CartContext'
-import type { Producto } from '../../cliente/types'
+import type { Producto } from '../../../cliente/types'
 
 export default function VendedorPromociones() {
   const [loading, setLoading] = useState(true)
   const [promos, setPromos] = useState<Producto[]>([])
-  // const { addItem } = useCart() // Si tienes carrito para vendedor
 
   useEffect(() => {
     let mounted = true
@@ -21,19 +18,28 @@ export default function VendedorPromociones() {
       const resp = await getAllProducts().catch(() => [])
       if (!mounted) return
       // Mapear Product (backend) a Producto (frontend)
-      const productos: Producto[] = (resp || []).map((p: Product) => ({
-        id: p.id,
-        name: p.nombre,
-        description: p.descripcion || '',
-        price: 0, // Si tienes precio real, mapéalo aquí
-        image: p.imagen_url || '',
-        category: p.categoria?.nombre || '',
-        inStock: p.activo,
-        rating: 0,
-        reviews: 0,
-        promociones: (p as any).promociones || [],
-        precio_oferta: (p as any).precio_oferta ?? null,
-      }))
+      const productos: Producto[] = (resp || []).map((p: Product) => {
+        const anyP = p as any
+        const rawBase = anyP.precio_base ?? anyP.precio ?? null
+        const rawOferta = anyP.precio_oferta ?? null
+        const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
+        const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta
+        const price = (precioOferta ?? precioBase ?? 0) as number
+        return {
+          id: p.id,
+          name: p.nombre,
+          description: p.descripcion || '',
+          price,
+          precio_original: typeof precioBase === 'number' && precioOferta != null ? precioBase : (typeof anyP.precio_original === 'number' ? anyP.precio_original : undefined),
+          precio_oferta: typeof precioOferta === 'number' ? precioOferta : undefined,
+          promociones: anyP.promociones || undefined,
+          image: p.imagen_url || '',
+          category: p.categoria?.nombre || '',
+          inStock: p.activo,
+          rating: 0,
+          reviews: 0,
+        }
+      })
       // Filtrar productos con promociones activas
       const filtered = productos.filter(p => p.precio_oferta != null || (Array.isArray(p.promociones) && p.promociones.length > 0))
       setPromos(filtered)
@@ -66,9 +72,11 @@ export default function VendedorPromociones() {
             description="Las promociones vigentes se mostrarán aquí"
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-fr">
             {promos.map((p) => (
-              <ProductCard key={p.id} producto={p} onAddToCart={() => {}} />
+              <div key={p.id} className="h-full">
+                <ProductCard producto={p} onAddToCart={() => {}} fetchPromos />
+              </div>
             ))}
           </div>
         )}

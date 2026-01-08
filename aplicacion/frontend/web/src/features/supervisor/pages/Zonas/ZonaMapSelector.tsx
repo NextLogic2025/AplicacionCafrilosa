@@ -94,7 +94,7 @@ export function ZonaMapSelector({ apiKey, polygon, onPolygonChange }: ZonaMapSel
             center={polygon[0] ?? defaultCenter}
             zoom={polygon.length ? 13 : 12}
             options={{
-              fullscreenControl: false,
+              fullscreenControl: true,
               mapTypeControl: false,
               streetViewControl: false,
               clickableIcons: false,
