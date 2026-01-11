@@ -78,10 +78,37 @@ export default function RutasPage() {
     handleEliminarRuta,
   } = useRutero()
 
+  // Estado para rastrear clientes seleccionados por día (objeto plano para compatibilidad)
+  const [clientesSeleccionadosPorDia, setClientesSeleccionadosPorDia] = useState<Record<string, string[]>>({})
+
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [vistaActual, setVistaActual] = useState<'planificar' | 'listar'>('planificar')
 
   const zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
+
+  // Obtener la clave única para el día/zona
+  const diaZonaKey = `${zonaSeleccionada}-${diaSeleccionado}`
+
+  // Obtener clientes seleccionados para el día actual
+  const clientesSeleccionadosHoy = useMemo(() => {
+    return new Set(clientesSeleccionadosPorDia[diaZonaKey] || [])
+  }, [clientesSeleccionadosPorDia, diaZonaKey])
+
+  // Toggle de cliente seleccionado
+  const toggleClienteSeleccionado = (clienteId: string) => {
+    setClientesSeleccionadosPorDia((prev) => {
+      const actuales = new Set(prev[diaZonaKey] || [])
+      if (actuales.has(clienteId)) actuales.delete(clienteId)
+      else actuales.add(clienteId)
+
+      const siguiente = { ...prev }
+      if (actuales.size === 0) delete siguiente[diaZonaKey]
+      else siguiente[diaZonaKey] = Array.from(actuales)
+
+      return siguiente
+    })
+  }
+
 
   // Filtrar clientes por zona usando polígono
   const clientesFiltrados = useMemo(() => {
@@ -97,6 +124,27 @@ export default function RutasPage() {
     })
   }, [clientes, zonaActual])
 
+  // Seleccionar/deseleccionar todos
+  const toggleTodosLosClientes = () => {
+    setClientesSeleccionadosPorDia((prev) => {
+      const siguiente = { ...prev }
+      if (clientesSeleccionadosHoy.size === clientesFiltrados.length) {
+        // Deseleccionar todos
+        delete siguiente[diaZonaKey]
+      } else {
+        // Seleccionar todos
+        siguiente[diaZonaKey] = clientesFiltrados.map((c) => c.id)
+      }
+      return siguiente
+    })
+  }
+
+  // Filtrar clientes según la selección del día
+  const clientesParaMostrar = useMemo(() => {
+    if (clientesSeleccionadosHoy.size === 0) return []
+    return clientesFiltrados.filter(c => clientesSeleccionadosHoy.has(c.id))
+  }, [clientesFiltrados, clientesSeleccionadosHoy])
+
   useEffect(() => {
     if (vistaActual === 'listar') {
       cargarRutasGuardadas()
@@ -105,7 +153,8 @@ export default function RutasPage() {
 
   const onGuardar = async () => {
     try {
-      await handleGuardar()
+      // Pasar solo los clientes seleccionados para el día/zona actual
+      await handleGuardar(clientesSeleccionadosPorDia[diaZonaKey] || [])
       setSaveMessage('Rutero guardado exitosamente')
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
@@ -175,11 +224,70 @@ export default function RutasPage() {
         {/* Vista de Planificación */}
         {vistaActual === 'planificar' && (
           <>
+            {/* Selector de Clientes para el día */}
+            <div className="mb-4 rounded-lg border border-neutral-200 bg-gradient-to-r from-neutral-50 to-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-semibold text-neutral-900">Selecciona clientes para {diaSeleccionado}</h3>
+                  <p className="text-xs text-neutral-600 mt-1">Elige los clientes que visitarás este día</p>
+                </div>
+                <button
+                  onClick={toggleTodosLosClientes}
+                  disabled={clientesFiltrados.length === 0}
+                  className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  {clientesSeleccionadosHoy.size === clientesFiltrados.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                </button>
+              </div>
+              
+              {/* Grid de clientes */}
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-5">
+                {clientesFiltrados.length === 0 ? (
+                  <p className="col-span-full text-sm text-neutral-500">No hay clientes en esta zona</p>
+                ) : (
+                  clientesFiltrados.map(cliente => (
+                    <button
+                      key={cliente.id}
+                      onClick={() => toggleClienteSeleccionado(cliente.id)}
+                      className={`rounded-lg border-2 p-3 text-left transition ${
+                        clientesSeleccionadosHoy.has(cliente.id)
+                          ? 'border-brand-red bg-brand-red/5 shadow-md'
+                          : 'border-neutral-200 bg-white hover:border-neutral-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-5 w-5 items-center justify-center rounded border-2 flex-shrink-0 ${
+                          clientesSeleccionadosHoy.has(cliente.id)
+                            ? 'border-brand-red bg-brand-red'
+                            : 'border-neutral-300 bg-white'
+                        }`}>
+                          {clientesSeleccionadosHoy.has(cliente.id) && (
+                            <span className="text-white text-xs font-bold">✓</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-neutral-900">{cliente.razon_social}</p>
+                          {cliente.nombre_comercial && (
+                            <p className="truncate text-xs text-neutral-600">{cliente.nombre_comercial}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* Botón Guardar */}
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-between items-center">
+              <p className="text-sm text-neutral-600">
+                {clientesSeleccionadosHoy.size === 0 
+                  ? 'Selecciona al menos un cliente'
+                  : `${clientesSeleccionadosHoy.size} cliente(s) seleccionado(s)`}
+              </p>
               <button
                 onClick={onGuardar}
-                disabled={isSaving || !zonaSeleccionada || clientesFiltrados.length === 0}
+                disabled={isSaving || !zonaSeleccionada || clientesSeleccionadosHoy.size === 0}
                 className="flex items-center gap-2 rounded-lg bg-brand-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
@@ -196,7 +304,7 @@ export default function RutasPage() {
                 onZonaChange={setZonaSeleccionada}
                 diaSeleccionado={diaSeleccionado}
                 onDiaChange={setDiaSeleccionado}
-                clientes={clientesFiltrados}
+                clientes={clientesParaMostrar}
                 isLoading={isLoading}
                 onReordenar={handleReordenar}
                 onUpdateHora={handleActualizarHora}
@@ -205,7 +313,7 @@ export default function RutasPage() {
               />
 
               {/* Panel Derecho - Mapa */}
-              <RuteroMapa zona={zonaActual} clientes={clientesFiltrados} isLoading={isLoading} />
+              <RuteroMapa zona={zonaActual} clientes={clientesParaMostrar} isLoading={isLoading} />
             </div>
           </>
         )}

@@ -182,26 +182,34 @@ export function useRutero() {
         [],
     )
 
-    const handleGuardar = useCallback(async () => {
+    const handleGuardar = useCallback(async (clientesSeleccionadosIds?: string[]) => {
         if (!zonaSeleccionada) return
 
         try {
             setIsSaving(true)
             setError(null)
 
-            const ruteroData: RuteroPlanificado[] = clientes
-                .filter((cliente) => !cliente.fueraDeZona)
-                .map((cliente) => ({
-                    id: cliente.ruteroId ?? undefined,
-                    cliente_id: cliente.id,
-                    zona_id: zonaSeleccionada,
-                    dia_semana: diaSeleccionado,
-                    frecuencia: cliente.frecuencia ?? 'SEMANAL',
-                    prioridad_visita: cliente.prioridad ?? 'MEDIA',
-                    orden_sugerido: cliente.orden ?? 999,
-                    hora_estimada: cliente.hora_estimada ?? null,
-                    activo: cliente.activo ?? true,
-                }))
+            // Si se pasan clientes seleccionados, solo guardar esos
+            let clientesAGuardar = clientes
+            if (clientesSeleccionadosIds && clientesSeleccionadosIds.length > 0) {
+                clientesAGuardar = clientes.filter(
+                    (cliente) => !cliente.fueraDeZona && clientesSeleccionadosIds.includes(cliente.id)
+                )
+            } else {
+                clientesAGuardar = clientes.filter((cliente) => !cliente.fueraDeZona)
+            }
+
+            const ruteroData: RuteroPlanificado[] = clientesAGuardar.map((cliente) => ({
+                id: cliente.ruteroId ?? undefined,
+                cliente_id: cliente.id,
+                zona_id: zonaSeleccionada,
+                dia_semana: diaSeleccionado,
+                frecuencia: cliente.frecuencia ?? 'SEMANAL',
+                prioridad_visita: cliente.prioridad ?? 'MEDIA',
+                orden_sugerido: cliente.orden ?? 999,
+                hora_estimada: cliente.hora_estimada ?? null,
+                activo: cliente.activo ?? true,
+            }))
 
             const idsVigentes = new Set(
                 ruteroData
