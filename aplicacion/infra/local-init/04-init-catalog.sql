@@ -199,6 +199,7 @@ CREATE TABLE promociones_clientes_permitidos (
 -- =========================================
 -- 8. RUTERO PLANIFICADO (CON SUCURSAL)
 -- =========================================
+-- 1. Primero crea la tabla SIN la línea del UNIQUE complejo
 CREATE TABLE rutero_planificado (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cliente_id UUID NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
@@ -211,9 +212,12 @@ CREATE TABLE rutero_planificado (
     hora_estimada_arribo TIME,
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(cliente_id, COALESCE(sucursal_id, '00000000-0000-0000-0000-000000000000'::uuid), dia_semana)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 2. LUEGO ejecuta esto por separado para crear la restricción lógica
+CREATE UNIQUE INDEX idx_rutero_unico_sucursal 
+ON rutero_planificado (cliente_id, COALESCE(sucursal_id, '00000000-0000-0000-0000-000000000000'::uuid), dia_semana);
 
 -- =========================================
 -- 9. AUDITORÍA (FIXED)

@@ -56,9 +56,30 @@ export class RuteroService {
       sucursalMap = new Map(sucursales.map(s => [s.id, s]));
     }
 
+    // Obtener datos de usuarios para contacto de matriz
+    const usuarioIds = [...new Set(clientes.map(c => c.usuario_principal_id).filter(Boolean))];
+    let usuarioMap = new Map<string, { nombre: string; telefono: string | null }>();
+    if (usuarioIds.length > 0) {
+      try {
+        const response = await fetch(`${process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3000'}/usuarios/batch/internal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: usuarioIds })
+        });
+        const usuarios = await response.json();
+        usuarioMap = new Map(usuarios.map(u => [u.id, {
+          nombre: (u.nombreCompleto ?? u.nombre) || u.email,
+          telefono: u.telefono || null
+        }]));
+      } catch (error) {
+        console.warn('Failed to fetch usuario data for rutero enrichment:', error);
+      }
+    }
+
     return ruteros.map(r => {
       const cliente = clienteMap.get(r.cliente_id);
       const sucursal = r.sucursal_id ? sucursalMap.get(r.sucursal_id) : null;
+      const usuario = cliente?.usuario_principal_id ? usuarioMap.get(cliente.usuario_principal_id) : null;
 
       return {
         ...r,
@@ -68,8 +89,9 @@ export class RuteroService {
         direccion_entrega: sucursal?.direccion_entrega || cliente?.direccion_texto,
         ubicacion_gps: sucursal?.ubicacion_gps || cliente?.ubicacion_gps,
         sucursal_nombre: sucursal?.nombre_sucursal || 'Matriz',
-        contacto_nombre: sucursal?.contacto_nombre || null,
-        contacto_telefono: sucursal?.contacto_telefono || null,
+        // Si hay sucursal, usar contacto de sucursal; si no, usar datos del usuario principal
+        contacto_nombre: sucursal?.contacto_nombre || usuario?.nombre || null,
+        contacto_telefono: sucursal?.contacto_telefono || usuario?.telefono || null,
       };
     });
   }

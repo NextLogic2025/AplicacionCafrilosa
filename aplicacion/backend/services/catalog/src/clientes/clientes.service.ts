@@ -74,11 +74,17 @@ export class ClientesService {
         this.httpService.post(`${this.usuariosServiceUrl}/usuarios/batch/internal`, { ids: usuarioIds })
       );
       const usuarios = response.data || [];
-      const usuarioMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
+      const usuarioMap = new Map<string, { nombre: string; telefono: string | null }>(
+        usuarios.map((u: any) => [u.id, {
+          nombre: (u.nombreCompleto ?? u.nombre) || u.email,
+          telefono: u.telefono || null
+        }])
+      );
       
       return clientes.map(c => ({
         ...c,
-        usuario_principal_nombre: c.usuario_principal_id ? usuarioMap.get(c.usuario_principal_id) : null
+        usuario_principal_nombre: c.usuario_principal_id ? usuarioMap.get(c.usuario_principal_id)?.nombre : null,
+        usuario_principal_telefono: c.usuario_principal_id ? usuarioMap.get(c.usuario_principal_id)?.telefono : null
       }));
     } catch (error) {
       this.logger.warn({ msg: 'Failed to fetch usuario names', error: error.message });
