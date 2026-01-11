@@ -33,6 +33,7 @@ import { SupervisorPromotionsScreen } from '../features/supervisor/screens/Modul
 import { SupervisorPromotionFormScreen as SupervisorCampaignFormScreen } from '../features/supervisor/screens/ModuloPromocion/SupervisorPromotionFormScreen'
 import { SupervisorRoutesScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRoutesScreen'
 import { SupervisorRouteCreateScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteCreateScreen'
+import { SupervisorRouteCreateScreenPaso2 } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteCreateScreenPaso2'
 
 import { SupervisorAuditScreen } from '../features/supervisor/screens/ModuloAuditoria/SupervisorAuditScreen'
 
@@ -123,6 +124,7 @@ export function SupervisorNavigator() {
             <Stack.Group>
                 <Stack.Screen name="SupervisorRoutes" component={SupervisorRoutesScreen} />
                 <Stack.Screen name="SupervisorRouteCreate" component={SupervisorRouteCreateScreen} />
+                <Stack.Screen name="SupervisorRouteCreatePaso2" component={SupervisorRouteCreateScreenPaso2} />
                 <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
                 <Stack.Screen name="SupervisorPromotionForm" component={SupervisorCampaignFormScreen} />
             </Stack.Group>

@@ -12,4 +12,8 @@ export class UpdateCartItemDto {
     @IsPositive()
     @IsOptional()
     precio_unitario_ref?: number;
+
+    @IsUUID()
+    @IsOptional()
+    cliente_id?: string; // Permite que un vendedor especifique el cliente destino
 }
