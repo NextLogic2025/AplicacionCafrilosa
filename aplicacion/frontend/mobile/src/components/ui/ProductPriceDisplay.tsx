@@ -11,7 +11,7 @@ interface ProductPriceDisplayProps {
     size?: 'sm' | 'md' | 'lg'
     layout?: 'horizontal' | 'vertical'
     showAllPrices?: boolean // Mostrar todas las listas de precios
-    precioOfertaFijo?: number // Precio de oferta específico de una campaña
+    precioOfertaFijo?: number | null // Precio de oferta específico de una campaña
     tipoDescuento?: 'PORCENTAJE' | 'MONTO_FIJO'
     valorDescuento?: number
 }
@@ -58,14 +58,17 @@ export function ProductPriceDisplay({
     // Función para renderizar todas las listas de precios con sus promociones
     const renderAllPricesWithPromotion = () => {
         const calcularPrecioConDescuento = (precioBase: number): number => {
-            if (precioOfertaFijo !== undefined) {
+            // Si hay un precio de oferta fijo definido y válido, usarlo
+            if (precioOfertaFijo !== undefined && precioOfertaFijo !== null && precioOfertaFijo > 0) {
                 return precioOfertaFijo
             }
 
-            if (!tipoDescuento || valorDescuento === undefined) {
+            // Si no hay tipo de descuento o el valor es inválido, retornar el precio base
+            if (!tipoDescuento || valorDescuento === undefined || valorDescuento === null || valorDescuento <= 0) {
                 return precioBase
             }
 
+            // Calcular según el tipo de descuento
             if (tipoDescuento === 'PORCENTAJE') {
                 return precioBase * (1 - valorDescuento / 100)
             } else if (tipoDescuento === 'MONTO_FIJO') {
@@ -166,9 +169,14 @@ export function ProductPriceDisplay({
                                     <Text className="text-green-600 font-bold text-xs ml-1">
                                         Ahorras {formatPrice(ahorroCalculado)}
                                     </Text>
-                                    {tipoDescuento === 'PORCENTAJE' && valorDescuento != null && (
+                                    {tipoDescuento === 'PORCENTAJE' && valorDescuento != null && valorDescuento > 0 && (
                                         <Text className="text-green-600 text-xs ml-1">
-                                            ({valorDescuento.toString()}% de descuento)
+                                            ({valorDescuento}% de descuento)
+                                        </Text>
+                                    )}
+                                    {tipoDescuento === 'MONTO_FIJO' && valorDescuento != null && valorDescuento > 0 && (
+                                        <Text className="text-green-600 text-xs ml-1">
+                                            (-{formatPrice(valorDescuento)})
                                         </Text>
                                     )}
                                 </View>

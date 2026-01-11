@@ -19,7 +19,7 @@ export interface PromotionCampaign {
 export interface PromotionProduct {
     campania_id: number
     producto_id: string
-    precio_oferta_fijo: number
+    precio_oferta_fijo: number | null
     producto?: Product // For display
 }
 
@@ -67,7 +67,7 @@ export const PromotionService = {
             return (response.items || []).map((item: any) => ({
                 campania_id: campaignId,
                 producto_id: item.id,
-                precio_oferta_fijo: item.precio_oferta || 0,
+                precio_oferta_fijo: item.precio_oferta !== undefined && item.precio_oferta !== null ? item.precio_oferta : null,
                 producto: {
                     id: item.id,
                     codigo_sku: item.codigo_sku,
@@ -85,9 +85,11 @@ export const PromotionService = {
         return []
     },
 
-    addProduct: async (campaignId: number, productId: string, precioOferta?: number): Promise<PromotionProduct> => {
+    addProduct: async (campaignId: number, productId: string, precioOferta?: number | null): Promise<PromotionProduct> => {
         const body: any = { producto_id: productId }
-        if (precioOferta !== undefined) body.precio_oferta_fijo = precioOferta
+        if (precioOferta !== undefined && precioOferta !== null) {
+            body.precio_oferta_fijo = precioOferta
+        }
 
         return apiRequest<PromotionProduct>(`/api/promociones/${campaignId}/productos`, {
             method: 'POST',

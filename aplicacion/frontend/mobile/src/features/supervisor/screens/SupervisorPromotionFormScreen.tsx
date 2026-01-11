@@ -181,7 +181,7 @@ export function SupervisorPromotionFormScreen(props: any) {
 
                 // Save deferred items (Products & Clients) in parallel
                 const productPromises = promoProducts.map(p =>
-                    PromotionService.addProduct(newCamp.id, p.producto_id, 0)
+                    PromotionService.addProduct(newCamp.id, p.producto_id, null)
                 )
                 const clientPromises = promoClients.map(c =>
                     PromotionService.addClient(newCamp.id, c.cliente_id)
@@ -253,7 +253,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                 const newP: any = {
                     producto_id: item.id,
                     producto: productoCompleto || item,
-                    precio_oferta_fijo: 0,
+                    precio_oferta_fijo: null,
                     campania_id: campaign?.id || 0
                 }
 
@@ -261,7 +261,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                 setExpandedProducts(prev => ({ ...prev, [item.id]: true }))
 
                 if (campaign) {
-                    await PromotionService.addProduct(campaign.id, item.id, 0)
+                    await PromotionService.addProduct(campaign.id, item.id, null)
                 }
 
                 setPromoProducts([...promoProducts, newP])
@@ -553,7 +553,7 @@ export function SupervisorPromotionFormScreen(props: any) {
                                                         color="#10B981"
                                                     />
                                                     <Text className="text-[10px] text-green-600 ml-1">
-                                                        {`${producto.precios.length} lista${producto.precios.length !== 1 ? 's' : ''}`}
+                                                        {producto.precios.length} {producto.precios.length !== 1 ? 'listas' : 'lista'}
                                                     </Text>
                                                 </View>
                                             )}
