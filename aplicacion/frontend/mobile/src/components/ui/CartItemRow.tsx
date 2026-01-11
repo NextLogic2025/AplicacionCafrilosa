@@ -3,7 +3,16 @@ import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 
-import type { CartItem } from '../../hooks/useCart'
+// Tipo local para CartItemRow (compatible con formato adaptado)
+type CartItem = {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  image?: string
+  category: string
+  code: string
+}
 
 type Props = {
   item: CartItem

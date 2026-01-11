@@ -186,21 +186,31 @@ export function UserProfileTemplate({
 
     // Format date for last login
     const formatLastLogin = (dateStr?: string) => {
-        if (!dateStr) return 'No disponible'
+        // Si no hay fecha disponible, mostramos "Sesión actual" ya que el usuario está logueado
+        if (!dateStr) {
+            return 'Sesión actual'
+        }
+
         try {
             const date = new Date(dateStr)
+
+            if (isNaN(date.getTime())) {
+                return 'Sesión actual'
+            }
+
             const now = new Date()
             const diffMs = now.getTime() - date.getTime()
             const diffMins = Math.floor(diffMs / 60000)
             const diffHours = Math.floor(diffMs / 3600000)
             const diffDays = Math.floor(diffMs / 86400000)
 
+            if (diffMins < 1) return 'Hace un momento'
             if (diffMins < 60) return `Hace ${diffMins} min`
             if (diffHours < 24) return `Hace ${diffHours}h`
             if (diffDays < 7) return `Hace ${diffDays}d`
             return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-        } catch {
-            return 'No disponible'
+        } catch (error) {
+            return 'Sesión actual'
         }
     }
 

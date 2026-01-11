@@ -3,6 +3,7 @@ import { Text, View, Pressable, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { useCartOptional } from '../../context/CartContext'
 
 // Mapeo de rutas a iconos
 const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionicons.glyphMap => {
@@ -45,6 +46,10 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
             return isFocused ? 'home' : 'home-outline'
         case 'SellerClients':
             return isFocused ? 'people' : 'people-outline'
+        case 'SellerProductList':
+            return isFocused ? 'cube' : 'cube-outline'
+        case 'SellerCart':
+            return isFocused ? 'cart' : 'cart-outline'
         case 'SellerOrder':
             return isFocused ? 'cart' : 'cart-outline'
         case 'SellerProfile':
@@ -68,13 +73,19 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
 export function TabNavigation({ state, descriptors, navigation }: BottomTabBarProps) {
     const insets = useSafeAreaInsets()
 
+    // useCartOptional retorna null si no está dentro de CartProvider
+    // Esto permite que TabNavigation funcione en todos los navegadores
+    const cart = useCartOptional()
+    const cartItemCount = cart?.getItemCount() ?? 0
+
     return (
         <View
             className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-100 rounded-t-[24px] shadow-lg shadow-black/10"
             style={{
                 paddingBottom: (insets.bottom || 16) + 12, // Add extra buffer for aesthetics and safety
                 paddingTop: 12,
-                elevation: 8,
+                elevation: 12,
+                zIndex: 50, // Reducido para permitir que el backdrop del FAB lo cubra (zIndex: 9998)
             }}
         >
             <View className="flex-row items-center justify-around w-full">
@@ -110,6 +121,8 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
 
                     const iconName = getIconName(route.name, isFocused)
                     const color = isFocused ? BRAND_COLORS.red : '#94A3B8' // brand-red vs neutral-400
+                    const isCartTab = route.name === 'SellerCart' || route.name === 'Cart' || route.name === 'Carrito'
+                    const showBadge = isCartTab && cartItemCount > 0
 
                     return (
                         <Pressable
@@ -123,6 +136,34 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
                         >
                             <View className={`items-center justify-center rounded-2xl px-4 py-1.5 ${isFocused ? 'bg-brand-red/10' : 'bg-transparent'}`}>
                                 <Ionicons name={iconName} size={24} color={color} />
+                                {showBadge && (
+                                    <View
+                                        style={{
+                                            position: 'absolute',
+                                            top: -4,
+                                            right: -4,
+                                            backgroundColor: '#DC2626',
+                                            borderRadius: 10,
+                                            minWidth: 20,
+                                            height: 20,
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            paddingHorizontal: 4,
+                                            borderWidth: 2,
+                                            borderColor: '#FFFFFF'
+                                        }}
+                                    >
+                                        <Text
+                                            style={{
+                                                color: '#FFFFFF',
+                                                fontSize: 11,
+                                                fontWeight: '700'
+                                            }}
+                                        >
+                                            {cartItemCount > 99 ? '99+' : cartItemCount}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
                             <Text
                                 className={`text-[10px] mt-1 font-medium ${isFocused ? 'text-brand-red' : 'text-neutral-400'}`}

@@ -20,13 +20,15 @@ export type FabAction = {
 
 type Props = {
     actions: FabAction[]
+    tabActions?: FabAction[] // Acciones de navegación de tabs (opcional)
     onPressMain?: () => void
 }
 
-export function ExpandableFab({ actions, onPressMain }: Props) {
+export function ExpandableFab({ actions, tabActions, onPressMain }: Props) {
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
     const backdropOpacity = React.useRef(new Animated.Value(0)).current
+    const tabBarAnimation = React.useRef(new Animated.Value(0)).current // Animación para la barra de tabs
 
     const toggleMenu = () => {
         const toValue = isOpen ? 0 : 1
@@ -45,6 +47,13 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
             Animated.timing(backdropOpacity, {
                 toValue,
                 duration: 200,
+                useNativeDriver: true,
+            }),
+            // Animación para mostrar/ocultar la barra de tabs
+            Animated.spring(tabBarAnimation, {
+                toValue,
+                friction: 6,
+                tension: 40,
                 useNativeDriver: true,
             })
         ]).start(() => {
@@ -65,6 +74,12 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
             Animated.timing(backdropOpacity, {
                 toValue: 0,
                 duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.spring(tabBarAnimation, {
+                toValue: 0,
+                friction: 6,
+                tension: 40,
                 useNativeDriver: true,
             })
         ]).start(() => {
@@ -103,14 +118,14 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
 
     return (
         <>
-            {/* Backdrop (Fondo oscuro) - Always mounted, controlled by opacity */}
+            {/* Backdrop (Fondo oscuro semi-transparente) - Cubre toda la pantalla incluyendo TabNavigation */}
             <Animated.View
                 style={[
                     StyleSheet.absoluteFill,
                     {
                         backgroundColor: 'rgba(0,0,0,0.4)',
                         opacity: backdropOpacity,
-                        zIndex: 9990,
+                        zIndex: 99999, // Muy alto para cubrir TabNavigation (zIndex: 50)
                     }
                 ]}
                 pointerEvents={isOpen ? 'auto' : 'none'}
@@ -162,6 +177,50 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                     </Animated.View>
                 </Pressable>
             </View>
+
+            {/* Barra de navegación de tabs (Header oscuro overlay) - Solo si se proporcionan tabActions */}
+            {tabActions && tabActions.length > 0 && (
+                <Animated.View
+                    style={[
+                        styles.tabBarOverlay,
+                        {
+                            opacity: tabBarAnimation,
+                            transform: [
+                                {
+                                    translateY: tabBarAnimation.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [100, 0], // Se desliza desde abajo
+                                    }),
+                                },
+                            ],
+                        }
+                    ]}
+                    pointerEvents={isOpen ? 'auto' : 'none'}
+                >
+                    <View style={styles.tabBarContent}>
+                        {tabActions.map((tab, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.tabButton}
+                                onPress={() => {
+                                    closeMenu()
+                                    tab.onPress()
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.tabIconCircle}>
+                                    <Ionicons
+                                        name={tab.icon as any}
+                                        size={24}
+                                        color="#FFFFFF"
+                                    />
+                                </View>
+                                <Text style={styles.tabLabel}>{tab.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </Animated.View>
+            )}
         </>
     )
 }
@@ -173,7 +232,7 @@ const styles = StyleSheet.create({
         right: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 100000, // Más alto que el backdrop para estar encima
         backgroundColor: 'transparent',
     },
     fab: {
@@ -243,5 +302,56 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         color: '#374151',
+    },
+    // Estilos para la barra de tabs overlay (Header oscuro)
+    tabBarOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(30, 30, 30, 0.97)', // Fondo oscuro semi-transparente
+        paddingBottom: 24,
+        paddingTop: 16,
+        zIndex: 99998, // Justo debajo del backdrop pero encima de todo lo demás
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 20,
+    },
+    tabBarContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    tabButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        minWidth: 70,
+    },
+    tabIconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: BRAND_COLORS.red,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 6,
+        shadowColor: BRAND_COLORS.red,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    tabLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.3,
     },
 })

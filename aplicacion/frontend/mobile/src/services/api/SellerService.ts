@@ -1,17 +1,19 @@
-import { delay } from '../../utils/delay'
+import { RouteService, type ScheduledVisit } from './RouteService'
+
+/**
+ * SellerService - Servicio para funcionalidades específicas del Vendedor
+ *
+ * Maneja operaciones relacionadas con el dashboard y actividades del vendedor:
+ * - KPIs del día (pedidos, clientes, facturas vencidas)
+ * - Alertas críticas (pedidos rechazados, clientes bloqueados)
+ *
+ * NOTA: Las funcionalidades de rutero ahora están centralizadas en RouteService
+ */
 
 export interface SellerKPIs {
     todayOrders: number
     activeClients: number
     overdueInvoices: number
-}
-
-export interface ScheduledVisit {
-    id: string
-    clientName: string
-    address: string
-    time: string
-    status: 'pending' | 'completed' | 'cancelled'
 }
 
 export interface SellerAlert {
@@ -21,23 +23,37 @@ export interface SellerAlert {
     clientName: string
 }
 
+// Re-exportar tipos de RouteService para mantener compatibilidad
+export type { ScheduledVisit }
+
 export const SellerService = {
+    /**
+     * Obtiene los KPIs del dashboard del vendedor
+     * TODO: Conectar con endpoints reales de estadísticas
+     */
     async getDashboardKPIs(): Promise<SellerKPIs> {
-        await delay(500)
+        // TODO: Implementar llamada real al backend
         return {
-            todayOrders: 5, // Mock data for initial view, should be 0 ideally but user asked for "Que ve: 5" in prompt as requirement description? No, user described "What he sees". I should return backend-ready but maybe simulate '5' as requested example? "No quemes información". I should return 0 or empty usually, but let's return realistic 0 default.
+            todayOrders: 0,
             activeClients: 0,
             overdueInvoices: 0
         }
     },
 
+    /**
+     * Obtiene las visitas programadas para hoy
+     * Delega a RouteService para mantener la lógica centralizada
+     */
     async getScheduledVisits(): Promise<ScheduledVisit[]> {
-        await delay(500)
-        return []
+        return RouteService.getTodayVisits()
     },
 
+    /**
+     * Obtiene las alertas críticas del vendedor
+     * TODO: Conectar con endpoints reales de alertas
+     */
     async getAlerts(): Promise<SellerAlert[]> {
-        await delay(500)
+        // TODO: Implementar llamada real al backend
         return []
     }
 }

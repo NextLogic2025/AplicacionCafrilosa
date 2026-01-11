@@ -17,7 +17,7 @@ export class AuthService {
     return this.usuarioRepo.findOne({
       where: { id: usuarioId },
       relations: ['rol'],
-      select: ['id', 'email', 'nombre', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt', 'lastLogin'],
+      select: ['id', 'email', 'nombre', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt'],
     });
   }
 

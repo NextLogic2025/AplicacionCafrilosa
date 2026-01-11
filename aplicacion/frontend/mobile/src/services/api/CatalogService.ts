@@ -15,7 +15,7 @@ export interface Product {
     nombre: string
     descripcion?: string
     categoria_id?: number
-    categoria?: Category
+    categoria?: Category | { id: number; nombre: string }
     peso_unitario_kg?: number
     volumen_m3?: number
     requiere_frio?: boolean
@@ -34,6 +34,19 @@ export interface Product {
         tipo_descuento: string | null
         valor_descuento: number | null
     }>
+}
+
+/**
+ * Paginated response for product lists
+ */
+export interface ProductsResponse {
+    metadata: {
+        total_items: number
+        page: number
+        per_page: number
+        total_pages: number
+    }
+    items: Product[]
 }
 
 export interface PriceList {
@@ -97,11 +110,101 @@ export const CatalogService = {
     },
 
     // --- Products ---
+    /**
+     * Get all products (legacy method for supervisor screens)
+     * Returns large page size for client-side filtering
+     */
     getProducts: async (): Promise<Product[]> => {
-        // Backend now returns paginated response { items: [], metadata: {} }
-        // We request a large page size to support existing client-side filtering until server-side search is implemented.
         const response: any = await apiRequest('/api/products?per_page=1000')
         return response.items || response || []
+    },
+
+    /**
+     * Get paginated products with client-specific pricing and promotions
+     * For 'cliente' role: prices filtered by lista_precios_id, promotions by scope
+     *
+     * @param page - Page number (default: 1)
+     * @param perPage - Items per page (default: 20)
+     * @param searchQuery - Optional search by nombre or codigo_sku
+     * @returns Paginated product list with metadata
+     */
+    getProductsPaginated: async (
+        page: number = 1,
+        perPage: number = 20,
+        searchQuery?: string
+    ): Promise<ProductsResponse> => {
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                per_page: perPage.toString()
+            })
+
+            if (searchQuery) {
+                params.append('q', searchQuery)
+            }
+
+            return await apiRequest<ProductsResponse>(`/api/products?${params.toString()}`)
+        } catch (error) {
+            console.error('Error fetching paginated products:', error)
+            return {
+                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
+                items: []
+            }
+        }
+    },
+
+    /**
+     * Get products filtered by category with pagination
+     * Same pricing and promotion logic as getProductsPaginated
+     *
+     * @param categoryId - Category ID to filter by
+     * @param page - Page number
+     * @param perPage - Items per page
+     * @param searchQuery - Optional search query
+     * @returns Paginated product list for the category
+     */
+    getProductsByCategory: async (
+        categoryId: number,
+        page: number = 1,
+        perPage: number = 20,
+        searchQuery?: string
+    ): Promise<ProductsResponse> => {
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                per_page: perPage.toString()
+            })
+
+            if (searchQuery) {
+                params.append('q', searchQuery)
+            }
+
+            return await apiRequest<ProductsResponse>(
+                `/api/products/categoria/${categoryId}?${params.toString()}`
+            )
+        } catch (error) {
+            console.error('Error fetching products by category:', error)
+            return {
+                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
+                items: []
+            }
+        }
+    },
+
+    /**
+     * Get detailed information for a single product
+     * Includes client-specific pricing and promotions
+     *
+     * @param productId - Product UUID
+     * @returns Product details with pricing
+     */
+    getProductById: async (productId: string): Promise<Product | null> => {
+        try {
+            return await apiRequest<Product>(`/api/products/${productId}`)
+        } catch (error) {
+            console.error('Error fetching product details:', error)
+            return null
+        }
     },
     createProduct: async (product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>('/api/products', {

@@ -1,10 +1,13 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import * as React from 'react'
+import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { useNavigation } from '@react-navigation/native'
 
 import { TabNavigation } from '../components/ui/TabNavigation'
+import { ExpandableFab, type FabAction } from '../components/ui/ExpandableFab'
 import { ClientHomeScreen } from '../features/cliente/screens/ClientHomeScreen'
 import { ClientProductListScreen } from '../features/cliente/screens/ClientProductListScreen'
 import { ClientCartScreen } from '../features/cliente/screens/ClientCartScreen'
@@ -19,6 +22,7 @@ import { ClientProfileScreen } from '../features/cliente/screens/ClientProfileSc
 import { ClientNotificationsScreen } from '../features/cliente/screens/ClientNotificationsScreen'
 import { ClientReturnsScreen } from '../features/cliente/screens/ClientReturnsScreen'
 import { ClientPromotionsScreen } from '../features/cliente/screens/ClientPromotionsScreen'
+import { ClientProductDetailScreen } from '../features/cliente/screens/ClientProductDetailScreen'
 import { PlaceholderScreen } from '../features/shared/screens/PlaceholderScreen'
 
 const Tab = createBottomTabNavigator()
@@ -51,6 +55,35 @@ function InvoicesStack() {
     )
 }
 
+/**
+ * TabWithFab - Wrapper que agrega el FAB a las pantallas del tab
+ *
+ * Envuelve cada pantalla del tab con el FAB (botón flotante)
+ * Recibe el nombre de la ruta para decidir si mostrar el FAB
+ */
+function TabWithFab({ children, routeName }: { children: React.ReactNode; routeName: string }) {
+    const navigation = useNavigation()
+
+    const fabActions: FabAction[] = [
+        { icon: 'notifications-outline', label: 'Notificaciones', onPress: () => (navigation as any).navigate('Notifications') },
+        { icon: 'ticket-outline', label: 'Soporte', onPress: () => (navigation as any).navigate('Soporte') },
+        { icon: 'refresh-circle-outline', label: 'Devoluciones', onPress: () => (navigation as any).navigate('Returns') },
+        { icon: 'time-outline', label: 'Entregas', onPress: () => (navigation as any).navigate('Tracking') },
+        { icon: 'wallet-outline', label: 'Facturas', onPress: () => (navigation as any).navigate('Facturas') },
+        { icon: 'receipt-outline', label: 'Mis Pedidos', onPress: () => (navigation as any).navigate('Pedidos') }
+    ]
+
+    // No mostrar FAB en Perfil ni en Carrito
+    const shouldShowFab = routeName !== 'Perfil' && routeName !== 'Carrito'
+
+    return (
+        <View style={{ flex: 1 }}>
+            {children}
+            {shouldShowFab && <ExpandableFab actions={fabActions} />}
+        </View>
+    )
+}
+
 // --- TABS (Vista Principal) ---
 function ClientTabs() {
     return (
@@ -58,18 +91,24 @@ function ClientTabs() {
             tabBar={(props) => <TabNavigation {...props} />}
             screenOptions={{
                 headerShown: false,
+                // Evita que el TabNavigation se oculte o se mueva cuando aparece el teclado
+                tabBarStyle: {
+                    position: 'absolute',
+                },
             }}
         >
-            <Tab.Screen name="Inicio" component={ClientHomeScreen} />
-            <Tab.Screen
-                name="Productos"
-                component={ClientProductListScreen}
-            />
-            <Tab.Screen
-                name="Carrito"
-                component={ClientCartScreen}
-            />
-            <Tab.Screen name="Perfil" component={ClientProfileScreen} />
+            <Tab.Screen name="Inicio">
+                {() => <TabWithFab routeName="Inicio"><ClientHomeScreen /></TabWithFab>}
+            </Tab.Screen>
+            <Tab.Screen name="Productos">
+                {() => <TabWithFab routeName="Productos"><ClientProductListScreen /></TabWithFab>}
+            </Tab.Screen>
+            <Tab.Screen name="Carrito">
+                {() => <TabWithFab routeName="Carrito"><ClientCartScreen /></TabWithFab>}
+            </Tab.Screen>
+            <Tab.Screen name="Perfil">
+                {() => <TabWithFab routeName="Perfil"><ClientProfileScreen /></TabWithFab>}
+            </Tab.Screen>
         </Tab.Navigator>
     )
 }
@@ -84,6 +123,7 @@ export function ClientNavigator() {
             <Stack.Screen name="Notifications" component={ClientNotificationsScreen} />
             <Stack.Screen name="Returns" component={ClientReturnsScreen} />
             <Stack.Screen name="Promotions" component={ClientPromotionsScreen} />
+            <Stack.Screen name="ClientProductDetail" component={ClientProductDetailScreen} />
 
             {/* Stacks de funcionalidades */}
             <Stack.Screen name="Pedidos" component={OrdersStack} />

@@ -11,8 +11,8 @@ type SearchBarProps = TextInputProps & {
 export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, onClear, style, value, ...props }) => {
     return (
         <View
-            className="flex-row items-center bg-white rounded-xl border border-neutral-200 px-4 h-12 shadow-sm shadow-black/5"
-            style={style}
+            className="flex-row items-center bg-white rounded-xl border border-neutral-200 px-3 shadow-sm shadow-black/5"
+            style={[{ height: 52 }, style]}
         >
             <Ionicons name="search" size={20} color="#9CA3AF" />
             <TextInput

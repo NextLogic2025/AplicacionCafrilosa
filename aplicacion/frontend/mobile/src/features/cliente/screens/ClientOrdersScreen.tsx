@@ -7,14 +7,15 @@ import { OrderCard } from '../../../components/ui/OrderCard'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { OrderService, Order } from '../../../services/api/OrderService'
+import { UserService } from '../../../services/api/UserService'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
 // Filtros de estado para "Chips"
 const STATUS_FILTERS = [
     { id: 'all', label: 'Todos' },
-    { id: 'pending', label: 'Pendientes' },
-    { id: 'delivered', label: 'Entregados' },
-    { id: 'cancelled', label: 'Cancelados' },
+    { id: 'PENDIENTE', label: 'Pendientes' },
+    { id: 'ENTREGADO', label: 'Entregados' },
+    { id: 'ANULADO', label: 'Cancelados' },
 ]
 
 export function ClientOrdersScreen() {
@@ -27,9 +28,14 @@ export function ClientOrdersScreen() {
     const fetchOrders = async () => {
         setLoading(true)
         try {
-            const data = await OrderService.getOrders()
-            // Sort by date desc
-            setOrders(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()))
+            // Obtener ID del usuario actual
+            const user = await UserService.getProfile()
+            if (user?.id) {
+                const data = await OrderService.getClientOrders(user.id)
+                setOrders(data)
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error)
         } finally {
             setLoading(false)
         }
@@ -43,10 +49,13 @@ export function ClientOrdersScreen() {
     )
 
     const handleCancelOrder = async (orderId: string) => {
-        const success = await OrderService.cancelOrder(orderId)
-        if (success) {
-            fetchOrders()
-        } else {
+        try {
+            const result = await OrderService.changeOrderStatus(orderId, 'ANULADO', 'Cancelado por el cliente')
+            if (result) {
+                fetchOrders()
+                alert('Pedido cancelado exitosamente')
+            }
+        } catch (error) {
             alert('No se pudo cancelar el pedido')
         }
     }
@@ -54,8 +63,8 @@ export function ClientOrdersScreen() {
     // Filtrado en memoria (idealmente esto sería params al backend)
     const filteredOrders = React.useMemo(() => {
         return orders.filter(order => {
-            const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus
-            const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesStatus = selectedStatus === 'all' || order.estado_actual === selectedStatus
+            const matchesSearch = order.codigo_visual.toString().includes(searchQuery) || order.id.toLowerCase().includes(searchQuery.toLowerCase())
             return matchesStatus && matchesSearch
         })
     }, [orders, selectedStatus, searchQuery])
@@ -63,8 +72,8 @@ export function ClientOrdersScreen() {
     // Estadísticas simples
     const stats = {
         total: orders.length,
-        pending: orders.filter(o => o.status === 'pending').length,
-        completed: orders.filter(o => o.status === 'delivered').length
+        pending: orders.filter(o => o.estado_actual === 'PENDIENTE').length,
+        completed: orders.filter(o => o.estado_actual === 'ENTREGADO').length
     }
 
     return (

@@ -61,7 +61,7 @@ export function SupervisorTeamScreen() {
 
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header title="Mi Equipo" variant="standard" onBackPress={() => navigation.goBack()} />
+            <Header title="Mi Equipo" variant="standard" showNotification={false} />
 
             <View className="px-5 py-4 bg-white shadow-sm z-10">
                 <View className="flex-row items-center mb-3">

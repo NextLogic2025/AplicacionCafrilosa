@@ -18,7 +18,7 @@ import { TransportistaNavigator } from './navigation/TransportistaNavigator'
 import { SupervisorNavigator } from './navigation/SupervisorNavigator'
 import type { RootStackParamList } from './navigation/types'
 import { getToken } from './storage/authStorage'
-import { CartProvider } from './hooks/useCart'
+import { CartProvider } from './context/CartContext'
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => { })
 

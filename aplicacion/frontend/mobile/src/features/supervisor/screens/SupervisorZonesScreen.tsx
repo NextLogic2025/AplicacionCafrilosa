@@ -138,54 +138,122 @@ export function SupervisorZonesScreen() {
                     onRefresh={fetchData}
                     renderItem={(item: any) => (
                         <TouchableOpacity
-                            className={`p-4 mb-3 rounded-2xl border flex-row items-center shadow-sm active:bg-neutral-50 ${!item.activo ? 'bg-neutral-50 border-neutral-200 opacity-80' : 'bg-white border-neutral-100'}`}
+                            className={`mb-3 rounded-2xl overflow-hidden shadow-md active:scale-[0.98] ${!item.activo ? 'opacity-80' : ''}`}
+                            style={{
+                                backgroundColor: '#FFFFFF',
+                                shadowColor: !item.activo ? '#9CA3AF' : BRAND_COLORS.red,
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 4
+                            }}
                             onPress={() => navigation.navigate('SupervisorZoneDetail', { zone: item })}
                         >
-                            {/* Icon Container */}
-                            <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${!item.activo ? 'bg-neutral-200' : (item.vendorName ? 'bg-blue-50' : 'bg-neutral-100')}`}>
-                                <Ionicons
-                                    name={!item.activo ? "close-circle-outline" : (item.vendorName ? "map" : "map-outline")}
-                                    size={24}
-                                    color={!item.activo ? '#9CA3AF' : (item.vendorName ? '#3b82f6' : '#9ca3af')}
-                                />
-                            </View>
+                            {/* Header Color Strip */}
+                            <View
+                                className="h-2"
+                                style={{
+                                    backgroundColor: !item.activo
+                                        ? '#9CA3AF'
+                                        : (item.vendorName ? '#10B981' : BRAND_COLORS.red)
+                                }}
+                            />
 
-                            {/* Content */}
-                            <View className="flex-1">
-                                <View className="flex-row justify-between items-start mb-1">
-                                    <Text className={`font-bold text-base flex-1 mr-2 ${!item.activo ? 'text-neutral-500 line-through' : 'text-neutral-900'}`} numberOfLines={1}>
-                                        {item.nombre}
-                                    </Text>
+                            <View className="p-4">
+                                {/* Top Row: Zone Name + Status */}
+                                <View className="flex-row justify-between items-start mb-3">
+                                    <View className="flex-1 mr-3">
+                                        <Text
+                                            className={`font-bold text-lg mb-1 ${!item.activo ? 'text-neutral-500 line-through' : 'text-neutral-900'}`}
+                                            numberOfLines={2}
+                                        >
+                                            {item.nombre}
+                                        </Text>
 
-                                    <View className="items-end gap-1">
-                                        <View className="bg-neutral-100 px-2 py-0.5 rounded-md self-end">
-                                            <Text className="text-[10px] font-bold text-neutral-500">{item.codigo}</Text>
-                                        </View>
-
-                                        {/* Status Badge */}
-                                        <View className={`px-2 py-0.5 rounded-full ${item.activo ? 'bg-green-100' : 'bg-orange-100'}`}>
-                                            <Text className={`text-[10px] font-bold ${item.activo ? 'text-green-700' : 'text-orange-700'}`}>
-                                                {item.activo ? 'ACTIVO' : 'INACTIVO'}
+                                        {/* Código Badge */}
+                                        <View className="self-start bg-neutral-100 px-3 py-1 rounded-lg">
+                                            <Text className="text-xs font-bold text-neutral-600 uppercase tracking-wide">
+                                                {item.codigo}
                                             </Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Status Badge */}
+                                    <View className={`px-3 py-1.5 rounded-full ${item.activo ? 'bg-green-100' : 'bg-orange-100'}`}>
+                                        <Text className={`text-xs font-bold ${item.activo ? 'text-green-700' : 'text-orange-700'}`}>
+                                            {item.activo ? 'ACTIVA' : 'INACTIVA'}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Location Section */}
+                                <View className="bg-neutral-50 px-3 py-2.5 rounded-xl mb-3 border border-neutral-100">
+                                    <View className="flex-row items-center">
+                                        <View className="w-8 h-8 bg-white rounded-full items-center justify-center mr-2.5 border border-neutral-200">
+                                            <Ionicons name="location" size={16} color={BRAND_COLORS.red} />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wide mb-0.5">
+                                                Ubicación
+                                            </Text>
+                                            <Text className="text-sm font-bold text-neutral-800">
+                                                {item.ciudad || 'Sin ciudad'}
+                                            </Text>
+                                            {item.macrorregion && (
+                                                <Text className="text-xs text-neutral-500 mt-0.5">
+                                                    {item.macrorregion}
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                 </View>
 
-                                <Text className="text-neutral-500 text-xs mb-1">
-                                    <Ionicons name="location-outline" size={12} color="#6b7280" /> {item.ciudad || 'Sin ciudad'}
-                                </Text>
-
+                                {/* Vendor Section */}
                                 {item.vendorName ? (
-                                    <View className="flex-row items-center mt-1">
-                                        <Ionicons name="person-circle-outline" size={14} color={!item.activo ? '#9CA3AF' : "#2563EB"} />
-                                        <Text className={`text-xs font-bold ml-1 ${!item.activo ? 'text-neutral-400' : 'text-blue-600'}`}>{item.vendorName}</Text>
+                                    <View
+                                        className="bg-gradient-to-r from-green-50 to-emerald-50 px-3 py-2.5 rounded-xl border border-green-200"
+                                        style={{ backgroundColor: '#ECFDF5' }}
+                                    >
+                                        <View className="flex-row items-center">
+                                            <View className="w-8 h-8 bg-green-100 rounded-full items-center justify-center mr-2.5 border border-green-300">
+                                                <Ionicons name="person" size={16} color="#10B981" />
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className="text-[10px] text-green-700 font-semibold uppercase tracking-wide mb-0.5">
+                                                    Vendedor Asignado
+                                                </Text>
+                                                <Text className="text-sm font-bold text-green-900">
+                                                    {item.vendorName}
+                                                </Text>
+                                            </View>
+                                            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                                        </View>
                                     </View>
                                 ) : (
-                                    <Text className="text-neutral-400 text-xs italic mt-1">Sin Vendedor Asignado</Text>
+                                    <View className="bg-orange-50 px-3 py-2.5 rounded-xl border border-orange-200">
+                                        <View className="flex-row items-center">
+                                            <View className="w-8 h-8 bg-orange-100 rounded-full items-center justify-center mr-2.5 border border-orange-300">
+                                                <Ionicons name="person-outline" size={16} color="#F97316" />
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className="text-[10px] text-orange-700 font-semibold uppercase tracking-wide mb-0.5">
+                                                    Estado de Asignación
+                                                </Text>
+                                                <Text className="text-sm font-bold text-orange-900">
+                                                    Sin Vendedor Asignado
+                                                </Text>
+                                            </View>
+                                            <Ionicons name="alert-circle" size={20} color="#F97316" />
+                                        </View>
+                                    </View>
                                 )}
-                            </View>
 
-                            <Ionicons name="chevron-forward" size={20} color="#d1d5db" style={{ marginLeft: 8 }} />
+                                {/* Footer: View Details Arrow */}
+                                <View className="flex-row items-center justify-end mt-3 pt-3 border-t border-neutral-100">
+                                    <Text className="text-xs font-bold text-neutral-500 mr-1">Ver Detalles</Text>
+                                    <Ionicons name="arrow-forward" size={16} color="#9CA3AF" />
+                                </View>
+                            </View>
                         </TouchableOpacity>
                     )}
                     emptyState={{

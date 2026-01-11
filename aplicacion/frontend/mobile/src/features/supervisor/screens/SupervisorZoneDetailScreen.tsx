@@ -5,8 +5,9 @@ import { Header } from '../../../components/ui/Header'
 import { GenericTabs } from '../../../components/ui/GenericTabs'
 import { Zone, ZoneService, ZoneHelpers, LatLng, ZoneEditState } from '../../../services/api/ZoneService'
 import { AssignmentService, Allocation } from '../../../services/api/AssignmentService'
-import { RouteService, RouteEntry } from '../../../services/api/RouteService'
+import { RouteService } from '../../../services/api/RouteService'
 import { UserService, UserProfile } from '../../../services/api/UserService'
+import { Client } from '../../../services/api/ClientService'
 import { GenericList } from '../../../components/ui/GenericList'
 import { GenericModal } from '../../../components/ui/GenericModal'
 import { Ionicons } from '@expo/vector-icons'
@@ -54,7 +55,7 @@ export function SupervisorZoneDetailScreen() {
 
     // Data Lists
     const [vendors, setVendors] = useState<UserProfile[]>([])
-    const [routeClients, setRouteClients] = useState<RouteEntry[]>([])
+    const [routeClients, setRouteClients] = useState<Client[]>([])
     const [showVendorModal, setShowVendorModal] = useState(false)
     const [assignedVendorsMap, setAssignedVendorsMap] = useState<Map<string, string>>(new Map()) // VendorID -> ZoneName
 
