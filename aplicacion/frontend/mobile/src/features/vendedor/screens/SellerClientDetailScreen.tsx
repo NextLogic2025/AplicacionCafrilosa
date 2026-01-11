@@ -44,7 +44,7 @@ export function SellerClientDetailScreen() {
             }
 
             // Intentar cargar el nombre del usuario principal
-            // NOTA: El endpoint /auth/usuarios tiene @Roles('admin', 'supervisor')
+            // NOTA: El endpoint GET /usuarios tiene @Roles('admin', 'supervisor')
             // y NO incluye 'vendedor', por lo que puede fallar con 403 Forbidden
             // Si falla, simplemente no mostramos el nombre del contacto
             if (clientData.usuario_principal_id) {

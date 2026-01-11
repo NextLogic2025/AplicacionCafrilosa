@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Dimensions } from 'react-native'
+import React, { useMemo, useState } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native'
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
@@ -34,10 +34,12 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const [showModal, setShowModal] = useState(false)
     const [showFullMap, setShowFullMap] = useState(false) // New state for expanded map
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+    const [showZonePicker, setShowZonePicker] = useState(false)
 
     // Context Data for Map
-    const selectedZone = zones.find(z => z.id === clientData.zona_comercial_id)
-    const zonePolygon = selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : []
+    const [selectedBranchZoneId, setSelectedBranchZoneId] = useState<number | null>(clientData.zona_comercial_id || null)
+    const selectedZone = useMemo(() => zones.find((z: any) => z.id === selectedBranchZoneId), [zones, selectedBranchZoneId])
+    const zonePolygon = useMemo(() => selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : [], [selectedZone])
     const clientLocation = clientData.ubicacion_gps ? {
         latitude: clientData.ubicacion_gps.coordinates[1],
         longitude: clientData.ubicacion_gps.coordinates[0]
@@ -75,6 +77,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
             contacto_nombre: clientData.razon_social || '', // Default to client name
             contacto_telefono: ''
         })
+        setSelectedBranchZoneId(clientData.zona_comercial_id || null)
         // Default marker to client location if available
         setMarkerCoord(clientLocation || null)
         if (clientLocation) {
@@ -105,6 +108,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const handleEdit = (branch: Branch) => {
         setEditingBranch(branch)
         setTempForm({ ...branch })
+        setSelectedBranchZoneId(clientData.zona_comercial_id || null)
         if (branch.ubicacion_gps) {
             setMarkerCoord({
                 longitude: branch.ubicacion_gps.coordinates[0],
@@ -120,8 +124,34 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         setShowModal(true)
     }
 
+    // Utility: point in polygon (ray casting)
+    const isPointInPolygon = (point: { latitude: number, longitude: number }, polygon: { latitude: number, longitude: number }[]) => {
+        if (!polygon || polygon.length < 3) return true // If no polygon, skip validation
+        let inside = false
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].longitude, yi = polygon[i].latitude
+            const xj = polygon[j].longitude, yj = polygon[j].latitude
+            const intersect = ((yi > point.latitude) !== (yj > point.latitude)) &&
+                (point.longitude < (xj - xi) * (point.latitude - yi) / (yj - yi + 0.0000001) + xi)
+            if (intersect) inside = !inside
+        }
+        return inside
+    }
+
     const handleSaveBranch = () => {
         if (!tempForm.nombre_sucursal.trim()) return
+
+        // Validate marker present
+        if (!markerCoord) return
+        // Validate selected zone
+        if (!selectedBranchZoneId || zonePolygon.length === 0) return
+        // Ensure marker is inside selected zone polygon
+        const inside = isPointInPolygon(markerCoord, zonePolygon)
+        if (!inside) {
+            // Simple inline feedback: highlight and abort save
+            Alert.alert('Ubicación fuera de la zona', 'La ubicación marcada debe estar dentro del polígono de la zona seleccionada.')
+            return
+        }
 
         const newBranch: Branch = {
             ...tempForm,
@@ -219,6 +249,60 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                 onClose={() => setShowModal(false)}
             >
                 <ScrollView className="max-h-[500px]">
+                    {/* Zone Selector */}
+                    <Text className="text-neutral-500 font-medium mb-1">Zona de la Sucursal</Text>
+                    <TouchableOpacity
+                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3 flex-row justify-between items-center"
+                        onPress={() => setShowZonePicker(true)}
+                    >
+                        <Text className="text-neutral-900">
+                            {selectedZone?.nombre ? `${selectedZone.nombre}` : 'Selecciona una zona'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    </TouchableOpacity>
+
+                    {/* Zone Picker Modal */}
+                    <GenericModal
+                        visible={showZonePicker}
+                        title="Seleccionar Zona"
+                        onClose={() => setShowZonePicker(false)}
+                    >
+                        <ScrollView className="max-h-96">
+                            {zones && zones.length > 0 ? (
+                                zones.map((z: any) => (
+                                    <TouchableOpacity
+                                        key={z.id}
+                                        className={`p-4 border-b border-neutral-100 flex-row items-center justify-between ${
+                                            selectedBranchZoneId === z.id ? 'bg-red-50' : ''
+                                        }`}
+                                        onPress={() => {
+                                            setSelectedBranchZoneId(z.id)
+                                            setShowZonePicker(false)
+                                        }}
+                                    >
+                                        <View className="flex-row items-center flex-1">
+                                            <View className="w-10 h-10 rounded-full bg-indigo-100 items-center justify-center mr-3">
+                                                <Ionicons name="map" size={18} color="#4F46E5" />
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className="text-neutral-900 font-semibold">{z.nombre}</Text>
+                                                <Text className="text-neutral-500 text-xs">{z.codigo} • {z.ciudad || 'Sin ciudad'}</Text>
+                                            </View>
+                                        </View>
+                                        {selectedBranchZoneId === z.id && (
+                                            <Ionicons name="checkmark-circle" size={24} color="#EF4444" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))
+                            ) : (
+                                <View className="py-8 items-center">
+                                    <Ionicons name="map-outline" size={40} color="#9CA3AF" />
+                                    <Text className="text-neutral-500 mt-2">No hay zonas disponibles</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </GenericModal>
+
                     <Text className="text-neutral-500 font-medium mb-1">Nombre Sucursal</Text>
                     <TextInput
                         className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3 text-neutral-900"

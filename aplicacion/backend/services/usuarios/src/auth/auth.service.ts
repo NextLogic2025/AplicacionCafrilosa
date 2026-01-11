@@ -207,7 +207,7 @@ export class AuthService {
     const usuarios = await this.usuarioRepo
       .createQueryBuilder('u')
       .where('u.id IN (:...ids)', { ids })
-      .select(['u.id', 'u.email', 'u.nombreCompleto'])
+      .select(['u.id', 'u.email', 'u.nombreCompleto', 'u.telefono'])
       .getMany();
 
     return usuarios;

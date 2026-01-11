@@ -16,8 +16,7 @@ export class OrdersService {
   async findAllByClient(clienteId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
       where: { cliente_id: clienteId },
-      relations: ['detalles'],
-      order: { created_at: 'DESC' },
+      order: { fecha_creacion: 'DESC' },
     });
   }
 
@@ -41,23 +40,17 @@ export class OrdersService {
 
     try {
       // 1. Calcular totales (Lógica de negocio)
-      const subtotal = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
-      const descuento_total = 0; // TODO: Calcular con promociones
-      const impuestos_total = subtotal * 0.12; // IVA 12%
-      const total_final = subtotal - descuento_total + impuestos_total;
+      const neto = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
+      const impuestos = neto * 0.15; // Ejemplo 15%
+      const total = neto + impuestos;
 
-      // 2. Crear cabecera del pedido
+      // 2. Crear cabecera
       const nuevoPedido = queryRunner.manager.create(Pedido, {
-        cliente_id: createOrderDto.cliente_id,
-        vendedor_id: createOrderDto.vendedor_id,
-        sucursal_id: createOrderDto.sucursal_id,
-        observaciones_entrega: createOrderDto.observaciones_entrega,
-        subtotal,
-        descuento_total,
-        impuestos_total,
-        total_final,
+        ...createOrderDto,
+        total_neto: neto,
+        total_impuestos: impuestos,
+        total_pedido: total,
         estado_actual: 'PENDIENTE',
-        origen_pedido: 'APP_MOVIL',
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
@@ -65,16 +58,9 @@ export class OrdersService {
       // 3. Crear detalles vinculados
       const detalles = createOrderDto.items.map(item => {
         return queryRunner.manager.create(DetallePedido, {
+          ...item,
           pedido_id: pedidoGuardado.id,
-          producto_id: item.producto_id,
-          codigo_sku: item.codigo_sku || null,
-          nombre_producto: item.nombre_producto || null,
-          cantidad: item.cantidad,
-          unidad_medida: item.unidad_medida || 'UN',
-          precio_lista: item.precio_unitario,
-          precio_final: item.precio_unitario,
-          es_bonificacion: false,
-          motivo_descuento: item.motivo_descuento || null,
+          subtotal: item.precio_unitario * item.cantidad,
         });
       });
 
@@ -156,7 +142,7 @@ export class OrdersService {
   async listPedidosPaginados(clienteId: string, page = 1, limit = 10) {
     const [data, total] = await this.pedidoRepo.findAndCount({
       where: { cliente_id: clienteId },
-      order: { created_at: 'DESC' },
+      order: { fecha_creacion: 'DESC' },
       take: limit,
       skip: (page - 1) * limit,
     });

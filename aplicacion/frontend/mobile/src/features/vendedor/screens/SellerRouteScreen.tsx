@@ -56,7 +56,7 @@ export function SellerRouteScreen() {
             setRoutePlans(routes)
 
             // Intentar cargar nombres de usuarios
-            // NOTA: El endpoint /auth/usuarios tiene @Roles('admin', 'supervisor')
+            // NOTA: El endpoint /usuarios/vendedores tiene @Roles('admin', 'supervisor')
             // y NO incluye 'vendedor', por lo que puede fallar con 403 Forbidden
             // Si falla, simplemente no mostramos los nombres de contacto
             try {

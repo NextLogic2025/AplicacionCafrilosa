@@ -1,4 +1,4 @@
-import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min, IsString } from 'class-validator';
+import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderDetailDto {
@@ -12,30 +12,11 @@ export class OrderDetailDto {
     @IsNumber()
     @Min(0)
     precio_unitario: number;
-
-    @IsString()
-    @IsOptional()
-    codigo_sku?: string;
-
-    @IsString()
-    @IsOptional()
-    nombre_producto?: string;
-
-    @IsString()
-    @IsOptional()
-    unidad_medida?: string;
-
-    @IsString()
-    @IsOptional()
-    motivo_descuento?: string;
 }
 
 export class CreateOrderDto {
     @IsUUID()
     cliente_id: string;
-
-    @IsUUID()
-    vendedor_id: string;
 
     @IsUUID()
     @IsOptional()
@@ -47,5 +28,5 @@ export class CreateOrderDto {
     items: OrderDetailDto[];
 
     @IsOptional()
-    observaciones_entrega?: string;
+    notas?: string;
 }

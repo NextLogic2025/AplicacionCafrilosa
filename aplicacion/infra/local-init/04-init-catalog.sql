@@ -151,6 +151,7 @@ CREATE TABLE clientes (
 CREATE TABLE sucursales_cliente (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
+    zona_id INT REFERENCES zonas_comerciales(id),
     nombre_sucursal VARCHAR(100),
     direccion_entrega TEXT,
     ubicacion_gps GEOMETRY(POINT, 4326),
@@ -158,7 +159,8 @@ CREATE TABLE sucursales_cliente (
     contacto_telefono VARCHAR(20),
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 -- =========================================
@@ -196,11 +198,13 @@ CREATE TABLE promociones_clientes_permitidos (
 );
 
 -- =========================================
--- 9. RUTERO PLANIFICADO
+-- 8. RUTERO PLANIFICADO (CON SUCURSAL)
 -- =========================================
+-- 1. Primero crea la tabla SIN la línea del UNIQUE complejo
 CREATE TABLE rutero_planificado (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cliente_id UUID NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    sucursal_id UUID REFERENCES sucursales_cliente(id) ON DELETE CASCADE,
     zona_id INT NOT NULL REFERENCES zonas_comerciales(id),
     dia_semana INT NOT NULL CHECK (dia_semana BETWEEN 1 AND 7),
     frecuencia VARCHAR(20) DEFAULT 'SEMANAL',
@@ -209,12 +213,15 @@ CREATE TABLE rutero_planificado (
     hora_estimada_arribo TIME,
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(cliente_id, dia_semana)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 2. LUEGO ejecuta esto por separado para crear la restricción lógica
+CREATE UNIQUE INDEX idx_rutero_unico_sucursal 
+ON rutero_planificado (cliente_id, COALESCE(sucursal_id, '00000000-0000-0000-0000-000000000000'::uuid), dia_semana);
+
 -- =========================================
--- 10. AUDITORÍA (FIXED)
+-- 9. AUDITORÍA (FIXED)
 -- =========================================
 CREATE TABLE audit_log_catalog (
     id BIGSERIAL PRIMARY KEY,

@@ -7,32 +7,34 @@ import { View, Text, StyleSheet } from 'react-native'
 import { TabNavigation } from '../components/ui/TabNavigation'
 
 import { SupervisorDashboardScreen } from '../features/supervisor/screens/SupervisorDashboardScreen'
-import { SupervisorOrdersScreen } from '../features/supervisor/screens/SupervisorOrdersScreen'
-import { SupervisorDeliveriesScreen } from '../features/supervisor/screens/SupervisorDeliveriesScreen'
-import { SupervisorTeamScreen } from '../features/supervisor/screens/SupervisorTeamScreen'
-import { SupervisorTeamDetailScreen } from '../features/supervisor/screens/SupervisorTeamDetailScreen'
-import { SupervisorProfileScreen } from '../features/supervisor/screens/SupervisorProfileScreen'
+import { SupervisorOrdersScreen } from '../features/supervisor/screens/ModuloOrders/SupervisorOrdersScreen'
+import { SupervisorDeliveriesScreen } from '../features/supervisor/screens/ModuloDeliveries/SupervisorDeliveriesScreen'
+import { SupervisorTeamScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamScreen'
+import { SupervisorTeamDetailScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamDetailScreen'
+import { SupervisorProfileScreen } from '../features/supervisor/screens/ModuloPerfil/SupervisorProfileScreen'
 import { ExpandableFab } from '../components/ui/ExpandableFab'
 
-import { SupervisorClientsScreen } from '../features/supervisor/screens/SupervisorClientsScreen'
-import { SupervisorClientFormScreen } from '../features/supervisor/screens/SupervisorClientFormScreen'
-import { SupervisorWarehouseScreen } from '../features/supervisor/screens/SupervisorWarehouseScreen'
-import { SupervisorReturnsScreen } from '../features/supervisor/screens/SupervisorReturnsScreen'
-import { SupervisorReportsScreen } from '../features/supervisor/screens/SupervisorReportsScreen'
-import { SupervisorAlertsScreen } from '../features/supervisor/screens/SupervisorAlertsScreen'
-import { SupervisorZonesScreen } from '../features/supervisor/screens/SupervisorZonesScreen'
-import { SupervisorZoneDetailScreen } from '../features/supervisor/screens/SupervisorZoneDetailScreen'
-import { SupervisorZoneMapScreen } from '../features/supervisor/screens/SupervisorZoneMapScreen'
-import { SupervisorCatalogScreen } from '../features/supervisor/screens/SupervisorCatalogScreen'
-import { SupervisorProductDetailScreen } from '../features/supervisor/screens/SupervisorProductDetailScreen'
-import { SupervisorCategoriesScreen } from '../features/supervisor/screens/SupervisorCategoriesScreen'
-import { SupervisorProductFormScreen } from '../features/supervisor/screens/SupervisorProductFormScreen'
-import { SupervisorPriceListsScreen } from '../features/supervisor/screens/SupervisorPriceListsScreen'
-import { SupervisorPromotionsScreen } from '../features/supervisor/screens/SupervisorPromotionsScreen'
-import { SupervisorPromotionFormScreen as SupervisorCampaignFormScreen } from '../features/supervisor/screens/SupervisorPromotionFormScreen'
-import { SupervisorRoutesScreen } from '../features/supervisor/screens/SupervisorRoutesScreen'
+import { SupervisorClientsScreen } from '../features/supervisor/screens/ModuloCliente/SupervisorClientsScreen'
+import { SupervisorClientDetailScreen } from '../features/supervisor/screens/ModuloCliente/SupervisorClientDetailScreen'
+import { SupervisorClientFormScreen } from '../features/supervisor/screens/ModuloCliente/SupervisorClientFormScreen'
+import { SupervisorWarehouseScreen } from '../features/supervisor/screens/ModuloAlmacen/SupervisorWarehouseScreen'
+import { SupervisorReturnsScreen } from '../features/supervisor/screens/ModuloDevoluciones/SupervisorReturnsScreen'
+import { SupervisorReportsScreen } from '../features/supervisor/screens/ModuloReportes/SupervisorReportsScreen'
+import { SupervisorAlertsScreen } from '../features/supervisor/screens/ModuloAlertas/SupervisorAlertsScreen'
+import { SupervisorZonesScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZonesScreen'
+import { SupervisorZoneDetailScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZoneDetailScreen'
+import { SupervisorZoneMapScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZoneMapScreen'
+import { SupervisorCatalogScreen } from '../features/supervisor/screens/ModuloProductos/SupervisorCatalogScreen'
+import { SupervisorProductDetailScreen } from '../features/supervisor/screens/ModuloProductos/SupervisorProductDetailScreen'
+import { SupervisorCategoriesScreen } from '../features/supervisor/screens/ModuloCategorias/SupervisorCategoriesScreen'
+import { SupervisorProductFormScreen } from '../features/supervisor/screens/ModuloProductos/SupervisorProductFormScreen'
+import { SupervisorPriceListsScreen } from '../features/supervisor/screens/ModuloListaPrecio/SupervisorPriceListsScreen'
+import { SupervisorPromotionsScreen } from '../features/supervisor/screens/ModuloPromocion/SupervisorPromotionsScreen'
+import { SupervisorPromotionFormScreen as SupervisorCampaignFormScreen } from '../features/supervisor/screens/ModuloPromocion/SupervisorPromotionFormScreen'
+import { SupervisorRoutesScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRoutesScreen'
+import { SupervisorRouteCreateScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteCreateScreen'
 
-import { SupervisorAuditScreen } from '../features/supervisor/screens/SupervisorAuditScreen'
+import { SupervisorAuditScreen } from '../features/supervisor/screens/ModuloAuditoria/SupervisorAuditScreen'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
@@ -102,6 +104,7 @@ export function SupervisorNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="SupervisorTabs" component={SupervisorTabs} />
             <Stack.Screen name="SupervisorClients" component={SupervisorClientsScreen} />
+            <Stack.Screen name="SupervisorClientDetail" component={SupervisorClientDetailScreen} />
             <Stack.Screen name="SupervisorClientForm" component={SupervisorClientFormScreen} />
             <Stack.Screen name="SupervisorTeam" component={SupervisorTeamScreen} />
             <Stack.Screen name="SupervisorTeamDetail" component={SupervisorTeamDetailScreen} />
@@ -119,6 +122,7 @@ export function SupervisorNavigator() {
 
             <Stack.Group>
                 <Stack.Screen name="SupervisorRoutes" component={SupervisorRoutesScreen} />
+                <Stack.Screen name="SupervisorRouteCreate" component={SupervisorRouteCreateScreen} />
                 <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />
                 <Stack.Screen name="SupervisorPromotionForm" component={SupervisorCampaignFormScreen} />
             </Stack.Group>

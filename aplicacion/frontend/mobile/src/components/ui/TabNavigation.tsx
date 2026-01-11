@@ -22,7 +22,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         case 'Orders':
             return isFocused ? 'receipt' : 'receipt-outline'
         case 'Entregas':
-            return isFocused ? 'truck' : 'truck-outline'
+            return isFocused ? 'car' : 'car-outline'
         case 'Equipo':
             return isFocused ? 'people' : 'people-outline'
         case 'Productos':

@@ -1,4 +1,4 @@
-import { IsUUID, IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsBoolean, IsInt } from 'class-validator';
 
 export class CreateSucursalDto {
   @IsUUID()
@@ -25,4 +25,8 @@ export class CreateSucursalDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  zona_id?: number;
 }
