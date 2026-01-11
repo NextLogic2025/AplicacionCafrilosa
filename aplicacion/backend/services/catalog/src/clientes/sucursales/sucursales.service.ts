@@ -18,33 +18,33 @@ export class SucursalesService {
   }
 
   findAll(clienteId?: string) {
-    const qb = this.repo.createQueryBuilder('s').where('s.activo = true');
+    const qb = this.repo.createQueryBuilder('s').where('s.activo = true').andWhere('s.deleted_at IS NULL');
     if (clienteId) qb.andWhere('s.cliente_id = :clienteId', { clienteId });
     return qb.getMany();
   }
 
   findDeactivated(clienteId?: string) {
-    const qb = this.repo.createQueryBuilder('s').where('s.activo = false');
+    const qb = this.repo.createQueryBuilder('s').where('s.activo = false').andWhere('s.deleted_at IS NULL');
     if (clienteId) qb.andWhere('s.cliente_id = :clienteId', { clienteId });
     return qb.getMany();
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id } });
+    return this.repo.findOne({ where: { id, deleted_at: null } });
   }
 
   async update(id: string, updateDto: UpdateSucursalDto) {
-    await this.repo.update(id, updateDto as any);
+    await this.repo.update(id, { ...updateDto, updated_at: new Date() } as any);
     return this.findOne(id);
   }
 
   async remove(id: string) {
-    await this.repo.update(id, { activo: false } as any);
+    await this.repo.update(id, { activo: false, deleted_at: new Date(), updated_at: new Date() } as any);
     return { id, deleted: true };
   }
 
   async activate(id: string) {
-    await this.repo.update(id, { activo: true } as any);
+    await this.repo.update(id, { activo: true, updated_at: new Date() } as any);
     return this.findOne(id);
   }
 }

@@ -14,7 +14,7 @@ export class ClientesService {
   // TTL is short to allow quick propagation of changes (in milliseconds).
   private readonly _cache = new Map<string, { ts: number; value: Cliente | null }>();
   private readonly _cacheTtl = Number(process.env.CLIENTE_CACHE_TTL_MS || '300000'); // default 5 minutes
-  private readonly usuariosServiceUrl = process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3001';
+  private readonly usuariosServiceUrl = process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3000';
   
   constructor(
     @InjectRepository(Cliente)
@@ -26,23 +26,23 @@ export class ClientesService {
 
   async findAll() {
     const clientes = await this.repo.find({ where: { bloqueado: false } });
-    let enriched = await this.enrichWithZonaNames(clientes);
-    enriched = await this.enrichWithUsuarioNames(enriched);
-    enriched = await this.enrichWithVendedorNames(enriched);
-    return enriched;
+    return this.enrichClientes(clientes);
   }
 
   async findOne(id: string) {
     const cliente = await this.repo.findOne({ where: { id } });
     if (!cliente) return null;
-    let enriched = await this.enrichWithZonaNames([cliente]);
-    enriched = await this.enrichWithUsuarioNames(enriched);
-    enriched = await this.enrichWithVendedorNames(enriched);
+    const enriched = await this.enrichClientes([cliente]);
     return enriched[0];
   }
 
   async findForVendedor(vendedorId: string) {
     const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId } });
+    return this.enrichClientes(clientes);
+  }
+
+  private async enrichClientes(clientes: Cliente[] | any[]) {
+    if (!clientes.length) return clientes;
     let enriched = await this.enrichWithZonaNames(clientes);
     enriched = await this.enrichWithUsuarioNames(enriched);
     enriched = await this.enrichWithVendedorNames(enriched);
@@ -71,7 +71,7 @@ export class ClientesService {
     try {
       // Fetch usuario names from usuarios service
       const response = await firstValueFrom(
-        this.httpService.post(`${this.usuariosServiceUrl}/auth/usuarios/batch/internal`, { ids: usuarioIds })
+        this.httpService.post(`${this.usuariosServiceUrl}/usuarios/batch/internal`, { ids: usuarioIds })
       );
       const usuarios = response.data || [];
       const usuarioMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
@@ -93,7 +93,7 @@ export class ClientesService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post(`${this.usuariosServiceUrl}/auth/usuarios/batch/internal`, { ids: vendedorIds })
+        this.httpService.post(`${this.usuariosServiceUrl}/usuarios/batch/internal`, { ids: vendedorIds })
       );
       const usuarios = response.data || [];
       const vendedorMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
@@ -119,9 +119,7 @@ export class ClientesService {
 
     return this.repo.findOne({ where: { usuario_principal_id: usuarioId } }).then(async (res) => {
       if (!res) return res;
-      let enriched = await this.enrichWithZonaNames([res]);
-      enriched = await this.enrichWithUsuarioNames(enriched);
-      enriched = await this.enrichWithVendedorNames(enriched);
+      const enriched = await this.enrichClientes([res]);
       const enrichedCliente = enriched[0];
       this._cache.set(usuarioId, { ts: Date.now(), value: enrichedCliente });
       return enrichedCliente;
@@ -155,10 +153,7 @@ export class ClientesService {
 
   async findBlocked() {
     const clientes = await this.repo.find({ where: { bloqueado: true } });
-    let enriched = await this.enrichWithZonaNames(clientes);
-    enriched = await this.enrichWithUsuarioNames(enriched);
-    enriched = await this.enrichWithVendedorNames(enriched);
-    return enriched;
+    return this.enrichClientes(clientes);
   }
 
   async unblock(id: string) {

@@ -33,12 +33,6 @@ export class AuthController {
     return this.authService.login(dto, ip, userAgent);
   }
 
-  // Batch interno para otros servicios (sin guard) para obtener nombres por id
-  @Post('usuarios/batch/internal')
-  async obtenerUsuariosPorIds(@Body() body: { ids: string[] }) {
-    return this.authService.obtenerUsuariosPorIds(body?.ids || []);
-  }
-
   @Post('refresh')
   refresh(@Body() body: RefreshTokenDto, @Req() _req: AuthRequest) {
     const ip = _req.ip;
@@ -58,6 +52,17 @@ export class AuthController {
     const token = typeof authHeader === 'string' ? authHeader.split(' ')[1] : undefined;
     
     return this.authService.logout(usuarioId, token, ip, userAgent);
+  }
+
+  @Post('validate-token')
+  @UseGuards(JwtAuthGuard)
+  validateToken(@Req() _req: AuthRequest) {
+    return {
+      valid: true,
+      userId: _req.user?.sub,
+      email: _req.user?.email,
+      role: _req.user?.role,
+    };
   }
 
   @Post('dispositivo')
