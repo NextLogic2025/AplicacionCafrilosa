@@ -31,13 +31,15 @@ export class RuteroService {
   async findForVendedor(vendedorId: string) {
     const ruteros = await this.repo
       .createQueryBuilder('rp')
-      .innerJoin('clientes', 'c', 'rp.cliente_id = c.id')
-      .where('c.vendedor_asignado_id = :vendedorId', { vendedorId })
+      .innerJoin('asignacion_vendedores', 'av', 'av.zona_id = rp.zona_id')
+      .where('av.vendedor_usuario_id = :vendedorId', { vendedorId })
+      .andWhere('av.fecha_fin IS NULL')
+      .andWhere('av.deleted_at IS NULL')
       .andWhere('rp.activo = :activo', { activo: true })
       .orderBy('rp.dia_semana', 'ASC')
       .addOrderBy('rp.orden_sugerido', 'ASC')
       .getMany();
-    
+
     return this.enrichRuteros(ruteros);
   }
 
@@ -96,8 +98,18 @@ export class RuteroService {
     });
   }
 
-  create(data: Partial<RuteroPlanificado>) {
-    const e = this.repo.create(data as any);
+  async create(data: Partial<RuteroPlanificado>) {
+    let zonaId = data.zona_id;
+    if (!zonaId) {
+      if (data.sucursal_id) {
+        const suc = await this.sucursalRepo.findOne({ where: { id: data.sucursal_id as any } });
+        zonaId = suc?.zona_id ?? zonaId;
+      } else if (data.cliente_id) {
+        const cli = await this.clienteRepo.findOne({ where: { id: data.cliente_id as any } });
+        zonaId = cli?.zona_comercial_id ?? zonaId;
+      }
+    }
+    const e = this.repo.create({ ...(data as any), zona_id: zonaId } as any);
     return this.repo.save(e);
   }
 

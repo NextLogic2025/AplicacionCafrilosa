@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
@@ -108,6 +108,14 @@ export class OrdersController {
         @Body() dto: UpdateCartItemDto,
     ) {
         return this.cartService.addItem(userId, dto);
+    }
+
+    // New polymorphic endpoint: POST /orders/cart/items
+    @Post('/cart/items')
+    @Roles('cliente', 'vendedor')
+    async upsertCartItem(@Req() req: any, @Body() dto: UpdateCartItemDto) {
+        const user = req.user;
+        return this.cartService.addItemForUser(user, dto);
     }
 
     @Delete('/cart/:userId/item/:productId')
