@@ -1,12 +1,19 @@
 export interface ClienteRutero {
   id: string
-  nombre: string
+  nombre?: string | null
   razon_social: string
-  prioridad: 'ALTA' | 'MEDIA' | 'BAJA'
-  frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
-  orden: number
-  hora_estimada: string | null
-  activo: boolean
+  nombre_comercial?: string | null
+  zona_comercial_id?: number | null
+  zona_comercial?: { id?: number | null; nombre?: string | null } | null
+  prioridad?: 'ALTA' | 'MEDIA' | 'BAJA'
+  frecuencia?: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
+  orden?: number
+  hora_estimada?: string | null
+  activo?: boolean
+  ruteroId?: string | null
+  fueraDeZona?: boolean
+  zonaAsignadaId?: number | null
+  zonaAsignadaNombre?: string | null
   ubicacion_gps?: {
     type: 'Point'
     coordinates: [number, number]
@@ -24,13 +31,14 @@ export interface SucursalRutero {
 }
 
 export interface RuteroPlanificado {
+  id?: string
   cliente_id: string
   zona_id: number
   dia_semana: DiaSemana
   frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
   prioridad_visita: 'ALTA' | 'MEDIA' | 'BAJA'
   orden_sugerido: number
-  hora_estimada: string
+  hora_estimada: string | null
   activo: boolean
   created_by?: string
   updated_at?: string

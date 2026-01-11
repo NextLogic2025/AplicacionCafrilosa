@@ -2,7 +2,7 @@ import * as React from 'react'
 
 import { fetchProfile, type UserProfile } from '../services/auth/authApi'
 import { fetchClienteByUsuarioId } from '../features/cliente/services/clientApi'
-import { obtenerVendedores, updateUsuario } from '../features/supervisor/services/usuariosApi'
+import { obtenerVendedores, updateUsuario, getUsuario } from '../features/supervisor/services/usuariosApi'
 
 export function useProfile() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
@@ -12,6 +12,7 @@ export function useProfile() {
   const [clientLoading, setClientLoading] = React.useState(false)
   const [clientError, setClientError] = React.useState<string | null>(null)
   const [vendedorMap, setVendedorMap] = React.useState<Record<string, { id: string; nombre: string }>>({})
+  const fetchedVendorIds = React.useRef<Set<string>>(new Set())
 
   const loadProfile = React.useCallback(async () => {
     setLoading(true)
@@ -34,6 +35,15 @@ export function useProfile() {
     try {
       const clienteData = await fetchClienteByUsuarioId(profile.id)
       setClient(clienteData)
+      if (clienteData?.vendedor_asignado_id && clienteData?.nombre_vendedor_cache) {
+        setVendedorMap((prev) => ({
+          ...prev,
+          [clienteData.vendedor_asignado_id]: {
+            id: clienteData.vendedor_asignado_id,
+            nombre: clienteData.nombre_vendedor_cache,
+          },
+        }))
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'No se pudo obtener el cliente'
       setClientError(message)
@@ -89,11 +99,36 @@ export function useProfile() {
     const rol = profile?.rol?.nombre?.toLowerCase?.()
     if (rol === 'admin' || rol === 'supervisor') {
       loadVendedores()
-    } else {
-      // Evitar 403 en perfiles de cliente/vendedor: no se consulta y se deja vacío
-      setVendedorMap((prev) => (Object.keys(prev).length ? {} : prev))
     }
   }, [profile?.rol?.nombre, loadVendedores])
+
+  React.useEffect(() => {
+    const vendorId = typeof client?.vendedor_asignado_id === 'string' ? client.vendedor_asignado_id : null
+    if (!vendorId) return
+    if (vendedorMap[vendorId]) return
+    if (fetchedVendorIds.current.has(vendorId)) return
+
+    fetchedVendorIds.current.add(vendorId)
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const vendor = await getUsuario(vendorId)
+        if (!cancelled && vendor?.id) {
+          setVendedorMap((prev) => ({ ...prev, [vendor.id]: { id: vendor.id, nombre: vendor.nombre } }))
+        }
+      } catch (err) {
+        if (!cancelled) {
+          // Guardar marcador vacío para evitar reintentos en bucle
+          setVendedorMap((prev) => ({ ...prev, [vendorId]: { id: vendorId, nombre: 'Vendedor no disponible' } }))
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [client?.vendedor_asignado_id, vendedorMap])
 
   React.useEffect(() => {
     const rol = profile?.rol?.nombre?.toLowerCase?.()

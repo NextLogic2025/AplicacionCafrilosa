@@ -20,6 +20,8 @@ export interface Usuario {
   id: string
   email: string
   nombre: string
+  /** Nombre completo, si está disponible */
+  nombreCompleto?: string
   telefono: string | null
   avatarUrl: string | null
   emailVerificado: boolean

@@ -34,9 +34,13 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
     ubicacion_gps: null,
   })
 
-  const handleAddSucursal = () => {
-    if (!newSucursal.nombre_sucursal.trim()) return
-    onAddSucursal(newSucursal)
+  function handleAddSucursal() {
+    if (!newSucursal.nombre_sucursal.trim() && !newSucursal.direccion_entrega?.trim()) return
+    const payload: SucursalTemp = {
+      ...newSucursal,
+      nombre_sucursal: newSucursal.nombre_sucursal.trim() || (newSucursal.direccion_entrega?.trim() ?? `Sucursal ${sucursales.length + 1}`),
+    }
+    onAddSucursal(payload)
     setNewSucursal({
       nombre_sucursal: '',
       direccion_entrega: '',
@@ -48,8 +52,16 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
     })
   }
 
+  const handleStepKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+      e.preventDefault()
+      e.stopPropagation()
+      handleAddSucursal()
+    }
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={handleStepKeyDown}>
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-gray-800 mb-4">Agregar Sucursal Adicional (Opcional)</h3>
         
@@ -110,7 +122,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
           <button
             type="button"
             onClick={handleAddSucursal}
-            disabled={!newSucursal.nombre_sucursal.trim()}
+            disabled={!newSucursal.nombre_sucursal.trim() && !newSucursal.direccion_entrega?.trim()}
             className="w-full rounded-lg bg-brand-red text-white px-4 py-2 font-medium hover:bg-brand-red/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             + Agregar Sucursal

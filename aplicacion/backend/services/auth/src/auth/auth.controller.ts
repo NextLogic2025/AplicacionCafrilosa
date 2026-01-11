@@ -3,7 +3,7 @@ import { Request } from 'express'; // Importante para tipar Express
 
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto, LoginDto, RefreshTokenDto } from './dto';
-import { JwtAuthGuard } from './jwt.guard';
+import { JwtAuthGuard } from './guards/jwt.guard';
 
 // Definimos la interfaz del usuario que inyecta el Guard en el Request
 interface JwtUser {
@@ -31,6 +31,12 @@ export class AuthController {
     const ip = _req.ip;
     const userAgent = _req.get('user-agent');
     return this.authService.login(dto, ip, userAgent);
+  }
+
+  // Batch interno para otros servicios (sin guard) para obtener nombres por id
+  @Post('usuarios/batch/internal')
+  async obtenerUsuariosPorIds(@Body() body: { ids: string[] }) {
+    return this.authService.obtenerUsuariosPorIds(body?.ids || []);
   }
 
   @Post('refresh')

@@ -1,0 +1,15 @@
+src/orders/
+├── controllers/
+│   └── orders.controller.ts     <-- Endpoints y Guards
+├── services/
+│   ├── orders.service.ts        <-- Transacciones y Lógica de Pedidos
+│   ├── cart.service.ts          <-- Lógica del Carrito
+│   └── order-listener.service.ts <-- Listen/Notify de Postgres
+├── entities/
+│   ├── pedido.entity.ts
+│   ├── detalle-pedido.entity.ts
+│   └── ... (todas las del SQL)
+├── dto/
+│   ├── create-order.dto.ts      <-- Validación de entrada
+│   └── order-response.dto.ts    <-- Formato de salida (Requisitos Imagen)
+└── orders.module.ts             <-- Cableado de dependencias

@@ -64,6 +64,7 @@ export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
 export const VENDEDOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/vendedor', icon: Home, end: true },
   { id: 'clientes', label: 'Clientes', to: '/vendedor/clientes', icon: Users },
+  { id: 'rutas', label: 'Rutas', to: '/vendedor/rutas', icon: Route },
   { id: 'productos', label: 'Productos', to: '/vendedor/productos', icon: Boxes },
   { id: 'promociones', label: 'Promociones', to: '/vendedor/promociones', icon: Percent },
   { id: 'crear-pedido', label: 'Crear Pedido', to: '/vendedor/crear-pedido', icon: ShoppingCart },

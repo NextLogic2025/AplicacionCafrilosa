@@ -302,7 +302,9 @@ export default function PerfilCliente() {
             <InfoCard
               label="Vendedor asignado"
               value={client.vendedor_asignado_id
-                ? (vendedorMap[client.vendedor_asignado_id]?.nombre ?? 'Vendedor no disponible')
+                ? (client.nombre_vendedor_cache
+                    ?? vendedorMap[client.vendedor_asignado_id]?.nombre
+                    ?? 'Vendedor no disponible')
                 : '—'}
             />
             <InfoCard label="Zona comercial" value={client.zona_comercial_id ?? '—'} />

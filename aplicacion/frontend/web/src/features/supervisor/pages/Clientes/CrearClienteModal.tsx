@@ -44,7 +44,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
   const [listasPrecios, setListasPrecios] = useState<ListaPrecioOption[]>([])
   const [sucursalesTemp, setSucursalesTemp] = useState<SucursalTemp[]>([])
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [canSubmit, setCanSubmit] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -166,13 +165,8 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
     if (currentStep > 1) setCurrentStep((prev) => (prev - 1) as Step)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!canSubmit || currentStep !== 3) {
-      setCanSubmit(false)
-      return
-    }
-    setCanSubmit(false)
+  const handleSubmit = async () => {
+    if (currentStep !== 3) return
     setSubmitMessage(null)
     if (!validateForm()) return
     setIsSubmitting(true)
@@ -252,7 +246,16 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         onSuccess()
       }, 1200)
     } catch (error: any) {
-      setSubmitMessage({ type: 'error', message: error.message || 'Error al guardar el cliente' })
+      const message = error?.message || 'Error al guardar el cliente'
+      const payloadInfo = (() => {
+        if (!error?.payload) return ''
+        try {
+          return ` (${typeof error.payload === 'string' ? error.payload : JSON.stringify(error.payload)})`
+        } catch {
+          return ''
+        }
+      })()
+      setSubmitMessage({ type: 'error', message: `${message}${payloadInfo}` })
     } finally {
       setIsSubmitting(false)
     }
@@ -291,7 +294,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         })}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
         {submitMessage && <Alert type={submitMessage.type} message={submitMessage.message} onClose={() => setSubmitMessage(null)} />}
 
         {currentStep === 1 && (
@@ -350,7 +353,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               Siguiente: {currentStep === 1 ? 'Dirección' : 'Sucursales'}
             </Button>
           ) : (
-            <Button type="submit" onClick={() => setCanSubmit(true)} className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50" disabled={isSubmitting}>
+            <Button type="button" onClick={handleSubmit} className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50" disabled={isSubmitting}>
               {isSubmitting ? 'Guardando...' : 'Finalizar y Guardar'}
             </Button>
           )}

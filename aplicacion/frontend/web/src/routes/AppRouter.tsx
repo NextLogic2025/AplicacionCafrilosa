@@ -39,6 +39,7 @@ const SupervisorLayout = React.lazy(() => import('../features/supervisor/Supervi
 const VendedorLayout = React.lazy(() => import('../features/vendedor/VendedorPage'))
 const VendedorDashboard = React.lazy(() => import('../features/vendedor/pages/Dashboard'))
 const VendedorClientes = React.lazy(() => import('../features/vendedor/pages/Clientes'))
+const VendedorRutas = React.lazy(() => import('../features/vendedor/pages/Rutas'))
 const VendedorProductos = React.lazy(() => import('../features/vendedor/pages/Productos'))
 const VendedorPromociones = React.lazy(() => import('../features/vendedor/pages/Promociones'))
 const VendedorCrearPedido = React.lazy(() => import('../features/vendedor/pages/CrearPedido'))
@@ -141,6 +142,7 @@ export default function AppRouter() {
         >
           <Route index element={<VendedorDashboard />} />
           <Route path="clientes" element={<VendedorClientes />} />
+          <Route path="rutas" element={<VendedorRutas />} />
           <Route path="productos" element={<VendedorProductos />} />
           <Route path="promociones" element={<VendedorPromociones />} />
           <Route path="crear-pedido" element={<VendedorCrearPedido />} />

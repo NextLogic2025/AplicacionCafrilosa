@@ -90,25 +90,47 @@ export function PromocionesList({
           {campaniasFiltradas.map((campania) => (
             <div
               key={campania.id}
-              className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
+              className="relative rounded-2xl border border-neutral-200 bg-white p-0 shadow-md transition hover:shadow-lg cursor-pointer flex flex-col min-h-[340px]"
               onClick={() => onViewDetails(campania)}
             >
-              {/* Header con ícono */}
-              <div className="mb-4 flex items-start justify-between">
+              {/* Header con ícono destacado */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-2">
                 <div className="flex-1 pr-3">
-                  <h3 className="text-base font-bold text-neutral-900">{campania.nombre}</h3>
+                  <h3 className="text-lg font-bold text-neutral-900 mb-0.5 capitalize">{campania.nombre}</h3>
                   {campania.descripcion && (
-                    <p className="mt-1 line-clamp-2 text-xs text-neutral-600">{campania.descripcion}</p>
+                    <p className="line-clamp-2 text-sm text-neutral-600 mb-1">{campania.descripcion}</p>
                   )}
                 </div>
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-neutral-100">
-                  <Percent className="h-5 w-5 text-neutral-600" />
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-red/10 to-brand-red/30 shadow">
+                  <Percent className="h-6 w-6 text-brand-red" />
                 </div>
               </div>
 
+              {/* Badges de estado y alcance */}
+              <div className="flex gap-2 px-6 pb-2">
+                <span
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+                    campania.activo
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-neutral-100 text-neutral-700'
+                  }`}
+                >
+                  {campania.activo ? 'Activa' : 'Inactiva'}
+                </span>
+                <span
+                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-neutral-100 text-neutral-700 shadow-sm"
+                >
+                  {campania.alcance === 'GLOBAL'
+                    ? 'General'
+                    : campania.alcance === 'POR_LISTA'
+                    ? 'Por lista'
+                    : 'Por cliente'}
+                </span>
+              </div>
+
               {/* Info Dates & Discount */}
-              <div className="mb-4 space-y-1 border-t border-neutral-200 pt-3">
-                <div className="flex text-xs">
+              <div className="px-6 pb-2">
+                <div className="flex text-xs mb-0.5">
                   <span className="text-neutral-600">Inicio:</span>
                   <span className="ml-auto font-medium text-neutral-900">
                     {new Date(campania.fecha_inicio).toLocaleDateString('es-ES', {
@@ -117,7 +139,7 @@ export function PromocionesList({
                     })}
                   </span>
                 </div>
-                <div className="flex text-xs">
+                <div className="flex text-xs mb-0.5">
                   <span className="text-neutral-600">Fin:</span>
                   <span className="ml-auto font-medium text-neutral-900">
                     {new Date(campania.fecha_fin).toLocaleDateString('es-ES', {
@@ -129,7 +151,7 @@ export function PromocionesList({
                 {campania.valor_descuento && (
                   <div className="flex text-xs">
                     <span className="text-neutral-600">Descuento:</span>
-                    <span className="ml-auto font-semibold text-brand-red">
+                    <span className="ml-auto font-bold text-brand-red text-base">
                       {campania.tipo_descuento === 'PORCENTAJE'
                         ? `${campania.valor_descuento}%`
                         : `$${campania.valor_descuento}`}
@@ -138,44 +160,16 @@ export function PromocionesList({
                 )}
               </div>
 
-              {/* Status Badges */}
-              <div className="mb-4 flex gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
-                    campania.activo
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-neutral-100 text-neutral-700'
-                  }`}
-                >
-                  {campania.activo ? 'Activa' : 'Inactiva'}
-                </span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
-                    campania.alcance === 'GLOBAL'
-                      ? 'bg-neutral-100 text-neutral-700'
-                      : campania.alcance === 'POR_LISTA'
-                      ? 'bg-neutral-100 text-neutral-700'
-                      : 'bg-neutral-100 text-neutral-700'
-                  }`}
-                >
-                  {campania.alcance === 'GLOBAL'
-                    ? 'General'
-                    : campania.alcance === 'POR_LISTA'
-                    ? 'Por lista'
-                    : 'Por cliente'}
-                </span>
-              </div>
-
               {/* Quick Action Buttons */}
               {(onAddProducts || (onAddClientes && campania.alcance === 'POR_CLIENTE')) && (
-                <div className="mb-3 flex gap-2">
+                <div className="flex gap-2 px-6 pb-2">
                   {onAddProducts && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         onAddProducts(campania)
                       }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-100"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 shadow-sm"
                       title="Agregar productos"
                     >
                       <Package className="h-4 w-4" />
@@ -188,7 +182,7 @@ export function PromocionesList({
                         e.stopPropagation()
                         onAddClientes(campania)
                       }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-100"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 shadow-sm"
                       title="Agregar clientes"
                     >
                       <UserPlus className="h-4 w-4" />
@@ -199,13 +193,13 @@ export function PromocionesList({
               )}
 
               {/* Main Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 px-6 pt-2 pb-6 mt-auto">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     onEdit(campania)
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-brand-red px-3 py-2 text-sm font-semibold text-brand-red transition-colors hover:bg-red-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-red/40"
                   title="Editar campaña"
                 >
                   <Pencil className="h-4 w-4" />
@@ -216,7 +210,7 @@ export function PromocionesList({
                     e.stopPropagation()
                     handleDelete(campania.id, e)
                   }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-red-600 px-3 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-red-600 bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-400"
                   title="Eliminar campaña"
                 >
                   <Trash2 className="h-4 w-4" />

@@ -1,7 +1,7 @@
 services:
   # --- BASE DE DATOS (Ya la tenías) ---
   database:
-    image: postgis/postgis:15-3.3-alpine
+    image: postgis/postgis:17-3.4-alpine
     container_name: gcp-sql-local
     restart: always
     environment:
@@ -39,13 +39,11 @@ services:
     ports:
       - "3002:3000"  # 👈 Tu PC (3002) -> Contenedor (3000)
     environment:
-      # Como están en el mismo compose, aquí "database" SÍ funciona seguro
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
       - JWT_SECRET=MiSecretoSuperSeguro2025
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=root
-      - DB_NAME=usuarios_db
+      - JWT_EXPIRES_IN=1h
     depends_on:
       - database
     networks:
@@ -61,12 +59,12 @@ services:
     ports:
       - "3003:3000"  # Host 3003 -> Contenedor 3000
     environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
       - JWT_SECRET=MiSecretoSuperSeguro2025
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=root
-      - DB_NAME=catalog_db
+      - JWT_EXPIRES_IN=1h
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
     depends_on:
       - database
     networks:
@@ -82,11 +80,11 @@ services:
     ports:
       - "3004:3000"  # Host 3004 -> Contenedor 3000
     environment:
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=root
-      - DB_NAME=orders_db
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/orders_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
     depends_on:
       - database
     networks:
@@ -102,12 +100,11 @@ services:
     ports:
       - "3001:3000"  # Host 3001 -> Contenedor 3000
     environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
       - JWT_SECRET=MiSecretoSuperSeguro2025
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_USER=admin
-      - DB_PASSWORD=root
-      - DB_NAME=usuarios_db
+      - JWT_EXPIRES_IN=1h
     depends_on:
       - database
     networks:

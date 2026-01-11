@@ -1,5 +1,6 @@
 
 import { httpAuth, httpCatalogo } from '../../../services/api/http'
+import type { Cliente } from '../../supervisor/services/clientesApi'
 import type {
   PerfilCliente,
   Pedido,
@@ -9,7 +10,7 @@ import type {
   Notificacion,
   Conversacion,
   Ticket,
-} from '../types'
+} from '../../cliente/types'
 
 // --- Adaptar endpoints a los de vendedor ---
 
@@ -54,6 +55,10 @@ export async function getConversaciones(): Promise<Conversacion[]> {
 
 export async function getTickets(): Promise<Ticket[]> {
   return await httpCatalogo<Ticket[]>('/vendedor/tickets').catch(() => [])
+}
+
+export async function getClientesAsignados(): Promise<Cliente[]> {
+  return httpCatalogo<Cliente[]>('/clientes/mis')
 }
 
 export async function createTicket(nuevo: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {

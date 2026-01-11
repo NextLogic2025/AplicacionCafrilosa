@@ -66,7 +66,7 @@ export function useZonas() {
       await asignarVendedorAZona({
         zona_id: zonaCreada.id,
         vendedor_usuario_id: vendedorId,
-        nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
+        nombre_vendedor_cache: vendedor ? (vendedor.nombreCompleto || vendedor.nombre) : undefined,
       })
     }
 
@@ -87,17 +87,17 @@ export function useZonas() {
       poligono_geografico: zonaData.poligono_geografico,
     })
 
-    // Si hay una asignación actual y el vendedor cambió o se eliminó
+    // Si hay una asignación actual
     if (asignacionActualId) {
       if (!vendedorId) {
         // Se quitó el vendedor
         await eliminarAsignacionVendedor(asignacionActualId)
       } else {
-        // Se cambió el vendedor
+        // Siempre actualiza la asignación, aunque el vendedor no cambie
         const vendedor = vendedores.find((v) => v.id === vendedorId)
         await actualizarAsignacionVendedor(asignacionActualId, {
           vendedor_usuario_id: vendedorId,
-          nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
+          nombre_vendedor_cache: vendedor ? (vendedor.nombreCompleto || vendedor.nombre) : undefined,
         })
       }
     } else if (vendedorId) {
@@ -106,7 +106,7 @@ export function useZonas() {
       await asignarVendedorAZona({
         zona_id: zonaId,
         vendedor_usuario_id: vendedorId,
-        nombre_vendedor_cache: vendedor ? vendedor.nombre : undefined,
+        nombre_vendedor_cache: vendedor ? (vendedor.nombreCompleto || vendedor.nombre) : undefined,
         es_principal: true,
       })
     }

@@ -2,6 +2,7 @@ import { useMemo, useCallback, useState } from 'react'
 import { Image as ImageIcon, Package, Tag, Search, Filter, Pencil, Trash2 } from 'lucide-react'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { StatusBadge } from 'components/ui/StatusBadge'
+import { CardGrid, type CardGridItem } from 'components/ui/CardGrid'
 import { type Product } from '../../../services/productosApi'
 import { type Category } from '../../../services/catalogApi'
 
@@ -116,76 +117,47 @@ export function ProductosList({ products, categories, isLoading, onEdit, onDelet
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              className="group relative overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              {product.imagen_url ? (
-                <div className="mb-0 overflow-hidden rounded-t-lg bg-neutral-100 aspect-square">
-                  <img src={product.imagen_url} alt={product.nombre} className="h-full w-full object-cover transition group-hover:scale-105" />
-                </div>
-              ) : (
-                <div className="mb-0 flex aspect-square items-center justify-center rounded-t-lg bg-gradient-to-br from-neutral-100 to-neutral-200">
-                  <ImageIcon className="h-8 w-8 text-neutral-400" />
-                </div>
-              )}
-
-              <div className="px-3 py-3">
-                <p className="text-xs text-neutral-500 truncate">SKU: {product.codigo_sku}</p>
-                <h3 className="text-sm font-bold text-neutral-900 truncate">{product.nombre}</h3>
-                <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">
-                  <Tag className="h-3 w-3" />
-                  <span className="truncate text-xs">{resolveCategoryLabel(product)}</span>
-                </div>
-                {product.descripcion && (
-                  <p className="mt-1 text-xs text-neutral-600 line-clamp-2">{product.descripcion}</p>
+        <CardGrid
+          items={filteredProducts.map((product) => ({
+            id: product.id,
+            image: product.imagen_url || null,
+            title: product.nombre,
+            subtitle: `SKU: ${product.codigo_sku}`,
+            tags: [resolveCategoryLabel(product)],
+            description: product.descripcion || undefined,
+            extra: (
+              <>
+                <StatusBadge variant={product.activo ? 'success' : 'neutral'}>
+                  {product.activo ? 'Activo' : 'Inactivo'}
+                </StatusBadge>
+                {product.requiere_frio && (
+                  <StatusBadge variant="info">Frío</StatusBadge>
                 )}
-                <div className="mt-2 flex flex-wrap gap-1 text-xs text-neutral-600">
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-800">
-                    {product.peso_unitario_kg} kg
-                  </span>
-                  {product.volumen_m3 && (
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-800">
-                      {product.volumen_m3} m³
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-2 flex items-center gap-1">
-                  <StatusBadge variant={product.activo ? 'success' : 'neutral'}>
-                    {product.activo ? 'Activo' : 'Inactivo'}
-                  </StatusBadge>
-                  {product.requiere_frio && (
-                    <StatusBadge variant="info">
-                      Frío
-                    </StatusBadge>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-center gap-1">
-                  <button
-                    onClick={() => onEdit(product)}
-                    className="flex-1 flex items-center justify-center gap-1 rounded border border-brand-red px-2 py-1 text-xs font-semibold text-brand-red transition hover:bg-brand-red/5"
-                    title="Editar producto"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(product)}
-                    className="flex-1 flex items-center justify-center gap-1 rounded border border-red-600 px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                    title="Eliminar producto"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Eliminar
-                  </button>
-                </div>
+              </>
+            ),
+            actions: (
+              <div className="flex w-full gap-2 mt-2">
+                <button
+                  onClick={() => onEdit(product)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-red/40"
+                  title="Editar producto"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span>Editar</span>
+                </button>
+                <button
+                  onClick={() => handleDelete(product)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-red-600 bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-400"
+                  title="Eliminar producto"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Eliminar</span>
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ),
+          }))}
+          columns={4}
+        />
       )}
     </div>
   )

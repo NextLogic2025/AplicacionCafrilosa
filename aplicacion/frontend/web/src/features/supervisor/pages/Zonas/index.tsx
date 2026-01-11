@@ -115,6 +115,10 @@ export default function ZonasPage() {
           vendedorSeleccionado || undefined,
           zonaEditando.vendedor_asignado?.id
         )
+        // Espera un breve tiempo para asegurar que el backend actualice la asignación
+        setTimeout(() => {
+          loadZonas();
+        }, 400);
         setSubmitMessage({ type: 'success', message: 'Zona actualizada correctamente' })
       }
       await loadZonas()

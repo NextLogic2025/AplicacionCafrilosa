@@ -38,7 +38,7 @@ export function ZonasTable({ zonas, onView, onEdit, onToggleEstado }: ZonasTable
               <td className="px-6 py-4 text-sm text-gray-700">{zona.ciudad || '—'}</td>
               <td className="px-6 py-4 text-sm text-gray-700">{zona.macrorregion || '—'}</td>
               <td className="px-6 py-4 text-sm text-gray-700">
-                {zona.vendedor_asignado?.nombre_vendedor_cache || '—'}
+                {zona.vendedor_asignado?.nombreCompleto || zona.vendedor_asignado?.nombre_vendedor_cache || '—'}
               </td>
               <td className="px-6 py-4 text-sm">
                 <span

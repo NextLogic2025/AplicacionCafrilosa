@@ -28,6 +28,7 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
 
   // Normalizamos a nuestra interfaz local
   return filtered.map((r: any) => ({
+    id: r.id,
     cliente_id: r.cliente_id,
     zona_id: r.zona_id,
     dia_semana: diaSemana,
@@ -39,7 +40,7 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
   })) as RuteroPlanificado[]
 }
 
-export async function guardarRutero(datos: RuteroPlanificado[]): Promise<void> {
+export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: string[]): Promise<void> {
   // La colección muestra POST /rutero para un solo item.
   // Enviamos cada registro individualmente, adaptando nombres.
   const diaToNumber = (d: DiaSemana): number => {
@@ -61,13 +62,36 @@ export async function guardarRutero(datos: RuteroPlanificado[]): Promise<void> {
       frecuencia: item.frecuencia || 'SEMANAL',
       prioridad_visita: item.prioridad_visita || 'MEDIA',
       orden_sugerido: item.orden_sugerido,
-      hora_estimada_arribo: item.hora_estimada || '09:00:00',
+      hora_estimada_arribo: formatearHora(item.hora_estimada),
       activo: item.activo ?? true,
     }
-    await httpCatalogo<void>('/rutero', {
-      method: 'POST',
-      body: payload,
-    })
+    if (item.id) {
+      await httpCatalogo<void>(`/rutero/${item.id}`, {
+        method: 'PUT',
+        body: payload,
+      }).catch(async (error) => {
+        console.error('Error actualizando ruta, intentando recrear', error)
+        await httpCatalogo<void>('/rutero', {
+          method: 'POST',
+          body: payload,
+        })
+      })
+    } else {
+      await httpCatalogo<void>('/rutero', {
+        method: 'POST',
+        body: payload,
+      })
+    }
+  }
+
+  if (Array.isArray(eliminados) && eliminados.length > 0) {
+    await Promise.all(
+      eliminados.map((id) =>
+        httpCatalogo<void>(`/rutero/${id}`, {
+          method: 'DELETE',
+        }).catch(() => undefined),
+      ),
+    )
   }
 }
 
@@ -90,6 +114,7 @@ export async function obtenerTodasLasRutas(): Promise<RuteroPlanificado[]> {
   const all = await httpCatalogo<any[]>(`/rutero`).catch(() => [])
   
   return (all || []).map((r: any) => ({
+    id: r.id,
     cliente_id: r.cliente_id,
     zona_id: r.zona_id,
     dia_semana: numberToDia(r.dia_semana),
@@ -118,8 +143,21 @@ export async function eliminarRutaPorZonaYDia(zonaId: number, diaSemana: DiaSema
   
   for (const ruta of rutas) {
     // Asumiendo que existe DELETE /rutero/:id, ajustar según API real
-    await httpCatalogo(`/rutero/${ruta.cliente_id}`, {
+    if (!ruta.id) continue
+    await httpCatalogo(`/rutero/${ruta.id}`, {
       method: 'DELETE',
     }).catch(() => {})
   }
+}
+
+function formatearHora(valor: string | null | undefined): string | null {
+  if (!valor) return null
+  const limpio = valor.trim()
+  if (limpio.length === 0) return null
+  if (!/^[0-2]?\d:[0-5]\d(:[0-5]\d)?$/.test(limpio)) return null
+  const [hh, mm, ss] = limpio.split(':')
+  const hora = hh.padStart(2, '0')
+  const minuto = mm.padStart(2, '0')
+  const segundo = (ss ?? '00').padStart(2, '0')
+  return `${hora}:${minuto}:${segundo}`
 }
