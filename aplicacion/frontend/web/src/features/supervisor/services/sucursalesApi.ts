@@ -21,6 +21,7 @@ export interface CreateSucursalDto {
   contacto_nombre?: string
   contacto_telefono?: string
   activo?: boolean
+  zona_id?: number
 }
 
 export interface UpdateSucursalDto {
@@ -30,6 +31,7 @@ export interface UpdateSucursalDto {
   contacto_nombre?: string
   contacto_telefono?: string
   activo?: boolean
+  zona_id?: number
 }
 
 export async function crearSucursal(clienteId: string, data: CreateSucursalDto): Promise<Sucursal> {

@@ -237,7 +237,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               activo: true,
             };
             if (sucursal.zonaId) {
-              payload.zona_comercial_id = sucursal.zonaId;
+              payload.zona_id = sucursal.zonaId;
             }
             return crearSucursal(clienteId!, payload);
           })

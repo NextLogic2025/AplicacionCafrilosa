@@ -17,7 +17,7 @@ export function ClienteRuteroCard({
   onUpdateFrecuencia,
   isDragging = false 
 }: ClienteRuteroCardProps) {
-  const prioridadClass = PRIORIDAD_COLORS[cliente.prioridad]
+  const prioridadClass = cliente.prioridad ? PRIORIDAD_COLORS[cliente.prioridad] : PRIORIDAD_COLORS['BAJA']
 
   return (
     <div
@@ -41,7 +41,7 @@ export function ClienteRuteroCard({
             )}
           </div>
           <div className="mt-1 text-xs text-gray-500">
-            Orden: {cliente.orden + 1}
+            Orden: {(cliente.orden ?? 0) + 1}
           </div>
         </div>
       </div>

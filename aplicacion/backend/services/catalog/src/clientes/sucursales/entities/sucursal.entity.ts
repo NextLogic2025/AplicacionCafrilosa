@@ -8,6 +8,9 @@ export class SucursalCliente {
   @Column({ name: 'cliente_id', type: 'uuid' })
   cliente_id: string;
 
+  @Column({ name: 'zona_id', type: 'int', nullable: true })
+  zona_id: number | null;
+
   @Column({ name: 'nombre_sucursal' })
   nombre_sucursal: string;
 
