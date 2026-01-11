@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { DetallePedido } from '../entities/detalle-pedido.entity';
-import { CreateOrderDto } from '../dto/create-order.dto';
+import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 
 @Injectable()

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
+import { HttpModule } from '@nestjs/axios';
+import { ConfigModule } from './config/config.module';
 
 import { Product } from './products/entities/product.entity';
 import { Category } from './categories/entities/category.entity';
@@ -22,20 +24,20 @@ import { ZonasModule } from './zonas/zonas.module';
 import { PromocionesModule } from './promociones/promociones.module';
 import { RuteroModule } from './rutero/rutero.module';
 import { AsignacionModule } from './asignacion/asignacion.module';
-import { JwtStrategy } from './auth/jwt.strategy';
+import { HealthModule } from './health/health.module';
+import { JwtStrategy } from './auth/strategies/jwt.strategy';
 
 @Module({
   imports: [
+    ConfigModule,
+    HttpModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: +(process.env.DB_PORT || 5432),
-      username: process.env.DB_USER || 'admin',
-      password: process.env.DB_PASSWORD || 'root',
-      database: process.env.DB_NAME || 'catalog_db',
+      url: process.env.DATABASE_URL,
       entities: [Product, Category, ListaPrecio, PrecioItem, Cliente, SucursalCliente, ZonaComercial, CampaniaPromocional, ProductoPromocion, PromocionClientePermitido, RuteroPlanificado, AsignacionVendedores],
+      autoLoadEntities: true,
       synchronize: false,
-      logging: false
+      logging: false,
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     ProductsModule,
@@ -46,8 +48,8 @@ import { JwtStrategy } from './auth/jwt.strategy';
     PromocionesModule,
     RuteroModule,
     AsignacionModule,
-  ]
-  ,
-  providers: [JwtStrategy]
+    HealthModule,
+  ],
+  providers: [JwtStrategy],
 })
 export class AppModule {}

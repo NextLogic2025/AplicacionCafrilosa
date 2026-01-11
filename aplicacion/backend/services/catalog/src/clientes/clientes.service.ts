@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 import { Cliente } from './entities/cliente.entity';
+import { ZonaComercial } from '../zonas/entities/zona.entity';
 
 @Injectable()
 export class ClientesService {
@@ -11,21 +14,98 @@ export class ClientesService {
   // TTL is short to allow quick propagation of changes (in milliseconds).
   private readonly _cache = new Map<string, { ts: number; value: Cliente | null }>();
   private readonly _cacheTtl = Number(process.env.CLIENTE_CACHE_TTL_MS || '300000'); // default 5 minutes
+  private readonly usuariosServiceUrl = process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3001';
+  
   constructor(
     @InjectRepository(Cliente)
     private repo: Repository<Cliente>,
+    @InjectRepository(ZonaComercial)
+    private zonaRepo: Repository<ZonaComercial>,
+    private httpService: HttpService,
   ) {}
 
-  findAll() {
-    return this.repo.find({ where: { bloqueado: false } });
+  async findAll() {
+    const clientes = await this.repo.find({ where: { bloqueado: false } });
+    let enriched = await this.enrichWithZonaNames(clientes);
+    enriched = await this.enrichWithUsuarioNames(enriched);
+    enriched = await this.enrichWithVendedorNames(enriched);
+    return enriched;
   }
 
-  findOne(id: string) {
-    return this.repo.findOne({ where: { id } });
+  async findOne(id: string) {
+    const cliente = await this.repo.findOne({ where: { id } });
+    if (!cliente) return null;
+    let enriched = await this.enrichWithZonaNames([cliente]);
+    enriched = await this.enrichWithUsuarioNames(enriched);
+    enriched = await this.enrichWithVendedorNames(enriched);
+    return enriched[0];
   }
 
-  findForVendedor(vendedorId: string) {
-    return this.repo.find({ where: { vendedor_asignado_id: vendedorId } });
+  async findForVendedor(vendedorId: string) {
+    const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId } });
+    let enriched = await this.enrichWithZonaNames(clientes);
+    enriched = await this.enrichWithUsuarioNames(enriched);
+    enriched = await this.enrichWithVendedorNames(enriched);
+    return enriched;
+  }
+
+  private async enrichWithZonaNames(clientes: Cliente[]) {
+    if (!clientes.length) return clientes;
+    const zonaIds = [...new Set(clientes.map(c => c.zona_comercial_id).filter(Boolean))];
+    if (!zonaIds.length) return clientes;
+    
+    const zonas = await this.zonaRepo.find({ where: zonaIds.map(id => ({ id })) });
+    const zonaMap = new Map(zonas.map(z => [z.id, z.nombre]));
+    
+    return clientes.map(c => ({
+      ...c,
+      zona_comercial_nombre: c.zona_comercial_id ? zonaMap.get(c.zona_comercial_id) : null
+    }));
+  }
+
+  private async enrichWithUsuarioNames(clientes: any[]) {
+    if (!clientes.length) return clientes;
+    const usuarioIds = [...new Set(clientes.map(c => c.usuario_principal_id).filter(Boolean))];
+    if (!usuarioIds.length) return clientes;
+    
+    try {
+      // Fetch usuario names from usuarios service
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.usuariosServiceUrl}/auth/usuarios/batch/internal`, { ids: usuarioIds })
+      );
+      const usuarios = response.data || [];
+      const usuarioMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
+      
+      return clientes.map(c => ({
+        ...c,
+        usuario_principal_nombre: c.usuario_principal_id ? usuarioMap.get(c.usuario_principal_id) : null
+      }));
+    } catch (error) {
+      this.logger.warn({ msg: 'Failed to fetch usuario names', error: error.message });
+      return clientes; // Return without usuario names if service unavailable
+    }
+  }
+
+  private async enrichWithVendedorNames(clientes: any[]) {
+    if (!clientes.length) return clientes;
+    const vendedorIds = [...new Set(clientes.map(c => c.vendedor_asignado_id).filter(Boolean))];
+    if (!vendedorIds.length) return clientes;
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.usuariosServiceUrl}/auth/usuarios/batch/internal`, { ids: vendedorIds })
+      );
+      const usuarios = response.data || [];
+      const vendedorMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
+
+      return clientes.map(c => ({
+        ...c,
+        vendedor_nombre: c.vendedor_asignado_id ? vendedorMap.get(c.vendedor_asignado_id) : null,
+      }));
+    } catch (error) {
+      this.logger.warn({ msg: 'Failed to fetch vendedor names', error: error.message });
+      return clientes;
+    }
   }
 
   findByUsuarioPrincipalId(usuarioId: string) {
@@ -34,15 +114,17 @@ export class ClientesService {
     const now = Date.now();
     const cached = this._cache.get(usuarioId);
     if (cached && now - cached.ts < this._cacheTtl) {
-      this.logger.debug({ msg: 'Cache hit for cliente by usuario_principal_id', usuarioId, cached: !!cached.value });
       return Promise.resolve(cached.value);
     }
-    this.logger.debug({ msg: 'Cache miss for cliente by usuario_principal_id', usuarioId });
 
-    return this.repo.findOne({ where: { usuario_principal_id: usuarioId } }).then((res) => {
-      this._cache.set(usuarioId, { ts: Date.now(), value: res });
-      this.logger.debug({ msg: 'ClientesService.findByUsuarioPrincipalId fetched', usuarioId, found: !!res, clienteId: res ? (res as any).id : null, lista_precios_id: res ? (res as any).lista_precios_id : null });
-      return res;
+    return this.repo.findOne({ where: { usuario_principal_id: usuarioId } }).then(async (res) => {
+      if (!res) return res;
+      let enriched = await this.enrichWithZonaNames([res]);
+      enriched = await this.enrichWithUsuarioNames(enriched);
+      enriched = await this.enrichWithVendedorNames(enriched);
+      const enrichedCliente = enriched[0];
+      this._cache.set(usuarioId, { ts: Date.now(), value: enrichedCliente });
+      return enrichedCliente;
     });
   }
 
@@ -52,7 +134,6 @@ export class ClientesService {
   }
 
   async update(id: string, data: Partial<Cliente>) {
-    this.logger.debug({ id, data });
     const cliente = await this.findOne(id);
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
 
@@ -65,17 +146,19 @@ export class ClientesService {
     // Update timestamp
     cliente.updated_at = new Date();
 
-    const saved = await this.repo.save(cliente as any);
-    this.logger.debug({ saved });
-    return saved;
+    return this.repo.save(cliente as any);
   }
 
   remove(id: string) {
     return this.repo.update(id, { bloqueado: true, updated_at: new Date() } as any);
   }
 
-  findBlocked() {
-    return this.repo.find({ where: { bloqueado: true } });
+  async findBlocked() {
+    const clientes = await this.repo.find({ where: { bloqueado: true } });
+    let enriched = await this.enrichWithZonaNames(clientes);
+    enriched = await this.enrichWithUsuarioNames(enriched);
+    enriched = await this.enrichWithVendedorNames(enriched);
+    return enriched;
   }
 
   async unblock(id: string) {

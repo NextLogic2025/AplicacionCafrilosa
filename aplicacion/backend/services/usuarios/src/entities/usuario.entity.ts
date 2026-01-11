@@ -15,7 +15,7 @@ export class Usuario {
   passwordHash: string;
 
   @Column({ name: 'nombre_completo' })
-  nombre: string;
+  nombreCompleto: string;
 
   @Column({ nullable: true })
   telefono: string;

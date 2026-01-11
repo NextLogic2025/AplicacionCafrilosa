@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { RuteroService } from './rutero.service';
 
@@ -11,11 +11,15 @@ export class RuteroController {
   constructor(private svc: RuteroService) {}
 
   @Get()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor')
   all() {
     return this.svc.findAll();
   }
 
   @Get('cliente/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor')
   forCliente(@Param('id') id: string) {
     return this.svc.findForCliente(id);
   }
@@ -45,7 +49,7 @@ export class RuteroController {
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
   }

@@ -1,12 +1,12 @@
 // placeholder (Auth controller)
-import { Controller, Get, Req, UseGuards, Put, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Req, UseGuards, Put, Param, Body } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthService } from './auth.service';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { JwtAuthGuard } from './jwt.guard';
-import { Roles } from './roles.decorator';
-import { RolesGuard } from './roles.guard';
+import { JwtAuthGuard } from './guards/jwt.guard';
+import { Roles } from './decorators/roles.decorator';
+import { RolesGuard } from './guards/roles.guard';
 
 interface JwtUser {
   sub: string;
@@ -66,8 +66,21 @@ export class AuthController {
   // Update user - admin/supervisor can update any user; cliente can update only their own profile
   @Put('usuarios/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'supervisor', 'cliente')
+  @Roles('admin', 'supervisor', 'cliente', 'vendedor','transportista','bodeguero')
   async actualizarUsuario(@Param('id') id: string, @Body() body: Partial<UpdateUsuarioDto>, @Req() _req: AuthRequest) {
     return this.authService.actualizarUsuario(id, body, _req.user);
+  }
+
+  // Batch fetch usuarios by IDs (for internal service use)
+  @Post('usuarios/batch')
+  @UseGuards(JwtAuthGuard)
+  async obtenerUsuariosPorIds(@Body() body: { ids: string[] }) {
+    return this.authService.obtenerUsuariosPorIds(body.ids || []);
+  }
+
+  // Batch fetch usuarios by IDs (for internal service use - NO AUTH)
+  @Post('usuarios/batch/internal')
+  async obtenerUsuariosPorIdsInternal(@Body() body: { ids: string[] }) {
+    return this.authService.obtenerUsuariosPorIds(body.ids || []);
   }
 }
