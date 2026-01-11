@@ -22,54 +22,14 @@ export function ClientCartScreen() {
     status: 'active' // 'active' | 'blocked'
   }
 
-  const handleCheckout = React.useCallback(async () => {
+  const handleCheckout = React.useCallback(() => {
     // 1. Validar que hay items
     if (items.length === 0) return
 
-    setIsProcessing(true)
-    try {
-      // Obtener ID del cliente (necesario para el pedido)
-      // El carrito debería tenerlo si setClient fue llamado, sino lo buscamos
-      let currentClientId = cart.cliente_id
-      if (!currentClientId) {
-        const clientData = await ClientService.getMyClientData()
-        if (clientData) currentClientId = clientData.id
-      }
-
-      if (!currentClientId) {
-        Alert.alert('Error', 'No se pudo identificar al cliente para el pedido.')
-        setIsProcessing(false)
-        return
-      }
-
-      // Crear el payload
-      const payload: CreateOrderPayload = {
-        cliente_id: currentClientId,
-        items: items.map(item => ({
-          producto_id: item.producto_id,
-          cantidad: item.cantidad,
-          precio_unitario: item.precio_final
-        })),
-        notas: 'Pedido desde App Móvil'
-      }
-
-      // Enviar pedido
-      await OrderService.createOrder(payload)
-
-      // Limpiar carrito y navegar
-      await clearCart()
-      Alert.alert(
-        'Pedido Confirmado',
-        'Tu pedido ha sido enviado exitosamente.',
-        [{ text: 'Ver Mis Pedidos', onPress: () => (navigation as any).navigate('Orders') }]
-      )
-    } catch (error) {
-      console.error('Error al procesar pedido:', error)
-      Alert.alert('Error', 'No se pudo procesar el pedido. Intente nuevamente.')
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [items, cart.cliente_id, clearCart, navigation])
+    // Navegar a pantalla de checkout
+    // @ts-ignore
+    navigation.navigate('ClientCheckout')
+  }, [items, navigation])
 
   // Renderizar cada item del carrito con el diseño del vendedor
   const renderCartItem = ({ item }: { item: typeof items[0] }) => (

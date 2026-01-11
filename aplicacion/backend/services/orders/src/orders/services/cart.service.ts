@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
@@ -7,6 +7,8 @@ import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
 
 @Injectable()
 export class CartService {
+    private readonly logger = new Logger(CartService.name);
+
     constructor(
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
@@ -32,27 +34,82 @@ export class CartService {
     /**
      * Lógica de Upsert: Si el producto existe en el carrito, actualiza cantidad;
      * de lo contrario, agrega uno nuevo.
+     *
+     * Manejo de errores:
+     * - BadRequestException: Si el producto_id no existe (foreign key violation)
+     * - BadRequestException: Si hay datos inválidos
+     * - Error genérico: Para otros errores inesperados
      */
     async addItem(usuario_id: string, dto: UpdateCartItemDto): Promise<CarritoItem> {
-        const cart = await this.getOrCreateCart(usuario_id);
+        try {
+            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id} al carrito`);
 
-        let item = await this.itemRepo.findOne({
-            where: { carrito_id: cart.id, producto_id: dto.producto_id },
-        });
+            const cart = await this.getOrCreateCart(usuario_id);
 
-        if (item) {
-            // En un flujo profesional, decidimos si sumamos o reemplazamos. 
-            // Aquí reemplazamos por el valor del DTO para mayor control desde el UI.
-            item.cantidad = dto.cantidad;
-            if (dto.precio_unitario_ref) item.precio_unitario_ref = dto.precio_unitario_ref;
-        } else {
-            item = this.itemRepo.create({
-                ...dto,
-                carrito_id: cart.id,
+            let item = await this.itemRepo.findOne({
+                where: { carrito_id: cart.id, producto_id: dto.producto_id },
             });
-        }
 
-        return this.itemRepo.save(item);
+            if (item) {
+                // Actualizar item existente
+                this.logger.debug(`Actualizando cantidad de ${item.cantidad} a ${dto.cantidad}`);
+                item.cantidad = dto.cantidad;
+
+                // Actualizar precio de referencia solo si se proporciona
+                if (dto.precio_unitario_ref !== undefined && dto.precio_unitario_ref !== null) {
+                    item.precio_unitario_ref = dto.precio_unitario_ref;
+                }
+            } else {
+                // Crear nuevo item con valores por defecto seguros
+                this.logger.debug(`Creando nuevo item en el carrito`);
+                item = this.itemRepo.create({
+                    carrito_id: cart.id,
+                    producto_id: dto.producto_id,
+                    cantidad: dto.cantidad,
+                    // Si precio_unitario_ref no viene, usar 0 como valor por defecto
+                    precio_unitario_ref: dto.precio_unitario_ref ?? 0,
+                });
+            }
+
+            const savedItem = await this.itemRepo.save(item);
+            this.logger.log(`Item guardado exitosamente: ${savedItem.id}`);
+            return savedItem;
+
+        } catch (error) {
+            this.logger.error(`Error al agregar item al carrito: ${error.message}`, error.stack);
+
+            // Detectar errores específicos de base de datos
+            if (error.code === '23503') {
+                // Foreign key violation - producto no existe
+                throw new BadRequestException(
+                    `El producto con ID ${dto.producto_id} no existe o no está disponible`
+                );
+            }
+
+            if (error.code === '23505') {
+                // Unique constraint violation (aunque no debería pasar con nuestro findOne)
+                throw new BadRequestException(
+                    `El producto ya está en el carrito. Use la operación de actualización.`
+                );
+            }
+
+            if (error.code === '22P02') {
+                // Invalid UUID format
+                throw new BadRequestException(
+                    `El formato del producto_id no es válido`
+                );
+            }
+
+            // Si es una excepción de NestJS, re-lanzarla
+            if (error instanceof BadRequestException || error instanceof NotFoundException) {
+                throw error;
+            }
+
+            // Error genérico
+            throw new BadRequestException(
+                `No se pudo agregar el producto al carrito: ${error.message}`
+            );
+        }
     }
 
     async removeItem(usuario_id: string, producto_id: string): Promise<void> {

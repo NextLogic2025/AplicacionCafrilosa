@@ -50,11 +50,9 @@ export function ClientOrdersScreen() {
 
     const handleCancelOrder = async (orderId: string) => {
         try {
-            const result = await OrderService.changeOrderStatus(orderId, 'ANULADO', 'Cancelado por el cliente')
-            if (result) {
-                fetchOrders()
-                alert('Pedido cancelado exitosamente')
-            }
+            await OrderService.cancelOrder(orderId)
+            fetchOrders() // Recargar lista
+            alert('Pedido cancelado exitosamente')
         } catch (error) {
             alert('No se pudo cancelar el pedido')
         }

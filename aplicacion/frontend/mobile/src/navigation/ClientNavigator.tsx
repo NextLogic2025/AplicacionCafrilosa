@@ -11,6 +11,7 @@ import { ExpandableFab, type FabAction } from '../components/ui/ExpandableFab'
 import { ClientHomeScreen } from '../features/cliente/screens/ClientHomeScreen'
 import { ClientProductListScreen } from '../features/cliente/screens/ClientProductListScreen'
 import { ClientCartScreen } from '../features/cliente/screens/ClientCartScreen'
+import { ClientCheckoutScreen } from '../features/cliente/screens/ClientCheckoutScreen'
 import { ClientOrdersScreen } from '../features/cliente/screens/ClientOrdersScreen'
 import { ClientOrderDetailScreen } from '../features/cliente/screens/ClientOrderDetailScreen'
 import { ClientTrackingScreen } from '../features/cliente/screens/ClientTrackingScreen'
@@ -124,6 +125,7 @@ export function ClientNavigator() {
             <Stack.Screen name="Returns" component={ClientReturnsScreen} />
             <Stack.Screen name="Promotions" component={ClientPromotionsScreen} />
             <Stack.Screen name="ClientProductDetail" component={ClientProductDetailScreen} />
+            <Stack.Screen name="ClientCheckout" component={ClientCheckoutScreen} />
 
             {/* Stacks de funcionalidades */}
             <Stack.Screen name="Pedidos" component={OrdersStack} />

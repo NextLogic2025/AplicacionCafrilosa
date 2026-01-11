@@ -77,7 +77,7 @@ export class OrdersController {
         return {
             orderId: pedido.id,
             currentStatus: pedido.estado_actual,
-            lastUpdate: pedido.fecha_actualizacion,
+            lastUpdate: pedido.updated_at,
             timeline: historial.map(h => ({
                 status: h.estado_nuevo,
                 time: h.fecha_cambio,
@@ -93,6 +93,17 @@ export class OrdersController {
         return this.ordersService.create(createOrderDto);
     }
 
+    /**
+     * GET /orders/cart/:userId
+     *
+     * Obtiene el carrito del usuario. Si no existe, lo crea automáticamente (Lazy Creation).
+     *
+     * @param userId - UUID del usuario
+     * @returns CarritoCabecera con sus items
+     *
+     * Roles: admin, cliente, vendedor
+     * Guard: OrderOwnershipGuard valida que el userId coincida con el usuario logueado
+     */
     @Get('/cart/:userId')
     @UseGuards(OrderOwnershipGuard)
     @Roles('admin', 'cliente', 'vendedor')
@@ -100,6 +111,30 @@ export class OrdersController {
         return this.cartService.getOrCreateCart(userId);
     }
 
+    /**
+     * POST /orders/cart/:userId
+     *
+     * Agrega o actualiza un producto en el carrito del usuario.
+     *
+     * Comportamiento Upsert:
+     * - Si el producto YA existe en el carrito, actualiza su cantidad
+     * - Si el producto NO existe, lo agrega como nuevo item
+     *
+     * @param userId - UUID del usuario
+     * @param dto - UpdateCartItemDto con producto_id, cantidad y precio_unitario_ref (opcional)
+     * @returns CarritoItem guardado
+     *
+     * Validaciones automáticas del DTO:
+     * - producto_id: UUID válido
+     * - cantidad: Mínimo 0.1 (permite fracciones para venta por peso)
+     * - precio_unitario_ref: Opcional, si no se envía se usa 0 por defecto
+     *
+     * Manejo de errores:
+     * - 400 BadRequest: Producto no existe, datos inválidos, UUID malformado
+     * - 403 Forbidden: Usuario no autorizado (OrderOwnershipGuard)
+     *
+     * Roles: admin, cliente, vendedor
+     */
     @Post('/cart/:userId')
     @UseGuards(OrderOwnershipGuard)
     @Roles('admin', 'cliente', 'vendedor')
@@ -110,6 +145,21 @@ export class OrdersController {
         return this.cartService.addItem(userId, dto);
     }
 
+    /**
+     * DELETE /orders/cart/:userId/item/:productId
+     *
+     * Elimina un producto específico del carrito del usuario.
+     *
+     * @param userId - UUID del usuario
+     * @param productId - UUID del producto a eliminar
+     * @returns void (204 No Content)
+     *
+     * Manejo de errores:
+     * - 404 NotFound: El producto no está en el carrito
+     * - 403 Forbidden: Usuario no autorizado (OrderOwnershipGuard)
+     *
+     * Roles: admin, cliente, vendedor
+     */
     @Delete('/cart/:userId/item/:productId')
     @UseGuards(OrderOwnershipGuard)
     @Roles('admin', 'cliente', 'vendedor')

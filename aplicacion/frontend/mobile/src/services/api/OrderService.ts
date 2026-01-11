@@ -97,22 +97,28 @@ export interface Order {
 }
 
 /**
- * Filtros para listar pedidos
+ * Payload para crear un pedido
  */
 export interface CreateOrderPayload {
     cliente_id: string
+    vendedor_id: string
     sucursal_id?: string
     items: {
         producto_id: string
         cantidad: number
         precio_unitario: number
+        codigo_sku?: string
+        nombre_producto?: string
+        unidad_medida?: string
+        motivo_descuento?: string
     }[]
-    notas?: string
+    observaciones_entrega?: string
 }
 
 export interface CartItemDto {
     producto_id: string
     cantidad: number
+    precio_unitario_ref?: number // Opcional: precio de referencia del producto
 }
 
 export interface Cart {
@@ -306,6 +312,21 @@ export const OrderService = {
             return []
         } catch (error) {
             console.error('Error fetching order details:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Cancelar un pedido (solo si está en estado PENDIENTE)
+     */
+    cancelOrder: async (orderId: string): Promise<Order> => {
+        try {
+            const cancelledOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}/cancel`, {
+                method: 'PATCH'
+            })
+            return cancelledOrder
+        } catch (error) {
+            console.error('Error cancelling order:', error)
             throw error
         }
     },

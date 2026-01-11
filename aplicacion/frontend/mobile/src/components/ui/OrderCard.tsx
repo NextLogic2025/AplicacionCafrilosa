@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Order } from '../../services/api/OrderService'
+import { Order, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../services/api/OrderService'
 
 interface OrderCardProps {
     order: Order
@@ -10,84 +10,109 @@ interface OrderCardProps {
     onCancel?: () => void
 }
 
-const getStatusColor = (status: Order['status']) => {
-    switch (status) {
-        case 'pending': return 'bg-yellow-100 text-yellow-800'
-        case 'processing': return 'bg-blue-100 text-blue-800'
-        case 'shipped': return 'bg-indigo-100 text-indigo-800'
-        case 'delivered': return 'bg-green-100 text-green-800'
-        case 'cancelled': return 'bg-red-100 text-red-800'
-        default: return 'bg-gray-100 text-gray-800'
-    }
-}
-
-const getStatusLabel = (status: Order['status']) => {
-    switch (status) {
-        case 'pending': return 'Pendiente'
-        case 'processing': return 'Procesando'
-        case 'shipped': return 'En camino'
-        case 'delivered': return 'Entregado'
-        case 'cancelled': return 'Cancelado'
-        default: return status
-    }
-}
-
+/**
+ * OrderCard - Tarjeta de pedido con estados visuales
+ *
+ * Muestra información resumida del pedido con colores
+ * según el estado actual (PENDIENTE, EN_RUTA, ENTREGADO, etc.)
+ */
 export function OrderCard({ order, onPress, onCancel }: OrderCardProps) {
-    const statusStyle = getStatusColor(order.status)
-    const dateFormatted = new Date(order.date).toLocaleDateString('es-ES', {
-        day: '2-digit', month: 'short', year: 'numeric'
-    })
+    const statusColor = ORDER_STATUS_COLORS[order.estado_actual]
+    const statusLabel = ORDER_STATUS_LABELS[order.estado_actual]
+
+    // Formatear fecha con validación defensiva
+    const dateFormatted = (() => {
+        try {
+            if (!order.created_at) return 'Fecha no disponible'
+            const date = new Date(order.created_at)
+            if (isNaN(date.getTime())) return 'Fecha no disponible'
+            return date.toLocaleDateString('es-EC', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        } catch {
+            return 'Fecha no disponible'
+        }
+    })()
+
+    // Calcular número de items
+    const itemsCount = order.detalles?.length || 0
 
     return (
         <Pressable
             onPress={onPress}
-            className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-black/5 border border-neutral-100"
+            className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-black/5 border border-neutral-100 active:bg-neutral-50"
         >
-            <View className="flex-row justify-between items-start mb-2">
+            {/* Header: Código y Estado */}
+            <View className="flex-row justify-between items-start mb-3">
                 <View>
-                    <Text className="text-neutral-500 text-xs font-medium">#{order.id}</Text>
-                    <Text className="text-neutral-900 font-bold text-base mt-0.5">
+                    <Text className="text-neutral-500 text-xs font-medium uppercase tracking-wide">
+                        Pedido #{order.codigo_visual}
+                    </Text>
+                    <Text className="text-neutral-400 text-xs mt-1">
                         {dateFormatted}
                     </Text>
                 </View>
-                <View className="flex-row gap-2">
-                    <View className={`px-2 py-0.5 rounded-full ${order.origin === 'cliente' ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                        <Text className={`text-[10px] font-bold uppercase ${order.origin === 'cliente' ? 'text-blue-800' : 'text-purple-800'}`}>
-                            {order.origin}
-                        </Text>
-                    </View>
-                    <View className={`px-2.5 py-1 rounded-full ${statusStyle.split(' ')[0]}`}>
-                        <Text className={`text-[10px] font-bold uppercase tracking-wide ${statusStyle.split(' ')[1]}`}>
-                            {getStatusLabel(order.status)}
-                        </Text>
-                    </View>
+
+                <View
+                    className="px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: `${statusColor}20` }}
+                >
+                    <Text
+                        className="text-xs font-bold uppercase tracking-wide"
+                        style={{ color: statusColor }}
+                    >
+                        {statusLabel}
+                    </Text>
                 </View>
             </View>
 
-            <View className="flex-row items-center justify-between mt-2">
+            {/* Divider */}
+            <View className="h-px bg-neutral-100 mb-3" />
+
+            {/* Footer: Total y Items */}
+            <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-4">
+                    {/* Total */}
                     <View>
-                        <Text className="text-neutral-400 text-xs">Total</Text>
+                        <Text className="text-neutral-400 text-xs mb-1">Total</Text>
                         <Text className="text-brand-red font-bold text-lg">
-                            ${order.total.toFixed(2)}
+                            ${Number(order.total_final || 0).toFixed(2)}
                         </Text>
                     </View>
-                    <View className="h-6 w-[1px] bg-neutral-200" />
+
+                    <View className="h-8 w-px bg-neutral-200" />
+
+                    {/* Items */}
                     <View>
-                        <Text className="text-neutral-400 text-xs">Items</Text>
-                        <Text className="text-neutral-700 font-medium">
-                            {order.itemsCount} productos
+                        <Text className="text-neutral-400 text-xs mb-1">Items</Text>
+                        <Text className="text-neutral-700 font-semibold">
+                            {itemsCount} {itemsCount === 1 ? 'producto' : 'productos'}
                         </Text>
                     </View>
                 </View>
 
-                {order.status === 'pending' && onCancel && (
+                {/* Botón de cancelar (solo si está PENDIENTE) */}
+                {order.estado_actual === 'PENDIENTE' && onCancel && (
                     <Pressable
-                        onPress={onCancel}
-                        className="bg-red-50 p-2 rounded-full active:bg-red-100"
+                        onPress={(e) => {
+                            e.stopPropagation()
+                            onCancel()
+                        }}
+                        className="bg-red-50 p-2.5 rounded-full active:bg-red-100"
                     >
-                        <Ionicons name="close-circle-outline" size={20} color={BRAND_COLORS.red} />
+                        <Ionicons name="close-circle-outline" size={22} color={BRAND_COLORS.red} />
                     </Pressable>
+                )}
+
+                {/* Indicador de ver detalle */}
+                {order.estado_actual !== 'PENDIENTE' && (
+                    <View className="bg-neutral-50 p-2.5 rounded-full">
+                        <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+                    </View>
                 )}
             </View>
         </Pressable>

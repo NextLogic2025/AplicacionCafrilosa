@@ -208,7 +208,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const currentUser = userId || (await UserService.getProfile())?.id
             if (currentUser) {
                 if (!userId) setUserId(currentUser)
-                await OrderService.addToCart(currentUser, { producto_id: product.id, cantidad: newQuantity })
+                await OrderService.addToCart(currentUser, {
+                    producto_id: product.id,
+                    cantidad: newQuantity,
+                    precio_unitario_ref: product.precio_final // Enviar precio final como referencia
+                })
             }
         } catch (error) {
             console.error('Error persisting cart add:', error)
@@ -251,12 +255,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Optimistic
+        let precioFinal = 0
         setCart(prevCart => {
-            const newItems = prevCart.items.map(item =>
-                item.producto_id === productId
-                    ? { ...item, cantidad: quantity, subtotal: quantity * item.precio_final }
-                    : item
-            )
+            const newItems = prevCart.items.map(item => {
+                if (item.producto_id === productId) {
+                    precioFinal = item.precio_final // Guardar precio para enviar al backend
+                    return { ...item, cantidad: quantity, subtotal: quantity * item.precio_final }
+                }
+                return item
+            })
             return calculateTotals(newItems)
         })
 
@@ -264,7 +271,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         try {
             const currentUser = userId || (await UserService.getProfile())?.id
             if (currentUser) {
-                await OrderService.addToCart(currentUser, { producto_id: productId, cantidad: quantity })
+                await OrderService.addToCart(currentUser, {
+                    producto_id: productId,
+                    cantidad: quantity,
+                    precio_unitario_ref: precioFinal // Enviar precio del item existente
+                })
             }
         } catch (error) {
             console.error('Error updating quantity:', error)

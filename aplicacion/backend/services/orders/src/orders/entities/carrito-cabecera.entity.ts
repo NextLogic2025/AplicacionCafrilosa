@@ -9,10 +9,10 @@ export class CarritoCabecera {
     @Column({ type: 'uuid', unique: true })
     usuario_id: string;
 
-    @CreateDateColumn({ type: 'timestamp with time zone' })
+    @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })
     fecha_creacion: Date;
 
-    @UpdateDateColumn({ type: 'timestamp with time zone' })
+    @UpdateDateColumn({ type: 'timestamp with time zone', name: 'updated_at' })
     fecha_actualizacion: Date;
 
     @OneToMany(() => CarritoItem, (item) => item.carrito, { cascade: true })
