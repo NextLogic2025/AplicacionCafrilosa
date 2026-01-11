@@ -132,6 +132,18 @@ export class ProductsController {
           clienteId = (cliente as any).id ?? clienteId;
         }
       }
+    } else {
+      // Permitir a admin/supervisor/vendedor consultar precios/promos según un cliente específico
+      const queryClienteId = req.query?.cliente_id || req.query?.clienteId;
+      if (queryClienteId && roles.some((r) => ['admin', 'supervisor', 'vendedor'].includes(r))) {
+        const cliente = await this.clientesService.findOne(String(queryClienteId));
+        if (cliente) {
+          clienteListaId = (cliente as any).lista_precios_id ?? null;
+          clienteId = (cliente as any).id ?? undefined;
+          // Forzar flujo de cliente para que se apliquen lista de precios y promociones filtradas
+          if (!roles.includes('cliente')) roles.push('cliente');
+        }
+      }
     }
 
     return { roles, clienteListaId, clienteId };

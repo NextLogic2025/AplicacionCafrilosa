@@ -151,6 +151,7 @@ CREATE TABLE clientes (
 CREATE TABLE sucursales_cliente (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
+    zona_id INT REFERENCES zonas_comerciales(id),
     nombre_sucursal VARCHAR(100),
     direccion_entrega TEXT,
     ubicacion_gps GEOMETRY(POINT, 4326),
