@@ -53,7 +53,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const [userId, setUserId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
-    // Cargar usuario y carrito al iniciar
+    /**
+     * Cargar usuario y carrito al iniciar la aplicación
+     * Se ejecuta una sola vez cuando el componente se monta
+     */
     React.useEffect(() => {
         const initCart = async () => {
             try {
@@ -63,19 +66,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                     await loadCart(user.id)
                 }
             } catch (error) {
-                console.log('Error initializing cart:', error)
+                console.log('Error inicializando carrito:', error)
             }
         }
         initCart()
     }, [])
 
+    /**
+     * Servicio: Cargar carrito del usuario desde el backend
+     * Obtiene el carrito del servidor y lo sincroniza con el estado local
+     */
     const loadCart = async (uid: string) => {
         setIsLoading(true)
         try {
             const serverCart = await OrderService.getCart(uid)
             mapServerCartToState(serverCart)
         } catch (error) {
-            console.error('Error loading cart:', error)
+            console.error('Error cargando carrito:', error)
+            // Si el backend falla, mantener el estado local vacío
         } finally {
             setIsLoading(false)
         }
@@ -139,7 +147,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }, [cart])
 
     /**
-     * Agregar producto al carrito
+     * Servicio: Agregar producto al carrito en la vista del cliente
+     * Actualización optimista: primero actualiza la UI, luego sincroniza con el backend
+     * Si falla el backend, revierte la operación
      */
     const addToCart = useCallback(async (product: {
         id: string
@@ -209,7 +219,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }, [calculateTotals, userId, cart.items, loadCart])
 
     /**
-     * Eliminar producto del carrito
+     * Servicio: Eliminar producto del carrito en la vista del cliente
+     * Actualización optimista con rollback en caso de error
      */
     const removeFromCart = useCallback(async (productId: string) => {
         // Optimistic
@@ -230,7 +241,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }, [calculateTotals, userId, loadCart])
 
     /**
-     * Actualizar cantidad de un producto
+     * Servicio: Actualizar cantidad de un producto en el carrito del cliente
+     * Si la cantidad es 0 o negativa, elimina el producto
      */
     const updateQuantity = useCallback(async (productId: string, quantity: number) => {
         if (quantity <= 0) {

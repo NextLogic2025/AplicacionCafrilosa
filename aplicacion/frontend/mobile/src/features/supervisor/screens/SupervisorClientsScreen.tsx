@@ -197,92 +197,116 @@ export function SupervisorClientsScreen({ navigation }: any) {
         ...priceLists.map(l => ({ id: `list_${l.id}`, name: l.nombre }))
     ]
 
-    const renderItem = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            className="bg-white mb-3 rounded-2xl shadow-md border border-neutral-100 overflow-hidden"
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('SupervisorClientForm', { client: item })}
-            style={{ minHeight: 120 }}
-        >
-            {/* Header: Name and Status Toggle */}
-            <View className="flex-row justify-between items-center px-4 pt-4 pb-3 bg-gradient-to-r from-neutral-50">
-                <View className="flex-1 mr-3">
-                    <Text className="font-bold text-neutral-900 text-lg mb-1" numberOfLines={1}>
-                        {item.nombre_comercial || item.razon_social}
-                    </Text>
-                    {item.nombre_comercial && item.nombre_comercial !== item.razon_social && (
-                        <Text className="text-neutral-400 text-xs italic" numberOfLines={1}>
-                            {item.razon_social}
-                        </Text>
-                    )}
-                </View>
+    const renderItem = ({ item }: { item: any }) => {
+        // Usar el nombre del usuario principal si está disponible (viene del backend)
+        const displayName = item.usuario_principal_nombre || item._linkedUserName || 'Usuario no asignado'
+        const commercialName = item.nombre_comercial || item.razon_social
 
-                {/* Switch Button - Estilo iOS Moderno */}
-                <TouchableOpacity
-                    onPress={() => confirmToggleStatus(item)}
-                    activeOpacity={0.8}
-                    style={{
-                        width: 51,
-                        height: 31,
-                        borderRadius: 15.5,
-                        backgroundColor: item.bloqueado ? '#D1D5DB' : '#34D399',
-                        padding: 2,
-                        justifyContent: 'center'
-                    }}
-                >
-                    <View
-                        style={{
-                            width: 27,
-                            height: 27,
-                            borderRadius: 13.5,
-                            backgroundColor: '#FFFFFF',
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 2,
-                            elevation: 3,
-                            transform: [{ translateX: item.bloqueado ? 0 : 20 }]
-                        }}
-                    />
-                </TouchableOpacity>
-            </View>
+        return (
+            <TouchableOpacity
+                className="bg-white mb-3 rounded-2xl overflow-hidden"
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('SupervisorClientForm', { client: item })}
+                style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 3,
+                    borderWidth: 1,
+                    borderColor: '#f3f4f6'
+                }}
+            >
+                {/* Header: Nombre del Usuario en Grande */}
+                <View className="px-4 pt-4 pb-3" style={{ backgroundColor: '#fafafa' }}>
+                    <View className="flex-row justify-between items-start">
+                        <View className="flex-1 mr-3">
+                            {/* Nombre del Usuario - Grande y destacado */}
+                            <Text className="font-bold text-neutral-900 text-xl mb-1.5" numberOfLines={1}>
+                                {displayName}
+                            </Text>
 
-            {/* Body Content */}
-            <View className="px-4 pb-4">
-                {/* Identification Badge */}
-                <View className="mb-3">
-                    <View className="bg-neutral-50 px-3 py-2 rounded-lg border border-neutral-200 flex-row items-center self-start">
-                        <Ionicons name="card-outline" size={14} color="#6b7280" />
-                        <Text className="text-neutral-700 text-xs font-semibold ml-2">{item.identificacion}</Text>
+                            {/* Nombre Comercial/Razón Social - Más pequeño */}
+                            <View className="flex-row items-center mb-2">
+                                <Ionicons name="business-outline" size={14} color="#9ca3af" style={{ marginRight: 6 }} />
+                                <Text className="text-neutral-500 text-sm font-medium" numberOfLines={1}>
+                                    {commercialName}
+                                </Text>
+                            </View>
+
+                            {/* Identificación */}
+                            <View className="flex-row items-center">
+                                <Ionicons name="card-outline" size={12} color="#6b7280" style={{ marginRight: 4 }} />
+                                <Text className="text-neutral-600 text-xs font-semibold">{item.identificacion}</Text>
+                            </View>
+                        </View>
+
+                        {/* Switch Button - Estilo iOS Moderno */}
+                        <TouchableOpacity
+                            onPress={() => confirmToggleStatus(item)}
+                            activeOpacity={0.8}
+                            style={{
+                                width: 51,
+                                height: 31,
+                                borderRadius: 15.5,
+                                backgroundColor: item.bloqueado ? '#D1D5DB' : '#34D399',
+                                padding: 2,
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <View
+                                style={{
+                                    width: 27,
+                                    height: 27,
+                                    borderRadius: 13.5,
+                                    backgroundColor: '#FFFFFF',
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 2,
+                                    elevation: 3,
+                                    transform: [{ translateX: item.bloqueado ? 0 : 20 }]
+                                }}
+                            />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Info Badges Row */}
-                <View className="flex-row flex-wrap">
-                    <View className="bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200 flex-row items-center mr-2 mb-2">
-                        <Ionicons name="pricetag" size={13} color="#0d9488" />
-                        <Text className="text-teal-700 text-xs font-bold ml-1.5">
-                            {getListName(item.lista_precios_id)}
-                        </Text>
+                {/* Body Content - Info Badges */}
+                <View className="px-4 pb-4 pt-2">
+                    <View className="flex-row flex-wrap">
+                        {/* Lista de Precios */}
+                        <View className="bg-teal-50 px-3 py-2 rounded-xl border border-teal-200 flex-row items-center mr-2 mb-2">
+                            <Ionicons name="pricetag" size={14} color="#0d9488" />
+                            <Text className="text-teal-700 text-xs font-bold ml-1.5">
+                                {getListName(item.lista_precios_id)}
+                            </Text>
+                        </View>
+
+                        {/* Zona Comercial */}
+                        {(item.zona_comercial_nombre || item._zoneName) && (
+                            <View className="bg-orange-50 px-3 py-2 rounded-xl border border-orange-200 flex-row items-center mr-2 mb-2">
+                                <Ionicons name="map-outline" size={14} color="#ea580c" />
+                                <Text className="text-orange-700 text-xs font-bold ml-1.5">
+                                    {item.zona_comercial_nombre || item._zoneName}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Vendedor Asignado */}
+                        {(item.vendedor_nombre || item._vendorName) && (
+                            <View className="bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 flex-row items-center mr-2 mb-2">
+                                <Ionicons name="person-circle-outline" size={14} color="#2563EB" />
+                                <Text className="text-blue-700 text-xs font-bold ml-1.5">
+                                    {item.vendedor_nombre || item._vendorName}
+                                </Text>
+                            </View>
+                        )}
                     </View>
-
-                    {item._zoneName && (
-                        <View className="bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200 flex-row items-center mr-2 mb-2">
-                            <Ionicons name="map-outline" size={13} color="#ea580c" />
-                            <Text className="text-orange-700 text-xs font-bold ml-1.5">{item._zoneName}</Text>
-                        </View>
-                    )}
-
-                    {item._vendorName && (
-                        <View className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 flex-row items-center mr-2 mb-2">
-                            <Ionicons name="person-circle-outline" size={13} color="#2563EB" />
-                            <Text className="text-blue-700 text-xs font-bold ml-1.5">{item._vendorName}</Text>
-                        </View>
-                    )}
                 </View>
-            </View>
-        </TouchableOpacity>
-    )
+            </TouchableOpacity>
+        )
+    }
 
     return (
         <View className="flex-1 bg-neutral-50">

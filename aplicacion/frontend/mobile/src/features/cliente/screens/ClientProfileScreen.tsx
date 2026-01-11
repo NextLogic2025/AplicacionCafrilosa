@@ -24,7 +24,7 @@ export function ClientProfileScreen() {
                 const myClient = await ClientService.getMyClientData()
 
                 if (myClient) {
-                    // Map lista_precios_id to known names
+                    // Mapeo de listas de precios conocidas
                     const priceListNames: Record<number, string> = {
                         1: 'General',
                         2: 'Mayorista',
@@ -32,22 +32,13 @@ export function ClientProfileScreen() {
                     }
                     const priceListName = priceListNames[myClient.lista_precios_id] || `Lista #${myClient.lista_precios_id}`
 
-                    // Try to load zone name (may fail due to permissions, fallback to ID)
-                    let zoneName = myClient.zona_comercial_id ? `Zona #${myClient.zona_comercial_id}` : 'General'
-                    if (myClient.zona_comercial_id) {
-                        try {
-                            const zones = await ClientService.getCommercialZones()
-                            const zone = zones.find(z => z.id === myClient.zona_comercial_id)
-                            if (zone) {
-                                zoneName = zone.nombre
-                            }
-                        } catch (error) {
-                            // Keep ID-based name on permission error
-                        }
-                    }
+                    // Usar el nombre de la zona que viene del backend (ya enriquecido)
+                    const zoneName = myClient.zona_comercial_nombre ||
+                                   (myClient.zona_comercial_id ? `Zona #${myClient.zona_comercial_id}` : 'General')
 
-                    // Vendor assignment status
-                    const vendorName = myClient.vendedor_asignado_id ? 'Asignado' : 'No asignado'
+                    // Usar el nombre del vendedor que viene del backend (ya enriquecido)
+                    const vendorName = myClient.vendedor_nombre ||
+                                     (myClient.vendedor_asignado_id ? 'Asignado' : 'No asignado')
 
                     setCommercialData({
                         identificacion: myClient.identificacion,

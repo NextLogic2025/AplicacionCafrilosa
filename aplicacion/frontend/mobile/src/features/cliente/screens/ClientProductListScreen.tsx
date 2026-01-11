@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../components/ui/Header'
@@ -8,6 +8,7 @@ import { ClientProductCard } from '../../../components/ui/ClientProductCard'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { CatalogService, type Product, type Category } from '../../../services/api/CatalogService'
 import { useCart } from '../../../context/CartContext'
+import { useToast } from '../../../context/ToastContext'
 
 /**
  * ClientProductListScreen
@@ -25,6 +26,7 @@ import { useCart } from '../../../context/CartContext'
 export function ClientProductListScreen() {
     const navigation = useNavigation()
     const { addToCart } = useCart()
+    const { showToast } = useToast()
 
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
@@ -149,14 +151,8 @@ export function ClientProductListScreen() {
             descuento_porcentaje: descuentoPorcentaje
         }, 1)
 
-        Alert.alert(
-            'Agregado al Carrito',
-            `${product.nombre} se agregó al carrito`,
-            [
-                { text: 'Seguir Comprando', style: 'cancel' },
-                { text: 'Ver Carrito', onPress: () => navigation.navigate('Carrito' as never) }
-            ]
-        )
+        // Mostrar Toast profesional con el componente genérico
+        showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
     }
 
     // Filtrar productos: si showOnlyPromotions está activo, mostrar solo productos con promoción

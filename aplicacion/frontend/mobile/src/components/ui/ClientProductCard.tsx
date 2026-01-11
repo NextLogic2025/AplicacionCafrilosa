@@ -156,7 +156,8 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         width: '100%',
         borderWidth: 1,
-        borderColor: '#F3F4F6'
+        borderColor: '#F3F4F6',
+        height: 350 // Altura fija para todas las tarjetas (promoción o no)
     },
     promotionBadge: {
         position: 'absolute',

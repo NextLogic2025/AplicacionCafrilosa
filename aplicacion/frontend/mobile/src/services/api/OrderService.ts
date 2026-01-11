@@ -152,7 +152,8 @@ export interface OrderFilters {
  */
 export const OrderService = {
     /**
-     * Crear un nuevo pedido
+     * Servicio: Crear un nuevo pedido desde la vista del cliente o vendedor
+     * Envía los items del carrito y datos del cliente al backend
      */
     createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
         try {
@@ -167,7 +168,8 @@ export const OrderService = {
     },
 
     /**
-     * Obtener el carrito del usuario
+     * Servicio: Obtener el carrito del usuario cliente en la vista de productos
+     * Retorna todos los items del carrito con sus precios y cantidades
      */
     getCart: async (userId: string): Promise<Cart> => {
         try {
@@ -181,7 +183,8 @@ export const OrderService = {
     },
 
     /**
-     * Agregar o actualizar item en el carrito
+     * Servicio: Agregar o actualizar item en el carrito del cliente
+     * Si el producto ya existe, actualiza la cantidad; si no, lo agrega
      */
     addToCart: async (userId: string, item: CartItemDto): Promise<Cart> => {
         try {
@@ -196,7 +199,8 @@ export const OrderService = {
     },
 
     /**
-     * Eliminar item del carrito
+     * Servicio: Eliminar item del carrito del cliente
+     * Elimina completamente un producto del carrito
      */
     removeFromCart: async (userId: string, productId: string): Promise<Cart> => {
         try {
@@ -210,7 +214,8 @@ export const OrderService = {
     },
 
     /**
-     * Obtener pedidos de un cliente específico (para Mis Pedidos)
+     * Servicio: Obtener pedidos de un cliente específico para la vista "Mis Pedidos"
+     * Retorna el historial de pedidos ordenado por fecha (más reciente primero)
      */
     getClientOrders: async (userId: string): Promise<Order[]> => {
         try {

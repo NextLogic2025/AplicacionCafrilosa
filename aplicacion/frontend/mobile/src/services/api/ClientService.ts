@@ -24,6 +24,10 @@ export interface Client {
     created_at?: string
     updated_at?: string
     deleted_at?: string | null
+    // Campos enriquecidos por el backend
+    usuario_principal_nombre?: string | null
+    vendedor_nombre?: string | null
+    zona_comercial_nombre?: string | null
 }
 
 export interface PriceList {
