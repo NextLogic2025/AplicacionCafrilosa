@@ -51,8 +51,8 @@ export function UserProfileTemplate({
 }: Props) {
     // Edit Mode State
     const [isEditMode, setIsEditMode] = useState(false)
-    const [editedName, setEditedName] = useState(user.name)
-    const [editedPhone, setEditedPhone] = useState(user.phone)
+    const [editedName, setEditedName] = useState(user.name || '')
+    const [editedPhone, setEditedPhone] = useState(user.phone || '')
     const [isSaving, setIsSaving] = useState(false)
 
     // Feedback/Modal State
@@ -96,8 +96,8 @@ export function UserProfileTemplate({
     const handleEditToggle = () => {
         if (isEditMode) {
             // Cancel edit
-            setEditedName(user.name)
-            setEditedPhone(user.phone)
+            setEditedName(user.name || '')
+            setEditedPhone(user.phone || '')
         }
         setIsEditMode(!isEditMode)
     }
@@ -173,6 +173,7 @@ export function UserProfileTemplate({
 
     // Role badge color based on role
     const getRoleParams = (roleStr: string) => {
+        if (!roleStr) return { bg: 'bg-neutral-200', text: 'text-neutral-700', icon: 'person-circle' as const }
         const r = roleStr.toLowerCase()
         if (r.includes('super')) return { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: 'shield-checkmark' as const }
         if (r.includes('clien')) return { bg: 'bg-green-100', text: 'text-green-700', icon: 'person' as const }
@@ -182,7 +183,7 @@ export function UserProfileTemplate({
         return { bg: 'bg-neutral-200', text: 'text-neutral-700', icon: 'person-circle' as const }
     }
 
-    const roleStyle = getRoleParams(user.role)
+    const roleStyle = getRoleParams(user.role || '')
 
     // Format date for last login
     const formatLastLogin = (dateStr?: string) => {
@@ -234,19 +235,21 @@ export function UserProfileTemplate({
                                     resizeMode="cover"
                                 />
                             ) : (
-                                <Text className="text-white text-3xl font-bold">{user.name.charAt(0).toUpperCase()}</Text>
+                                <Text className="text-white text-3xl font-bold">
+                                    {user.name && user.name.length > 0 ? user.name.charAt(0).toUpperCase() : '?'}
+                                </Text>
                             )}
                         </View>
 
                         {/* Name + Role */}
                         <View className="flex-1">
                             <Text className="text-white font-bold text-xl mb-2" numberOfLines={1}>
-                                {user.name}
+                                {user.name || 'Sin nombre'}
                             </Text>
                             <View className="self-start px-3 py-1.5 rounded-full flex-row items-center" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
                                 <Ionicons name={roleStyle.icon} size={14} color="white" />
                                 <Text className="text-white text-xs font-bold uppercase tracking-wider" style={{ marginLeft: 6 }}>
-                                    {user.role}
+                                    {user.role || 'Sin rol'}
                                 </Text>
                             </View>
                         </View>
@@ -315,8 +318,8 @@ export function UserProfileTemplate({
                         </>
                     ) : (
                         <>
-                            <InfoRow label="Nombre Completo" value={user.name} icon="person" />
-                            <InfoRow label="Correo Electrónico" value={user.email} icon="mail" />
+                            <InfoRow label="Nombre Completo" value={user.name || 'Sin nombre'} icon="person" />
+                            <InfoRow label="Correo Electrónico" value={user.email || 'Sin correo'} icon="mail" />
                             <InfoRow label="Teléfono" value={user.phone || 'Sin teléfono'} icon="call" />
                         </>
                     )}

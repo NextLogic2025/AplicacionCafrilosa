@@ -20,12 +20,12 @@ export const UserService = {
 
             return {
                 id: data.id,
-                name: data.nombre,
+                name: data.nombreCompleto || data.nombre || '',
                 role: data.rol?.nombre || 'Usuario',
-                email: data.email,
+                email: data.email || '',
                 phone: data.telefono || 'Sin teléfono',
                 photoUrl: data.avatarUrl,
-                active: data.activo,
+                active: data.activo !== undefined ? data.activo : true,
                 lastLogin: data.lastLogin
             }
         } catch (error) {
@@ -72,12 +72,12 @@ export const UserService = {
 
             return data.map((u: any) => ({
                 id: u.id,
-                name: u.nombre,
+                name: u.nombreCompleto || u.nombre || '',
                 role: u.rol?.nombre || 'Usuario',
-                email: u.email,
+                email: u.email || '',
                 phone: u.telefono || '',
                 photoUrl: u.avatarUrl,
-                active: u.activo
+                active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
             console.error('Error fetching users:', error)
@@ -91,12 +91,12 @@ export const UserService = {
 
             return data.map((u: any) => ({
                 id: u.id,
-                name: u.nombre,
+                name: u.nombreCompleto || u.nombre || '',
                 role: u.rol?.nombre || 'Vendedor',
-                email: u.email,
+                email: u.email || '',
                 phone: u.telefono || '',
                 photoUrl: u.avatarUrl,
-                active: u.activo
+                active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
             console.error('Error fetching vendors:', error)

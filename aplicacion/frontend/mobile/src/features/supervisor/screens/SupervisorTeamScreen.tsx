@@ -44,15 +44,15 @@ export function SupervisorTeamScreen() {
 
         // Filter by Role
         if (selectedRole !== 'Todos') {
-            result = result.filter(u => u.role.toLowerCase() === selectedRole.toLowerCase())
+            result = result.filter(u => u.role && u.role.toLowerCase() === selectedRole.toLowerCase())
         }
 
         // Filter by Search
         if (searchQuery) {
             const query = searchQuery.toLowerCase()
             result = result.filter(u =>
-                u.name.toLowerCase().includes(query) ||
-                u.email.toLowerCase().includes(query)
+                (u.name && u.name.toLowerCase().includes(query)) ||
+                (u.email && u.email.toLowerCase().includes(query))
             )
         }
 
@@ -106,13 +106,15 @@ export function SupervisorTeamScreen() {
                             {item.photoUrl ? (
                                 <Text>IMG</Text>
                             ) : (
-                                <Text className="text-red-500 font-bold text-lg">{item.name.charAt(0).toUpperCase()}</Text>
+                                <Text className="text-red-500 font-bold text-lg">
+                                    {item.name && item.name.length > 0 ? item.name.charAt(0).toUpperCase() : '?'}
+                                </Text>
                             )}
                         </View>
 
                         <View className="flex-1">
-                            <Text className="font-bold text-neutral-900 text-base">{item.name}</Text>
-                            <Text className="text-neutral-500 text-sm capitalize">{item.role}</Text>
+                            <Text className="font-bold text-neutral-900 text-base">{item.name || 'Sin nombre'}</Text>
+                            <Text className="text-neutral-500 text-sm capitalize">{item.role || 'Sin rol'}</Text>
                         </View>
 
                         {/* Status Indicator */}
