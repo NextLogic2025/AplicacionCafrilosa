@@ -4,36 +4,24 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { Role } from './entities/role.entity';
 import { Usuario } from './entities/usuario.entity';
+import { ConfigModule } from './config/config.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
-      
-      // 1. CONEXIÓN HÍBRIDA
-      // En Local: usa 'localhost'
-      // En Cloud Run: usa '/cloudsql/tu-proyecto:region:instancia' (Inyectado por Terraform)
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USER || 'admin',
-      password: process.env.DB_PASSWORD || 'root',
-      database: process.env.DB_NAME || 'usuarios_db',
-      
+      url: process.env.DATABASE_URL,
       entities: [Usuario, Role],
-      
-      // 2. SEGURIDAD
-      // En false porque usas scripts SQL manuales (Evita que TypeORM borre datos)
-      synchronize: false, 
-
-      // 3. ROBUSTEZ (Lo que te faltaba)
-      // Si Cloud Run arranca antes que la BD, esto evita que el servicio muera inmediatamente.
-      retryAttempts: 5,      // Intentará conectarse 5 veces
-      retryDelay: 3000,      // Esperará 3 segundos entre intentos
-      
-      // Muestra logs de error en la consola de Google si falla la conexión
-      logging: true,         
+      autoLoadEntities: true,
+      synchronize: false,
+      retryAttempts: 5,
+      retryDelay: 3000,
+      logging: true,
     }),
     AuthModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

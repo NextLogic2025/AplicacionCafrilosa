@@ -17,7 +17,7 @@ export class AuthService {
     return this.usuarioRepo.findOne({
       where: { id: usuarioId },
       relations: ['rol'],
-      select: ['id', 'email', 'nombre', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt'],
+      select: ['id', 'email', 'nombreCompleto', 'telefono', 'avatarUrl', 'emailVerificado', 'activo', 'createdAt'],
     });
   }
 
@@ -30,7 +30,7 @@ export class AuthService {
       .select([
         'u.id',
         'u.email',
-        'u.nombre',
+        'u.nombreCompleto',
         'u.telefono',
         'u.avatarUrl',
         'u.emailVerificado',
@@ -53,7 +53,7 @@ export class AuthService {
       .select([
         'u.id',
         'u.email',
-        'u.nombre',
+        'u.nombreCompleto',
         'u.telefono',
         'u.avatarUrl',
         'u.emailVerificado',
@@ -76,7 +76,7 @@ export class AuthService {
       .select([
         'u.id',
         'u.email',
-        'u.nombre',
+        'u.nombreCompleto',
         'u.telefono',
         'u.avatarUrl',
         'u.emailVerificado',
@@ -188,7 +188,7 @@ export class AuthService {
     const up: Partial<Usuario> = {};
     if (dto && typeof dto === 'object') {
       const d = dto as Partial<import('./dto/update-usuario.dto').UpdateUsuarioDto>;
-      if (d.nombre !== undefined) up.nombre = d.nombre;
+      if (d.nombre !== undefined) up.nombreCompleto = d.nombre;
       if (d.telefono !== undefined) up.telefono = d.telefono;
       if (d.avatarUrl !== undefined) up.avatarUrl = d.avatarUrl;
       if ('emailVerificado' in d) up.emailVerificado = Boolean(d.emailVerificado);
@@ -198,6 +198,19 @@ export class AuthService {
 
     await this.usuarioRepo.update(usuarioId, up as Partial<Usuario>);
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
+  }
+
+  // Batch fetch usuarios by IDs (for internal service use)
+  async obtenerUsuariosPorIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+    
+    const usuarios = await this.usuarioRepo
+      .createQueryBuilder('u')
+      .where('u.id IN (:...ids)', { ids })
+      .select(['u.id', 'u.email', 'u.nombreCompleto'])
+      .getMany();
+
+    return usuarios;
   }
 
   // Note: refresh/login/registration logic removed from usuarios service.
