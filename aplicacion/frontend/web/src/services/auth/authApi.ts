@@ -85,7 +85,8 @@ export async function signOutFromServer(accessToken: string) {
 }
 
 export async function fetchProfile(): Promise<UserProfile> {
-  return httpUsuarios<UserProfile>('/me')
+  // El endpoint real es /usuarios/me según la colección Postman
+  return httpUsuarios<UserProfile>('/usuarios/me')
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

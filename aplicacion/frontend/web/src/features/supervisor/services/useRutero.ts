@@ -39,6 +39,7 @@ export function useRutero() {
     const [error, setError] = useState<string | null>(null)
     const [rutasGuardadas, setRutasGuardadas] = useState<RutaGuardada[]>([])
     const [isLoadingRutas, setIsLoadingRutas] = useState(false)
+    const [ruteroIdSeleccionado, setRuteroIdSeleccionado] = useState<string | null>(null)
 
     useEffect(() => {
         let cancelado = false
@@ -182,6 +183,7 @@ export function useRutero() {
         [],
     )
 
+    // Permitir guardar múltiples rutas por día/zona (historial)
     const handleGuardar = useCallback(async (clientesSeleccionadosIds?: string[]) => {
         if (!zonaSeleccionada) return
 
@@ -199,6 +201,7 @@ export function useRutero() {
                 clientesAGuardar = clientes.filter((cliente) => !cliente.fueraDeZona)
             }
 
+            // Guardar cada ruta como nueva (sin eliminar las anteriores)
             const ruteroData: RuteroPlanificado[] = clientesAGuardar.map((cliente) => ({
                 id: cliente.ruteroId ?? undefined,
                 cliente_id: cliente.id,
@@ -211,53 +214,31 @@ export function useRutero() {
                 activo: cliente.activo ?? true,
             }))
 
-            const idsVigentes = new Set(
-                ruteroData
-                    .map((item) => item.id)
-                    .filter((id): id is string => typeof id === 'string' && id.length > 0),
-            )
-
-            const eliminados = ruteroActual
-                .map((ruta) => ruta.id)
-                .filter(
-                    (id): id is string =>
-                        typeof id === 'string' && id.length > 0 && !idsVigentes.has(id),
-                )
-
-            await guardarRutero(ruteroData, eliminados.length > 0 ? eliminados : undefined)
+            await guardarRutero(ruteroData)
             await cargarClientesRutero()
         } catch (err: any) {
             setError(err?.message ?? 'Error al guardar rutero')
         } finally {
             setIsSaving(false)
         }
-    }, [zonaSeleccionada, diaSeleccionado, clientes, ruteroActual, cargarClientesRutero])
+    }, [zonaSeleccionada, diaSeleccionado, clientes, cargarClientesRutero])
 
+    // Mostrar cada ruta guardada individualmente (no agrupada)
     const cargarRutasGuardadas = useCallback(async () => {
         try {
             setIsLoadingRutas(true)
             const todasLasRutas = await obtenerTodasLasRutas()
-
-            const agrupadas = todasLasRutas.reduce((acc, ruta) => {
-                const key = `${ruta.zona_id}-${ruta.dia_semana}`
-                if (!acc[key]) {
-                    const zona = zonas.find((z) => z.id === ruta.zona_id)
-                    acc[key] = {
-                        zona_id: ruta.zona_id,
-                        zona_nombre: zona?.nombre ?? 'Zona desconocida',
-                        dia_semana: ruta.dia_semana,
-                        clientes: [],
-                    }
+            // Cada ruta individual como un item
+            const rutasInd = todasLasRutas.map((ruta) => {
+                const zona = zonas.find((z) => z.id === ruta.zona_id)
+                return {
+                    zona_id: ruta.zona_id,
+                    zona_nombre: zona?.nombre ?? 'Zona desconocida',
+                    dia_semana: ruta.dia_semana,
+                    clientes: [ruta],
                 }
-                acc[key].clientes.push(ruta)
-                return acc
-            }, {} as Record<string, RutaGuardada>)
-
-            Object.values(agrupadas).forEach((ruta) => {
-                ruta.clientes.sort((a, b) => a.orden_sugerido - b.orden_sugerido)
             })
-
-            setRutasGuardadas(Object.values(agrupadas))
+            setRutasGuardadas(rutasInd)
         } catch (err: any) {
             setError(err?.message ?? 'Error al cargar rutas guardadas')
             setRutasGuardadas([])
@@ -266,10 +247,15 @@ export function useRutero() {
         }
     }, [zonas])
 
-    const handleSeleccionarRuta = useCallback((zonaId: number, dia: string) => {
+    // Al seleccionar una ruta específica, retornar el cliente_id para auto-selección
+    const handleSeleccionarRuta = useCallback((zonaId: number, dia: string, ruteroId?: string) => {
+        setRuteroIdSeleccionado(ruteroId ?? null)
         setZonaSeleccionada(zonaId)
         setDiaSeleccionado(dia as DiaSemana)
-    }, [])
+        // Buscar el cliente_id de este ruteroId
+        const rutaActual = rutasGuardadas.find(r => r.clientes.some(c => c.id === ruteroId))
+        return rutaActual?.clientes.find(c => c.id === ruteroId)?.cliente_id ?? null
+    }, [rutasGuardadas])
 
     const handleEliminarRuta = useCallback(
         async (zonaId: number, dia: string) => {
@@ -304,6 +290,8 @@ export function useRutero() {
         cargarRutasGuardadas,
         handleSeleccionarRuta,
         handleEliminarRuta,
+        ruteroIdSeleccionado,
+        limpiarRuteroSeleccionado: () => setRuteroIdSeleccionado(null),
     }
 }
 

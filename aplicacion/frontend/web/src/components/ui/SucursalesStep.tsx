@@ -11,6 +11,7 @@ export interface SucursalTemp {
   latitud?: number | null
   longitud?: number | null
   ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
+  zonaId?: number | null
 }
 
 interface SucursalesStepProps {
@@ -32,6 +33,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
     latitud: null,
     longitud: null,
     ubicacion_gps: null,
+    zonaId: null,
   })
 
   function handleAddSucursal() {
@@ -49,6 +51,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
       latitud: null,
       longitud: null,
       ubicacion_gps: null,
+      zonaId: null,
     })
   }
 
@@ -83,6 +86,19 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
           />
           
           <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-neutral-600">Zona Comercial</label>
+                        <select
+                          value={newSucursal.zonaId ?? ''}
+                          onChange={e => setNewSucursal({ ...newSucursal, zonaId: e.target.value ? Number(e.target.value) : null })}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
+                        >
+                          <option value="">Seleccionar zona</option>
+                          {zonas.map(z => (
+                            <option key={z.id} value={z.id}>{z.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
             <input
               type="text"
               placeholder="Contacto (opcional)"
@@ -102,7 +118,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
 
           <SucursalLocationPicker
             position={newSucursal.latitud && newSucursal.longitud ? { lat: newSucursal.latitud, lng: newSucursal.longitud } : null}
-            zonaId={zonaId}
+            zonaId={newSucursal.zonaId ?? null}
             zonas={zonas}
             ubicacionMatriz={ubicacionMatriz}
             onChange={(pos) => {
@@ -133,29 +149,47 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
       {sucursales.length > 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3">Sucursales Agregadas ({sucursales.length})</h3>
-          
           <div className="space-y-2">
-            {sucursales.map((sucursal, index) => (
-              <div key={index} className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{sucursal.nombre_sucursal}</p>
-                  {sucursal.direccion_entrega && <p className="text-xs text-gray-600">📍 {sucursal.direccion_entrega}</p>}
-                  {sucursal.contacto_nombre && <p className="text-xs text-gray-600">👤 {sucursal.contacto_nombre}</p>}
-                  {sucursal.contacto_telefono && <p className="text-xs text-gray-600">📞 {sucursal.contacto_telefono}</p>}
-                  {sucursal.latitud && sucursal.longitud && (
-                    <p className="text-xs text-green-700 font-medium">🗺️ Ubicación: {sucursal.latitud.toFixed(6)}, {sucursal.longitud.toFixed(6)}</p>
-                  )}
+            {sucursales.map((sucursal, index) => {
+              const zona = zonas.find(z => z.id === sucursal.zonaId);
+              return (
+                <div key={index} className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{sucursal.nombre_sucursal}</p>
+                    {sucursal.direccion_entrega && <p className="text-xs text-gray-600">📍 {sucursal.direccion_entrega}</p>}
+                    {sucursal.contacto_nombre && <p className="text-xs text-gray-600">👤 {sucursal.contacto_nombre}</p>}
+                    {sucursal.contacto_telefono && <p className="text-xs text-gray-600">📞 {sucursal.contacto_telefono}</p>}
+                    {sucursal.latitud && sucursal.longitud && (
+                      <p className="text-xs text-green-700 font-medium">🗺️ Ubicación: {sucursal.latitud.toFixed(6)}, {sucursal.longitud.toFixed(6)}</p>
+                    )}
+                    <div className="mt-1">
+                      <label className="text-xs text-neutral-600">Zona:</label>
+                      <select
+                        value={sucursal.zonaId ?? ''}
+                        onChange={e => {
+                          const updated = { ...sucursal, zonaId: e.target.value ? Number(e.target.value) : null };
+                          onUpdateSucursal(index, updated);
+                        }}
+                        className="ml-2 rounded border border-gray-300 px-2 py-1 text-xs"
+                      >
+                        <option value="">Seleccionar zona</option>
+                        {zonas.map(z => (
+                          <option key={z.id} value={z.id}>{z.nombre}</option>
+                        ))}
+                      </select>
+                      {zona && <span className="ml-2 text-xs text-gray-700">{zona.nombre}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSucursal(index)}
+                    className="ml-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                  >
+                    Eliminar
+                  </button>
                 </div>
-                
-                <button
-                  type="button"
-                  onClick={() => onRemoveSucursal(index)}
-                  className="ml-2 text-red-500 hover:text-red-700 text-sm font-medium"
-                >
-                  Eliminar
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (

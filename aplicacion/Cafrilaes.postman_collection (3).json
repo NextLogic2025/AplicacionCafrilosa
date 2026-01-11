@@ -17,7 +17,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"cliente@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"Cliente\",\r\n  \"rolId\": 6\r\n}",
+							"raw": "{\r\n  \"email\": \"supervisor@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"Supervisor\",\r\n  \"rolId\": 2\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -115,7 +115,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
 								"type": "text"
 							},
 							{
@@ -125,12 +125,12 @@
 							}
 						],
 						"url": {
-							"raw": "{{usu}}/auth/me",
+							"raw": "{{usu}}/usuarios/me",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
+								"usuarios",
 								"me"
 							]
 						}
@@ -150,7 +150,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
 								"type": "text"
 							},
 							{
@@ -164,12 +164,12 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "{{usu}}/auth/vendedores",
+							"raw": "{{usu}}/usuarios/vendedores",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
+								"usuarios",
 								"vendedores"
 							]
 						}
@@ -200,12 +200,11 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/desactivar",
+							"raw": "{{usu}}/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/desactivar",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
 								"usuarios",
 								"8f588f4f-6887-464f-ab93-861b6eb4f385",
 								"desactivar"
@@ -241,12 +240,11 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "{{usu}}/auth/usuarios/desactivados",
+							"raw": "{{usu}}/usuarios/desactivados",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
 								"usuarios",
 								"desactivados"
 							]
@@ -278,12 +276,11 @@
 							"raw": ""
 						},
 						"url": {
-							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/activar",
+							"raw": "{{usu}}/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385/activar",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
 								"usuarios",
 								"8f588f4f-6887-464f-ab93-861b6eb4f385",
 								"activar"
@@ -345,51 +342,13 @@
 							"raw": "{ \r\n\"nombre\": \"Omer\", \r\n\"telefono\": \"12345678\", \r\n\"avatarUrl\": \"https://..\", \r\n\"emailVerificado\": true\r\n}"
 						},
 						"url": {
-							"raw": "{{usu}}/auth/usuarios/22cf038a-0ab2-4bc9-b8fa-303c83dd8124",
+							"raw": "{{usu}}/usuarios/22cf038a-0ab2-4bc9-b8fa-303c83dd8124",
 							"host": [
 								"{{usu}}"
 							],
 							"path": [
-								"auth",
 								"usuarios",
 								"22cf038a-0ab2-4bc9-b8fa-303c83dd8124"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "gfdgdgdf",
-					"request": {
-						"auth": {
-							"type": "noauth"
-						},
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3Y2JmNmRkYS05ZTBiLTRjZDUtOGExOS03ZDQ1ZWU0ZjIyNDciLCJlbWFpbCI6Im9lQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzU5MTUzNCwiZXhwIjoxNzY3NjM0NzM0fQ.Y2vHRA73aKPx0D2AKAsY265qKgSHTLyHDirWYF2gPHs",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{ \"nombre\": \"Nuevo\", \"telefono\": \"12345678\", \"avatarUrl\": \"https://..\", \"emailVerificado\": true,\"rolId\": 3 }"
-						},
-						"url": {
-							"raw": "{{usu}}/auth/usuarios/8f588f4f-6887-464f-ab93-861b6eb4f385",
-							"host": [
-								"{{usu}}"
-							],
-							"path": [
-								"auth",
-								"usuarios",
-								"8f588f4f-6887-464f-ab93-861b6eb4f385"
 							]
 						}
 					},
@@ -643,7 +602,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
 										"type": "text"
 									},
 									{
@@ -952,7 +911,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
 										"type": "text"
 									},
 									{
@@ -963,7 +922,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n  \"productoId\": \"e3267b66-28d5-429c-9088-b95ddf10cb8c\",\r\n  \"listaId\": 3,\r\n  \"precio\": 8\r\n}",
+									"raw": "{\r\n  \"productoId\": \"fe787728-e93d-419a-81ea-ca135ce206ca\",\r\n  \"listaId\": 1,\r\n  \"precio\": 18\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1225,7 +1184,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
 										"type": "text"
 									},
 									{
@@ -1337,7 +1296,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMGQ5ZjA3ZS1mZjYwLTQ2OWItOWVhYS05NTI3ZWM5ODVkYjYiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTA1Nzc5LCJleHAiOjE3NjgxNDg5Nzl9.piXPEzA1QPQDtaTZT0VlC7Xl0qOGxotz2fYspwcB-9A",
 										"type": "text"
 									},
 									{
@@ -1373,7 +1332,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
 										"type": "text"
 									},
 									{
@@ -1384,7 +1343,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n  \"codigo\": \"Z-002\",\r\n  \"nombre\": \"Zona 1\",\r\n  \"ciudad\": \"Quito\",\r\n  \"macrorregion\": \"Sierra\",\r\n  \"poligono_geografico\": null\r\n}",
+									"raw": "{\r\n  \"codigo\": \"Z-003\",\r\n  \"nombre\": \"Zona 3\",\r\n  \"ciudad\": \"Loja\",\r\n  \"macrorregion\": \"Sierra\",\r\n  \"poligono_geografico\": null\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -1579,7 +1538,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n\"zona_id\": 2,\r\n\"vendedor_usuario_id\": \"41601467-0b98-4db2-bd45-0ae55e14a6cf\",\r\n\"nombre_vendedor_cache\": \"Vendedor2\",\r\n\"fecha_inicio\": \"2026-01-04\",\r\n\"fecha_fin\": null,\r\n\"es_principal\": true\r\n}"
+									"raw": "{\r\n\"zona_id\": 3,\r\n\"vendedor_usuario_id\": \"61ef4bc2-218f-4f07-84fe-5227ef08544e\",\r\n\"nombre_vendedor_cache\": \"Vendedor\",\r\n\"fecha_inicio\": \"2026-01-04\",\r\n\"fecha_fin\": null,\r\n\"es_principal\": true\r\n}"
 								},
 								"url": {
 									"raw": "{{baseURL}}/api/asignacion",
@@ -1604,7 +1563,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
 										"type": "text"
 									},
 									{
@@ -1687,7 +1646,7 @@
 										"header": [
 											{
 												"key": "Authorization",
-												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTUxNzE1LCJleHAiOjE3NjgxOTQ5MTV9.CkYUwOV0X-4FVEwLGewrZh-DLlUPFRIzWy_fex8dfD4",
 												"type": "text"
 											},
 											{
@@ -1698,7 +1657,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n\"cliente_id\": \"79863b0c-f9a5-4598-8b52-64cc761d5da4\",\r\n\"nombre_sucursal\": \"Ele\",\r\n\"direccion_entrega\": \"Calle 123\",\r\n\"ubicacion_gps\": null,\r\n\"contacto_nombre\": \"Juan Perez\",\r\n\"contacto_telefono\": \"12345678\",\r\n\"activo\": true\r\n}",
+											"raw": "{\r\n\"cliente_id\": \"a5e09259-0802-4106-8a3e-86c0d10f01ab\",\r\n\"nombre_sucursal\": \"Ele\",\r\n\"direccion_entrega\": \"Calle 123\",\r\n\"ubicacion_gps\": null,\r\n\"contacto_nombre\": \"Juan Perez\",\r\n\"contacto_telefono\": \"12345678\",\r\n\"activo\": true\r\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1706,14 +1665,14 @@
 											}
 										},
 										"url": {
-											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales",
+											"raw": "{{baseURL}}/api/clientes/a5e09259-0802-4106-8a3e-86c0d10f01ab/sucursales",
 											"host": [
 												"{{baseURL}}"
 											],
 											"path": [
 												"api",
 												"clientes",
-												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"a5e09259-0802-4106-8a3e-86c0d10f01ab",
 												"sucursales"
 											]
 										}
@@ -1987,7 +1946,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcxMzM4MCwiZXhwIjoxNzY3NzU2NTgwfQ.zsesFuBVHF4YBQcHhqG4ztPfS2UW6OD6EGdvEKYXyVw",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0ODY4NDc1MC1kNDRmLTQ5ZGEtOTUzNS03NTg0MThkM2E2MTUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MDA3ODk4LCJleHAiOjE3NjgwNTEwOTh9._A--gY0XzSQHrkY5q-th4JstQg4Y8PX19ti14y6Qag4",
 										"type": "text"
 									},
 									{
@@ -1998,7 +1957,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n  \"usuario_principal_id\": \"a35d28b9-2e6e-4254-8440-786358a6a23e\",\r\n  \"identificacion\": \"1234567890\",\r\n  \"razon_social\": \"Cliente Uno SRL\",\r\n  \"lista_precios_id\": 1,\r\n  \"zona_comercial_id\": 1\r\n}",
+									"raw": "{\r\n  \"usuario_principal_id\": \"f7a871b2-42f5-489d-abb5-ebe1ada13f51\",\r\n  \"identificacion\": \"121156111\",\r\n    \"razon_social\": \"Cliente Uno SRL\",\r\n    \"lista_precios_id\": 3,\r\n    \"nombre_comercial\": \"Reri\",\r\n    \"vendedor_asignado_id\": \"a58ed7c9-737f-48bd-a0a8-d9171d566542\",\r\n    \"direccion_texto\": \"Avenida Motel\",\r\n    \"ubicacion_gps\": null,\r\n    \"deleted_at\": null,\r\n    \"tipo_identificacion\": \"RUC\"\r\n}\r\n",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2031,7 +1990,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
 										"type": "text"
 									},
 									{
@@ -2072,7 +2031,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOWE4ZjM0OC1mNjVjLTQwMTMtOGI2MC0wNzBlNzhmNDFjODEiLCJlbWFpbCI6InRvcGRvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2NzU4ODAzMCwiZXhwIjoxNzY3NjMxMjMwfQ.5X1ciIB-_V0JPFzdV0Ao3YuI6Xq-XwLIPocUo-9BXxM",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
 										"type": "text"
 									},
 									{
@@ -2086,14 +2045,14 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "{{baseURL}}/api/clientes/19a8f348-f65c-4013-8b60-070e78f41c81",
+									"raw": "{{baseURL}}/api/clientes/a5e09259-0802-4106-8a3e-86c0d10f01ab",
 									"host": [
 										"{{baseURL}}"
 									],
 									"path": [
 										"api",
 										"clientes",
-										"19a8f348-f65c-4013-8b60-070e78f41c81"
+										"a5e09259-0802-4106-8a3e-86c0d10f01ab"
 									]
 								}
 							},
@@ -2229,6 +2188,46 @@
 										"clientes",
 										"79863b0c-f9a5-4598-8b52-64cc761d5da4",
 										"desbloquear"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Mis Clientes",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTAwODIwLCJleHAiOjE3NjgxNDQwMjB9.VWgFu-XtW-xFAcFR-J-KxDqLAplegRII903WAjfVxH4",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/clientes/mis",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"clientes",
+										"mis"
 									]
 								}
 							},
@@ -2736,7 +2735,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NzY2Y2E0MC0xZDg3LTRlNjUtOWQxYi02ZjZiNDc4MDQ0NDgiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NjY3MTYxLCJleHAiOjE3Njc3MTAzNjF9.LKsEGfqGv_sqlNmdepFXCsregp1gVzGD0cZTqBmrxAo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMGQ5ZjA3ZS1mZjYwLTQ2OWItOWVhYS05NTI3ZWM5ODVkYjYiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTAxNTIwLCJleHAiOjE3NjgxNDQ3MjB9._gEV7OVSaXkqgPYz_LpqpJmtaNfsDxSTU0iJOG8WX54",
 										"type": "text"
 									},
 									{
@@ -2772,7 +2771,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkOTBhY2RlYS1iNDZkLTQxMzMtOGRhMi05MzlmNmE4MjY0MTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2NzcyMTA4MCwiZXhwIjoxNzY3NzY0MjgwfQ.ezqAV9CWTaZXDhnAaSY9oqm5yMzob2e18YfVcOuYYh4",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTUxNzE1LCJleHAiOjE3NjgxOTQ5MTV9.CkYUwOV0X-4FVEwLGewrZh-DLlUPFRIzWy_fex8dfD4",
 										"type": "text"
 									},
 									{
@@ -2783,7 +2782,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n\"cliente_id\": \"8bf0adaa-9de5-4155-b490-246c8e58d7b3\",\r\n\"zona_id\": 1,\r\n\"dia_semana\": 2,\r\n\"frecuencia\": \"SEMANAL\",\r\n\"prioridad_visita\": \"ALTA\",\r\n\"orden_sugerido\": 1,\r\n\"hora_estimada_arribo\": \"09:30:00\",\r\n\"activo\": true\r\n}"
+									"raw": "{\r\n  \"cliente_id\": \"a5e09259-0802-4106-8a3e-86c0d10f01ab\",\r\n  \"sucursal_id\": \"7f521126-5b8d-4869-8fce-04be72e79372\",  // ← ID de la sucursal\r\n  \"zona_id\": 2,\r\n  \"dia_semana\": 3,      // Miércoles\r\n  \"frecuencia\": \"SEMANAL\",\r\n  \"prioridad_visita\": \"NORMAL\",\r\n  \"orden_sugerido\": 2,\r\n  \"hora_estimada_arribo\": \"10:00:00\"\r\n}"
 								},
 								"url": {
 									"raw": "{{baseURL}}/api/rutero",
@@ -2852,7 +2851,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4MTViNjUxZS1lNmE4LTQwZTktODFjZi1jOGFiNDdmZGUwNDIiLCJlbWFpbCI6InZlbmRlZG9yQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoidmVuZGVkb3IiLCJpYXQiOjE3Njc2Njk3MjEsImV4cCI6MTc2NzcxMjkyMX0.AXgU7-2UXEPOkqnypZQFapyBs6NvE0Ja-fnXSU7O_7g",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTUxNDM5LCJleHAiOjE3NjgxOTQ2Mzl9.XJh5eHT1pDctMrWadrGqFL65AAj5O0lnZr7X1CADAfM",
 										"type": "text"
 									},
 									{
@@ -2874,6 +2873,43 @@
 										"api",
 										"rutero",
 										"mio"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Eliminar Uusuario",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMGQ5ZjA3ZS1mZjYwLTQ2OWItOWVhYS05NTI3ZWM5ODVkYjYiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTA1MTMwLCJleHAiOjE3NjgxNDgzMzB9.x4nljhDLqjE2FnQgBCa9QPBu-8d9NbCbn75BG8FCkGs",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n\"cliente_id\": \"8bf0adaa-9de5-4155-b490-246c8e58d7b3\",\r\n\"zona_id\": 1,\r\n\"dia_semana\": 2,\r\n\"frecuencia\": \"SEMANAL\",\r\n\"prioridad_visita\": \"ALTA\",\r\n\"orden_sugerido\": 1,\r\n\"hora_estimada_arribo\": \"09:30:00\",\r\n\"activo\": true\r\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero/bec41f78-f432-400d-a113-e223de37a86a",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero",
+										"bec41f78-f432-400d-a113-e223de37a86a"
 									]
 								}
 							},
@@ -2923,7 +2959,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"cliente@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}"
+							"raw": "{\r\n  \"email\": \"Andres@cafrilos.com\",\r\n  \"password\": \"123456\"\r\n}"
 						},
 						"url": {
 							"raw": "{{auth}}/auth/login",
@@ -3135,6 +3171,28 @@
 							""
 						]
 					}
+				}
+			]
+		},
+		{
+			"name": "Orders",
+			"item": [
+				{
+					"name": "Crear Nuevo Pedido",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{orders}}/orders",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -3396,9 +3454,10 @@
 		{
 			"key": "usu",
 			"value": "http://localhost:3002"
+		},
+		{
+			"key": "orders",
+			"value": "http://localhost:3004"
 		}
 	]
 }
-base url: http://localhost:3003
-auth: http://localhost:3001	
-usu: http://localhost:3002

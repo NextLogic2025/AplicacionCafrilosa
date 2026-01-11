@@ -59,8 +59,8 @@ export async function httpAuth<T>(path: string, options: HttpOptions = {}): Prom
 
 // Función para servicio de Usuarios (puerto 3002) - incluye /auth prefix
 export async function httpUsuarios<T>(path: string, options: HttpOptions = {}): Promise<T> {
-  const pathWithAuth = path.startsWith('/auth') ? path : `/auth${path.startsWith('/') ? '' : '/'}${path}`
-  return httpRequest<T>(env.api.usuarios, pathWithAuth, options)
+  // No agregar prefijo /auth automáticamente, usar la ruta tal cual
+  return httpRequest<T>(env.api.usuarios, path, options)
 }
 
 // Función para servicio de Catálogo (puerto 3003) - incluye /api prefix

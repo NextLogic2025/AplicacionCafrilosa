@@ -49,7 +49,7 @@ export async function getPerfilCliente(): Promise<PerfilCliente | null> {
         return perfil
       }
 
-      // If catalog lookup failed, fallback to building a minimal perfil from `/auth/me` data
+      // If catalog lookup failed, fallback to building a minimal perfil from `/me` data
       // so the UI can show sensible information instead of empty state.
       try {
         const perfilFromMe: PerfilCliente = {

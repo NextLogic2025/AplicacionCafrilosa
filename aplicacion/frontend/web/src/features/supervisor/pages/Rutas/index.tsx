@@ -76,6 +76,7 @@ export default function RutasPage() {
     cargarRutasGuardadas,
     handleSeleccionarRuta,
     handleEliminarRuta,
+    limpiarRuteroSeleccionado,
   } = useRutero()
 
   // Estado para rastrear clientes seleccionados por día (objeto plano para compatibilidad)
@@ -163,9 +164,19 @@ export default function RutasPage() {
     }
   }
 
-  const onSeleccionarRuta = (zonaId: number, dia: string) => {
-    handleSeleccionarRuta(zonaId, dia)
+  // Recibe id de ruta específica (ruteroId) para cargar y auto-seleccionar
+  const onSeleccionarRuta = (zonaId: number, dia: string, ruteroId?: string) => {
+    const clienteId = handleSeleccionarRuta(zonaId, dia, ruteroId)
     setVistaActual('planificar')
+    
+    // Auto-seleccionar el cliente correspondiente
+    if (clienteId) {
+      const key = `${zonaId}-${dia}`
+      setClientesSeleccionadosPorDia(prev => ({
+        ...prev,
+        [key]: [clienteId]
+      }))
+    }
   }
 
   return (
@@ -198,7 +209,10 @@ export default function RutasPage() {
         {/* Tabs */}
         <div className="mb-4 flex gap-2 border-b border-neutral-200">
           <button
-            onClick={() => setVistaActual('planificar')}
+            onClick={() => {
+              limpiarRuteroSeleccionado()
+              setVistaActual('planificar')
+            }}
             className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               vistaActual === 'planificar'
                 ? 'border-brand-red text-brand-red'

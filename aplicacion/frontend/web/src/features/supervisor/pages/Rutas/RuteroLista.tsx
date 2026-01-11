@@ -78,7 +78,7 @@ export function RuteroLista({ rutas, isLoading, onSeleccionarRuta, onEliminarRut
           {/* Acciones */}
           <div className="flex gap-2">
             <button
-              onClick={() => onSeleccionarRuta(ruta.zona_id, ruta.dia_semana)}
+              onClick={() => onSeleccionarRuta(ruta.zona_id, ruta.dia_semana, ruta.clientes[0]?.id)}
               className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-brand-red px-3 py-2 text-sm font-semibold text-brand-red transition-colors hover:bg-red-50"
             >
               Ver/Editar

@@ -222,8 +222,8 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
 
       if (clienteId && sucursalesTemp.length > 0) {
         await Promise.all(
-          sucursalesTemp.map((sucursal) =>
-            crearSucursal(clienteId!, {
+          sucursalesTemp.map((sucursal) => {
+            const payload: any = {
               cliente_id: clienteId!,
               nombre_sucursal: sucursal.nombre_sucursal,
               direccion_entrega: sucursal.direccion_entrega,
@@ -235,8 +235,12 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               contacto_nombre: sucursal.contacto_nombre,
               contacto_telefono: sucursal.contacto_telefono,
               activo: true,
-            })
-          )
+            };
+            if (sucursal.zonaId) {
+              payload.zona_comercial_id = sucursal.zonaId;
+            }
+            return crearSucursal(clienteId!, payload);
+          })
         )
       }
 
