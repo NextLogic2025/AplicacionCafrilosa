@@ -56,18 +56,15 @@ export function RuteroAgenda({
     const value = e.target.value;
     if (value === 'PRINCIPAL') {
       onUpdateDireccion(clienteSeleccionado.id, 'PRINCIPAL');
-      // Seleccionar zona del cliente principal
-      if (clienteSeleccionado.zona_comercial_id) {
-        onZonaChange(clienteSeleccionado.zona_comercial_id);
-      }
+      // Solo cambiar zona si el cliente principal está en una zona diferente a la seleccionada
+      // (opcional: puedes comentar la siguiente línea si quieres que nunca cambie automáticamente)
+      // if (clienteSeleccionado.zona_comercial_id && clienteSeleccionado.zona_comercial_id !== zonaSeleccionada) {
+      //   onZonaChange(clienteSeleccionado.zona_comercial_id);
+      // }
     } else if (value.startsWith('SUCURSAL-')) {
       const sucursalId = value.replace('SUCURSAL-', '');
       onUpdateDireccion(clienteSeleccionado.id, 'SUCURSAL', sucursalId);
-      // Buscar zona de la sucursal y seleccionarla
-      const suc = clienteSeleccionado.sucursales?.find(s => s.id === sucursalId);
-      if (suc?.zona_id) {
-        onZonaChange(suc.zona_id);
-      }
+      // NO cambiar zona automáticamente, solo actualizar la sucursal seleccionada
     }
   };
 
@@ -82,6 +79,31 @@ export function RuteroAgenda({
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Planificación de Rutero</h3>
           <p className="text-sm text-gray-600">Organiza el orden de visitas por zona y día</p>
+          {/* Mostrar zona real de la sucursal o del cliente */}
+          {clienteSeleccionado && (
+            <div className="mt-1 text-xs text-gray-700">
+              {clienteSeleccionado.tipo_direccion === 'SUCURSAL' && clienteSeleccionado.sucursal_id ? (
+                (() => {
+                  const suc = clienteSeleccionado.sucursales?.find(s => s.id === clienteSeleccionado.sucursal_id);
+                  const zonaSucursal = suc && zonas.find(z => z.id === suc.zona_id);
+                  return zonaSucursal ? (
+                    <span>Zona de la sucursal: <span className="font-semibold">{zonaSucursal.nombre}</span></span>
+                  ) : (
+                    <span>Zona de la sucursal: <span className="font-semibold text-gray-400">Sin zona</span></span>
+                  );
+                })()
+              ) : (
+                (() => {
+                  const zonaCliente = zonas.find(z => z.id === clienteSeleccionado.zona_comercial_id);
+                  return zonaCliente ? (
+                    <span>Zona del cliente: <span className="font-semibold">{zonaCliente.nombre}</span></span>
+                  ) : (
+                    <span>Zona del cliente: <span className="font-semibold text-gray-400">Sin zona</span></span>
+                  );
+                })()
+              )}
+            </div>
+          )}
         </div>
         {/* Selector global de dirección principal/sucursal */}
         {clienteSeleccionado && (

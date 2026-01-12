@@ -118,19 +118,34 @@ export default function RutasPage() {
   }
 
 
-  // Filtrar clientes por zona usando polígono
+  // Filtrar clientes por zona usando polígono, pero si la sucursal seleccionada está fuera de la zona, igual mostrarla
   const clientesFiltrados = useMemo(() => {
-    if (!zonaActual?.poligono_geografico) return clientes
-    
-    const zonaPaths = parseGeoPolygon(zonaActual.poligono_geografico)
-    if (!zonaPaths.length) return clientes
+    if (!zonaActual?.poligono_geografico) return clientes;
+    const zonaPaths = parseGeoPolygon(zonaActual.poligono_geografico);
+    if (!zonaPaths.length) return clientes;
 
     return clientes.filter((c) => {
-      if (!c.ubicacion_gps) return false
-      const [lng, lat] = c.ubicacion_gps.coordinates
-      return isPointInPolygon({ lat, lng }, zonaPaths)
-    })
-  }, [clientes, zonaActual])
+      // Si es sucursal y la sucursal seleccionada está en otra zona, igual mostrarla
+      if (c.tipo_direccion === 'SUCURSAL' && c.sucursal_id && c.sucursales?.length) {
+        const suc = c.sucursales.find(s => s.id === c.sucursal_id);
+        if (suc && suc.zona_id && suc.zona_id !== zonaActual.id) {
+          // Mostrar aunque esté fuera de la zona
+          return true;
+        }
+        // Si la sucursal está en la zona actual, mostrar solo si su punto está dentro del polígono
+        if (suc && suc.ubicacion_gps) {
+          const [lng, lat] = suc.ubicacion_gps.coordinates;
+          return isPointInPolygon({ lat, lng }, zonaPaths);
+        }
+      }
+      // Si es dirección principal, filtrar por polígono
+      if (c.ubicacion_gps) {
+        const [lng, lat] = c.ubicacion_gps.coordinates;
+        return isPointInPolygon({ lat, lng }, zonaPaths);
+      }
+      return false;
+    });
+  }, [clientes, zonaActual]);
 
   // Seleccionar/deseleccionar todos
   const toggleTodosLosClientes = () => {

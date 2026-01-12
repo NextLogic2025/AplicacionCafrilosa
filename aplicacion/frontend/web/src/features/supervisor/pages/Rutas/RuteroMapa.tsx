@@ -55,18 +55,8 @@ export function RuteroMapa({ zona, clientes, isLoading }: RuteroMapaProps) {
     return parseGeoPolygon(val)
   }, [zona])
 
-  // Filtrar clientes dentro del polígono seleccionado
-  const clientesFiltrados = useMemo(() => {
-    const conCoords = clientes.filter((c) => c.ubicacion_gps)
-    if (!zonaPaths.length) return conCoords
-    return conCoords.filter((c) => {
-      const [lng, lat] = c.ubicacion_gps!.coordinates
-      return isPointInPolygon({ lat, lng }, zonaPaths)
-    })
-  }, [clientes, zonaPaths])
-
-  // Generar marcadores de clientes
-  const clienteMarkers = clientesFiltrados.map((cliente) => ({
+  // Mostrar todos los clientes recibidos (ya filtrados y ajustados por el padre)
+  const clienteMarkers = clientes.filter((c) => c.ubicacion_gps).map((cliente) => ({
     cliente,
     position: {
       lat: cliente.ubicacion_gps!.coordinates[1],
