@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { DetallePedido } from '../entities/detalle-pedido.entity';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
-import almacenClient from '../clients/almacen.client';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrdersService {
@@ -18,7 +16,8 @@ export class OrdersService {
   async findAllByClient(clienteId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
       where: { cliente_id: clienteId },
-      order: { fecha_creacion: 'DESC' },
+      relations: ['detalles'],
+      order: { created_at: 'DESC' },
     });
   }
 
@@ -41,31 +40,24 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      // --- Integración con almacen (simulado) ---
-      const itemsToCheck = createOrderDto.items.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad }));
-      const check = await almacenClient.checkStock(itemsToCheck);
-      if (!check || !check.ok) {
-        throw new BadRequestException('Stock insuficiente para alguno de los items');
-      }
-
-      const reservationId = `order:${uuidv4()}`;
-      const reserve = await almacenClient.reserveStock(reservationId, itemsToCheck);
-      if (!reserve || !reserve.ok) {
-        throw new ConflictException('No se pudo reservar stock en almacen');
-      }
-
       // 1. Calcular totales (Lógica de negocio)
-      const neto = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
-      const impuestos = neto * 0.15; // Ejemplo 15%
-      const total = neto + impuestos;
+      const subtotal = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
+      const descuento_total = 0; // TODO: Calcular con promociones
+      const impuestos_total = subtotal * 0.12; // IVA 12%
+      const total_final = subtotal - descuento_total + impuestos_total;
 
-      // 2. Crear cabecera
+      // 2. Crear cabecera del pedido
       const nuevoPedido = queryRunner.manager.create(Pedido, {
-        ...createOrderDto,
-        total_neto: neto,
-        total_impuestos: impuestos,
-        total_pedido: total,
+        cliente_id: createOrderDto.cliente_id,
+        vendedor_id: createOrderDto.vendedor_id,
+        sucursal_id: createOrderDto.sucursal_id,
+        observaciones_entrega: createOrderDto.observaciones_entrega,
+        subtotal,
+        descuento_total,
+        impuestos_total,
+        total_final,
         estado_actual: 'PENDIENTE',
+        origen_pedido: 'APP_MOVIL',
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
@@ -73,9 +65,16 @@ export class OrdersService {
       // 3. Crear detalles vinculados
       const detalles = createOrderDto.items.map(item => {
         return queryRunner.manager.create(DetallePedido, {
-          ...item,
           pedido_id: pedidoGuardado.id,
-          subtotal: item.precio_unitario * item.cantidad,
+          producto_id: item.producto_id,
+          codigo_sku: item.codigo_sku || null,
+          nombre_producto: item.nombre_producto || null,
+          cantidad: item.cantidad,
+          unidad_medida: item.unidad_medida || 'UN',
+          precio_lista: item.precio_unitario,
+          precio_final: item.precio_unitario,
+          es_bonificacion: false,
+          motivo_descuento: item.motivo_descuento || null,
         });
       });
 
@@ -83,27 +82,11 @@ export class OrdersService {
 
       // Si todo sale bien, confirmar cambios
       await queryRunner.commitTransaction();
-
-      // Confirmar reserva en almacen
-      try {
-        await almacenClient.commitReservation(reservationId);
-      } catch (err) {
-        // Si commit falla, loguear y notificar — el pedido ya está creado; decisión operativa necesaria
-        // Aquí podríamos marcar el pedido con un flag de 'stock_confirmacion_fallida'
-      }
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
       // Si algo falla, revertir todo (Rollback)
       await queryRunner.rollbackTransaction();
-      // intentar liberar reserva si existe
-      try {
-        if ((err as any)?.reservationId) {
-          await almacenClient.releaseReservation((err as any).reservationId);
-        }
-      } catch (releaseErr) {
-        // swallow - no podemos hacer más
-      }
       throw new InternalServerErrorException('No se pudo procesar el pedido. Intente más tarde.');
     } finally {
       await queryRunner.release();
@@ -173,7 +156,7 @@ export class OrdersService {
   async listPedidosPaginados(clienteId: string, page = 1, limit = 10) {
     const [data, total] = await this.pedidoRepo.findAndCount({
       where: { cliente_id: clienteId },
-      order: { fecha_creacion: 'DESC' },
+      order: { created_at: 'DESC' },
       take: limit,
       skip: (page - 1) * limit,
     });
