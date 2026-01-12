@@ -1,6 +1,13 @@
+/**
+ * CatalogService - Servicio para gestión del catálogo de productos
+ * Proporciona métodos para CRUD de productos, categorías, promociones y zonas
+ */
 import { env } from '../../config/env'
 import { apiRequest } from './client'
 
+// ==================== INTERFACES ====================
+
+/** Categoría de productos */
 export interface Category {
     id: number
     nombre: string
@@ -9,6 +16,7 @@ export interface Category {
     activo?: boolean
 }
 
+/** Producto del catálogo con información de precios y promociones */
 export interface Product {
     id: string
     codigo_sku: string
@@ -22,12 +30,14 @@ export interface Product {
     unidad_medida?: string
     imagen_url?: string
     activo: boolean
-    // Pricing & Promotions (from backend)
+    // Precios por lista de precios
     precios?: Array<{ lista_id: number; precio: number }>
+    // Precio original y con descuento (calculado por backend según cliente)
     precio_original?: number
     precio_oferta?: number
     ahorro?: number
     campania_aplicada_id?: number
+    // Lista de promociones aplicables al producto
     promociones?: Array<{
         campana_id: number
         precio_oferta: number | null
@@ -36,9 +46,7 @@ export interface Product {
     }>
 }
 
-/**
- * Paginated response for product lists
- */
+/** Respuesta paginada para listados de productos */
 export interface ProductsResponse {
     metadata: {
         total_items: number
@@ -49,6 +57,7 @@ export interface ProductsResponse {
     items: Product[]
 }
 
+/** Lista de precios */
 export interface PriceList {
     id: number
     nombre: string
@@ -56,6 +65,7 @@ export interface PriceList {
     activa: boolean
 }
 
+/** Promoción o campaña de descuento */
 export interface Promotion {
     id: number
     nombre: string
@@ -67,6 +77,7 @@ export interface Promotion {
     activo: boolean
 }
 
+/** Zona comercial de distribución */
 export interface CommercialZone {
     id: number
     nombre: string
@@ -75,6 +86,7 @@ export interface CommercialZone {
     activo: boolean
 }
 
+/** Registro de auditoría para trazabilidad */
 export interface AuditLog {
     id: string
     action: 'CREATE' | 'UPDATE' | 'DELETE'
@@ -84,35 +96,46 @@ export interface AuditLog {
     time: string
 }
 
+// ==================== SERVICIO ====================
+
 export const CatalogService = {
-    // --- Categories ---
+    // --- Categorías ---
+    
+    /** Obtiene todas las categorías de productos */
     getCategories: async (): Promise<Category[]> => {
         return apiRequest<Category[]>('/api/categories', {
-            useIdInsteadOfNumber: false // categories use number ID
+            useIdInsteadOfNumber: false
         })
     },
+    
+    /** Crea una nueva categoría */
     createCategory: async (data: Partial<Category>): Promise<Category> => {
         return apiRequest<Category>('/api/categories', {
             method: 'POST',
             body: JSON.stringify(data)
         })
     },
+    
+    /** Actualiza una categoría existente */
     updateCategory: async (id: number, data: Partial<Category>): Promise<Category> => {
         return apiRequest<Category>(`/api/categories/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data)
         })
     },
+    
+    /** Elimina una categoría por ID */
     deleteCategory: async (id: number): Promise<void> => {
         return apiRequest<void>(`/api/categories/${id}`, {
             method: 'DELETE'
         })
     },
 
-    // --- Products ---
+    // --- Productos ---
+    
     /**
-     * Get all products (legacy method for supervisor screens)
-     * Returns large page size for client-side filtering
+     * Obtiene todos los productos (para pantallas de supervisor)
+     * Retorna página grande para filtrado del lado del cliente
      */
     getProducts: async (): Promise<Product[]> => {
         const response: any = await apiRequest('/api/products?per_page=1000')
@@ -120,13 +143,8 @@ export const CatalogService = {
     },
 
     /**
-     * Get paginated products with client-specific pricing and promotions
-     * For 'cliente' role: prices filtered by lista_precios_id, promotions by scope
-     *
-     * @param page - Page number (default: 1)
-     * @param perPage - Items per page (default: 20)
-     * @param searchQuery - Optional search by nombre or codigo_sku
-     * @returns Paginated product list with metadata
+     * Obtiene productos paginados con precios y promociones del cliente
+     * Para rol 'cliente': precios filtrados por lista_precios_id, promociones por alcance
      */
     getProductsPaginated: async (
         page: number = 1,
@@ -154,14 +172,8 @@ export const CatalogService = {
     },
 
     /**
-     * Get products filtered by category with pagination
-     * Same pricing and promotion logic as getProductsPaginated
-     *
-     * @param categoryId - Category ID to filter by
-     * @param page - Page number
-     * @param perPage - Items per page
-     * @param searchQuery - Optional search query
-     * @returns Paginated product list for the category
+     * Obtiene productos filtrados por categoría con paginación
+     * Misma lógica de precios y promociones que getProductsPaginated
      */
     getProductsByCategory: async (
         categoryId: number,
@@ -192,11 +204,8 @@ export const CatalogService = {
     },
 
     /**
-     * Get detailed information for a single product
-     * Includes client-specific pricing and promotions
-     *
-     * @param productId - Product UUID
-     * @returns Product details with pricing
+     * Obtiene información detallada de un producto por ID
+     * Incluye precios y promociones específicas del cliente
      */
     getProductById: async (productId: string): Promise<Product | null> => {
         try {
@@ -206,30 +215,38 @@ export const CatalogService = {
             return null
         }
     },
+    
+    /** Crea un nuevo producto en el catálogo */
     createProduct: async (product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>('/api/products', {
             method: 'POST',
             body: JSON.stringify(product)
         })
     },
+    
+    /** Actualiza un producto existente */
     updateProduct: async (id: string, product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>(`/api/products/${id}`, {
             method: 'PUT',
             body: JSON.stringify(product)
         })
     },
+    
+    /** Elimina un producto del catálogo */
     deleteProduct: async (id: string): Promise<void> => {
         return apiRequest<void>(`/api/products/${id}`, {
             method: 'DELETE'
         })
     },
 
-
-
-    // --- Promotions ---
+    // --- Promociones ---
+    
+    /** Obtiene todas las promociones activas */
     getPromotions: async (): Promise<Promotion[]> => {
         return apiRequest<Promotion[]>('/api/promotions')
     },
+    
+    /** Crea una nueva promoción */
     createPromotion: async (promo: Partial<Promotion>): Promise<Promotion> => {
         return apiRequest<Promotion>('/api/promotions', {
             method: 'POST',
@@ -237,10 +254,14 @@ export const CatalogService = {
         })
     },
 
-    // --- Zones ---
+    // --- Zonas Comerciales ---
+    
+    /** Obtiene todas las zonas comerciales */
     getZones: async (): Promise<CommercialZone[]> => {
         return apiRequest<CommercialZone[]>('/api/zones')
     },
+    
+    /** Crea una nueva zona comercial */
     createZone: async (zone: Partial<CommercialZone>): Promise<CommercialZone> => {
         return apiRequest<CommercialZone>('/api/zones', {
             method: 'POST',
@@ -248,7 +269,9 @@ export const CatalogService = {
         })
     },
 
-    // --- Audit ---
+    // --- Auditoría ---
+    
+    /** Obtiene los registros de auditoría del sistema */
     getAuditLogs: async (): Promise<AuditLog[]> => {
         return apiRequest<AuditLog[]>('/api/audit')
     }

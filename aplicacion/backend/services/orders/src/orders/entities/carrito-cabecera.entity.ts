@@ -6,20 +6,14 @@ export class CarritoCabecera {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ type: 'uuid' })
+    @Column({ type: 'uuid', unique: true })
     usuario_id: string;
 
-    @Column({ name: 'cliente_id', type: 'uuid', nullable: true })
-    cliente_id: string | null;
-
-    @CreateDateColumn({ type: 'timestamp with time zone' })
+    @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })
     fecha_creacion: Date;
 
-    @UpdateDateColumn({ type: 'timestamp with time zone' })
+    @UpdateDateColumn({ type: 'timestamp with time zone', name: 'updated_at' })
     fecha_actualizacion: Date;
-
-    @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
-    deleted_at?: Date | null;
 
     @OneToMany(() => CarritoItem, (item) => item.carrito, { cascade: true })
     items: CarritoItem[];

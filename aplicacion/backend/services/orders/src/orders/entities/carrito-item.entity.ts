@@ -18,7 +18,7 @@ export class CarritoItem {
     @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
     precio_unitario_ref: number;
 
-    @CreateDateColumn({ type: 'timestamp with time zone' })
+    @CreateDateColumn({ type: 'timestamp with time zone', name: 'created_at' })
     fecha_agregado: Date;
 
     @ManyToOne(() => CarritoCabecera, (carrito) => carrito.items, { onDelete: 'CASCADE' })

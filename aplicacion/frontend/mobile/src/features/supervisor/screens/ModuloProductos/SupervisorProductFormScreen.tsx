@@ -267,15 +267,20 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                         </View>
                     )}
                 </View>
-                <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-8">
+                <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 mb-6">
                     <View className="flex-row items-center justify-between">
                         <View><Text className="text-neutral-900 font-bold text-lg">Estado del Producto</Text><Text className="text-neutral-500 text-xs">Visible para ventas cuando está activo</Text></View>
                         <Switch value={form.active} onValueChange={v => setForm({ ...form, active: v })} trackColor={{ false: "#D1D5DB", true: "#16A34A" }} />
                     </View>
                 </View>
-                <TouchableOpacity className="p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-8" onPress={handleSave} disabled={loading} style={{ backgroundColor: '#EF4444' }}>
+                
+                {/* Botón de guardar con padding extra para evitar colisión con botones del sistema */}
+                <TouchableOpacity className="p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-4" onPress={handleSave} disabled={loading} style={{ backgroundColor: '#EF4444' }}>
                     {loading ? (<ActivityIndicator color="white" />) : (<Text className="text-white font-bold text-lg">{isEditing ? 'Guardar Cambios' : 'Crear Producto'}</Text>)}
                 </TouchableOpacity>
+                
+                {/* Espacio adicional para evitar colisión con la navegación del sistema */}
+                <View className="h-20" />
             </ScrollView>
             <GenericModal visible={categoryModalVisible} onClose={() => setCategoryModalVisible(false)} title="Seleccionar Categoría" height="70%">
                 <ScrollView>

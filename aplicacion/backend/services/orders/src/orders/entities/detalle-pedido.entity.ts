@@ -6,6 +6,9 @@ export class DetallePedido {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', nullable: false })
+  pedido_id: string;
+
   @ManyToOne(() => Pedido, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pedido_id' })
   pedido: Pedido;

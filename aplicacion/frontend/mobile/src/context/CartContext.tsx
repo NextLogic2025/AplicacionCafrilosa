@@ -4,6 +4,7 @@ import type { CartItem, Cart } from '../services/api/CartService'
 import type { Client } from '../services/api/ClientService'
 import { UserService } from '../services/api/UserService'
 import { OrderService } from '../services/api/OrderService'
+import { CatalogService, Product } from '../services/api/CatalogService'
 
 /**
  * Interfaz del contexto del carrito
@@ -74,13 +75,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     /**
      * Servicio: Cargar carrito del usuario desde el backend
-     * Obtiene el carrito del servidor y lo sincroniza con el estado local
+     * Obtiene el carrito del servidor, enriquece con datos del catálogo y sincroniza con el estado local
      */
     const loadCart = async (uid: string) => {
         setIsLoading(true)
         try {
             const serverCart = await OrderService.getCart(uid)
-            mapServerCartToState(serverCart)
+            await mapServerCartToState(serverCart)
         } catch (error) {
             console.error('Error cargando carrito:', error)
             // Si el backend falla, mantener el estado local vacío
@@ -89,38 +90,72 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const mapServerCartToState = (serverCart: any) => {
-        // Mapear respuesta del backend al estado local
-        // Nota: El backend simplificado podría no devolver todos los cálculos, por lo que recalcula localmente si es necesario
-        // Pero idealmente usamos lo que viene. Si falta data, preservamos estructura.
+    const mapServerCartToState = async (serverCart: any) => {
+        // El backend del carrito solo guarda producto_id, cantidad, precio_unitario_ref
+        // Necesitamos enriquecer con datos del catálogo (nombre, SKU, imagen)
+        
+        const enrichedItems: CartItem[] = await Promise.all(
+            serverCart.items.map(async (item: any) => {
+                // Intentar obtener datos del producto desde el catálogo
+                let producto: Product | null = null
+                try {
+                    producto = await CatalogService.getProductById(item.producto_id)
+                } catch (error) {
+                    console.warn(`No se pudo obtener producto ${item.producto_id} del catálogo`)
+                }
+                
+                // Usar datos del catálogo si están disponibles, sino usar fallbacks
+                const nombreProducto = producto?.nombre || item.producto?.nombre || 'Producto'
+                const codigoSku = producto?.codigo_sku || item.producto?.codigo_principal || 'SKU'
+                const imagenUrl = producto?.imagen_url || item.producto?.imagen_url || null
+                const unidadMedida = producto?.unidad_medida || 'UN'
+                
+                // Precios: preferir los del item guardado, luego los del catálogo
+                const precioRef = Number(item.precio_unitario_ref || 0)
+                const precioLista = precioRef > 0 ? precioRef : Number(producto?.precio_original || 0)
+                const precioFinal = precioRef > 0 ? precioRef : Number(producto?.precio_oferta || precioLista)
+                
+                // Calcular si tiene promoción
+                const tienePromocion = precioFinal < precioLista && precioLista > 0
+                const descuentoPorcentaje = tienePromocion 
+                    ? Math.round(((precioLista - precioFinal) / precioLista) * 100) 
+                    : 0
+                
+                const cantidad = Number(item.cantidad || 1)
+                
+                return {
+                    id: item.id || `item-${item.producto_id}`,
+                    producto_id: item.producto_id,
+                    codigo_sku: codigoSku,
+                    nombre_producto: nombreProducto,
+                    imagen_url: imagenUrl,
+                    cantidad: cantidad,
+                    unidad_medida: unidadMedida,
+                    precio_lista: precioLista,
+                    precio_final: precioFinal,
+                    lista_precios_id: item.lista_precios_id || 1,
+                    tiene_promocion: tienePromocion,
+                    descuento_porcentaje: descuentoPorcentaje,
+                    subtotal: cantidad * precioFinal
+                }
+            })
+        )
 
-        const mappedItems: CartItem[] = serverCart.items.map((item: any) => ({
-            id: item.id,
-            producto_id: item.producto_id,
-            codigo_sku: item.producto?.codigo_principal || 'SKU',
-            nombre_producto: item.producto?.nombre || 'Producto',
-            imagen_url: item.producto?.imagen_url,
-            cantidad: Number(item.cantidad),
-            unidad_medida: 'UN', // Default
-            precio_lista: Number(item.precio_unitario_ref),
-            precio_final: Number(item.precio_unitario_ref), // Asumir mismo si no hay promo
-            lista_precios_id: 1, // Default
-            tiene_promocion: false,
-            subtotal: Number(item.cantidad) * Number(item.precio_unitario_ref)
-        }))
-
-        // Recalcular totales basados en items mapped (o usar del server si vienen)
-        const subtotal = mappedItems.reduce((acc, item) => acc + item.subtotal, 0)
+        // Recalcular totales basados en items enriquecidos
+        const subtotal = enrichedItems.reduce((acc, item) => acc + item.subtotal, 0)
+        const descuento_total = enrichedItems.reduce((acc, item) => {
+            return acc + ((item.precio_lista - item.precio_final) * item.cantidad)
+        }, 0)
         const impuestos = subtotal * 0.12
         const total = subtotal + impuestos
 
         setCart({
-            items: mappedItems,
+            items: enrichedItems,
             cliente_id: serverCart.cliente_id,
             subtotal: subtotal,
-            descuento_total: 0,
+            descuento_total: descuento_total,
             impuestos_total: impuestos,
-            total_final: total // serverCart.total_estimado si confiamos en el backend
+            total_final: total
         })
     }
 
@@ -208,10 +243,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const currentUser = userId || (await UserService.getProfile())?.id
             if (currentUser) {
                 if (!userId) setUserId(currentUser)
+                // Solo enviar campos que el backend acepta: producto_id, cantidad, precio_unitario_ref
                 await OrderService.addToCart(currentUser, {
                     producto_id: product.id,
                     cantidad: newQuantity,
-                    precio_unitario_ref: product.precio_final // Enviar precio final como referencia
+                    precio_unitario_ref: product.precio_final
                 })
             }
         } catch (error) {

@@ -1,3 +1,8 @@
+/**
+ * SupervisorProductDetailScreen - Pantalla de detalle de producto
+ * Muestra información completa del producto, precios por lista y promociones aplicables
+ * Permite al supervisor editar el producto mediante un FAB
+ */
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Image, RefreshControl, LayoutAnimation, Platform, UIManager } from 'react-native'
 import { useRoute, useNavigation, useIsFocused } from '@react-navigation/native'
@@ -21,13 +26,14 @@ export function SupervisorProductDetailScreen() {
     const isFocused = useIsFocused()
     const { productId } = route.params as { productId: string }
 
+    // Estados principales
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [product, setProduct] = useState<Product | null>(null)
     const [priceLists, setPriceLists] = useState<PriceList[]>([])
     const [activeCampaigns, setActiveCampaigns] = useState<PromotionCampaign[]>([])
     
-    // Estado para tarjetas expandidas
+    // Estado para controlar tarjetas expandidas de promociones
     const [expandedCards, setExpandedCards] = useState<Record<number, boolean>>({})
 
     const [feedbackModal, setFeedbackModal] = useState<{
@@ -42,7 +48,9 @@ export function SupervisorProductDetailScreen() {
         message: ''
     })
 
-    // Toggle para expandir/colapsar tarjetas
+    /**
+     * Toggle para expandir/colapsar tarjetas de precio con animación
+     */
     const toggleCardExpanded = (listId: number) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
         setExpandedCards(prev => ({
@@ -51,13 +59,16 @@ export function SupervisorProductDetailScreen() {
         }))
     }
 
-    // Auto-refresh cuando la pantalla recibe foco (para actualizar tras edición)
+    // Auto-refresh cuando la pantalla recibe foco
     useEffect(() => {
         if (isFocused && productId) {
             loadProductDetails()
         }
     }, [isFocused, productId])
 
+    /**
+     * Carga los detalles del producto, listas de precios y campañas activas
+     */
     const loadProductDetails = async (isRefresh: boolean = false) => {
         if (isRefresh) {
             setRefreshing(true)
@@ -65,7 +76,6 @@ export function SupervisorProductDetailScreen() {
             setLoading(true)
         }
         try {
-            // Usar getProductById para obtener el producto específico (más eficiente)
             const [foundProduct, priceListsData, campaignsData] = await Promise.all([
                 CatalogService.getProductById(productId),
                 PriceService.getLists(),
@@ -78,8 +88,11 @@ export function SupervisorProductDetailScreen() {
             }
             setProduct(foundProduct)
             setPriceLists(priceListsData)
+            
+            // Filtrar campañas activas y vigentes que apliquen a este producto
             const now = new Date()
-            const activeCampaignsForProduct: any[] = []
+            const activeCampaignsForProduct: PromotionCampaign[] = []
+            
             for (const campaign of campaignsData) {
                 const startDate = new Date(campaign.fecha_inicio)
                 const endDate = new Date(campaign.fecha_fin)
@@ -112,11 +125,17 @@ export function SupervisorProductDetailScreen() {
         loadProductDetails(true)
     }, [productId])
 
+    /**
+     * Formatea un precio en formato de moneda USD
+     */
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price)
+        return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price)
     }
 
-    const calculateDiscountedPrice = (basePrice: number, campaign: any): number => {
+    /**
+     * Calcula el precio con descuento aplicado según el tipo de promoción
+     */
+    const calculateDiscountedPrice = (basePrice: number, campaign: PromotionCampaign): number => {
         if (!campaign) return basePrice
         if (campaign.tipo_descuento === 'PORCENTAJE') {
             return basePrice * (1 - campaign.valor_descuento / 100)
@@ -126,40 +145,36 @@ export function SupervisorProductDetailScreen() {
         return basePrice
     }
 
-    const getListColor = (listName: string) => {
-        const lowerName = listName.toLowerCase()
-        if (lowerName.includes('general')) return { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-500', light: 'bg-blue-50', color: '#3B82F6' }
-        if (lowerName.includes('mayorista')) return { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-500', light: 'bg-purple-50', color: '#8B5CF6' }
-        if (lowerName.includes('horeca')) return { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-500', light: 'bg-amber-50', color: '#F59E0B' }
-        return { bg: 'bg-neutral-500', text: 'text-white', border: 'border-neutral-500', light: 'bg-neutral-50', color: '#6B7280' }
-    }
-
-    // Obtener promociones aplicables para una lista específica
+    /**
+     * Obtiene promociones aplicables para una lista de precios específica
+     * Incluye promociones globales y promociones específicas para la lista
+     */
     const getPromotionsForList = (listaId: number): PromotionCampaign[] => {
         return activeCampaigns.filter(campaign => {
-            // Promociones GLOBALES aplican a todas las listas
             if (campaign.alcance === 'GLOBAL') return true
-            // Promociones POR_LISTA solo aplican a la lista específica
             if (campaign.alcance === 'POR_LISTA') {
                 return campaign.lista_precios_objetivo_id === listaId
             }
-            // POR_CLIENTE no aplica aquí (sería filtrado por cliente en otro flujo)
             return false
         })
     }
 
+    /**
+     * Renderiza la tarjeta de precio para cada lista
+     * Muestra precio base, promociones aplicables y mejor precio disponible
+     */
     const renderPriceCard = (priceItem: { lista_id: number; precio: number }) => {
         const lista = priceLists.find(l => l.id === priceItem.lista_id)
         if (!lista) return null
+        
         const basePrice = priceItem.precio
-        const colors = getListColor(lista.nombre)
         const isExpanded = expandedCards[priceItem.lista_id] || false
         
-        // Obtener promociones específicas para esta lista
+        // Obtener promociones para esta lista
         const listPromotions = getPromotionsForList(lista.id)
         const hasPromotions = listPromotions.length > 0
         
-        // Calcular mejor precio con promociones usando reduce
+        // Calcular mejor precio disponible
         const bestDeal = listPromotions.reduce<{ price: number; campaignId: number | null; discountType: string; discountValue: number }>(
             (best, campaign) => {
                 const discounted = calculateDiscountedPrice(basePrice, campaign)
@@ -178,29 +193,25 @@ export function SupervisorProductDetailScreen() {
         
         const bestPrice = bestDeal.price
         const bestCampaignId = bestDeal.campaignId
-        const savings = basePrice - bestPrice
-        const discountPercentage = bestDeal.discountType === 'PORCENTAJE' 
-            ? bestDeal.discountValue 
-            : (savings > 0 ? Math.round((savings / basePrice) * 100) : 0)
 
         return (
             <View key={priceItem.lista_id} className="mb-4 bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-sm">
-                {/* Header con badge de lista */}
+                {/* Header de la lista de precios */}
                 <View className="flex-row items-center justify-between px-4 py-3 bg-neutral-50 border-b border-neutral-100">
-                    <View className={`px-3 py-1.5 rounded-lg ${colors.bg}`}>
-                        <Text className={`font-bold text-xs uppercase ${colors.text}`}>{lista.nombre}</Text>
+                    <View style={{ backgroundColor: BRAND_COLORS.red }} className="px-3 py-1.5 rounded-lg">
+                        <Text className="font-bold text-xs uppercase text-white">{lista.nombre}</Text>
                     </View>
                     {hasPromotions && (
-                        <View className="bg-green-100 px-3 py-1.5 rounded-lg flex-row items-center">
-                            <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                            <Text className="text-green-700 font-bold text-xs ml-1">
-                                {listPromotions.length} PROMOCIÓN{listPromotions.length > 1 ? 'ES' : ''}
+                        <View style={{ backgroundColor: `${BRAND_COLORS.red}15` }} className="px-3 py-1.5 rounded-lg flex-row items-center">
+                            <Ionicons name="pricetag" size={14} color={BRAND_COLORS.red} />
+                            <Text style={{ color: BRAND_COLORS.red }} className="font-bold text-xs ml-1">
+                                {listPromotions.length} PROMO{listPromotions.length > 1 ? 'S' : ''}
                             </Text>
                         </View>
                     )}
                 </View>
                 
-                {/* Precio Normal (siempre visible) */}
+                {/* Sección de precios */}
                 <View className="px-4 py-4 border-b border-neutral-100">
                     <View className="flex-row items-center justify-between">
                         <View className="flex-row items-center">
@@ -209,7 +220,7 @@ export function SupervisorProductDetailScreen() {
                             </View>
                             <View>
                                 <Text className="text-neutral-500 text-xs">Precio Base</Text>
-                                <Text className={`font-bold text-xl ${hasPromotions ? 'text-neutral-400' : 'text-neutral-900'}`}>
+                                <Text className={`font-bold text-xl ${hasPromotions ? 'text-neutral-400 line-through' : 'text-neutral-900'}`}>
                                     {formatPrice(basePrice)}
                                 </Text>
                             </View>
@@ -217,34 +228,35 @@ export function SupervisorProductDetailScreen() {
                         {hasPromotions && (
                             <View className="items-end">
                                 <Text className="text-neutral-500 text-xs">Mejor precio:</Text>
-                                <Text className="text-green-600 font-bold text-xl">{formatPrice(bestPrice)}</Text>
+                                <Text style={{ color: BRAND_COLORS.red }} className="font-bold text-xl">{formatPrice(bestPrice)}</Text>
                             </View>
                         )}
                     </View>
                 </View>
 
-                {/* Promociones aplicables (expandible) */}
+                {/* Sección expandible de promociones */}
                 {hasPromotions && (
                     <>
                         <TouchableOpacity 
                             onPress={() => toggleCardExpanded(priceItem.lista_id)}
-                            className="flex-row items-center justify-between px-4 py-3 bg-green-50"
+                            style={{ backgroundColor: `${BRAND_COLORS.red}10` }}
+                            className="flex-row items-center justify-between px-4 py-3"
                             activeOpacity={0.7}
                         >
                             <View className="flex-row items-center">
-                                <Ionicons name="gift-outline" size={18} color="#16A34A" />
-                                <Text className="text-green-700 font-semibold text-sm ml-2">
+                                <Ionicons name="gift-outline" size={18} color={BRAND_COLORS.red} />
+                                <Text style={{ color: BRAND_COLORS.red }} className="font-semibold text-sm ml-2">
                                     Ver {listPromotions.length} promoción{listPromotions.length > 1 ? 'es' : ''} disponible{listPromotions.length > 1 ? 's' : ''}
                                 </Text>
                             </View>
                             <Ionicons 
                                 name={isExpanded ? "chevron-up" : "chevron-down"} 
                                 size={20} 
-                                color="#16A34A" 
+                                color={BRAND_COLORS.red} 
                             />
                         </TouchableOpacity>
 
-                        {/* Contenido expandido - Lista de promociones */}
+                        {/* Lista de promociones expandida */}
                         {isExpanded && (
                             <View className="px-4 py-3 bg-neutral-50">
                                 {listPromotions.map((campaign, index) => {
@@ -256,13 +268,14 @@ export function SupervisorProductDetailScreen() {
                                     return (
                                         <View 
                                             key={campaign.id} 
-                                            className={`bg-white rounded-xl p-4 border ${isBestDeal ? 'border-green-300' : 'border-neutral-200'} ${index < listPromotions.length - 1 ? 'mb-3' : ''}`}
+                                            className={`bg-white rounded-xl p-4 border ${isBestDeal ? 'border-2' : 'border-neutral-200'} ${index < listPromotions.length - 1 ? 'mb-3' : ''}`}
+                                            style={isBestDeal ? { borderColor: BRAND_COLORS.red } : undefined}
                                         >
-                                            {/* Header de promoción */}
+                                            {/* Header de la promoción */}
                                             <View className="flex-row items-start justify-between mb-3">
                                                 <View className="flex-1 mr-2">
                                                     <View className="flex-row items-center mb-1">
-                                                        <View className="w-6 h-6 rounded-full bg-red-500 items-center justify-center mr-2">
+                                                        <View style={{ backgroundColor: BRAND_COLORS.red }} className="w-6 h-6 rounded-full items-center justify-center mr-2">
                                                             <Ionicons name="star" size={12} color="white" />
                                                         </View>
                                                         <Text className="text-neutral-900 font-bold text-sm flex-1" numberOfLines={2}>
@@ -276,13 +289,15 @@ export function SupervisorProductDetailScreen() {
                                                     )}
                                                 </View>
                                                 <View className="flex-col items-end">
-                                                    <View className={`px-2 py-1 rounded ${isGlobal ? 'bg-blue-100' : 'bg-amber-100'}`}>
-                                                        <Text className={`text-[10px] font-bold ${isGlobal ? 'text-blue-700' : 'text-amber-700'}`}>
+                                                    {/* Badge de alcance */}
+                                                    <View className={`px-2 py-1 rounded ${isGlobal ? 'bg-neutral-100' : 'bg-neutral-100'}`}>
+                                                        <Text className="text-[10px] font-bold text-neutral-600">
                                                             {isGlobal ? 'GLOBAL' : 'SOLO ESTA LISTA'}
                                                         </Text>
                                                     </View>
+                                                    {/* Badge de mejor oferta */}
                                                     {isBestDeal && (
-                                                        <View className="bg-green-500 px-2 py-1 rounded mt-1">
+                                                        <View style={{ backgroundColor: BRAND_COLORS.red }} className="px-2 py-1 rounded mt-1">
                                                             <Text className="text-white text-[10px] font-bold">MEJOR OFERTA</Text>
                                                         </View>
                                                     )}
@@ -299,7 +314,7 @@ export function SupervisorProductDetailScreen() {
                                                     <Ionicons name="arrow-forward" size={16} color="#9CA3AF" />
                                                     <View className="items-end">
                                                         <Text className="text-neutral-500 text-xs">Con descuento:</Text>
-                                                        <Text className="text-green-600 font-bold text-lg">{formatPrice(discountedPrice)}</Text>
+                                                        <Text style={{ color: BRAND_COLORS.red }} className="font-bold text-lg">{formatPrice(discountedPrice)}</Text>
                                                     </View>
                                                 </View>
                                             </View>
@@ -307,8 +322,8 @@ export function SupervisorProductDetailScreen() {
                                             {/* Info de ahorro y fechas */}
                                             <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-neutral-100">
                                                 <View className="flex-row items-center">
-                                                    <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                                                    <Text className="text-green-600 text-xs font-semibold ml-1">
+                                                    <Ionicons name="checkmark-circle" size={14} color={BRAND_COLORS.red} />
+                                                    <Text style={{ color: BRAND_COLORS.red }} className="text-xs font-semibold ml-1">
                                                         Ahorras {formatPrice(campaignSavings)} ({campaign.tipo_descuento === 'PORCENTAJE' ? `${campaign.valor_descuento}%` : 'fijo'})
                                                     </Text>
                                                 </View>
@@ -327,7 +342,7 @@ export function SupervisorProductDetailScreen() {
                     </>
                 )}
 
-                {/* Sin promociones */}
+                {/* Mensaje cuando no hay promociones */}
                 {!hasPromotions && (
                     <View className="px-4 py-3 bg-neutral-50">
                         <View className="flex-row items-center">
@@ -367,7 +382,7 @@ export function SupervisorProductDetailScreen() {
         )
     }
 
-    // Sección de información del producto
+    // Componente de fila de información
     const InfoRow = ({ icon, label, value, valueColor = 'text-neutral-900' }: { icon: keyof typeof Ionicons.glyphMap, label: string, value: string, valueColor?: string }) => (
         <View className="flex-row items-center py-3 border-b border-neutral-100">
             <View className="w-9 h-9 rounded-lg bg-neutral-100 items-center justify-center mr-3">
@@ -380,9 +395,12 @@ export function SupervisorProductDetailScreen() {
         </View>
     )
 
-    // Badge para características especiales
-    const FeatureBadge = ({ icon, label, active, activeColor = 'bg-blue-500' }: { icon: keyof typeof Ionicons.glyphMap, label: string, active: boolean, activeColor?: string }) => (
-        <View className={`flex-row items-center px-3 py-2 rounded-xl mr-2 mb-2 ${active ? activeColor : 'bg-neutral-100'}`}>
+    // Componente de badge para características
+    const FeatureBadge = ({ icon, label, active }: { icon: keyof typeof Ionicons.glyphMap, label: string, active: boolean }) => (
+        <View 
+            className="flex-row items-center px-3 py-2 rounded-xl mr-2 mb-2"
+            style={active ? { backgroundColor: BRAND_COLORS.red } : { backgroundColor: '#F3F4F6' }}
+        >
             <Ionicons name={icon} size={16} color={active ? 'white' : '#9CA3AF'} />
             <Text className={`text-xs font-semibold ml-1.5 ${active ? 'text-white' : 'text-neutral-400'}`}>{label}</Text>
         </View>
@@ -438,14 +456,14 @@ export function SupervisorProductDetailScreen() {
                         {/* Categoría */}
                         <View className="flex-row items-center mt-3">
                             <Ionicons name="folder-outline" size={16} color={BRAND_COLORS.red} />
-                            <Text className="text-red-600 text-sm font-semibold ml-1.5">
+                            <Text style={{ color: BRAND_COLORS.red }} className="text-sm font-semibold ml-1.5">
                                 {product.categoria?.nombre || 'Sin categoría'}
                             </Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Descripción del Producto */}
+                {/* Sección: Descripción del Producto */}
                 <View className="px-4 pt-5">
                     <View className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
                         <View className="flex-row items-center px-4 py-3 bg-neutral-50 border-b border-neutral-100">
@@ -465,7 +483,7 @@ export function SupervisorProductDetailScreen() {
                     </View>
                 </View>
 
-                {/* Especificaciones Técnicas */}
+                {/* Sección: Especificaciones Técnicas */}
                 <View className="px-4 pt-5">
                     <View className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
                         <View className="flex-row items-center px-4 py-3 bg-neutral-50 border-b border-neutral-100">
@@ -497,13 +515,11 @@ export function SupervisorProductDetailScreen() {
                                         icon="snow-outline" 
                                         label="Requiere Frío" 
                                         active={product.requiere_frio || false}
-                                        activeColor="bg-blue-500"
                                     />
                                     <FeatureBadge 
                                         icon="checkmark-circle-outline" 
                                         label="Disponible" 
                                         active={product.activo}
-                                        activeColor="bg-green-500"
                                     />
                                 </View>
                             </View>
@@ -511,45 +527,53 @@ export function SupervisorProductDetailScreen() {
                     </View>
                 </View>
 
-                {/* Resumen de Promociones Activas */}
+                {/* Sección: Resumen de Promociones Activas */}
                 {activeCampaigns.length > 0 && (
                     <View className="px-4 pt-5">
                         <View className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
-                            <View className="flex-row items-center justify-between px-4 py-3 bg-green-50 border-b border-green-100">
+                            {/* Header con contador de promociones */}
+                            <View 
+                                style={{ backgroundColor: `${BRAND_COLORS.red}10` }} 
+                                className="flex-row items-center justify-between px-4 py-3 border-b border-neutral-100"
+                            >
                                 <View className="flex-row items-center">
-                                    <View className="w-8 h-8 bg-green-500 rounded-full items-center justify-center mr-3">
+                                    <View style={{ backgroundColor: BRAND_COLORS.red }} className="w-8 h-8 rounded-full items-center justify-center mr-3">
                                         <Ionicons name="gift" size={16} color="white" />
                                     </View>
                                     <View>
-                                        <Text className="font-bold text-green-800 text-base">Promociones Disponibles</Text>
-                                        <Text className="text-green-600 text-xs">{activeCampaigns.length} promoción{activeCampaigns.length > 1 ? 'es' : ''} activa{activeCampaigns.length > 1 ? 's' : ''}</Text>
+                                        <Text style={{ color: BRAND_COLORS.red700 }} className="font-bold text-base">Promociones Disponibles</Text>
+                                        <Text style={{ color: BRAND_COLORS.red }} className="text-xs">
+                                            {activeCampaigns.length} promoción{activeCampaigns.length > 1 ? 'es' : ''} activa{activeCampaigns.length > 1 ? 's' : ''}
+                                        </Text>
                                     </View>
                                 </View>
-                                <View className="bg-green-500 px-3 py-1.5 rounded-lg">
+                                <View style={{ backgroundColor: BRAND_COLORS.red }} className="px-3 py-1.5 rounded-lg">
                                     <Text className="text-white font-bold text-xs">{activeCampaigns.length}</Text>
                                 </View>
                             </View>
+                            
                             <View className="p-4">
-                                {/* Separar por tipo de alcance */}
+                                {/* Separar promociones por tipo de alcance */}
                                 {(() => {
                                     const globalCampaigns = activeCampaigns.filter(c => c.alcance === 'GLOBAL')
                                     const listCampaigns = activeCampaigns.filter(c => c.alcance === 'POR_LISTA')
                                     
                                     return (
                                         <View>
+                                            {/* Promociones Globales */}
                                             {globalCampaigns.length > 0 && (
                                                 <View className="mb-3">
                                                     <View className="flex-row items-center mb-2">
-                                                        <View className="w-5 h-5 rounded-full bg-blue-100 items-center justify-center mr-2">
-                                                            <Ionicons name="globe-outline" size={12} color="#2563EB" />
+                                                        <View className="w-5 h-5 rounded-full bg-neutral-100 items-center justify-center mr-2">
+                                                            <Ionicons name="globe-outline" size={12} color="#6B7280" />
                                                         </View>
-                                                        <Text className="text-blue-700 font-semibold text-xs">PROMOCIONES GLOBALES ({globalCampaigns.length})</Text>
+                                                        <Text className="text-neutral-600 font-semibold text-xs">PROMOCIONES GLOBALES ({globalCampaigns.length})</Text>
                                                     </View>
                                                     {globalCampaigns.map(campaign => (
-                                                        <View key={campaign.id} className="flex-row items-center py-2 px-3 bg-blue-50 rounded-lg mb-1">
-                                                            <Ionicons name="checkmark-circle" size={14} color="#2563EB" />
+                                                        <View key={campaign.id} style={{ backgroundColor: `${BRAND_COLORS.red}08` }} className="flex-row items-center py-2 px-3 rounded-lg mb-1">
+                                                            <Ionicons name="checkmark-circle" size={14} color={BRAND_COLORS.red} />
                                                             <Text className="text-neutral-700 text-sm ml-2 flex-1">{campaign.nombre}</Text>
-                                                            <View className="bg-blue-500 px-2 py-0.5 rounded">
+                                                            <View style={{ backgroundColor: BRAND_COLORS.red }} className="px-2 py-0.5 rounded">
                                                                 <Text className="text-white text-[10px] font-bold">
                                                                     {campaign.tipo_descuento === 'PORCENTAJE' ? `${campaign.valor_descuento}%` : formatPrice(campaign.valor_descuento)}
                                                                 </Text>
@@ -559,24 +583,25 @@ export function SupervisorProductDetailScreen() {
                                                 </View>
                                             )}
                                             
+                                            {/* Promociones por Lista */}
                                             {listCampaigns.length > 0 && (
                                                 <View>
                                                     <View className="flex-row items-center mb-2">
-                                                        <View className="w-5 h-5 rounded-full bg-amber-100 items-center justify-center mr-2">
-                                                            <Ionicons name="list-outline" size={12} color="#D97706" />
+                                                        <View className="w-5 h-5 rounded-full bg-neutral-100 items-center justify-center mr-2">
+                                                            <Ionicons name="list-outline" size={12} color="#6B7280" />
                                                         </View>
-                                                        <Text className="text-amber-700 font-semibold text-xs">PROMOCIONES POR LISTA ({listCampaigns.length})</Text>
+                                                        <Text className="text-neutral-600 font-semibold text-xs">PROMOCIONES POR LISTA ({listCampaigns.length})</Text>
                                                     </View>
                                                     {listCampaigns.map(campaign => {
                                                         const targetList = priceLists.find(l => l.id === campaign.lista_precios_objetivo_id)
                                                         return (
-                                                            <View key={campaign.id} className="flex-row items-center py-2 px-3 bg-amber-50 rounded-lg mb-1">
-                                                                <Ionicons name="checkmark-circle" size={14} color="#D97706" />
+                                                            <View key={campaign.id} className="flex-row items-center py-2 px-3 bg-neutral-50 rounded-lg mb-1">
+                                                                <Ionicons name="checkmark-circle" size={14} color={BRAND_COLORS.red} />
                                                                 <View className="flex-1 ml-2">
                                                                     <Text className="text-neutral-700 text-sm">{campaign.nombre}</Text>
-                                                                    <Text className="text-amber-600 text-[10px]">Aplica solo a: {targetList?.nombre || 'Lista no encontrada'}</Text>
+                                                                    <Text className="text-neutral-500 text-[10px]">Aplica solo a: {targetList?.nombre || 'Lista no encontrada'}</Text>
                                                                 </View>
-                                                                <View className="bg-amber-500 px-2 py-0.5 rounded">
+                                                                <View style={{ backgroundColor: BRAND_COLORS.red }} className="px-2 py-0.5 rounded">
                                                                     <Text className="text-white text-[10px] font-bold">
                                                                         {campaign.tipo_descuento === 'PORCENTAJE' ? `${campaign.valor_descuento}%` : formatPrice(campaign.valor_descuento)}
                                                                     </Text>
@@ -590,6 +615,7 @@ export function SupervisorProductDetailScreen() {
                                     )
                                 })()}
                                 
+                                {/* Nota informativa */}
                                 <View className="mt-3 pt-3 border-t border-neutral-100">
                                     <View className="flex-row items-start">
                                         <Ionicons name="information-circle-outline" size={14} color="#9CA3AF" />
@@ -603,7 +629,7 @@ export function SupervisorProductDetailScreen() {
                     </View>
                 )}
 
-                {/* Precios por Lista */}
+                {/* Sección: Precios por Lista */}
                 <View className="px-4 pt-5">
                     <View className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
                         <View className="flex-row items-center justify-between px-4 py-3 bg-neutral-50 border-b border-neutral-100">
@@ -612,8 +638,8 @@ export function SupervisorProductDetailScreen() {
                                 <Text className="font-bold text-neutral-900 text-base ml-2">Precios por Lista</Text>
                             </View>
                             {product.precios && product.precios.length > 0 && (
-                                <View className="bg-blue-100 px-2 py-1 rounded-lg">
-                                    <Text className="text-blue-700 text-xs font-bold">{product.precios.length} lista(s)</Text>
+                                <View style={{ backgroundColor: `${BRAND_COLORS.red}15` }} className="px-2 py-1 rounded-lg">
+                                    <Text style={{ color: BRAND_COLORS.red }} className="text-xs font-bold">{product.precios.length} lista(s)</Text>
                                 </View>
                             )}
                         </View>
@@ -633,14 +659,17 @@ export function SupervisorProductDetailScreen() {
                     </View>
                 </View>
 
-                {/* Información Adicional */}
+                {/* Sección: Información del Supervisor */}
                 <View className="px-4 pt-5">
-                    <View className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                    <View 
+                        style={{ backgroundColor: `${BRAND_COLORS.red}08`, borderColor: `${BRAND_COLORS.red}20` }} 
+                        className="rounded-2xl p-4 border"
+                    >
                         <View className="flex-row items-start">
-                            <Ionicons name="information-circle" size={20} color="#2563EB" />
+                            <Ionicons name="information-circle" size={20} color={BRAND_COLORS.red} />
                             <View className="flex-1 ml-3">
-                                <Text className="text-blue-900 font-semibold text-sm mb-1">Información del Supervisor</Text>
-                                <Text className="text-blue-700 text-xs leading-5">
+                                <Text style={{ color: BRAND_COLORS.red700 }} className="font-semibold text-sm mb-1">Información del Supervisor</Text>
+                                <Text className="text-neutral-600 text-xs leading-5">
                                     Como supervisor, puedes editar este producto tocando el botón de edición. Los cambios se reflejarán en todas las listas de precios y afectarán a los vendedores asignados.
                                 </Text>
                             </View>
@@ -649,7 +678,7 @@ export function SupervisorProductDetailScreen() {
                 </View>
             </ScrollView>
 
-            {/* FAB Editar */}
+            {/* FAB: Botón de Edición */}
             <TouchableOpacity 
                 onPress={() => (navigation as any).navigate('SupervisorProductForm', { product: product })} 
                 className="absolute right-5 bottom-6 shadow-xl"

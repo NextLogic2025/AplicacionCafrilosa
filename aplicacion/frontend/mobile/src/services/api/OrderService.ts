@@ -118,7 +118,7 @@ export interface CreateOrderPayload {
 export interface CartItemDto {
     producto_id: string
     cantidad: number
-    precio_unitario_ref?: number // Opcional: precio de referencia del producto
+    precio_unitario_ref?: number
 }
 
 export interface Cart {

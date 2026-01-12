@@ -1,88 +1,30 @@
-import { Injectable, NotFoundException, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
 import { CarritoItem } from '../entities/carrito-item.entity';
 import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
-import axios from 'axios';
-
-const DEFAULT_CATALOG_URL = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3003';
 
 @Injectable()
 export class CartService {
+    private readonly logger = new Logger(CartService.name);
+
     constructor(
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
     ) { }
 
-        async resolveClientIdentity(user: any, dto: UpdateCartItemDto): Promise<{ clienteId: string | null; vendedorId: string }> {
-            const rawRole = user?.role;
-            const roles = Array.isArray(rawRole) ? rawRole.map((r: any) => String(r).toLowerCase()) : [String(rawRole || '').toLowerCase()];
-            let clienteId = (dto as any).cliente_id ?? null;
-            const vendedorId = user?.userId ?? user?.id ?? null;
-
-            if (!vendedorId) throw new BadRequestException('Usuario no identificado');
-
-            // Cliente self-service: override clienteId with catalog lookup
-            if (roles.includes('cliente')) {
-                try {
-                    const url = `${DEFAULT_CATALOG_URL}/internal/clients/by-user/${vendedorId}`;
-                    const resp = await axios.get(url);
-                    const data = resp.data || null;
-                    if (!data || !data.id) throw new Error('No cliente asociado');
-                    clienteId = data.id;
-                } catch (err) {
-                    throw new ForbiddenException('No se pudo verificar identidad de cliente en catálogo');
-                }
-            } else if (roles.includes('vendedor')) {
-                if (!clienteId) throw new BadRequestException('El vendedor debe especificar cliente_id en el body');
-            }
-
-            return { clienteId, vendedorId };
-        }
-
-        // New polymorphic entry for adding item using token identity
-        async addItemForUser(user: any, dto: UpdateCartItemDto): Promise<CarritoItem> {
-            const { clienteId, vendedorId } = await this.resolveClientIdentity(user, dto);
-            // Reuse existing logic but operate on resolved IDs
-            const cart = await this.getOrCreateCart(vendedorId, clienteId);
-
-            if (!dto.precio_unitario_ref) {
-                try {
-                    const clientQuery = clienteId ? `?cliente_id=${clienteId}` : '';
-                    const url = `${DEFAULT_CATALOG_URL}/products/${dto.producto_id}${clientQuery}`;
-                    const resp = await axios.get(url);
-                    const prod = resp.data || {};
-                    const suggested = prod.precio_oferta ?? prod.precio_original ?? null;
-                    if (suggested != null) dto.precio_unitario_ref = Number(suggested);
-                } catch (err) {
-                    Logger.warn('Failed to fetch referential price from catalog: ' + (err as any).message);
-                }
-            }
-
-            let item = await this.itemRepo.findOne({ where: { carrito_id: cart.id, producto_id: dto.producto_id } });
-
-            if (item) {
-                item.cantidad = dto.cantidad;
-                if (dto.precio_unitario_ref) item.precio_unitario_ref = dto.precio_unitario_ref;
-            } else {
-                item = this.itemRepo.create({ ...dto, carrito_id: cart.id });
-            }
-
-            return this.itemRepo.save(item);
-        }
-
     /**
      * Obtiene el carrito del usuario. Si no existe, lo crea (Lazy Creation).
      */
-    async getOrCreateCart(usuario_id: string, cliente_id?: string | null): Promise<CarritoCabecera> {
-        const where: any = { usuario_id };
-        if (cliente_id) where.cliente_id = cliente_id;
-
-        let cart = await this.cartRepo.findOne({ where, relations: ['items'] });
+    async getOrCreateCart(usuario_id: string): Promise<CarritoCabecera> {
+        let cart = await this.cartRepo.findOne({
+            where: { usuario_id },
+            relations: ['items'],
+        });
 
         if (!cart) {
-            cart = this.cartRepo.create({ usuario_id, cliente_id: cliente_id ?? null });
+            cart = this.cartRepo.create({ usuario_id });
             cart = await this.cartRepo.save(cart);
             cart.items = [];
         }
@@ -92,38 +34,82 @@ export class CartService {
     /**
      * Lógica de Upsert: Si el producto existe en el carrito, actualiza cantidad;
      * de lo contrario, agrega uno nuevo.
+     *
+     * Manejo de errores:
+     * - BadRequestException: Si el producto_id no existe (foreign key violation)
+     * - BadRequestException: Si hay datos inválidos
+     * - Error genérico: Para otros errores inesperados
      */
     async addItem(usuario_id: string, dto: UpdateCartItemDto): Promise<CarritoItem> {
-        // Determine cliente context: if DTO contains cliente_id (vendedor on behalf), use it
-        const clienteId = dto.cliente_id ?? null;
+        try {
+            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id} al carrito`);
 
-        const cart = await this.getOrCreateCart(usuario_id, clienteId);
+            const cart = await this.getOrCreateCart(usuario_id);
 
-        // If no precio_unitario_ref provided, try to fetch a referential price from catalog
-        if (!dto.precio_unitario_ref) {
-                try {
-                    const clientQuery = clienteId ? `?cliente_id=${clienteId}` : '';
-                    const url = `${DEFAULT_CATALOG_URL}/products/${dto.producto_id}${clientQuery}`;
-                    const resp = await axios.get(url);
-                    const prod = resp.data || {};
-                const suggested = prod.precio_oferta ?? prod.precio_original ?? null;
-                if (suggested != null) dto.precio_unitario_ref = Number(suggested);
-            } catch (err) {
-                // don't block the operation if catalog is down; just proceed without ref price
-                Logger.warn('Failed to fetch referential price from catalog: ' + (err as any).message);
+            let item = await this.itemRepo.findOne({
+                where: { carrito_id: cart.id, producto_id: dto.producto_id },
+            });
+
+            if (item) {
+                // Actualizar item existente
+                this.logger.debug(`Actualizando cantidad de ${item.cantidad} a ${dto.cantidad}`);
+                item.cantidad = dto.cantidad;
+
+                // Actualizar precio de referencia solo si se proporciona
+                if (dto.precio_unitario_ref !== undefined && dto.precio_unitario_ref !== null) {
+                    item.precio_unitario_ref = dto.precio_unitario_ref;
+                }
+            } else {
+                // Crear nuevo item con valores por defecto seguros
+                this.logger.debug(`Creando nuevo item en el carrito`);
+                item = this.itemRepo.create({
+                    carrito_id: cart.id,
+                    producto_id: dto.producto_id,
+                    cantidad: dto.cantidad,
+                    // Si precio_unitario_ref no viene, usar 0 como valor por defecto
+                    precio_unitario_ref: dto.precio_unitario_ref ?? 0,
+                });
             }
+
+            const savedItem = await this.itemRepo.save(item);
+            this.logger.log(`Item guardado exitosamente: ${savedItem.id}`);
+            return savedItem;
+
+        } catch (error) {
+            this.logger.error(`Error al agregar item al carrito: ${error.message}`, error.stack);
+
+            // Detectar errores específicos de base de datos
+            if (error.code === '23503') {
+                // Foreign key violation - producto no existe
+                throw new BadRequestException(
+                    `El producto con ID ${dto.producto_id} no existe o no está disponible`
+                );
+            }
+
+            if (error.code === '23505') {
+                // Unique constraint violation (aunque no debería pasar con nuestro findOne)
+                throw new BadRequestException(
+                    `El producto ya está en el carrito. Use la operación de actualización.`
+                );
+            }
+
+            if (error.code === '22P02') {
+                // Invalid UUID format
+                throw new BadRequestException(
+                    `El formato del producto_id no es válido`
+                );
+            }
+
+            // Si es una excepción de NestJS, re-lanzarla
+            if (error instanceof BadRequestException || error instanceof NotFoundException) {
+                throw error;
+            }
+
+            // Error genérico
+            throw new BadRequestException(
+                `No se pudo agregar el producto al carrito: ${error.message}`
+            );
         }
-
-        let item = await this.itemRepo.findOne({ where: { carrito_id: cart.id, producto_id: dto.producto_id } });
-
-        if (item) {
-            item.cantidad = dto.cantidad;
-            if (dto.precio_unitario_ref) item.precio_unitario_ref = dto.precio_unitario_ref;
-        } else {
-            item = this.itemRepo.create({ ...dto, carrito_id: cart.id });
-        }
-
-        return this.itemRepo.save(item);
     }
 
     async removeItem(usuario_id: string, producto_id: string): Promise<void> {

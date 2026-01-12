@@ -51,6 +51,11 @@ CREATE TABLE carritos_items (
     producto_id UUID NOT NULL,          -- referencia lógica a catalog_db.productos
     cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
     precio_unitario_ref DECIMAL(10,2),
+    precio_original_snapshot DECIMAL(10,2),
+    campania_aplicada_id INT,
+    codigo_sku VARCHAR(50),
+    nombre_producto VARCHAR(200),
+    precio_timestamp TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(carrito_id, producto_id)
 );
@@ -91,7 +96,10 @@ CREATE TABLE detalles_pedido (
     cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
     unidad_medida VARCHAR(20),
     precio_lista DECIMAL(10,2),
+    precio_original_snapshot DECIMAL(10,2),
     precio_final DECIMAL(10,2),
+    campania_aplicada_id INT,
+    precio_timestamp TIMESTAMPTZ DEFAULT NOW(),
     es_bonificacion BOOLEAN DEFAULT FALSE,
     motivo_descuento VARCHAR(100),
     subtotal_linea DECIMAL(12,2) GENERATED ALWAYS AS (cantidad * precio_final) STORED,
@@ -245,6 +253,9 @@ CREATE INDEX idx_pedidos_estado ON pedidos(estado_actual) WHERE deleted_at IS NU
 CREATE INDEX idx_pedidos_gps ON pedidos USING GIST(ubicacion_pedido);
 CREATE INDEX idx_promociones_pedido ON promociones_aplicadas(pedido_id);
 CREATE INDEX idx_audit_orders ON audit_log_orders(table_name, record_id, changed_at DESC);
+-- Índices añadidos para búsquedas frecuentes por producto en carritos y detalles
+CREATE INDEX IF NOT EXISTS idx_carritos_items_producto ON carritos_items(producto_id);
+CREATE INDEX IF NOT EXISTS idx_detalles_pedido_producto ON detalles_pedido(producto_id);
 
 -- =========================================
 -- 14. EVENTOS ASÍNCRONOS (pg_notify → Cloud Functions)
