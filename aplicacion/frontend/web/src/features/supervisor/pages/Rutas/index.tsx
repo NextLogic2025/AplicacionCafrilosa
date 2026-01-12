@@ -70,6 +70,7 @@ export default function RutasPage() {
     handleActualizarHora,
     handleActualizarPrioridad,
     handleActualizarFrecuencia,
+    handleActualizarDireccion,
     handleGuardar,
     rutasGuardadas,
     isLoadingRutas,
@@ -140,10 +141,20 @@ export default function RutasPage() {
     })
   }
 
-  // Filtrar clientes según la selección del día
+  // Filtrar clientes según la selección del día y ajustar ubicacion_gps si es sucursal
   const clientesParaMostrar = useMemo(() => {
     if (clientesSeleccionadosHoy.size === 0) return []
-    return clientesFiltrados.filter(c => clientesSeleccionadosHoy.has(c.id))
+    return clientesFiltrados
+      .filter(c => clientesSeleccionadosHoy.has(c.id))
+      .map(c => {
+        if (c.tipo_direccion === 'SUCURSAL' && c.sucursal_id && c.sucursales?.length) {
+          const suc = c.sucursales.find(s => s.id === c.sucursal_id)
+          if (suc && suc.ubicacion_gps) {
+            return { ...c, ubicacion_gps: suc.ubicacion_gps }
+          }
+        }
+        return c
+      })
   }, [clientesFiltrados, clientesSeleccionadosHoy])
 
   useEffect(() => {
@@ -324,6 +335,7 @@ export default function RutasPage() {
                 onUpdateHora={handleActualizarHora}
                 onUpdatePrioridad={handleActualizarPrioridad}
                 onUpdateFrecuencia={handleActualizarFrecuencia}
+                onUpdateDireccion={handleActualizarDireccion}
               />
 
               {/* Panel Derecho - Mapa */}

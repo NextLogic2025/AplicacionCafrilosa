@@ -7,7 +7,8 @@ import {
     obtenerTodasLasRutas,
     eliminarRutaPorZonaYDia,
 } from './ruteroApi'
-import type { ClienteRutero, RuteroPlanificado, DiaSemana } from './types'
+import type { ClienteRutero, RuteroPlanificado, DiaSemana, SucursalRutero } from './types'
+import { obtenerSucursales } from './sucursalesApi'
 
 interface RutaGuardada {
     zona_id: number
@@ -77,20 +78,41 @@ export function useRutero() {
 
             setRuteroActual(ruteroData)
 
+            // Cargar sucursales para cada cliente
             const clientesZona = clientesData.filter(
                 (cliente) => resolveZonaId(cliente) === zonaSeleccionada,
             )
+
+            // Obtener sucursales para todos los clientes en paralelo
+            const sucursalesPorCliente: Record<string, SucursalRutero[]> = {}
+            await Promise.all(clientesZona.map(async (cliente) => {
+                try {
+                    const sucursales = await obtenerSucursales(cliente.id)
+                    // Mapear a SucursalRutero (agregar zona_id si existe)
+                    sucursalesPorCliente[cliente.id] = sucursales.map(s => ({
+                        id: s.id,
+                        nombre_sucursal: s.nombre_sucursal,
+                        ubicacion_gps: s.ubicacion_gps,
+                        zona_id: s.zona_id ?? null,
+                    }))
+                } catch {
+                    sucursalesPorCliente[cliente.id] = []
+                }
+            }))
 
             const clientesConRutero = clientesZona.map((cliente) => {
                 const rutero = ruteroData.find((r) => r.cliente_id === cliente.id)
                 return {
                     ...cliente,
+                    sucursales: sucursalesPorCliente[cliente.id] || [],
                     orden: rutero?.orden_sugerido ?? cliente.orden ?? 999,
                     hora_estimada: rutero?.hora_estimada ?? cliente.hora_estimada ?? null,
                     prioridad: rutero?.prioridad_visita ?? cliente.prioridad ?? 'MEDIA',
                     frecuencia: rutero?.frecuencia ?? cliente.frecuencia ?? 'SEMANAL',
                     activo: rutero?.activo ?? (cliente.activo ?? true),
                     ruteroId: rutero?.id ?? cliente.ruteroId ?? null,
+                    tipo_direccion: rutero?.tipo_direccion ?? cliente.tipo_direccion ?? 'PRINCIPAL',
+                    sucursal_id: rutero?.sucursal_id ?? cliente.sucursal_id ?? null,
                     fueraDeZona: false,
                 } as ClienteRutero
             })
@@ -183,6 +205,34 @@ export function useRutero() {
         [],
     )
 
+    const handleActualizarDireccion = useCallback(
+        (clienteId: string, tipoDireccion: 'PRINCIPAL' | 'SUCURSAL', sucursalId?: string) => {
+            setClientes((prev) =>
+                prev.map((c) => {
+                    if (c.id !== clienteId) return c
+                    
+                    let zonaId = c.zona_comercial_id
+                    
+                    // Si es sucursal, buscar la zona de esa sucursal
+                    if (tipoDireccion === 'SUCURSAL' && sucursalId && c.sucursales) {
+                        const sucursal = c.sucursales.find(s => s.id === sucursalId)
+                        if (sucursal?.zona_id) {
+                            zonaId = sucursal.zona_id
+                        }
+                    }
+                    
+                    return {
+                        ...c,
+                        tipo_direccion: tipoDireccion,
+                        sucursal_id: tipoDireccion === 'SUCURSAL' ? sucursalId ?? null : null,
+                        zona_comercial_id: zonaId,
+                    }
+                }),
+            )
+        },
+        [],
+    )
+
     // Permitir guardar múltiples rutas por día/zona (historial)
     const handleGuardar = useCallback(async (clientesSeleccionadosIds?: string[]) => {
         if (!zonaSeleccionada) return
@@ -202,17 +252,32 @@ export function useRutero() {
             }
 
             // Guardar cada ruta como nueva (sin eliminar las anteriores)
-            const ruteroData: RuteroPlanificado[] = clientesAGuardar.map((cliente) => ({
-                id: cliente.ruteroId ?? undefined,
-                cliente_id: cliente.id,
-                zona_id: zonaSeleccionada,
-                dia_semana: diaSeleccionado,
-                frecuencia: cliente.frecuencia ?? 'SEMANAL',
-                prioridad_visita: cliente.prioridad ?? 'MEDIA',
-                orden_sugerido: cliente.orden ?? 999,
-                hora_estimada: cliente.hora_estimada ?? null,
-                activo: cliente.activo ?? true,
-            }))
+            const ruteroData: RuteroPlanificado[] = clientesAGuardar.map((cliente) => {
+                // Determinar la zona_id correcta
+                let zonaIdFinal = zonaSeleccionada
+                
+                // Si es sucursal, usar la zona de la sucursal
+                if (cliente.tipo_direccion === 'SUCURSAL' && cliente.sucursal_id && cliente.sucursales) {
+                    const sucursal = cliente.sucursales.find(s => s.id === cliente.sucursal_id)
+                    if (sucursal?.zona_id) {
+                        zonaIdFinal = sucursal.zona_id
+                    }
+                }
+                
+                return {
+                    id: cliente.ruteroId ?? undefined,
+                    cliente_id: cliente.id,
+                    zona_id: zonaIdFinal,
+                    dia_semana: diaSeleccionado,
+                    frecuencia: cliente.frecuencia ?? 'SEMANAL',
+                    prioridad_visita: cliente.prioridad ?? 'MEDIA',
+                    orden_sugerido: cliente.orden ?? 999,
+                    hora_estimada: cliente.hora_estimada ?? null,
+                    activo: cliente.activo ?? true,
+                    tipo_direccion: cliente.tipo_direccion ?? 'PRINCIPAL',
+                    sucursal_id: cliente.sucursal_id ?? null,
+                }
+            })
 
             await guardarRutero(ruteroData)
             await cargarClientesRutero()
@@ -283,6 +348,7 @@ export function useRutero() {
         handleActualizarHora,
         handleActualizarPrioridad,
         handleActualizarFrecuencia,
+        handleActualizarDireccion,
         handleGuardar,
         recargar: cargarClientesRutero,
         rutasGuardadas,

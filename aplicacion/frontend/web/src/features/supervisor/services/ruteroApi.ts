@@ -55,7 +55,7 @@ export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: str
   }
 
   for (const item of datos) {
-    const payload = {
+    const payload: any = {
       cliente_id: item.cliente_id,
       zona_id: item.zona_id,
       dia_semana: diaToNumber(item.dia_semana),
@@ -64,7 +64,14 @@ export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: str
       orden_sugerido: item.orden_sugerido,
       hora_estimada_arribo: formatearHora(item.hora_estimada),
       activo: item.activo ?? true,
+      tipo_direccion: item.tipo_direccion || 'PRINCIPAL',
     }
+    
+    // Agregar sucursal_id solo si tipo_direccion es SUCURSAL
+    if (item.tipo_direccion === 'SUCURSAL' && item.sucursal_id) {
+      payload.sucursal_id = item.sucursal_id
+    }
+    
     if (item.id) {
       await httpCatalogo<void>(`/rutero/${item.id}`, {
         method: 'PUT',

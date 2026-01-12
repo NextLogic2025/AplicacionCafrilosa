@@ -55,16 +55,15 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
     })
   }
 
-  const handleStepKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
       e.preventDefault()
-      e.stopPropagation()
       handleAddSucursal()
     }
   }
 
   return (
-    <div className="space-y-4" onKeyDown={handleStepKeyDown}>
+    <div className="space-y-4">
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-gray-800 mb-4">Agregar Sucursal Adicional (Opcional)</h3>
         
@@ -74,6 +73,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
             placeholder="Nombre de la sucursal"
             value={newSucursal.nombre_sucursal}
             onChange={(e) => setNewSucursal({ ...newSucursal, nombre_sucursal: e.target.value })}
+            onKeyDown={handleInputKeyDown}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
           />
           
@@ -82,6 +82,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
             placeholder="Dirección (opcional)"
             value={newSucursal.direccion_entrega}
             onChange={(e) => setNewSucursal({ ...newSucursal, direccion_entrega: e.target.value })}
+            onKeyDown={handleInputKeyDown}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
           />
           
@@ -104,6 +105,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
               placeholder="Contacto (opcional)"
               value={newSucursal.contacto_nombre}
               onChange={(e) => setNewSucursal({ ...newSucursal, contacto_nombre: e.target.value })}
+              onKeyDown={handleInputKeyDown}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
             />
             
@@ -112,6 +114,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
               placeholder="Teléfono (opcional)"
               value={newSucursal.contacto_telefono}
               onChange={(e) => setNewSucursal({ ...newSucursal, contacto_telefono: e.target.value })}
+              onKeyDown={handleInputKeyDown}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20"
             />
           </div>

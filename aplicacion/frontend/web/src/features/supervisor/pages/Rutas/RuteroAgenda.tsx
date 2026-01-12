@@ -18,6 +18,7 @@ interface RuteroAgendaProps {
   onUpdateHora: (clienteId: string, hora: string) => void
   onUpdatePrioridad: (clienteId: string, prioridad: 'ALTA' | 'MEDIA' | 'BAJA') => void
   onUpdateFrecuencia: (clienteId: string, frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL') => void
+  onUpdateDireccion: (clienteId: string, tipoDireccion: 'PRINCIPAL' | 'SUCURSAL', sucursalId?: string) => void
 }
 
 export function RuteroAgenda({
@@ -32,6 +33,7 @@ export function RuteroAgenda({
   onUpdateHora,
   onUpdatePrioridad,
   onUpdateFrecuencia,
+  onUpdateDireccion,
 }: RuteroAgendaProps) {
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
@@ -45,12 +47,60 @@ export function RuteroAgenda({
     onReordenar(clienteId, destIndex)
   }
 
+  // Solo un cliente seleccionado para mostrar el selector global
+  const clienteSeleccionado = clientes.length === 1 ? clientes[0] : null;
+
+  // Handler para cambiar dirección principal/sucursal y zona
+  const handleDireccionGlobal = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!clienteSeleccionado) return;
+    const value = e.target.value;
+    if (value === 'PRINCIPAL') {
+      onUpdateDireccion(clienteSeleccionado.id, 'PRINCIPAL');
+      // Seleccionar zona del cliente principal
+      if (clienteSeleccionado.zona_comercial_id) {
+        onZonaChange(clienteSeleccionado.zona_comercial_id);
+      }
+    } else if (value.startsWith('SUCURSAL-')) {
+      const sucursalId = value.replace('SUCURSAL-', '');
+      onUpdateDireccion(clienteSeleccionado.id, 'SUCURSAL', sucursalId);
+      // Buscar zona de la sucursal y seleccionarla
+      const suc = clienteSeleccionado.sucursales?.find(s => s.id === sucursalId);
+      if (suc?.zona_id) {
+        onZonaChange(suc.zona_id);
+      }
+    }
+  };
+
+  // Determinar si el selector de zona debe estar deshabilitado
+  const zonaDeshabilitada = clienteSeleccionado && clienteSeleccionado.tipo_direccion === 'SUCURSAL';
+  const zonaIdActual = zonaSeleccionada || '';
+
   return (
     <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="border-b border-gray-200 bg-gray-50 p-4">
-        <h3 className="text-lg font-semibold text-gray-900">Planificación de Rutero</h3>
-        <p className="text-sm text-gray-600">Organiza el orden de visitas por zona y día</p>
+      {/* Header y selector global */}
+      <div className="border-b border-gray-200 bg-gray-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Planificación de Rutero</h3>
+          <p className="text-sm text-gray-600">Organiza el orden de visitas por zona y día</p>
+        </div>
+        {/* Selector global de dirección principal/sucursal */}
+        {clienteSeleccionado && (
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-gray-400" />
+            <select
+              value={clienteSeleccionado.tipo_direccion === 'SUCURSAL' && clienteSeleccionado.sucursal_id ? `SUCURSAL-${clienteSeleccionado.sucursal_id}` : 'PRINCIPAL'}
+              onChange={handleDireccionGlobal}
+              className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            >
+              <option value="PRINCIPAL">Dirección Principal</option>
+              {clienteSeleccionado.sucursales?.map((sucursal) => (
+                <option key={sucursal.id} value={`SUCURSAL-${sucursal.id}`}>
+                  Sucursal: {sucursal.nombre_sucursal}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Selectores */}
@@ -62,9 +112,10 @@ export function RuteroAgenda({
             Zona Comercial
           </label>
           <select
-            value={zonaSeleccionada || ''}
+            value={zonaIdActual}
             onChange={(e) => onZonaChange(Number(e.target.value))}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-brand-red focus:outline-none focus:ring-2 focus:ring-brand-red/20"
+            disabled={zonaDeshabilitada}
           >
             <option value="">Seleccione una zona</option>
             {zonas.map((zona) => (
@@ -129,6 +180,7 @@ export function RuteroAgenda({
                             onUpdateHora={onUpdateHora}
                             onUpdatePrioridad={onUpdatePrioridad}
                             onUpdateFrecuencia={onUpdateFrecuencia}
+                            onUpdateDireccion={onUpdateDireccion}
                             isDragging={snapshot.isDragging}
                           />
                         </div>

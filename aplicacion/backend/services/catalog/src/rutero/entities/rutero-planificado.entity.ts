@@ -11,6 +11,9 @@ export class RuteroPlanificado {
   @Column({ name: 'sucursal_id', type: 'uuid', nullable: true })
   sucursal_id: string | null;
 
+  @Column({ name: 'tipo_direccion', type: 'varchar', default: 'PRINCIPAL' })
+  tipo_direccion: string;
+
   @Column({ name: 'zona_id', type: 'int' })
   zona_id: number;
 

@@ -1,4 +1,4 @@
-import { Clock, GripVertical, CalendarClock, AlertCircle } from 'lucide-react'
+import { Clock, GripVertical, CalendarClock, AlertCircle, MapPin } from 'lucide-react'
 import type { ClienteRutero } from '../../services/types'
 import { PRIORIDAD_COLORS } from '../../services/types'
 
@@ -7,6 +7,7 @@ interface ClienteRuteroCardProps {
   onUpdateHora: (clienteId: string, hora: string) => void
   onUpdatePrioridad?: (clienteId: string, prioridad: 'ALTA' | 'MEDIA' | 'BAJA') => void
   onUpdateFrecuencia?: (clienteId: string, frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL') => void
+  onUpdateDireccion?: (clienteId: string, tipoDireccion: 'PRINCIPAL' | 'SUCURSAL', sucursalId?: string) => void
   isDragging?: boolean
 }
 
@@ -15,9 +16,11 @@ export function ClienteRuteroCard({
   onUpdateHora, 
   onUpdatePrioridad,
   onUpdateFrecuencia,
+  onUpdateDireccion,
   isDragging = false 
 }: ClienteRuteroCardProps) {
   const prioridadClass = cliente.prioridad ? PRIORIDAD_COLORS[cliente.prioridad] : PRIORIDAD_COLORS['BAJA']
+
 
   return (
     <div
@@ -40,14 +43,17 @@ export function ClienteRuteroCard({
               </span>
             )}
           </div>
+          {/* ...el selector de dirección ha sido eliminado, solo queda el global... */}
           <div className="mt-1 text-xs text-gray-500">
             Orden: {(cliente.orden ?? 0) + 1}
           </div>
         </div>
       </div>
 
+
       {/* Fila inferior - Controles */}
       <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2">
+
         {/* Prioridad */}
         {onUpdatePrioridad ? (
           <div className="flex items-center gap-1">

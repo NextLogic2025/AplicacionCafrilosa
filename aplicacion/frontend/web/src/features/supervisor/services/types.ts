@@ -19,6 +19,8 @@ export interface ClienteRutero {
     coordinates: [number, number]
   } | null
   sucursales?: SucursalRutero[]
+  tipo_direccion?: 'PRINCIPAL' | 'SUCURSAL'
+  sucursal_id?: string | null
 }
 
 export interface SucursalRutero {
@@ -28,6 +30,7 @@ export interface SucursalRutero {
     type: 'Point'
     coordinates: [number, number]
   } | null
+  zona_id?: number | null
 }
 
 export interface RuteroPlanificado {
@@ -42,6 +45,8 @@ export interface RuteroPlanificado {
   activo: boolean
   created_by?: string
   updated_at?: string
+  tipo_direccion?: 'PRINCIPAL' | 'SUCURSAL'
+  sucursal_id?: string | null
 }
 
 export type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' 
