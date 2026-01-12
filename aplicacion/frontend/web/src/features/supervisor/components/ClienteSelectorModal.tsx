@@ -80,9 +80,12 @@ export default function ClienteSelectorModal({
   if (!isOpen) return null
 
   const clientesFiltrados = clientes.filter(cliente => {
-    const matchesSearch = searchTerm.trim() === '' || 
+    const matchesSearch = searchTerm.trim() === '' ||
+      (cliente.nombre_comercial && cliente.nombre_comercial.toLowerCase().includes(searchTerm.toLowerCase())) ||
       cliente.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.identificacion.toLowerCase().includes(searchTerm.toLowerCase())
+      cliente.identificacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cliente.usuario_principal_id && cliente.usuario_principal_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (cliente.usuario_principal_nombre && cliente.usuario_principal_nombre.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const yaAsignado = clientesAsignados.some(ca => ca.cliente_id === cliente.id)
     
@@ -122,7 +125,7 @@ export default function ClienteSelectorModal({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Buscar por identificación o razón social..."
+                placeholder="Buscar por nombre, razón social o identificación..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -134,7 +137,10 @@ export default function ClienteSelectorModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-gray-800">
-                      {selectedCliente.razon_social}
+                      {selectedCliente.nombre_comercial || selectedCliente.razon_social}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Razón social: {selectedCliente.razon_social}
                     </p>
                     <p className="text-sm text-gray-600">
                       ID: {selectedCliente.identificacion}
@@ -165,8 +171,14 @@ export default function ClienteSelectorModal({
                       onClick={() => setSelectedCliente(cliente)}
                       className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
-                      <p className="font-medium text-gray-800">{cliente.razon_social}</p>
+                      <p className="font-medium text-gray-800">{cliente.nombre_comercial || cliente.razon_social}</p>
+                      {cliente.nombre_comercial && (
+                        <p className="text-sm text-gray-600">Razón social: {cliente.razon_social}</p>
+                      )}
                       <p className="text-sm text-gray-600">ID: {cliente.identificacion}</p>
+                      {cliente.usuario_principal_id && (
+                        <p className="text-sm text-gray-600">Cliente: {cliente.usuario_principal_nombre || cliente.usuario_principal_id}</p>
+                      )}
                     </div>
                   ))
                 )}

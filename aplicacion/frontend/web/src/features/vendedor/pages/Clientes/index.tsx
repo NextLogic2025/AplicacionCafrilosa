@@ -289,10 +289,16 @@ function ClienteAsignadoCard({ cliente, onView }: { cliente: Cliente; onView?: (
       onKeyDown={onView ? handleKeyDown : undefined}
       className={`group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${onView ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/50' : ''}`}
     >
-      <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-lg font-bold text-neutral-900">{displayName}</h3>
           {secondaryName && <p className="text-sm text-neutral-600">{secondaryName}</p>}
+          {/* Mostrar nombre de contacto si viene en la entidad y no está repetido */}
+          {(cliente as any).contacto_nombre &&
+            ((cliente as any).contacto_nombre as string).trim().length > 0 &&
+            (String((cliente as any).contacto_nombre).toLowerCase() !== String(displayName).toLowerCase()) && (
+              <p className="text-sm text-neutral-600">Contacto: {(cliente as any).contacto_nombre}</p>
+            )}
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-brand-red">
           <Building2 className="h-5 w-5" />

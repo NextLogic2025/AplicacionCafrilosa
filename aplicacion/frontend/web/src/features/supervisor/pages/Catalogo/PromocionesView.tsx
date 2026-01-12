@@ -90,10 +90,23 @@ export function PromocionesView() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Limpiar y tipar correctamente los datos antes de enviar
+    const cleanFormData: any = {
+      nombre: formData.nombre,
+      descripcion: formData.descripcion,
+      fecha_inicio: formData.fecha_inicio,
+      fecha_fin: formData.fecha_fin,
+      tipo_descuento: formData.tipo_descuento,
+      valor_descuento: formData.valor_descuento ? Number(formData.valor_descuento) : undefined,
+      alcance: formData.alcance,
+      lista_precios_objetivo_id: formData.alcance === 'POR_LISTA' ? Number(formData.lista_precios_objetivo_id) : undefined,
+      imagen_banner_url: formData.imagen_banner_url,
+      activo: !!formData.activo,
+    };
     if (editingCampania) {
-      await update(editingCampania.id, formData)
+      await update(editingCampania.id, cleanFormData)
     } else {
-      await create(formData)
+      await create(cleanFormData)
     }
     setIsModalOpen(false)
     reload()

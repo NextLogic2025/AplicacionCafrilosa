@@ -5,7 +5,7 @@ import { CalendarDays, Flag, MapPin, MoveRight, Navigation, RefreshCcw, Users } 
 
 import { PageHero } from '../../../../components/ui/PageHero'
 import { LoadingSpinner } from '../../../../components/ui/LoadingSpinner'
-import { ClienteDetailModal } from '../Clientes/ClienteDetailModal'
+import { ClienteDetailModal, getClienteDisplayName } from '../Clientes/ClienteDetailModal'
 import { getClientesAsignados } from '../../services/vendedorApi'
 import { obtenerTodasLasRutas } from '../../../supervisor/services/ruteroApi'
 import { DIAS_SEMANA, PRIORIDAD_COLORS, type DiaSemana, type RuteroPlanificado } from '../../../supervisor/services/types'
@@ -89,10 +89,15 @@ const cargarDatos = useCallback(async () => {
       if (cliente.identificacion) clientesIndex.set(cliente.identificacion, cliente)
     })
 
-    // Filtrar rutas solo de clientes asignados
+    // Filtrar rutas solo de clientes asignados y activos (no bloqueados ni eliminados)
     const rutasFiltradas: RutaConCliente[] = rutasPlanificadas
-      .filter((plan) => clientesIndex.has(plan.cliente_id))
-      .map((plan) => ({ plan, cliente: clientesIndex.get(plan.cliente_id)! }))
+      .map((plan) => {
+        const cliente = clientesIndex.get(plan.cliente_id)
+        return cliente ? { plan, cliente } : null
+      })
+      .filter(Boolean)
+      .map((x) => x as RutaConCliente)
+      .filter(({ cliente }) => !cliente.bloqueado && !cliente.deleted_at)
 
     if (!cancelRef.current) setRutas(rutasFiltradas)
   } catch (err: any) {
@@ -147,7 +152,7 @@ const cargarDatos = useCallback(async () => {
         return {
           position: coords,
           label: String(index + 1),
-          nombre: titleCase(item.cliente.razon_social || item.cliente.nombre_comercial),
+          nombre: titleCase(getClienteDisplayName(item.cliente) || item.cliente.razon_social || item.cliente.nombre_comercial),
         }
       })
       .filter(Boolean) as Array<{ position: { lat: number; lng: number }; label: string; nombre: string }>
@@ -313,7 +318,7 @@ const cargarDatos = useCallback(async () => {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-500">Orden #{plan.orden_sugerido}</p>
-                        <h3 className="text-lg font-bold text-neutral-900">{titleCase(cliente.razon_social || cliente.nombre_comercial)}</h3>
+                        <h3 className="text-lg font-bold text-neutral-900">{titleCase(getClienteDisplayName(cliente) || cliente.razon_social || cliente.nombre_comercial)}</h3>
                         <p className="text-sm text-neutral-600">{zonaNombre}</p>
                       </div>
                       <span className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${prioridadClass}`}>

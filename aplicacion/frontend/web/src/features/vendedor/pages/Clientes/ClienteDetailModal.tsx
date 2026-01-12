@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { GoogleMap, Marker, Polygon, useJsApiLoader } from '@react-google-maps/api'
+import { GoogleMap, Polygon, useJsApiLoader } from '@react-google-maps/api'
+import AdvancedMarker from '../../../../components/google/AdvancedMarker'
 
 import { Modal } from '../../../../components/ui/Modal'
 import { Alert } from '../../../../components/ui/Alert'
 
 import { obtenerSucursales, type Sucursal } from '../../../supervisor/services/sucursalesApi'
+import { getSelectedRole } from '../../../../services/storage/roleStorage'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 
 const GOOGLE_MAP_LIBRARIES: Array<'drawing' | 'geometry'> = ['drawing', 'geometry']
@@ -30,6 +32,14 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
 
   useEffect(() => {
     if (!isOpen || !cliente) return
+    const selectedRole = getSelectedRole()
+    // Si el rol seleccionado en el frontend no está entre los permitidos, evitar la llamada
+    // Incluir 'vendedor' porque el backend ya permite a vendedores ver sucursales
+    if (!selectedRole || !['admin', 'supervisor', 'cliente', 'vendedor'].includes(selectedRole)) {
+      setSucursales([])
+      setError('No tienes autorización para ver las sucursales de este cliente.')
+      return
+    }
     let cancelado = false
     const cargarSucursales = async () => {
       try {
@@ -181,16 +191,15 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
                   )}
 
                   {mainLocation && (
-                    <Marker position={mainLocation} icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }} title="Matriz" />
+                    <AdvancedMarker position={mainLocation} icon="http://maps.google.com/mapfiles/ms/icons/red-dot.png" title="Matriz" />
                   )}
 
                   {markersSucursales.map(({ sucursal, marker }) => (
-                    <Marker
+                    <AdvancedMarker
                       key={sucursal.id}
                       position={marker}
-                      icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
+                      icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
                       title={sucursal.nombre_sucursal}
-                      animation={google.maps.Animation.DROP}
                     />
                   ))}
                 </GoogleMap>
@@ -225,6 +234,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
                   <div key={sucursal.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                     <p className="font-semibold text-neutral-900">{sucursal.nombre_sucursal}</p>
                     {sucursal.direccion_entrega && <p className="text-xs text-neutral-700">{sucursal.direccion_entrega}</p>}
+                    {sucursal.zona_nombre && <p className="text-xs text-neutral-700">Zona: {sucursal.zona_nombre}</p>}
                     {sucursal.contacto_nombre && <p className="text-xs text-neutral-700">Contacto: {sucursal.contacto_nombre}</p>}
                     {sucursal.contacto_telefono && <p className="text-xs text-neutral-700">Tel: {sucursal.contacto_telefono}</p>}
                     {coords && (

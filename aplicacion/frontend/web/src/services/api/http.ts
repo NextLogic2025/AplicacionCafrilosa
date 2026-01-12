@@ -69,6 +69,11 @@ export async function httpCatalogo<T>(path: string, options: HttpOptions = {}): 
   return httpRequest<T>(env.api.catalogo, pathWithApi, options)
 }
 
+// Función para servicio de Orders/Pedidos (puerto 3004)
+export async function httpOrders<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  return httpRequest<T>(env.api.orders, path, options)
+}
+
 // Exportar también la versión genérica (deprecada, usar las específicas)
 /** @deprecated Usa httpAuth, httpUsuarios o httpCatalogo según el servicio */
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {

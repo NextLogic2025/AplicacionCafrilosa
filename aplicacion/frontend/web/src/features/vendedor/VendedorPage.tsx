@@ -1,4 +1,5 @@
 import React from 'react'
+import { CartProvider } from './cartContext'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { RoleLayout } from '../../components/layout/RoleLayout'
 import { VENDEDOR_NAV_ITEMS } from '../../config/navigation'
@@ -11,16 +12,18 @@ export default function VendedorPage() {
     navigate('/login')
   }
 
-  return (
-    <RoleLayout
-      roleLabel="Vendedor"
-      avatarText="VN"
-      navItems={VENDEDOR_NAV_ITEMS}
-      onSignOut={handleSignOut}
-    >
-      <React.Suspense fallback={<div className="py-8"><LoadingSpinner /></div>}>
-        <Outlet />
-      </React.Suspense>
-    </RoleLayout>
-  )
+    return (
+      <CartProvider>
+        <RoleLayout
+          roleLabel="Vendedor"
+          avatarText="VN"
+          navItems={VENDEDOR_NAV_ITEMS}
+          onSignOut={handleSignOut}
+        >
+          <React.Suspense fallback={<div className="py-8"><LoadingSpinner /></div>}>
+            <Outlet />
+          </React.Suspense>
+        </RoleLayout>
+      </CartProvider>
+    )
 }

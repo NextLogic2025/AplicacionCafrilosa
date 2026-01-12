@@ -1,5 +1,7 @@
 
 import { useEffect, useState } from 'react'
+import { useCart } from '../../cartContext'
+import { toast } from 'sonner'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ProductCard } from '../../../../components/ui/ProductCard'
@@ -11,6 +13,7 @@ import { useMemo } from 'react'
 
 
 export default function VendedorProductos() {
+  const { addToCart } = useCart();
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [cargando, setCargando] = useState(true)
@@ -201,7 +204,22 @@ export default function VendedorProductos() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {productosFiltrados.map((producto) => (
-                  <ProductCard key={producto.id} producto={producto} onAddToCart={() => {}} fetchPromos />
+                  <ProductCard
+                    key={producto.id}
+                    producto={producto}
+                    onAddToCart={() => {
+                      addToCart({
+                        id: producto.id,
+                        name: producto.name,
+                        unitPrice: producto.price,
+                        quantity: 1,
+                        image: producto.image,
+                        promo: false,
+                      });
+                      toast.success('Producto agregado al carrito');
+                    }}
+                    fetchPromos
+                  />
                 ))}
               </div>
             )}

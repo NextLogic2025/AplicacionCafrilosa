@@ -1,5 +1,5 @@
 
-import { httpAuth, httpCatalogo } from '../../../services/api/http'
+import { httpAuth, httpCatalogo, httpOrders } from '../../../services/api/http'
 import type { Cliente } from '../../supervisor/services/clientesApi'
 import type {
   PerfilCliente,
@@ -45,6 +45,15 @@ export async function getProductos(options?: { page?: number; per_page?: number;
   return []
 }
 
+export async function getProductosPorCliente(clienteId: string, options?: { page?: number; per_page?: number }): Promise<Producto[]> {
+  if (!clienteId) return []
+  const page = options?.page ?? 1
+  const per_page = options?.per_page ?? 50
+  const resp = await httpCatalogo<{ metadata?: any; items?: Producto[] }>(`/api/products?cliente_id=${encodeURIComponent(clienteId)}&page=${page}&per_page=${per_page}`).catch(() => null)
+  if (resp && Array.isArray(resp.items)) return resp.items as Producto[]
+  return []
+}
+
 export async function getNotificaciones(): Promise<Notificacion[]> {
   return await httpCatalogo<Notificacion[]>('/vendedor/notificaciones').catch(() => [])
 }
@@ -66,11 +75,18 @@ export async function createTicket(nuevo: Omit<Ticket, 'id' | 'createdAt' | 'upd
 }
 
 export async function createPedido(
-  items: { id: string; name: string; unitPrice: number; quantity: number }[],
-  total: number,
+  clienteId: string,
+  items: { id: string; unitPrice: number; quantity: number }[],
 ): Promise<Pedido> {
-  return await httpCatalogo<Pedido>('/vendedor/pedidos', {
+  return await httpOrders<Pedido>('/orders', {
     method: 'POST',
-    body: { items, total },
+    body: {
+      cliente_id: clienteId,
+      items: items.map(item => ({
+        producto_id: item.id,
+        cantidad: item.quantity,
+        precio_unitario: item.unitPrice,
+      })),
+    },
   })
 }
