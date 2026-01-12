@@ -50,7 +50,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"supervisor@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}",
+							"raw": "{\r\n  \"email\": \"lucas@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -895,6 +895,51 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Listar Productos por cliente",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTU5OTE1LCJleHAiOjE3NjgyMDMxMTV9._oZZvq20qRfDymyWpGlIzSz5NIUdvCfiF0vgqLU0m6I",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/products?cliente_id=e0f66df9-6496-402c-87ef-771e95388d07",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"products"
+									],
+									"query": [
+										{
+											"key": "cliente_id",
+											"value": "e0f66df9-6496-402c-87ef-771e95388d07"
+										}
+									]
+								}
+							},
+							"response": []
 						}
 					]
 				},
@@ -1657,7 +1702,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n\"cliente_id\": \"a5e09259-0802-4106-8a3e-86c0d10f01ab\",\r\n\"nombre_sucursal\": \"Ele\",\r\n\"direccion_entrega\": \"Calle 123\",\r\n\"ubicacion_gps\": null,\r\n\"contacto_nombre\": \"Juan Perez\",\r\n\"contacto_telefono\": \"12345678\",\r\n\"activo\": true\r\n}",
+											"raw": "{\r\n\"cliente_id\": \"a5e09259-0802-4106-8a3e-86c0d10f01ab\",\r\n\"nombre_sucursal\": \"Ele\",\r\n\"direccion_entrega\": \"Calle 123\",\r\n\"ubicacion_gps\": null,\r\n\"contacto_nombre\": \"Juan Perez\",\r\n\"contacto_telefono\": \"12345678\",\r\n\"activo\": true,\r\n\"zona_id\" : 1\r\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1689,7 +1734,7 @@
 										"header": [
 											{
 												"key": "Authorization",
-												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTY2NTQ3LCJleHAiOjE3NjgyMDk3NDd9.jFt9FdYCdtqR49IJCEaod8TG8rD0Z_tVzqfmWOHz700",
 												"type": "text"
 											},
 											{
@@ -1990,7 +2035,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWZkOThiMy1jMTRhLTRkNWMtOGIyZS00MGNkYmIyNzliYTgiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTc0OTgzLCJleHAiOjE3NjgyMTgxODN9.ii6EwJiwOqkPo2AtRGehlotBiK8bfc4v1X24fYSCzhg",
 										"type": "text"
 									},
 									{
@@ -2031,7 +2076,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTQ3NDM2LCJleHAiOjE3NjgxOTA2MzZ9.A9SP65dJPXOq-knfSCmV2dFT3eKSGctSnd9dn14AMyo",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NzhkM2ViNy0yZGY5LTRiYTUtYmYyZi1hOTQ5YzZiMWVmNjEiLCJlbWFpbCI6Imx1Y2FzQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE3NTg1OCwiZXhwIjoxNzY4MjE5MDU4fQ.EQjEE7lY36rULP8kMkfidZMAYNFMR1Xaste3d_QUdkU",
 										"type": "text"
 									},
 									{
@@ -2045,14 +2090,14 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "{{baseURL}}/api/clientes/a5e09259-0802-4106-8a3e-86c0d10f01ab",
+									"raw": "{{baseURL}}/api/clientes/678d3eb7-2df9-4ba5-bf2f-a949c6b1ef61",
 									"host": [
 										"{{baseURL}}"
 									],
 									"path": [
 										"api",
 										"clientes",
-										"a5e09259-0802-4106-8a3e-86c0d10f01ab"
+										"678d3eb7-2df9-4ba5-bf2f-a949c6b1ef61"
 									]
 								}
 							},
@@ -2206,7 +2251,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTAwODIwLCJleHAiOjE3NjgxNDQwMjB9.VWgFu-XtW-xFAcFR-J-KxDqLAplegRII903WAjfVxH4",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTU5OTE1LCJleHAiOjE3NjgyMDMxMTV9._oZZvq20qRfDymyWpGlIzSz5NIUdvCfiF0vgqLU0m6I",
 										"type": "text"
 									},
 									{
@@ -2851,7 +2896,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTUxNDM5LCJleHAiOjE3NjgxOTQ2Mzl9.XJh5eHT1pDctMrWadrGqFL65AAj5O0lnZr7X1CADAfM",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTU5OTE1LCJleHAiOjE3NjgyMDMxMTV9._oZZvq20qRfDymyWpGlIzSz5NIUdvCfiF0vgqLU0m6I",
 										"type": "text"
 									},
 									{

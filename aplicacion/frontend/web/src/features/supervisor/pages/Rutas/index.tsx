@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Save, AlertCircle, List, Map } from 'lucide-react'
+import { Save, AlertCircle, List, Map, Globe } from 'lucide-react'
 import { PageHero } from 'components/ui/PageHero'
 import { RuteroAgenda } from './RuteroAgenda'
 import { RuteroMapa } from './RuteroMapa'
 import { RuteroLista } from './RuteroLista'
+import { MapaCompleto } from './MapaCompleto'
 import { useRutero } from '../../services/useRutero'
+import type { SucursalRutero, ClienteRutero } from '../../services/types'
+import { obtenerSucursales as obtenerSucursalesApi } from '../../services/sucursalesApi'
+import { obtenerClientes as obtenerClientesApi } from '../../services/clientesApi'
 
 // Helper: Parse GeoJSON polygon to lat/lng array
 function parseGeoPolygon(value: unknown): { lat: number; lng: number }[] {
@@ -84,7 +88,9 @@ export default function RutasPage() {
   const [clientesSeleccionadosPorDia, setClientesSeleccionadosPorDia] = useState<Record<string, string[]>>({})
 
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
-  const [vistaActual, setVistaActual] = useState<'planificar' | 'listar'>('planificar')
+  const [vistaActual, setVistaActual] = useState<'planificar' | 'listar' | 'mapa-completo'>('planificar')
+  const [sucursales, setSucursales] = useState<SucursalRutero[]>([])
+  const [todosLosClientes, setTodosLosClientes] = useState<ClienteRutero[]>([])
 
   const zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
 
@@ -156,6 +162,45 @@ export default function RutasPage() {
         return c
       })
   }, [clientesFiltrados, clientesSeleccionadosHoy])
+
+  // Cargar todos los clientes y sus sucursales para el mapa completo
+  useEffect(() => {
+    const cargarTodosLosClientes = async () => {
+      if (vistaActual !== 'mapa-completo') return
+      
+      try {
+        const clientesData = await obtenerClientesApi()
+        setTodosLosClientes(clientesData.map(cliente => ({
+          id: cliente.id,
+          razon_social: cliente.razon_social,
+          nombre_comercial: cliente.nombre_comercial ?? null,
+          ubicacion_gps: cliente.ubicacion_gps ?? null,
+          zona_comercial_id: cliente.zona_comercial_id ?? null,
+        })))
+        
+        // Cargar sucursales para todos los clientes
+        const todasSucursales: SucursalRutero[] = []
+        for (const cliente of clientesData) {
+          try {
+            const sucursales = await obtenerSucursalesApi(cliente.id)
+            todasSucursales.push(...sucursales.map((sucursal: any) => ({
+              id: sucursal.id,
+              nombre_sucursal: sucursal.nombre_sucursal,
+              ubicacion_gps: sucursal.ubicacion_gps,
+              zona_id: sucursal.zona_id ?? null,
+            })))
+          } catch (error) {
+            console.error(`Error al cargar sucursales para el cliente ${cliente.id}:`, error)
+          }
+        }
+        setSucursales(todasSucursales)
+      } catch (error) {
+        console.error('Error al cargar todos los clientes:', error)
+      }
+    }
+    
+    void cargarTodosLosClientes()
+  }, [vistaActual])
 
   useEffect(() => {
     if (vistaActual === 'listar') {
@@ -243,6 +288,17 @@ export default function RutasPage() {
           >
             <List className="h-4 w-4" />
             Ver Rutas Guardadas
+          </button>
+          <button
+            onClick={() => setVistaActual('mapa-completo')}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              vistaActual === 'mapa-completo'
+                ? 'border-brand-red text-brand-red'
+                : 'border-transparent text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <Globe className="h-4 w-4" />
+            Ver Mapa Completo
           </button>
         </div>
 
@@ -352,6 +408,18 @@ export default function RutasPage() {
               isLoading={isLoadingRutas}
               onSeleccionarRuta={onSeleccionarRuta}
               onEliminarRuta={handleEliminarRuta}
+            />
+          </div>
+        )}
+
+        {/* Vista de Mapa Completo */}
+        {vistaActual === 'mapa-completo' && (
+          <div className="h-[calc(100%-3rem)] overflow-y-auto">
+            <MapaCompleto
+              zonas={zonas}
+              clientes={todosLosClientes}
+              sucursales={sucursales}
+              isLoading={isLoading}
             />
           </div>
         )}

@@ -33,6 +33,7 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
     contacto_telefono: '',
     posicion: null,
   })
+  const [zonaSucursalId, setZonaSucursalId] = useState<number | null>(zonaId ?? null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -45,6 +46,7 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
         contacto_telefono: initialData.contacto_telefono || '',
         posicion: coords ? { lat: coords[1], lng: coords[0] } : null,
       })
+      setZonaSucursalId(initialData.zona_id ?? zonaId ?? null)
     } else {
       setValues({
         nombre_sucursal: '',
@@ -53,19 +55,20 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
         contacto_telefono: '',
         posicion: null,
       })
+      setZonaSucursalId(zonaId ?? null)
     }
     setError(null)
     setSaving(false)
-  }, [isOpen, initialData])
+  }, [isOpen, initialData, zonaId])
 
-  const canSubmit = useMemo(() => values.nombre_sucursal.trim().length > 0, [values.nombre_sucursal])
+  const canSubmit = useMemo(() => values.nombre_sucursal.trim().length > 0 && !!zonaSucursalId, [values.nombre_sucursal, zonaSucursalId])
 
   const handleSubmit = async () => {
     if (!canSubmit) return
     try {
       setSaving(true)
       setError(null)
-      await onSubmit(values)
+      await onSubmit({ ...values, zona_id: zonaSucursalId })
       onClose()
     } catch (e: any) {
       setError(e?.message || 'No se pudo guardar la sucursal')
@@ -128,9 +131,23 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
           />
         </div>
 
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Zona comercial de la sucursal</label>
+          <select
+            className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            value={zonaSucursalId ?? ''}
+            onChange={e => setZonaSucursalId(e.target.value ? Number(e.target.value) : null)}
+            disabled={saving}
+          >
+            <option value="">Seleccione una zona</option>
+            {zonas.map(z => (
+              <option key={z.id} value={z.id}>{z.nombre}</option>
+            ))}
+          </select>
+        </div>
         <SucursalLocationPicker
           position={values.posicion}
-          zonaId={zonaId}
+          zonaId={zonaSucursalId}
           zonas={zonas}
           ubicacionMatriz={ubicacionMatriz}
           onChange={(pos) => setValues((v) => ({ ...v, posicion: pos }))}
