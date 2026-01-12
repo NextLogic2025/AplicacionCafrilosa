@@ -87,6 +87,61 @@ export const RouteService = {
     },
 
     /**
+     * Desactivar una ruta (soft delete)
+     * Cambia activo = false en lugar de eliminar
+     */
+    deactivate: async (id: string): Promise<RoutePlan> => {
+        return apiRequest<RoutePlan>(`${env.api.catalogUrl}/api/rutero/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ activo: false })
+        })
+    },
+
+    /**
+     * Reactivar una ruta desactivada
+     */
+    reactivate: async (id: string): Promise<RoutePlan> => {
+        return apiRequest<RoutePlan>(`${env.api.catalogUrl}/api/rutero/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ activo: true })
+        })
+    },
+
+    /**
+     * Obtener rutas desactivadas
+     */
+    getInactive: async (): Promise<RoutePlan[]> => {
+        const allRoutes = await RouteService.getAll()
+        return allRoutes.filter(r => !r.activo)
+    },
+
+    /**
+     * Verificar si existe una ruta duplicada
+     * @returns La ruta existente si hay duplicado, null si no existe
+     */
+    checkDuplicate: async (
+        clienteId: string, 
+        diaSemana: number, 
+        hora?: string,
+        sucursalId?: string
+    ): Promise<RoutePlan | null> => {
+        try {
+            const allRoutes = await RouteService.getAll()
+            const duplicate = allRoutes.find(r => 
+                r.activo &&
+                r.cliente_id === clienteId &&
+                r.dia_semana === diaSemana &&
+                (sucursalId ? r.sucursal_id === sucursalId : !r.sucursal_id) &&
+                (hora ? r.hora_estimada_arribo === hora : true)
+            )
+            return duplicate || null
+        } catch (error) {
+            console.error('Error checking duplicate route:', error)
+            return null
+        }
+    },
+
+    /**
      * Obtiene las visitas programadas para hoy desde el rutero planificado
      *
      * Conecta con GET /api/rutero/mio y filtra por el día actual.

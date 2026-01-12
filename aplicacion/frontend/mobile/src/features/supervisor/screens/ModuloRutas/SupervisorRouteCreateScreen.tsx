@@ -272,7 +272,10 @@ export function SupervisorRouteCreateScreen() {
             <Header 
                 title="Nueva Ruta" 
                 variant="standard" 
-                onBackPress={() => navigation.goBack()} 
+                onBackPress={() => navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'SupervisorRoutes' }]
+                })} 
             />
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>

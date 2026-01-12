@@ -58,9 +58,10 @@ export function SupervisorRoutesScreen() {
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [showZoneModal, setShowZoneModal] = useState(false)
-    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [showDeactivateModal, setShowDeactivateModal] = useState(false)
     const [showMapModal, setShowMapModal] = useState(false)
-    const [itemToDelete, setItemToDelete] = useState<RoutePlanWithClient | null>(null)
+    const [showFabMenu, setShowFabMenu] = useState(false)
+    const [itemToDeactivate, setItemToDeactivate] = useState<RoutePlanWithClient | null>(null)
 
     // Polígono de la zona seleccionada
     const zonePolygon = useMemo((): LatLng[] => {
@@ -265,23 +266,23 @@ export function SupervisorRoutesScreen() {
         setFeedbackModal({ visible: true, type, title, message })
     }
 
-    const handleDeleteRoute = async () => {
-        if (!itemToDelete) return
-        setShowDeleteModal(false)
+    const handleDeactivateRoute = async () => {
+        if (!itemToDeactivate) return
+        setShowDeactivateModal(false)
         
         try {
-            await RouteService.delete(itemToDelete.id)
-            showFeedback('success', 'Eliminado', 'La ruta ha sido eliminada correctamente')
+            await RouteService.deactivate(itemToDeactivate.id)
+            showFeedback('success', 'Ruta Desactivada', 'La ruta ha sido desactivada correctamente')
             await loadRoutes()
         } catch (error) {
-            console.error('Error deleting route:', error)
-            showFeedback('error', 'Error', 'No se pudo eliminar la ruta')
+            console.error('Error deactivating route:', error)
+            showFeedback('error', 'Error', 'No se pudo desactivar la ruta')
         }
     }
 
-    const confirmDelete = (item: RoutePlanWithClient) => {
-        setItemToDelete(item)
-        setShowDeleteModal(true)
+    const confirmDeactivate = (item: RoutePlanWithClient) => {
+        setItemToDeactivate(item)
+        setShowDeactivateModal(true)
     }
 
     const getPriorityBadge = (priority: string) => {
@@ -537,11 +538,11 @@ export function SupervisorRoutesScreen() {
                                         className="flex-1 py-3 flex-row items-center justify-center"
                                         onPress={(e) => {
                                             e.stopPropagation()
-                                            confirmDelete(item)
+                                            confirmDeactivate(item)
                                         }}
                                     >
-                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                        <Text className="text-red-500 font-medium ml-2">Eliminar</Text>
+                                        <Ionicons name="eye-off-outline" size={18} color="#EF4444" />
+                                        <Text className="text-red-500 font-medium ml-2">Desactivar</Text>
                                     </TouchableOpacity>
                                 </View>
                             </TouchableOpacity>
@@ -552,11 +553,59 @@ export function SupervisorRoutesScreen() {
                 </ScrollView>
             )}
 
+            {/* FAB Menu Overlay */}
+            {showFabMenu && (
+                <TouchableOpacity 
+                    className="absolute inset-0 bg-black/30"
+                    activeOpacity={1}
+                    onPress={() => setShowFabMenu(false)}
+                />
+            )}
+
+            {/* FAB Menu Options */}
+            {showFabMenu && (
+                <View className="absolute bottom-24 right-6">
+                    {/* Opción: Rutas Desactivadas */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setShowFabMenu(false)
+                            ;(navigation as any).navigate('SupervisorRoutesInactive')
+                        }}
+                        className="flex-row items-center bg-white rounded-full px-4 py-3 mb-3 shadow-lg"
+                        style={{ elevation: 6 }}
+                    >
+                        <View className="w-10 h-10 rounded-full bg-neutral-100 items-center justify-center mr-3">
+                            <Ionicons name="eye-off" size={20} color="#737373" />
+                        </View>
+                        <Text className="text-neutral-700 font-semibold">Rutas Desactivadas</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Opción: Crear Ruta */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setShowFabMenu(false)
+                            ;(navigation as any).navigate('SupervisorRouteCreate')
+                        }}
+                        className="flex-row items-center bg-white rounded-full px-4 py-3 shadow-lg"
+                        style={{ elevation: 6 }}
+                    >
+                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: BRAND_COLORS.red }}>
+                            <Ionicons name="add" size={20} color="white" />
+                        </View>
+                        <Text className="text-neutral-700 font-semibold">Crear Ruta</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             {/* FAB - Floating Action Button */}
             <TouchableOpacity
-                onPress={() => (navigation as any).navigate('SupervisorRouteCreate')}
+                onPress={() => setShowFabMenu(!showFabMenu)}
                 className="absolute bottom-6 right-6 w-16 h-16 rounded-full items-center justify-center shadow-lg"
-                style={{ backgroundColor: BRAND_COLORS.red, elevation: 8 }}
+                style={{ 
+                    backgroundColor: BRAND_COLORS.red, 
+                    elevation: 8,
+                    transform: [{ rotate: showFabMenu ? '45deg' : '0deg' }]
+                }}
             >
                 <Ionicons name="add" size={32} color="white" />
             </TouchableOpacity>
@@ -591,16 +640,16 @@ export function SupervisorRoutesScreen() {
                 </ScrollView>
             </GenericModal>
 
-            {/* Modal Confirmar Eliminación */}
+            {/* Modal Confirmar Desactivación */}
             <FeedbackModal
-                visible={showDeleteModal}
+                visible={showDeactivateModal}
                 type="warning"
-                title="Eliminar Ruta"
-                message={`¿Estás seguro de eliminar a ${itemToDelete?.cliente?.nombre_comercial || 'este cliente'} de la ruta del ${DAYS.find(d => d.id === selectedDay)?.label?.toLowerCase()}?`}
-                onClose={() => setShowDeleteModal(false)}
-                onConfirm={handleDeleteRoute}
+                title="Desactivar Ruta"
+                message={`¿Estás seguro de desactivar la ruta de ${itemToDeactivate?.cliente?.nombre_comercial || 'este cliente'} del ${DAYS.find(d => d.id === selectedDay)?.label?.toLowerCase()}?\n\nPodrás reactivarla desde "Rutas Desactivadas".`}
+                onClose={() => setShowDeactivateModal(false)}
+                onConfirm={handleDeactivateRoute}
                 showCancel={true}
-                confirmText="Eliminar"
+                confirmText="Desactivar"
             />
 
             {/* Feedback Modal */}
