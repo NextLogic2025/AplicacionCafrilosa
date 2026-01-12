@@ -216,15 +216,24 @@ export function SupervisorClientFormScreen() {
             if (clientId && branches.length > 0) {
                 for (const branch of branches) {
                     if (branch.id) {
-                        // Update existing (simplified for now, usually we check if dirty)
+                        // Update existing branch
+                        await SucursalService.updateSucursal(branch.id, {
+                            nombre_sucursal: branch.nombre_sucursal,
+                            direccion_entrega: branch.direccion_entrega,
+                            contacto_nombre: branch.contacto_nombre,
+                            contacto_telefono: branch.contacto_telefono,
+                            ubicacion_gps: branch.ubicacion_gps,
+                            zona_id: branch.zona_id  // ✅ Enviar zona_id al actualizar
+                        })
                     } else {
-                        // Create new
+                        // Create new branch
                         await SucursalService.createSucursal(clientId, {
                             nombre_sucursal: branch.nombre_sucursal,
                             direccion_entrega: branch.direccion_entrega,
                             contacto_nombre: branch.contacto_nombre,
                             contacto_telefono: branch.contacto_telefono,
-                            ubicacion_gps: branch.ubicacion_gps
+                            ubicacion_gps: branch.ubicacion_gps,
+                            zona_id: branch.zona_id  // ✅ Enviar zona_id al crear
                         })
                     }
                 }

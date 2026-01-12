@@ -12,6 +12,7 @@ export interface Sucursal {
     } | null
     contacto_nombre?: string
     contacto_telefono?: string
+    zona_id?: number  // Zona comercial de la sucursal
     activo: boolean
 }
 
@@ -21,6 +22,7 @@ export interface CreateSucursalPayload {
     ubicacion_gps?: any
     contacto_nombre?: string
     contacto_telefono?: string
+    zona_id?: number  // Zona comercial de la sucursal (diferente a la del cliente)
     cliente_id?: string // Added to satisfy backend DTO
 }
 
@@ -30,6 +32,7 @@ export interface UpdateSucursalPayload {
     ubicacion_gps?: any
     contacto_nombre?: string
     contacto_telefono?: string
+    zona_id?: number  // Zona comercial de la sucursal
     activo?: boolean
 }
 

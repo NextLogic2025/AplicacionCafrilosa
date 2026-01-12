@@ -9,7 +9,7 @@ import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 import { ZoneService, Zone } from '../../../../services/api/ZoneService'
 import { RouteService, RoutePlan } from '../../../../services/api/RouteService'
-import { ClientService, Client } from '../../../../services/api/ClientService'
+import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'
 
 // Extendemos RoutePlan con información del cliente
 interface RoutePlanWithClient extends RoutePlan {
@@ -18,6 +18,10 @@ interface RoutePlanWithClient extends RoutePlan {
         nombre_comercial: string
         identificacion: string
         direccion_texto?: string
+    }
+    sucursal?: {
+        nombre_sucursal: string
+        direccion_entrega?: string
     }
 }
 
@@ -121,19 +125,40 @@ export function SupervisorRoutesScreen() {
                 r.activo
             )
             
-            // Enriquecer con datos del cliente
-            const enrichedRoutes: RoutePlanWithClient[] = filteredRoutes.map(route => {
-                const client = allClients.get(route.cliente_id)
-                return {
-                    ...route,
-                    cliente: client ? {
-                        razon_social: client.razon_social,
-                        nombre_comercial: client.nombre_comercial || client.razon_social,
-                        identificacion: client.identificacion,
-                        direccion_texto: client.direccion_texto || undefined
-                    } : undefined
-                }
-            })
+            // Enriquecer con datos del cliente y sucursal
+            const enrichedRoutes: RoutePlanWithClient[] = await Promise.all(
+                filteredRoutes.map(async (route) => {
+                    const client = allClients.get(route.cliente_id)
+                    let sucursalInfo = undefined
+                    
+                    // Si tiene sucursal_id, cargar información de la sucursal
+                    if (route.sucursal_id && client) {
+                        try {
+                            const branches = await ClientService.getClientBranches(route.cliente_id)
+                            const branch = branches.find(b => b.id === route.sucursal_id)
+                            if (branch) {
+                                sucursalInfo = {
+                                    nombre_sucursal: branch.nombre_sucursal,
+                                    direccion_entrega: branch.direccion_entrega || undefined
+                                }
+                            }
+                        } catch (e) {
+                            // Ignorar error de carga de sucursal
+                        }
+                    }
+                    
+                    return {
+                        ...route,
+                        cliente: client ? {
+                            razon_social: client.razon_social,
+                            nombre_comercial: client.nombre_comercial || client.razon_social,
+                            identificacion: client.identificacion,
+                            direccion_texto: client.direccion_texto || undefined
+                        } : undefined,
+                        sucursal: sucursalInfo
+                    }
+                })
+            )
             
             // Ordenar por orden_sugerido
             enrichedRoutes.sort((a, b) => (a.orden_sugerido || 999) - (b.orden_sugerido || 999))
@@ -200,10 +225,17 @@ export function SupervisorRoutesScreen() {
                 onBackPress={() => (navigation as any).goBack()} 
             />
 
+            {/* Instrucción inicial */}
+            <View className="mx-4 mt-4 mb-2">
+                <Text className="text-neutral-600 text-sm">
+                    Gestiona las visitas programadas por zona y día de la semana
+                </Text>
+            </View>
+
             {/* Filtro de Zona */}
             <TouchableOpacity
                 onPress={() => setShowZoneModal(true)}
-                className="mx-4 mt-4 bg-white p-4 rounded-2xl border border-neutral-100 shadow-sm flex-row items-center justify-between"
+                className="mx-4 bg-white p-4 rounded-2xl border border-neutral-100 shadow-sm flex-row items-center justify-between"
             >
                 <View className="flex-row items-center flex-1">
                     <View className="w-10 h-10 rounded-xl bg-indigo-100 items-center justify-center mr-3">
@@ -305,25 +337,42 @@ export function SupervisorRoutesScreen() {
                 >
                     {routes.map((item, index) => {
                         const priorityBadge = getPriorityBadge(item.prioridad_visita)
+                        const isBranch = !!item.sucursal
                         
                         return (
-                            <View
+                            <TouchableOpacity
                                 key={item.id}
+                                onPress={() => (navigation as any).navigate('SupervisorRouteDetail', { routeId: item.id, mode: 'view' })}
+                                activeOpacity={0.7}
                                 className="bg-white rounded-2xl mb-3 overflow-hidden shadow-sm border border-neutral-100"
                             >
                                 {/* Header con Número de Orden */}
                                 <View className="bg-neutral-50 px-4 py-3 flex-row items-center justify-between border-b border-neutral-100">
-                                    <View className="flex-row items-center">
+                                    <View className="flex-row items-center flex-1">
                                         <View className="w-10 h-10 rounded-full bg-red-500 items-center justify-center mr-3">
                                             <Text className="text-white font-bold text-lg">{index + 1}</Text>
                                         </View>
-                                        <View>
-                                            <Text className="text-neutral-900 font-bold text-base" numberOfLines={1}>
-                                                {item.cliente?.nombre_comercial || 'Cliente sin nombre'}
-                                            </Text>
-                                            <Text className="text-neutral-500 text-xs">
-                                                {item.cliente?.identificacion}
-                                            </Text>
+                                        <View className="flex-1">
+                                            {/* Nombre destino principal */}
+                                            <View className="flex-row items-center">
+                                                <View className={`w-5 h-5 rounded-full items-center justify-center mr-1.5 ${isBranch ? 'bg-orange-100' : 'bg-green-100'}`}>
+                                                    <Ionicons name={isBranch ? 'storefront' : 'business'} size={10} color={isBranch ? '#F59E0B' : '#22C55E'} />
+                                                </View>
+                                                <Text className="text-neutral-900 font-bold text-base flex-1" numberOfLines={1}>
+                                                    {isBranch ? item.sucursal?.nombre_sucursal : (item.cliente?.nombre_comercial || 'Cliente sin nombre')}
+                                                </Text>
+                                            </View>
+                                            {/* Si es sucursal, mostrar cliente padre */}
+                                            {isBranch && (
+                                                <Text className="text-neutral-400 text-xs mt-0.5">
+                                                    De: {item.cliente?.nombre_comercial}
+                                                </Text>
+                                            )}
+                                            {!isBranch && (
+                                                <Text className="text-neutral-500 text-xs">
+                                                    {item.cliente?.identificacion}
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                     <StatusBadge 
@@ -355,11 +404,11 @@ export function SupervisorRoutesScreen() {
                                     </View>
 
                                     {/* Dirección */}
-                                    {item.cliente?.direccion_texto && (
+                                    {(isBranch ? item.sucursal?.direccion_entrega : item.cliente?.direccion_texto) && (
                                         <View className="flex-row items-start">
                                             <Ionicons name="location-outline" size={16} color="#9CA3AF" />
                                             <Text className="text-neutral-500 text-sm ml-2 flex-1" numberOfLines={2}>
-                                                {item.cliente.direccion_texto}
+                                                {isBranch ? item.sucursal?.direccion_entrega : item.cliente?.direccion_texto}
                                             </Text>
                                         </View>
                                     )}
@@ -368,14 +417,37 @@ export function SupervisorRoutesScreen() {
                                 {/* Acciones */}
                                 <View className="flex-row border-t border-neutral-100">
                                     <TouchableOpacity 
+                                        className="flex-1 py-3 flex-row items-center justify-center border-r border-neutral-100"
+                                        onPress={(e) => {
+                                            e.stopPropagation()
+                                            ;(navigation as any).navigate('SupervisorRouteDetail', { routeId: item.id, mode: 'view' })
+                                        }}
+                                    >
+                                        <Ionicons name="eye-outline" size={18} color="#3B82F6" />
+                                        <Text className="text-blue-500 font-medium ml-2">Ver</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        className="flex-1 py-3 flex-row items-center justify-center border-r border-neutral-100"
+                                        onPress={(e) => {
+                                            e.stopPropagation()
+                                            ;(navigation as any).navigate('SupervisorRouteDetail', { routeId: item.id, mode: 'edit' })
+                                        }}
+                                    >
+                                        <Ionicons name="pencil-outline" size={18} color="#22C55E" />
+                                        <Text className="text-green-500 font-medium ml-2">Editar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
                                         className="flex-1 py-3 flex-row items-center justify-center"
-                                        onPress={() => confirmDelete(item)}
+                                        onPress={(e) => {
+                                            e.stopPropagation()
+                                            confirmDelete(item)
+                                        }}
                                     >
                                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                                         <Text className="text-red-500 font-medium ml-2">Eliminar</Text>
                                     </TouchableOpacity>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         )
                     })}
                     

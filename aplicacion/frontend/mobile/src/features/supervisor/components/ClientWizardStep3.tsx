@@ -9,7 +9,8 @@ import { GenericList } from '../../../components/ui/GenericList'
 import { ZoneHelpers } from '../../../services/api/ZoneService'
 
 interface Branch {
-    tempId?: string
+    id?: string        // For existing branches from backend
+    tempId?: string    // For new branches not yet saved
     nombre_sucursal: string
     direccion_entrega: string
     ubicacion_gps?: {
@@ -18,6 +19,7 @@ interface Branch {
     }
     contacto_nombre?: string
     contacto_telefono?: string
+    zona_id?: number   // Zona comercial de la sucursal
 }
 
 interface Props {
@@ -108,7 +110,8 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const handleEdit = (branch: Branch) => {
         setEditingBranch(branch)
         setTempForm({ ...branch })
-        setSelectedBranchZoneId(clientData.zona_comercial_id || null)
+        // Usar zona_id de la sucursal si existe, sino usar zona del cliente
+        setSelectedBranchZoneId(branch.zona_id || clientData.zona_comercial_id || null)
         if (branch.ubicacion_gps) {
             setMarkerCoord({
                 longitude: branch.ubicacion_gps.coordinates[0],
@@ -142,20 +145,32 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         if (!tempForm.nombre_sucursal.trim()) return
 
         // Validate marker present
-        if (!markerCoord) return
-        // Validate selected zone
-        if (!selectedBranchZoneId || zonePolygon.length === 0) return
-        // Ensure marker is inside selected zone polygon
-        const inside = isPointInPolygon(markerCoord, zonePolygon)
-        if (!inside) {
-            // Simple inline feedback: highlight and abort save
-            Alert.alert('Ubicación fuera de la zona', 'La ubicación marcada debe estar dentro del polígono de la zona seleccionada.')
+        if (!markerCoord) {
+            Alert.alert('Ubicación requerida', 'Debes seleccionar una ubicación en el mapa.')
             return
+        }
+        // Validate selected zone
+        if (!selectedBranchZoneId) {
+            Alert.alert('Zona requerida', 'Debes seleccionar una zona para la sucursal.')
+            return
+        }
+        if (zonePolygon.length === 0) {
+            // Zona sin polígono - permitir guardar pero advertir
+            console.warn('[ClientWizardStep3] Zona sin polígono definido')
+        } else {
+            // Ensure marker is inside selected zone polygon
+            const inside = isPointInPolygon(markerCoord, zonePolygon)
+            if (!inside) {
+                Alert.alert('Ubicación fuera de la zona', 'La ubicación marcada debe estar dentro del polígono de la zona seleccionada.')
+                return
+            }
         }
 
         const newBranch: Branch = {
             ...tempForm,
+            id: editingBranch?.id,  // Preserve ID for existing branches
             tempId: editingBranch?.tempId || Date.now().toString(),
+            zona_id: selectedBranchZoneId,  // ✅ Guardar zona_id de la sucursal
             ubicacion_gps: markerCoord ? {
                 type: 'Point',
                 coordinates: [markerCoord.longitude, markerCoord.latitude]
@@ -163,15 +178,16 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         }
 
         if (editingBranch) {
-            setBranches(branches.map(b => b.tempId === editingBranch.tempId ? newBranch : b))
+            setBranches(branches.map(b => (b.tempId === editingBranch.tempId || b.id === editingBranch.id) ? newBranch : b))
         } else {
             setBranches([...branches, newBranch])
         }
         setShowModal(false)
     }
 
-    const handleDelete = (tempId: string) => {
-        setBranches(branches.filter(b => b.tempId !== tempId))
+    const handleDelete = (idOrTempId: string) => {
+        // Filtrar por tempId o id
+        setBranches(branches.filter(b => b.tempId !== idOrTempId && b.id !== idOrTempId))
     }
 
     return (
@@ -192,24 +208,34 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
             <View className="flex-1 px-4 pt-4">
                 <GenericList
                     items={branches}
-                    renderItem={(item: Branch) => (
-                        <View className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 shadow-sm flex-row items-center">
-                            <View className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center mr-3">
-                                <Ionicons name="storefront" size={20} color="#2563EB" />
-                            </View>
-                            <View className="flex-1">
-                                <Text className="font-bold text-neutral-900">{item.nombre_sucursal}</Text>
-                                <Text className="text-xs text-neutral-500" numberOfLines={1}>{item.direccion_entrega || 'Sin dirección'}</Text>
-                            </View>
+                    renderItem={(item: Branch) => {
+                        const branchZone = zones.find((z: any) => z.id === item.zona_id)
+                        return (
+                            <View className="bg-white p-4 mb-3 rounded-2xl border border-neutral-100 shadow-sm flex-row items-center">
+                                <View className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center mr-3">
+                                    <Ionicons name="storefront" size={20} color="#2563EB" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="font-bold text-neutral-900">{item.nombre_sucursal}</Text>
+                                    <Text className="text-xs text-neutral-500" numberOfLines={1}>{item.direccion_entrega || 'Sin dirección'}</Text>
+                                    {branchZone && (
+                                        <View className="flex-row items-center mt-1">
+                                            <View className="bg-indigo-100 px-2 py-0.5 rounded-full">
+                                                <Text className="text-indigo-700 text-[10px] font-medium">📍 {branchZone.nombre}</Text>
+                                            </View>
+                                        </View>
+                                    )}
+                                </View>
 
-                            <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
-                                <Ionicons name="pencil" size={20} color="#4B5563" />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => item.tempId && handleDelete(item.tempId)} className="p-2">
-                                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                                <TouchableOpacity onPress={() => handleEdit(item)} className="p-2">
+                                    <Ionicons name="pencil" size={20} color="#4B5563" />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => (item.tempId || item.id) && handleDelete(item.tempId || item.id!)} className="p-2">
+                                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                                </TouchableOpacity>
+                            </View>
+                        )
+                    }}
                     onRefresh={() => { }}
                     isLoading={false}
                     emptyState={{

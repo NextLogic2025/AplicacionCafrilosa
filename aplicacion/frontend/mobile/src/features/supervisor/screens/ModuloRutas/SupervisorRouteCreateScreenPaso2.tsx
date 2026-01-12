@@ -4,7 +4,6 @@ import {
     Text, 
     ScrollView, 
     TouchableOpacity, 
-    TextInput, 
     ActivityIndicator,
     Modal,
     SafeAreaView
@@ -13,6 +12,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps'
 import { Header } from '../../../../components/ui/Header'
+import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
@@ -39,6 +39,14 @@ const PRIORITIES = [
     { id: 'ALTA', label: 'Alta', color: '#EF4444', icon: 'alert-circle' as const },
     { id: 'MEDIA', label: 'Media', color: '#F59E0B', icon: 'time' as const },
     { id: 'BAJA', label: 'Baja', color: '#22C55E', icon: 'checkmark-circle' as const },
+] as const
+
+// Horas disponibles para el selector de tiempo
+const AVAILABLE_HOURS = [
+    '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
+    '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+    '18:00', '18:30', '19:00', '19:30', '20:00'
 ] as const
 
 const DEFAULT_REGION: Region = {
@@ -75,6 +83,7 @@ export function SupervisorRouteCreateScreenPaso2() {
     // UI State
     const [loading, setLoading] = useState(false)
     const [showFullscreenMap, setShowFullscreenMap] = useState(false)
+    const [showTimePicker, setShowTimePicker] = useState(false)
     
     // Feedback
     const [feedbackModal, setFeedbackModal] = useState<{
@@ -173,8 +182,12 @@ export function SupervisorRouteCreateScreenPaso2() {
             
             destinations.forEach((dest, index) => {
                 selectedDays.forEach(day => {
+                    // Construir payload según la lógica de zonas
+                    // Si es sucursal: enviar sucursal_id y usar zona de la sucursal
+                    // Si es cliente: no enviar sucursal_id, usar zona del cliente
                     const payload: Partial<RoutePlan> = {
                         cliente_id: dest.clientId,
+                        sucursal_id: dest.type === 'branch' ? dest.id : undefined,
                         zona_id: dest.zoneId,
                         dia_semana: day,
                         frecuencia: frequency,
@@ -216,7 +229,7 @@ export function SupervisorRouteCreateScreenPaso2() {
     return (
         <View className="flex-1 bg-neutral-50">
             <Header 
-                title="Nueva Ruta (2/2)" 
+                title="Nueva Ruta" 
                 variant="standard" 
                 onBackPress={() => navigation.goBack()} 
             />
@@ -224,43 +237,72 @@ export function SupervisorRouteCreateScreenPaso2() {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <View className="p-5">
                     
-                    {/* Indicador de pasos */}
-                    <View className="flex-row items-center justify-center mb-6">
-                        <View className="flex-row items-center">
-                            <View className="w-8 h-8 rounded-full bg-green-500 items-center justify-center">
-                                <Ionicons name="checkmark" size={18} color="white" />
+                    {/* Indicador de pasos con descripción */}
+                    <View className="bg-white rounded-2xl p-4 mb-6 border border-neutral-100">
+                        <View className="flex-row items-center justify-center mb-3">
+                            <View className="items-center">
+                                <View className="w-10 h-10 rounded-full bg-green-500 items-center justify-center">
+                                    <Ionicons name="checkmark" size={20} color="white" />
+                                </View>
+                                <Text className="text-green-600 text-xs font-medium mt-1">Zona ✓</Text>
                             </View>
-                            <View className="w-16 h-1 bg-red-500 mx-2" />
-                            <View className="w-8 h-8 rounded-full bg-red-500 items-center justify-center">
-                                <Text className="text-white font-bold">2</Text>
+                            <View className="w-12 h-1 bg-red-500 mx-3" />
+                            <View className="items-center">
+                                <View className="w-10 h-10 rounded-full bg-red-500 items-center justify-center">
+                                    <Text className="text-white font-bold">2</Text>
+                                </View>
+                                <Text className="text-red-600 text-xs font-medium mt-1">Horario</Text>
                             </View>
                         </View>
+                        <Text className="text-center text-neutral-600 text-sm">
+                            Configura los días, frecuencia y prioridad de visita
+                        </Text>
                     </View>
 
                     {/* Resumen de selección del paso 1 */}
-                    <View className="bg-white p-4 rounded-2xl border border-neutral-200 mb-6">
-                        <Text className="text-neutral-500 text-xs uppercase font-medium mb-2">Resumen Paso 1</Text>
+                    <View className="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-2xl border border-indigo-100 mb-6">
+                        <View className="flex-row items-center justify-between mb-2">
+                            <Text className="text-indigo-700 text-xs uppercase font-bold">✅ Paso 1 Completado</Text>
+                            <TouchableOpacity onPress={() => navigation.goBack()}>
+                                <Text className="text-indigo-500 text-xs font-medium">Modificar</Text>
+                            </TouchableOpacity>
+                        </View>
                         <View className="flex-row items-center mb-2">
                             <Ionicons name="map" size={16} color="#4F46E5" />
                             <Text className="text-neutral-900 font-medium ml-2">Zona: {zone.nombre}</Text>
                         </View>
                         <View className="flex-row items-center">
                             <Ionicons name="business" size={16} color="#3B82F6" />
-                            <Text className="text-neutral-900 font-medium ml-2">{destinations.length} destino(s) seleccionado(s)</Text>
+                            <Text className="text-neutral-900 font-medium ml-2">{destinations.length} destino(s) a visitar</Text>
                         </View>
-                        {/* Chips de destinos */}
+                        {/* Chips de destinos con indicador de zona diferente */}
                         <View className="flex-row flex-wrap mt-3">
-                            {destinations.slice(0, 3).map(dest => (
-                                <View key={dest.id} className="bg-blue-50 px-2 py-1 rounded-full mr-2 mb-1">
-                                    <Text className="text-blue-700 text-xs">{dest.name.substring(0, 15)}{dest.name.length > 15 ? '...' : ''}</Text>
-                                </View>
-                            ))}
+                            {destinations.slice(0, 3).map(dest => {
+                                const isOtherZone = dest.zoneId !== zone.id
+                                return (
+                                    <View 
+                                        key={dest.id} 
+                                        className={`px-2 py-1 rounded-full mr-2 mb-1 ${isOtherZone ? 'bg-purple-100' : 'bg-blue-100'}`}
+                                    >
+                                        <Text className={`text-xs font-medium ${isOtherZone ? 'text-purple-700' : 'text-blue-700'}`}>
+                                            {dest.type === 'branch' ? '🏪' : '🏢'} {dest.name.substring(0, 12)}{dest.name.length > 12 ? '...' : ''}
+                                            {isOtherZone && ' 📍'}
+                                        </Text>
+                                    </View>
+                                )
+                            })}
                             {destinations.length > 3 && (
                                 <View className="bg-neutral-100 px-2 py-1 rounded-full mb-1">
                                     <Text className="text-neutral-600 text-xs">+{destinations.length - 3} más</Text>
                                 </View>
                             )}
                         </View>
+                        {/* Leyenda si hay destinos de otras zonas */}
+                        {destinations.some(d => d.zoneId !== zone.id) && (
+                            <Text className="text-purple-500 text-[10px] mt-2">
+                                📍 = Destino en zona diferente a la base
+                            </Text>
+                        )}
                     </View>
 
                     {/* ============ DÍAS DE VISITA ============ */}
@@ -367,24 +409,44 @@ export function SupervisorRouteCreateScreenPaso2() {
                         </View>
                     </View>
 
-                    {/* ============ HORA ESTIMADA ============ */}
+                    {/* ============ HORA ESTIMADA CON SELECTOR ============ */}
                     <View className="mb-6">
                         <Text className="text-lg font-bold text-neutral-900 mb-3">
                             <Text className="text-red-500">🕐</Text> Hora Estimada 
                             <Text className="text-neutral-400 font-normal text-sm"> (Opcional)</Text>
                         </Text>
-                        <View className="bg-white p-4 rounded-2xl border border-neutral-200 flex-row items-center">
+                        <TouchableOpacity
+                            onPress={() => setShowTimePicker(true)}
+                            className="bg-white p-4 rounded-2xl border border-neutral-200 flex-row items-center"
+                        >
                             <View className="w-12 h-12 rounded-xl bg-green-100 items-center justify-center mr-4">
                                 <Ionicons name="time" size={24} color="#22C55E" />
                             </View>
-                            <TextInput
-                                className="flex-1 text-neutral-900 font-medium text-base"
-                                placeholder="Ej: 09:30"
-                                value={timeEstimate}
-                                onChangeText={setTimeEstimate}
-                                keyboardType="numbers-and-punctuation"
-                            />
-                        </View>
+                            <View className="flex-1">
+                                {timeEstimate ? (
+                                    <View>
+                                        <Text className="text-neutral-500 text-xs">Hora de arribo</Text>
+                                        <Text className="text-neutral-900 font-bold text-lg">{timeEstimate}</Text>
+                                    </View>
+                                ) : (
+                                    <Text className="text-neutral-400 font-medium text-base">Toca para seleccionar hora</Text>
+                                )}
+                            </View>
+                            <View className="flex-row items-center">
+                                {timeEstimate && (
+                                    <TouchableOpacity 
+                                        onPress={() => setTimeEstimate('')}
+                                        className="mr-2 p-1"
+                                    >
+                                        <Ionicons name="close-circle" size={22} color="#9CA3AF" />
+                                    </TouchableOpacity>
+                                )}
+                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            </View>
+                        </TouchableOpacity>
+                        <Text className="text-neutral-400 text-xs mt-2 ml-1">
+                            💡 Hora aproximada en que el vendedor debería llegar
+                        </Text>
                     </View>
 
                     {/* ============ MAPA PREVIEW ============ */}
@@ -574,6 +636,67 @@ export function SupervisorRouteCreateScreenPaso2() {
                     </View>
                 </SafeAreaView>
             </Modal>
+
+            {/* ============ MODAL: SELECTOR DE HORA ============ */}
+            <GenericModal
+                visible={showTimePicker}
+                title="Seleccionar Hora"
+                onClose={() => setShowTimePicker(false)}
+            >
+                <View>
+                    <View className="bg-green-50 p-3 rounded-xl mb-4 flex-row items-center">
+                        <Ionicons name="time" size={20} color="#22C55E" />
+                        <Text className="text-green-800 text-sm ml-2 flex-1">
+                            Selecciona la hora aproximada de arribo
+                        </Text>
+                    </View>
+                    
+                    <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
+                        <View className="flex-row flex-wrap justify-center">
+                            {AVAILABLE_HOURS.map(hour => {
+                                const isSelected = timeEstimate === hour
+                                const hourNum = parseInt(hour.split(':')[0])
+                                const isMorning = hourNum < 12
+                                const isAfternoon = hourNum >= 12 && hourNum < 18
+                                
+                                return (
+                                    <TouchableOpacity
+                                        key={hour}
+                                        onPress={() => {
+                                            setTimeEstimate(hour)
+                                            setShowTimePicker(false)
+                                        }}
+                                        className={`w-20 m-1 p-3 rounded-xl items-center justify-center border ${
+                                            isSelected 
+                                                ? 'bg-green-500 border-green-600' 
+                                                : 'bg-white border-neutral-200'
+                                        }`}
+                                    >
+                                        <Text className={`font-bold text-base ${isSelected ? 'text-white' : 'text-neutral-900'}`}>
+                                            {hour}
+                                        </Text>
+                                        <Text className={`text-[10px] ${isSelected ? 'text-green-100' : 'text-neutral-400'}`}>
+                                            {isMorning ? 'AM' : isAfternoon ? 'PM' : 'Noche'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )
+                            })}
+                        </View>
+                    </ScrollView>
+                    
+                    {timeEstimate && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                setTimeEstimate('')
+                                setShowTimePicker(false)
+                            }}
+                            className="mt-4 py-3 rounded-xl bg-neutral-100 items-center"
+                        >
+                            <Text className="text-neutral-600 font-medium">Quitar hora</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </GenericModal>
 
             <FeedbackModal
                 visible={feedbackModal.visible}

@@ -17,8 +17,9 @@ import { ClientService } from './ClientService'
 export interface RoutePlan {
     id: string
     cliente_id: string
-    zona_id: number
-    dia_semana: number // 0=Domingo, 1=Lunes, ..., 6=Sábado
+    sucursal_id?: string  // Opcional: si se especifica, la visita es a la sucursal
+    zona_id: number       // Zona de la visita (puede ser diferente si es sucursal)
+    dia_semana: number    // 1=Lunes, 2=Martes, ..., 5=Viernes
     frecuencia: 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
     prioridad_visita: 'ALTA' | 'MEDIA' | 'BAJA' | 'NORMAL'
     orden_sugerido: number

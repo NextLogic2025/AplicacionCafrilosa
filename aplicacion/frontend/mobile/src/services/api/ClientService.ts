@@ -52,6 +52,7 @@ export interface ClientBranch {
     cliente_id: string
     nombre_sucursal: string
     direccion_entrega: string
+    zona_id?: number  // Zona de la sucursal (puede ser diferente a la zona del cliente)
     ubicacion_gps?: {
         type: 'Point'
         coordinates: [number, number] // [lng, lat]
