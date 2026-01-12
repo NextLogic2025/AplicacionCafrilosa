@@ -11,7 +11,7 @@ interface RutaGuardada {
 interface RuteroListaProps {
   rutas: RutaGuardada[]
   isLoading: boolean
-  onSeleccionarRuta: (zonaId: number, dia: string) => void
+  onSeleccionarRuta: (zonaId: number, dia: string, clienteId?: string) => void
   onEliminarRuta: (zonaId: number, dia: string) => void
 }
 

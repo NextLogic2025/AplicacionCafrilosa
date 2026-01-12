@@ -11,6 +11,7 @@ type FormValues = {
   contacto_nombre?: string
   contacto_telefono?: string
   posicion: { lat: number; lng: number } | null
+  zona_id?: number | null
 }
 
 interface SucursalFormModalProps {
@@ -45,8 +46,9 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
         contacto_nombre: initialData.contacto_nombre || '',
         contacto_telefono: initialData.contacto_telefono || '',
         posicion: coords ? { lat: coords[1], lng: coords[0] } : null,
+        zona_id: (initialData as any)?.zona_id ?? null,
       })
-      setZonaSucursalId(initialData.zona_id ?? zonaId ?? null)
+      setZonaSucursalId((initialData as any)?.zona_id ?? zonaId ?? null)
     } else {
       setValues({
         nombre_sucursal: '',

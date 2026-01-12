@@ -92,7 +92,9 @@ export default function RutasPage() {
   const [sucursales, setSucursales] = useState<SucursalRutero[]>([])
   const [todosLosClientes, setTodosLosClientes] = useState<ClienteRutero[]>([])
 
-  const zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
+  // ...existing code...
+  // Determinar zona actual para el mapa
+  let zonaActual = zonas.find((z) => z.id === zonaSeleccionada) || null
 
   // Obtener la clave única para el día/zona
   const diaZonaKey = `${zonaSeleccionada}-${diaSeleccionado}`
@@ -117,18 +119,17 @@ export default function RutasPage() {
     })
   }
 
-
   // Filtrar clientes por zona usando polígono, pero si la sucursal seleccionada está fuera de la zona, igual mostrarla
-  const clientesFiltrados = useMemo(() => {
+  const clientesFiltrados = useMemo<ClienteRutero[]>(() => {
     if (!zonaActual?.poligono_geografico) return clientes;
     const zonaPaths = parseGeoPolygon(zonaActual.poligono_geografico);
     if (!zonaPaths.length) return clientes;
 
-    return clientes.filter((c) => {
+    return clientes.filter((c: ClienteRutero) => {
       // Si es sucursal y la sucursal seleccionada está en otra zona, igual mostrarla
       if (c.tipo_direccion === 'SUCURSAL' && c.sucursal_id && c.sucursales?.length) {
-        const suc = c.sucursales.find(s => s.id === c.sucursal_id);
-        if (suc && suc.zona_id && suc.zona_id !== zonaActual.id) {
+        const suc = c.sucursales.find((s: any) => s.id === c.sucursal_id);
+        if (suc && suc.zona_id && zonaActual && suc.zona_id !== zonaActual.id) {
           // Mostrar aunque esté fuera de la zona
           return true;
         }
@@ -147,6 +148,32 @@ export default function RutasPage() {
     });
   }, [clientes, zonaActual]);
 
+    // Filtrar clientes según la selección del día y ajustar ubicacion_gps si es sucursal
+    const clientesParaMostrar: ClienteRutero[] = useMemo<ClienteRutero[]>(() => {
+      if (clientesSeleccionadosHoy.size === 0) return []
+      return clientesFiltrados
+        .filter((c: ClienteRutero) => clientesSeleccionadosHoy.has(c.id))
+        .map((c: ClienteRutero): ClienteRutero => {
+          if (c.tipo_direccion === 'SUCURSAL' && c.sucursal_id && c.sucursales?.length) {
+            const suc = c.sucursales.find((s: any) => s.id === c.sucursal_id)
+            if (suc && suc.ubicacion_gps) {
+              return { ...c, ubicacion_gps: suc.ubicacion_gps }
+            }
+          }
+          return c
+        })
+    }, [clientesFiltrados, clientesSeleccionadosHoy])
+
+    // Si hay un solo cliente seleccionado y es sucursal, mostrar el polígono de la zona de la sucursal en el mapa
+    const clienteSeleccionado = clientesParaMostrar.length === 1 ? clientesParaMostrar[0] : null;
+    if (clienteSeleccionado && clienteSeleccionado.tipo_direccion === 'SUCURSAL' && clienteSeleccionado.sucursal_id && clienteSeleccionado.sucursales?.length) {
+      const suc = clienteSeleccionado.sucursales.find((s: any) => s.id === clienteSeleccionado.sucursal_id);
+      if (suc && suc.zona_id) {
+        const zonaSucursal = zonas.find((z: any) => z.id === suc.zona_id);
+        if (zonaSucursal) zonaActual = zonaSucursal;
+      }
+    }
+
   // Seleccionar/deseleccionar todos
   const toggleTodosLosClientes = () => {
     setClientesSeleccionadosPorDia((prev) => {
@@ -162,21 +189,7 @@ export default function RutasPage() {
     })
   }
 
-  // Filtrar clientes según la selección del día y ajustar ubicacion_gps si es sucursal
-  const clientesParaMostrar = useMemo(() => {
-    if (clientesSeleccionadosHoy.size === 0) return []
-    return clientesFiltrados
-      .filter(c => clientesSeleccionadosHoy.has(c.id))
-      .map(c => {
-        if (c.tipo_direccion === 'SUCURSAL' && c.sucursal_id && c.sucursales?.length) {
-          const suc = c.sucursales.find(s => s.id === c.sucursal_id)
-          if (suc && suc.ubicacion_gps) {
-            return { ...c, ubicacion_gps: suc.ubicacion_gps }
-          }
-        }
-        return c
-      })
-  }, [clientesFiltrados, clientesSeleccionadosHoy])
+  // ...ya está declarada más abajo, eliminar esta duplicada...
 
   // Cargar todos los clientes y sus sucursales para el mapa completo
   useEffect(() => {

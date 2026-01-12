@@ -69,7 +69,7 @@ export function RuteroAgenda({
   };
 
   // Determinar si el selector de zona debe estar deshabilitado
-  const zonaDeshabilitada = clienteSeleccionado && clienteSeleccionado.tipo_direccion === 'SUCURSAL';
+  const zonaDeshabilitada = Boolean(clienteSeleccionado && clienteSeleccionado.tipo_direccion === 'SUCURSAL');
   const zonaIdActual = zonaSeleccionada || '';
 
   return (
