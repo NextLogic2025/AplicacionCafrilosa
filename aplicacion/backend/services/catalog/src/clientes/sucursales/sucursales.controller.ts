@@ -28,7 +28,7 @@ export class SucursalesController {
   // List sucursales for a specific cliente
   @Get('clientes/:clienteId/sucursales')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'cliente')
+  @Roles('admin', 'supervisor', 'cliente', 'vendedor')
   findAllByCliente(@Req() req: any, @Param('clienteId') clienteId: string) {
     const role = String(req.user?.role || '').toLowerCase();
     const userId = req.user?.userId;
