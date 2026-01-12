@@ -39,7 +39,7 @@ export class SucursalesController {
   // List deactivated sucursales for a specific cliente
   @Get('clientes/:clienteId/sucursales/desactivadas')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'cliente')
+  @Roles('admin', 'supervisor', 'cliente','vendedor')
   findDeactivatedByCliente(@Req() req: any, @Param('clienteId') clienteId: string) {
     const role = String(req.user?.role || '').toLowerCase();
     const userId = req.user?.userId;
