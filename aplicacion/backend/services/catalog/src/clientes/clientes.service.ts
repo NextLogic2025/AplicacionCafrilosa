@@ -4,9 +4,11 @@ import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-import { Cliente } from './entities/cliente.entity';
 import { ZonaComercial } from '../zonas/entities/zona.entity';
 import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
+
+import { Cliente } from './entities/cliente.entity';
+
 
 @Injectable()
 export class ClientesService {

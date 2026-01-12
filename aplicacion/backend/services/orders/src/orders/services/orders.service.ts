@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { DetallePedido } from '../entities/detalle-pedido.entity';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
+import almacenClient from '../clients/almacen.client';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrdersService {
@@ -39,6 +41,19 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
+      // --- Integración con almacen (simulado) ---
+      const itemsToCheck = createOrderDto.items.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad }));
+      const check = await almacenClient.checkStock(itemsToCheck);
+      if (!check || !check.ok) {
+        throw new BadRequestException('Stock insuficiente para alguno de los items');
+      }
+
+      const reservationId = `order:${uuidv4()}`;
+      const reserve = await almacenClient.reserveStock(reservationId, itemsToCheck);
+      if (!reserve || !reserve.ok) {
+        throw new ConflictException('No se pudo reservar stock en almacen');
+      }
+
       // 1. Calcular totales (Lógica de negocio)
       const neto = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
       const impuestos = neto * 0.15; // Ejemplo 15%
@@ -68,11 +83,27 @@ export class OrdersService {
 
       // Si todo sale bien, confirmar cambios
       await queryRunner.commitTransaction();
+
+      // Confirmar reserva en almacen
+      try {
+        await almacenClient.commitReservation(reservationId);
+      } catch (err) {
+        // Si commit falla, loguear y notificar — el pedido ya está creado; decisión operativa necesaria
+        // Aquí podríamos marcar el pedido con un flag de 'stock_confirmacion_fallida'
+      }
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
       // Si algo falla, revertir todo (Rollback)
       await queryRunner.rollbackTransaction();
+      // intentar liberar reserva si existe
+      try {
+        if ((err as any)?.reservationId) {
+          await almacenClient.releaseReservation((err as any).reservationId);
+        }
+      } catch (releaseErr) {
+        // swallow - no podemos hacer más
+      }
       throw new InternalServerErrorException('No se pudo procesar el pedido. Intente más tarde.');
     } finally {
       await queryRunner.release();
