@@ -40,7 +40,7 @@ export class ClientesService {
   }
 
   async findForVendedor(vendedorId: string) {
-    const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId } });
+    const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId, bloqueado: false } });
     return this.enrichClientes(clientes);
   }
 
