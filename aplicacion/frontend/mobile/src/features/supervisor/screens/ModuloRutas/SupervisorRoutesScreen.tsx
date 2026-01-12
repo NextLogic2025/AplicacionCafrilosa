@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Polyline } from 'react-native-maps'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { ZoneService, Zone } from '../../../../services/api/ZoneService'
+import { ZoneService, Zone, ZoneHelpers, LatLng } from '../../../../services/api/ZoneService'
 import { RouteService, RoutePlan } from '../../../../services/api/RouteService'
 import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'
 
@@ -18,10 +19,18 @@ interface RoutePlanWithClient extends RoutePlan {
         nombre_comercial: string
         identificacion: string
         direccion_texto?: string
+        ubicacion_gps?: {
+            type: 'Point'
+            coordinates: [number, number]
+        } | null
     }
     sucursal?: {
         nombre_sucursal: string
         direccion_entrega?: string
+        ubicacion_gps?: {
+            type: 'Point'
+            coordinates: [number, number]
+        } | null
     }
 }
 
@@ -50,7 +59,81 @@ export function SupervisorRoutesScreen() {
     const [refreshing, setRefreshing] = useState(false)
     const [showZoneModal, setShowZoneModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [showMapModal, setShowMapModal] = useState(false)
     const [itemToDelete, setItemToDelete] = useState<RoutePlanWithClient | null>(null)
+
+    // Polígono de la zona seleccionada
+    const zonePolygon = useMemo((): LatLng[] => {
+        if (!selectedZone?.poligono_geografico) return []
+        return ZoneHelpers.parsePolygon(selectedZone.poligono_geografico)
+    }, [selectedZone])
+
+    // Marcadores de visitas con ubicación GPS
+    const routeMarkers = useMemo(() => {
+        return routes.map((route, index) => {
+            const isBranch = !!route.sucursal
+            let coords: { latitude: number, longitude: number } | null = null
+            
+            // Obtener coordenadas de sucursal o cliente
+            if (isBranch && route.sucursal?.ubicacion_gps) {
+                coords = {
+                    longitude: route.sucursal.ubicacion_gps.coordinates[0],
+                    latitude: route.sucursal.ubicacion_gps.coordinates[1]
+                }
+            } else if (route.cliente?.ubicacion_gps) {
+                coords = {
+                    longitude: route.cliente.ubicacion_gps.coordinates[0],
+                    latitude: route.cliente.ubicacion_gps.coordinates[1]
+                }
+            }
+            
+            return {
+                id: route.id,
+                order: index + 1,
+                name: isBranch ? route.sucursal?.nombre_sucursal : route.cliente?.nombre_comercial,
+                isBranch,
+                coords,
+                hora: route.hora_estimada_arribo
+            }
+        }).filter(m => m.coords !== null) as {
+            id: string
+            order: number
+            name: string | undefined
+            isBranch: boolean
+            coords: { latitude: number; longitude: number }
+            hora?: string
+        }[]
+    }, [routes])
+
+    // Región inicial del mapa centrada en los marcadores
+    const mapInitialRegion = useMemo(() => {
+        if (routeMarkers.length > 0) {
+            const lats = routeMarkers.map(m => m.coords.latitude)
+            const lngs = routeMarkers.map(m => m.coords.longitude)
+            const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2
+            const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2
+            const latDelta = Math.max(0.01, (Math.max(...lats) - Math.min(...lats)) * 1.5)
+            const lngDelta = Math.max(0.01, (Math.max(...lngs) - Math.min(...lngs)) * 1.5)
+            return {
+                latitude: centerLat,
+                longitude: centerLng,
+                latitudeDelta: latDelta,
+                longitudeDelta: lngDelta
+            }
+        }
+        // Default: Loja, Ecuador
+        return {
+            latitude: -3.99313,
+            longitude: -79.20422,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1
+        }
+    }, [routeMarkers])
+
+    // Línea de ruta conectando los puntos en orden
+    const routePath = useMemo(() => {
+        return routeMarkers.map(m => m.coords)
+    }, [routeMarkers])
 
     // Feedback State
     const [feedbackModal, setFeedbackModal] = useState<{
@@ -139,7 +222,8 @@ export function SupervisorRoutesScreen() {
                             if (branch) {
                                 sucursalInfo = {
                                     nombre_sucursal: branch.nombre_sucursal,
-                                    direccion_entrega: branch.direccion_entrega || undefined
+                                    direccion_entrega: branch.direccion_entrega || undefined,
+                                    ubicacion_gps: branch.ubicacion_gps || undefined
                                 }
                             }
                         } catch (e) {
@@ -153,7 +237,8 @@ export function SupervisorRoutesScreen() {
                             razon_social: client.razon_social,
                             nombre_comercial: client.nombre_comercial || client.razon_social,
                             identificacion: client.identificacion,
-                            direccion_texto: client.direccion_texto || undefined
+                            direccion_texto: client.direccion_texto || undefined,
+                            ubicacion_gps: client.ubicacion_gps || undefined
                         } : undefined,
                         sucursal: sucursalInfo
                     }
@@ -287,17 +372,29 @@ export function SupervisorRoutesScreen() {
                 </View>
             </View>
 
-            {/* Contador de Rutas */}
+            {/* Contador de Rutas + Botón Ver Mapa */}
             <View className="px-4 pb-2">
                 <View className="flex-row items-center justify-between">
                     <Text className="text-neutral-500 font-medium">
                         {routes.length} {routes.length === 1 ? 'visita programada' : 'visitas programadas'}
                     </Text>
-                    <View className="flex-row items-center">
-                        <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
-                        <Text className="text-neutral-400 text-sm ml-1">
-                            {DAYS.find(d => d.id === selectedDay)?.label}
-                        </Text>
+                    <View className="flex-row items-center gap-3">
+                        {/* Botón Ver Mapa */}
+                        {routes.length > 0 && routeMarkers.length > 0 && (
+                            <TouchableOpacity
+                                onPress={() => setShowMapModal(true)}
+                                className="flex-row items-center bg-blue-500 px-3 py-1.5 rounded-full"
+                            >
+                                <Ionicons name="map" size={14} color="white" />
+                                <Text className="text-white text-xs font-bold ml-1">Ver Mapa</Text>
+                            </TouchableOpacity>
+                        )}
+                        <View className="flex-row items-center">
+                            <Ionicons name="calendar-outline" size={16} color="#9CA3AF" />
+                            <Text className="text-neutral-400 text-sm ml-1">
+                                {DAYS.find(d => d.id === selectedDay)?.label}
+                            </Text>
+                        </View>
                     </View>
                 </View>
             </View>
@@ -514,6 +611,116 @@ export function SupervisorRoutesScreen() {
                 message={feedbackModal.message}
                 onClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
             />
+
+            {/* Modal Mapa de Rutas del Día */}
+            <GenericModal
+                visible={showMapModal}
+                title={`Ruta ${DAYS.find(d => d.id === selectedDay)?.label} - ${selectedZone?.nombre || ''}`}
+                onClose={() => setShowMapModal(false)}
+            >
+                <View className="h-[550px] rounded-xl overflow-hidden relative bg-neutral-100">
+                    {routeMarkers.length > 0 ? (
+                        <MapView
+                            provider={PROVIDER_GOOGLE}
+                            style={{ flex: 1 }}
+                            initialRegion={mapInitialRegion}
+                        >
+                            {/* Polígono de la zona */}
+                            {zonePolygon.length > 0 && (
+                                <Polygon
+                                    coordinates={zonePolygon}
+                                    strokeColor={BRAND_COLORS.red}
+                                    fillColor="rgba(239, 68, 68, 0.1)"
+                                    strokeWidth={2}
+                                />
+                            )}
+
+                            {/* Línea de ruta conectando puntos */}
+                            {routePath.length > 1 && (
+                                <Polyline
+                                    coordinates={routePath}
+                                    strokeColor="#3B82F6"
+                                    strokeWidth={3}
+                                    lineDashPattern={[10, 5]}
+                                />
+                            )}
+
+                            {/* Marcadores numerados */}
+                            {routeMarkers.map((marker) => (
+                                <Marker
+                                    key={marker.id}
+                                    coordinate={marker.coords}
+                                    title={`#${marker.order} - ${marker.name || 'Sin nombre'}`}
+                                    description={marker.hora ? `Hora: ${marker.hora}` : undefined}
+                                >
+                                    <View className="items-center">
+                                        {/* Número del orden */}
+                                        <View 
+                                            className={`w-8 h-8 rounded-full items-center justify-center shadow-md ${
+                                                marker.isBranch ? 'bg-orange-500' : 'bg-red-500'
+                                            }`}
+                                        >
+                                            <Text className="text-white font-bold text-sm">{marker.order}</Text>
+                                        </View>
+                                        {/* Triángulo indicador */}
+                                        <View 
+                                            style={{
+                                                width: 0,
+                                                height: 0,
+                                                borderLeftWidth: 6,
+                                                borderRightWidth: 6,
+                                                borderTopWidth: 8,
+                                                borderLeftColor: 'transparent',
+                                                borderRightColor: 'transparent',
+                                                borderTopColor: marker.isBranch ? '#F97316' : BRAND_COLORS.red,
+                                                marginTop: -2
+                                            }}
+                                        />
+                                    </View>
+                                </Marker>
+                            ))}
+                        </MapView>
+                    ) : (
+                        <View className="flex-1 items-center justify-center">
+                            <Ionicons name="location-outline" size={48} color="#9CA3AF" />
+                            <Text className="text-neutral-500 mt-2">Sin ubicaciones GPS</Text>
+                            <Text className="text-neutral-400 text-xs text-center mt-1 px-4">
+                                Las visitas no tienen coordenadas GPS registradas
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Leyenda */}
+                    <View className="absolute bottom-4 left-4 right-4 bg-white/95 rounded-xl p-3 shadow-lg">
+                        <Text className="text-neutral-700 font-bold text-sm mb-2">Leyenda</Text>
+                        <View className="flex-row flex-wrap gap-3">
+                            <View className="flex-row items-center">
+                                <View className="w-6 h-6 rounded-full bg-red-500 items-center justify-center mr-1.5">
+                                    <Ionicons name="business" size={12} color="white" />
+                                </View>
+                                <Text className="text-neutral-600 text-xs">Matriz</Text>
+                            </View>
+                            <View className="flex-row items-center">
+                                <View className="w-6 h-6 rounded-full bg-orange-500 items-center justify-center mr-1.5">
+                                    <Ionicons name="storefront" size={12} color="white" />
+                                </View>
+                                <Text className="text-neutral-600 text-xs">Sucursal</Text>
+                            </View>
+                            <View className="flex-row items-center">
+                                <View className="w-6 h-0.5 bg-blue-500 mr-1.5" style={{ borderStyle: 'dashed' }} />
+                                <Text className="text-neutral-600 text-xs">Ruta</Text>
+                            </View>
+                            <View className="flex-row items-center">
+                                <View className="w-4 h-4 bg-red-500/20 border border-red-500 mr-1.5" />
+                                <Text className="text-neutral-600 text-xs">Zona</Text>
+                            </View>
+                        </View>
+                        <Text className="text-neutral-400 text-[10px] mt-2 text-center">
+                            Toca cada marcador para ver detalles
+                        </Text>
+                    </View>
+                </View>
+            </GenericModal>
         </View>
     )
 }
