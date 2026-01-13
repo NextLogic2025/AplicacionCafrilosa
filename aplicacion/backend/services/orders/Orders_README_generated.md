@@ -1,3 +1,131 @@
+# Orders microservice — Resumen operativo
+
+Este servicio gestiona carritos y pedidos (orders). Implementa el patrón "Trust but Verify": el frontend envía snapshots de precios, pero el backend valida precios y promociones antes de persistir.
+
+Archivo de inicialización de DB: [aplicacion/infra/local-init/05-init-orders.sql](aplicacion/infra/local-init/05-init-orders.sql)
+
+**Comandos rápidos**
+- **Instalar / Desarrollar:**
+  ```bash
+  cd aplicacion/backend/services/orders
+  npm install
+  npm run start:dev
+  ```
+- **Build:** `npm run build`
+
+**Docker (ejemplo)**
+```bash
+docker build -t orders-service .
+docker run -e DATABASE_URL=postgres://admin:root@host:5432/orders_db -p 3000:3000 orders-service
+```
+
+---
+
+## 1) Resumen del flujo (alto nivel)
+
+1. Usuario (cliente o vendedor) mantiene su carrito con `POST /orders/cart/:userId`.
+2. Frontend envía `POST /orders` con el `CreateOrderDto` (snapshots por item: nombre, sku, precio_original, precio_unitario y opcional `campania_aplicada_id`).
+3. Backend recalcula todos los totales (subtotal, impuestos, total_final) — autoridad del backend.
+4. Si hay `campania_aplicada_id`, el servicio valida la vigencia y aplicación de la campaña en Catalog (HTTP a `CATALOG_SERVICE_URL` o consulta directa según despliegue).
+5. La creación usa transacción (QueryRunner). Si cualquier validación o guardado falla se hace rollback.
+6. Al finalizar con éxito se borra el carrito (`CartService.clearCart`) y se devuelve resumen `{ id, codigo, total }`.
+
+---
+
+## 2) Roles y responsabilidades
+
+- **cliente**: crear/consultar carrito, crear pedido propio, cancelar pedido en `PENDIENTE` o `APROBADO`, ver sólo sus pedidos.
+- **vendedor**: crear pedidos en nombre de clientes (asignar `cliente_id` al carrito), ver sus pedidos y los de sus clientes.
+- **admin / supervisor**: acceso total (listar, ver, cambiar estados, auditar historiales).
+- **bodeguero / transportista**: cambiar estados operativos (`EN_RUTA`, `ENTREGADO`, etc.) mediante `PATCH /orders/:id/status`.
+
+---
+
+## 3) Endpoints principales (resumen)
+
+- **GET /orders/client/:userId** — Listar pedidos relacionados (cliente o vendedor). Roles: `admin`, `cliente`, `vendedor`.
+- **GET /orders/:id** — Obtener pedido con detalles. Roles: `admin`, `vendedor`, `cliente`, `bodeguero`.
+- **GET /orders/:id/detail** — DTO profesional con `OrderResponseDto`. Roles: `admin`, `vendedor`, `cliente`.
+- **GET /orders/:id/tracking** — Timeline / historial del pedido. Roles: `admin`, `cliente`, `vendedor`.
+- **POST /orders** — Crear pedido (transaccional). Guards: `OrderOwnershipGuard`. Roles: `admin`, `vendedor`, `cliente`.
+- **PATCH /orders/:id/cancel** — Cancelar pedido (PENDIENTE o APROBADO → ANULADO). Roles: `admin`, `cliente`, `vendedor`.
+- **PATCH /orders/:id/status** — Cambiar estado (ej: `EN_RUTA`). Roles: `admin`, `bodeguero` (configurable).
+
+Cart endpoints (centralizados en `CartController`):
+- **GET /orders/cart/:userId** — Obtener carrito.
+- **POST /orders/cart/:userId** — Upsert item en carrito.
+- **DELETE /orders/cart/:userId** — Vaciar carrito.
+- **DELETE /orders/cart/:userId/item/:productId** — Eliminar item.
+- **POST /orders/cart/:userId/cliente** — Asignar cliente al carrito (para vendedores).
+
+---
+
+## 4) DTOs / Payloads (ejemplos)
+
+- **CreateOrderDto (resumen)** — enviar array `items` con campos mínimos por item:
+
+```json
+{
+  "cliente_id": "uuid",
+  "vendedor_id": "uuid",
+  "sucursal_id": "uuid|null",
+  "items": [
+    {
+      "producto_id": "uuid",
+      "cantidad": 2,
+      "precio_unitario": 12.5,
+      "precio_original": 15.0,
+      "codigo_sku": "SKU-1",
+      "nombre_producto": "Producto A",
+      "unidad_medida": "UN",
+      "motivo_descuento": "Promoción X",
+      "campania_aplicada_id": 123
+    }
+  ],
+  "observaciones_entrega": "...",
+  "condicion_pago": "CONTADO",
+  "fecha_entrega_solicitada": "YYYY-MM-DD",
+  "origen_pedido": "APP_MOVIL",
+  "ubicacion": { "lat": -0.12, "lng": -78.12 }
+}
+```
+
+- **UpdateCartItemDto (ejemplo)**
+
+```json
+{ "producto_id": "uuid", "cantidad": 1.5, "precio_unitario_ref": 10.0 }
+```
+
+---
+
+## 5) Validaciones y comportamiento esperado
+
+- Validaciones con `class-validator` (UUIDs, mínimos, formatos de fecha).
+- Backend recalcula: `subtotal = sum(precio_unitario * cantidad)`, `impuestos_total = (subtotal - descuento_total) * 0.12`, `total_final = subtotal - descuento_total + impuestos_total`.
+- Si `campania_aplicada_id` está presente, el servicio verifica que la campaña siga vigente y que el producto pertenezca a la campaña; si no es válida, devuelve `409 Conflict`.
+- Persistencia transaccional: se usan `QueryRunner` y cascades para asegurar ACID.
+
+---
+
+## 6) Códigos HTTP importantes
+
+- `200` / `201`: OK / creado.
+- `409 Conflict`: promoción inválida o expirada — frontend debe refrescar catálogo/carrito.
+- `400` / `422`: error de validación en DTO.
+- `403`: acceso denegado por rol/ownership.
+- `404`: recurso no encontrado.
+
+---
+
+## 7) Checklist para el frontend antes de `POST /orders`
+
+- Incluir snapshots por item: `nombre_producto`, `codigo_sku`, `precio_original`.
+- Si usa promociones, incluir `campania_aplicada_id` por item y manejar `409` refrescando catálogo.
+- Enviar token JWT válido en `Authorization`.
+
+---
+
+Si quieres, genero una **colección Postman** con estas peticiones y variables (`{{baseUrl}}`, `{{token}}`).
 # Orders microservice
 
 Este módulo gestiona pedidos (orders), carritos (cart) y el flujo relacionado (historial de estados, promociones aplicadas, etc.).
@@ -166,3 +294,60 @@ Recomendación para colección Postman / variables de entorno:
 6. Cancelar pedido (PATCH {{baseUrl}}/orders/:id/cancel) con body `{ "motivo": "..." }`.
 
 Si quieres, puedo generar una colección Postman con estas peticiones (exportada) y ejemplos pre-llenados. Dime si la quieres y te la creo.
+
+---
+
+## Flujo Operativo (Resumen "Trust but Verify")
+
+1. Cliente/Vendedor crea o actualiza su carrito con `POST /orders/cart/:userId`.
+  - Enviar: `{ producto_id, cantidad, precio_unitario_ref }`.
+  - Validaciones: `producto_id` UUID, `cantidad` >= 0.1.
+  - Resultado: carrito con totales recalculados.
+
+2. Cuando el frontend crea el pedido `POST /orders` envía el `CreateOrderDto` con el snapshot de cada item (nombre, sku, precio_unitario, precio_original, campania_aplicada_id opcional).
+  - El backend recalcula `subtotal`, `impuestos_total` y `total_final` (no confiar en valores calculados en cliente).
+
+3. Verificación de promociones (Trust but Verify):
+  - Si un item incluye `campania_aplicada_id`, `OrdersService` comprobará consultando el `Catalog` (via HTTP a `CATALOG_SERVICE_URL` o consultando BD según despliegue) que la campaña esté activa y que el producto pertenezca a la campaña.
+  - Si la verificación falla, la creación del pedido falla con `409 Conflict` y el frontend debe refrescar catálogo/carrito.
+
+4. Persistencia transaccional:
+  - La creación de pedido usa `QueryRunner` para asegurar ACID: si cualquier detalle/promo falla, se hace rollback y no se guarda nada.
+  - Al finalizar exitosamente se limpia el carrito (`CartService.clearCart`) y se devuelve `{ id, codigo, total }`.
+
+5. Notificaciones y seguimiento:
+  - Los cambios de estado crean entradas en `historial_estados` y pueden disparar notifications (pg_notify o servicios asíncronos según infra).
+
+## Roles y responsabilidades
+
+- `cliente`:
+  - Crear/consultar su carrito y pedir. Puede cancelar su pedido cuando esté en `PENDIENTE` o `APROBADO`.
+  - Ver solo sus pedidos (guardias y `OrderOwnershipGuard` aplican).
+
+- `vendedor`:
+  - Crear pedidos en nombre de clientes (puede asignar `cliente_id` al carrito y crear pedido).
+  - Consultar pedidos propios y de clientes asignados.
+
+- `admin` / `supervisor`:
+  - Acceso completo: listar, ver, actualizar estados, eliminar/restaurar recursos de apoyo (productos, campañas) y ver historiales.
+
+- `bodeguero` / `transportista`:
+  - Cambiar estados relevantes (`EN_RUTA`, `ENTREGADO`, etc.) mediante `PATCH /orders/:id/status` (roles permitidos configurables).
+
+## Qué enviar (Checklist para frontend)
+
+- Headers: `Authorization: Bearer <token>`, `Content-Type: application/json`.
+- Para crear pedido (`POST /orders`): enviar `CreateOrderDto` completo con snapshots de producto (nombre, sku, precio_original) y, si aplica, `campania_aplicada_id`.
+- Para cambiar estado: `PATCH /orders/:id/status` body `{ "status": "EN_RUTA" }` y usar token con rol permitido.
+
+## Respuestas y códigos esperados (recap)
+
+- `201` / `200`: pedido creado / recurso retornado.
+- `409 Conflict`: promoción inválida/expirada — frontend debe refrescar carrito/catálogos.
+- `400` / `422`: validación fallida en DTOs.
+- `403`: acceso denegado por roles/ownership.
+- `404`: recurso no encontrado.
+
+---
+
+Archivo actualizado: [aplicacion/backend/services/orders/Orders_README_generated.md](aplicacion/backend/services/orders/Orders_README_generated.md)
