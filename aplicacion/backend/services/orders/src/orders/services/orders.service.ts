@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -204,5 +204,65 @@ export class OrdersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Cancela un pedido cambiando su estado a ANULADO.
+   * Solo se puede cancelar si está en estado PENDIENTE.
+   * @param pedidoId - UUID del pedido
+   * @param usuarioId - UUID del usuario que solicita la cancelación (opcional)
+   * @param motivo - Motivo de la cancelación (opcional)
+   */
+  async cancelOrder(
+    pedidoId: string,
+    usuarioId?: string,
+    motivo?: string
+  ): Promise<Pedido> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
+      
+      if (!pedido) {
+        throw new NotFoundException('Pedido no encontrado');
+      }
+
+      // Validar que el pedido esté en estado PENDIENTE
+      const estadosPermitidos = ['PENDIENTE', 'APROBADO'];
+      if (!estadosPermitidos.includes(pedido.estado_actual)) {
+        throw new BadRequestException(
+          `No se puede cancelar un pedido en estado ${pedido.estado_actual}. Solo se permiten estados: ${estadosPermitidos.join(', ')}`
+        );
+      }
+
+      const estadoAnterior = pedido.estado_actual;
+
+      // 1. Actualizar estado a ANULADO
+      pedido.estado_actual = 'ANULADO';
+      await queryRunner.manager.save(pedido);
+
+      // 2. Crear entrada en el historial (usuario_id es opcional en la BD)
+      const historial = queryRunner.manager.create(HistorialEstado, {
+        pedido_id: pedidoId,
+        estado_anterior: estadoAnterior,
+        estado_nuevo: 'ANULADO',
+        usuario_id: usuarioId || null,
+        comentario: motivo || 'Pedido cancelado por el cliente'
+      });
+      await queryRunner.manager.save(historial);
+
+      await queryRunner.commitTransaction();
+      
+      this.logger.log(`Pedido ${pedidoId} cancelado por usuario ${usuarioId || 'desconocido'}`);
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al cancelar pedido', { error: err.message, pedidoId });
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

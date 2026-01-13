@@ -305,6 +305,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      * Actualización optimista con rollback en caso de error
      */
     const removeFromCart = useCallback(async (productId: string) => {
+        console.log('[CartContext] removeFromCart llamado con productId:', productId)
+        console.log('[CartContext] userId actual:', userId)
+        
         // Optimistic
         setCart(prevCart => {
             const newItems = prevCart.items.filter(item => item.producto_id !== productId)
@@ -313,11 +316,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
         try {
             const currentUser = userId || (await UserService.getProfile())?.id
+            console.log('[CartContext] currentUser para DELETE:', currentUser)
             if (currentUser) {
+                console.log('[CartContext] Llamando OrderService.removeFromCart...')
                 await OrderService.removeFromCart(currentUser, productId)
+                console.log('[CartContext] OrderService.removeFromCart completado exitosamente')
+            } else {
+                console.warn('[CartContext] No hay currentUser, no se puede eliminar del backend')
             }
         } catch (error) {
-            console.error('Error removing item from remote cart:', error)
+            console.error('[CartContext] Error removing item from remote cart:', error)
             if (userId) loadCart(userId)
         }
     }, [calculateTotals, userId, loadCart])
@@ -365,6 +373,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      * Limpiar carrito
      */
     const clearCart = useCallback(async () => {
+        console.log('[CartContext] clearCart llamado')
+        console.log('[CartContext] userId actual:', userId)
+        
         // 1. Limpiar estado local inmediatamente (optimistic)
         setCart({
             items: [],
@@ -377,11 +388,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         // 2. Sincronizar con el backend
         try {
             const currentUser = userId || (await UserService.getProfile())?.id
+            console.log('[CartContext] currentUser para clearCart:', currentUser)
             if (currentUser) {
+                console.log('[CartContext] Llamando OrderService.clearCart...')
                 await OrderService.clearCart(currentUser)
+                console.log('[CartContext] OrderService.clearCart completado exitosamente')
+            } else {
+                console.warn('[CartContext] No hay currentUser, no se puede vaciar en backend')
             }
         } catch (error) {
-            console.error('Error clearing cart in backend:', error)
+            console.error('[CartContext] Error clearing cart in backend:', error)
             // Si falla el backend, recargar el carrito para sincronizar
             if (userId) loadCart(userId)
         }

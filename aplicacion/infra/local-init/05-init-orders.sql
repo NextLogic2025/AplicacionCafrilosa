@@ -189,9 +189,9 @@ CREATE TRIGGER trg_audit_promociones
 AFTER INSERT OR UPDATE OR DELETE ON promociones_aplicadas
 FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
 
-CREATE TRIGGER trg_audit_historial
-AFTER INSERT OR UPDATE OR DELETE ON historial_estados
-FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
+-- NOTA: No se aplica trigger de auditoría a historial_estados porque:
+-- 1. La tabla historial_estados YA ES un registro de auditoría por sí misma
+-- 2. El campo id de historial_estados es BIGINT, no UUID (incompatible con fn_audit_orders)
 
 CREATE TRIGGER trg_audit_carritos
 AFTER INSERT OR UPDATE OR DELETE ON carritos_cabecera
@@ -301,6 +301,21 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_notify_pedido_entregado
 AFTER UPDATE ON pedidos
 FOR EACH ROW EXECUTE FUNCTION notify_pedido_entregado();
+
+-- Pedido anulado/cancelado
+CREATE OR REPLACE FUNCTION notify_pedido_anulado()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.estado_actual = 'ANULADO' AND (OLD.estado_actual IS DISTINCT FROM 'ANULADO') THEN
+        PERFORM pg_notify('pedido-anulado', NEW.id::text);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_notify_pedido_anulado
+AFTER UPDATE ON pedidos
+FOR EACH ROW EXECUTE FUNCTION notify_pedido_anulado();
 
 -- =========================================
 -- FIN DEL MICROSERVICIO ORDERS - 100% COMPLETO

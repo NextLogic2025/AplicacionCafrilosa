@@ -223,12 +223,15 @@ export const OrderService = {
      * Elimina completamente un producto del carrito
      */
     removeFromCart: async (userId: string, productId: string): Promise<void> => {
+        const url = `${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`
+        console.log('[OrderService] removeFromCart - URL:', url)
         try {
-            await apiRequest<{ success: boolean }>(`${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`, {
+            await apiRequest<{ success: boolean }>(url, {
                 method: 'DELETE'
             })
+            console.log('[OrderService] removeFromCart - Éxito')
         } catch (error) {
-            console.error('Error removing from cart:', error)
+            console.error('[OrderService] removeFromCart - Error:', error)
             throw error
         }
     },
@@ -254,12 +257,15 @@ export const OrderService = {
      * Elimina todos los items del carrito del usuario
      */
     clearCart: async (userId: string): Promise<void> => {
+        const url = `${env.api.ordersUrl}/orders/cart/${userId}`
+        console.log('[OrderService] clearCart - URL:', url)
         try {
-            await apiRequest<{ success: boolean }>(`${env.api.ordersUrl}/orders/cart/${userId}`, {
+            await apiRequest<{ success: boolean }>(url, {
                 method: 'DELETE'
             })
+            console.log('[OrderService] clearCart - Éxito')
         } catch (error) {
-            console.error('Error clearing cart:', error)
+            console.error('[OrderService] clearCart - Error:', error)
             throw error
         }
     },

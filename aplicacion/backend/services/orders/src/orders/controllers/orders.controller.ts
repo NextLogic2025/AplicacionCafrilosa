@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
@@ -17,6 +17,8 @@ import { DataSource, Repository } from 'typeorm';
 @Controller('orders')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class OrdersController {
+    private readonly logger = new Logger(OrdersController.name);
+    
     constructor(
         // 1. Inyección del servicio de lógica de negocio
         private readonly ordersService: OrdersService,
@@ -158,7 +160,9 @@ export class OrdersController {
     @UseGuards(OrderOwnershipGuard)
     @Roles('admin', 'cliente', 'vendedor')
     async clearCart(@Param('userId', ParseUUIDPipe) userId: string) {
+        this.logger.log(`[DELETE /cart/:userId] Petición recibida - userId: ${userId}`);
         await this.cartService.clearCart(userId);
+        this.logger.log(`[DELETE /cart/:userId] Carrito vaciado exitosamente`);
         return { success: true, message: 'Carrito vaciado correctamente' };
     }
 
@@ -184,7 +188,10 @@ export class OrdersController {
         @Param('userId', ParseUUIDPipe) userId: string,
         @Param('productId', ParseUUIDPipe) productId: string,
     ) {
-        return this.cartService.removeItem(userId, productId);
+        this.logger.log(`[DELETE /cart/:userId/item/:productId] Petición recibida - userId: ${userId}, productId: ${productId}`);
+        const result = await this.cartService.removeItem(userId, productId);
+        this.logger.log(`[DELETE /cart/:userId/item/:productId] Item eliminado exitosamente`);
+        return result;
     }
 
     /**
@@ -205,6 +212,36 @@ export class OrdersController {
         @Body('cliente_id', ParseUUIDPipe) clienteId: string,
     ) {
         return this.cartService.setClienteId(userId, clienteId);
+    }
+
+    /**
+     * PATCH /orders/:id/cancel
+     *
+     * Cancela un pedido cambiando su estado a ANULADO.
+     * Solo se puede cancelar si el pedido está en estado PENDIENTE o APROBADO.
+     *
+     * @param id - UUID del pedido a cancelar
+     * @param req - Request con el usuario autenticado
+     * @param body.motivo - Motivo de la cancelación (opcional)
+     * @returns Pedido actualizado con estado ANULADO
+     *
+     * Validaciones:
+     * - El pedido debe existir
+     * - El pedido debe estar en estado PENDIENTE o APROBADO
+     * - El usuario debe tener permisos (cliente, vendedor, admin)
+     *
+     * Roles: admin, cliente, vendedor
+     */
+    @Patch('/:id/cancel')
+    @Roles('admin', 'cliente', 'vendedor')
+    async cancelOrder(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Req() req: any,
+        @Body('motivo') motivo?: string,
+    ) {
+        // Obtener el usuario del JWT
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.cancelOrder(id, usuarioId, motivo);
     }
 
 }
