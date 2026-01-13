@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ZonaMapaGoogle } from '../../components/ZonaMapaGoogle';
+import { PageHero } from 'components/ui/PageHero';
 import { Plus, Map } from 'lucide-react';
 import { ZonaSelector } from '../../components/ZonaSelector';
 import { obtenerRuteroPorZonaYDia } from '../../services/ruteroApi';
@@ -139,14 +140,11 @@ export default function RutasPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-brand-red text-white p-4 rounded-lg">
-        <h1 className="text-2xl font-bold">Rutas</h1>
-        <p className="text-sm">Planifica y visualiza las rutas de visita por zona y día de la semana</p>
-      </div>
-      <div className="bg-neutral-100 p-4 rounded-lg">
-        <h2 className="text-xl font-semibold text-brand-red">Gestión de Rutas</h2>
-        <p className="text-sm text-neutral-600">Organiza y administra las rutas de tus equipos de ventas o supervisión</p>
-      </div>
+      <PageHero
+        title="Gestión de Rutas"
+        subtitle="Organiza y administra las rutas de tus equipos de ventas o supervisión"
+        chips={['Logística', 'Rutas', 'Cobertura']}
+      />
       {/* Barra de selección de zona y días */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border border-neutral-200 rounded-xl bg-gradient-to-r from-white via-neutral-50 to-white p-5 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 flex-wrap w-full">

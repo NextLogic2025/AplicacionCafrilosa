@@ -6,6 +6,7 @@ import { obtenerClientes } from '../../services/clientesApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Circle, X, ArrowLeft, Save, Plus } from 'lucide-react';
 import { GuardarRutasButton } from '../../components/GuardarRutasButton';
+import { PageHero } from 'components/ui/PageHero';
 import { useState as useReactState } from 'react';
 
 type Prioridad = 'ALTA' | 'MEDIA' | 'BAJA';
@@ -218,9 +219,16 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 space-y-6">
+    <div className="space-y-6">
+      <div className="w-full mt-6 mb-2">
+        <PageHero
+          title="Gestión de Rutas"
+          subtitle="Organiza y administra las rutas de tus equipos de ventas o supervisión"
+          chips={['Logística', 'Rutas', 'Cobertura']}
+        />
+      </div>
       {/* Indicador de pasos */}
-      <div className="flex items-center justify-center gap-4 mb-6">
+      <div className="w-full flex items-center justify-center gap-4 mb-6">
         <div className="flex items-center gap-2 text-green-600">
           <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-green-600 bg-white font-bold">✓</span>
           <span>Paso 1</span>
@@ -233,38 +241,35 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
       </div>
 
       {/* Resumen del paso 1 */}
-      <div className="flex items-center justify-between bg-neutral-50 border rounded-lg p-4 mb-2">
-        <div>
-          <div className="font-semibold text-neutral-800">Zona seleccionada: <span className="text-brand-red">{zone || 'Sin zona'}</span></div>
-          <div className="text-sm text-neutral-600">Destinos seleccionados: {destinos.length}</div>
-        </div>
-
+      <div className="w-full bg-white rounded-xl shadow p-5 border border-neutral-100 mb-2 flex flex-col gap-1">
+        <div className="font-semibold text-neutral-800 text-lg">Zona seleccionada: <span className="text-brand-red">{zone || 'Sin zona'}</span></div>
+        <div className="text-sm text-neutral-600">Destinos seleccionados: {destinos.length}</div>
       </div>
 
       {/* Lista de destinos configurables */}
-      <div className="space-y-4">
+      <div className="w-full space-y-6">
         {destinosOrdenados.length === 0 && (
           <div className="text-neutral-500 text-center">No hay destinos configurados</div>
         )}
         {destinosOrdenados.map((destino, idx) => (
-          <div key={destino.id} className="border rounded-lg p-4 flex flex-col gap-2 bg-white shadow-sm relative">
+          <div key={destino.id} className="bg-white rounded-xl shadow p-6 border border-neutral-100 flex flex-col gap-3 relative">
             <button
-              className="absolute top-2 right-2 text-neutral-400 hover:text-red-500"
+              className="absolute top-4 right-4 text-neutral-300 hover:text-red-500 transition"
               onClick={() => handleEliminarDestino(destino.id)}
               title="Eliminar destino"
             >
-              <X />
+              <X className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-brand-red">{destino.nombre}</span>
-              <span className="text-xs text-neutral-500">ID: {destino.id}</span>
+            <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-1">
+              <span className="font-bold text-brand-red text-lg md:text-xl">{destino.nombre}</span>
+              <span className="text-xs text-neutral-400 md:ml-2">ID: {destino.id}</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">
+            <div className="flex flex-col md:flex-row md:items-end gap-3 mt-2">
               {/* Selector de hora */}
-              <label className="flex flex-col gap-1 text-sm">
-                Hora
+              <label className="flex flex-col gap-1 text-sm w-full md:w-1/3">
+                <span className="font-medium text-neutral-700">Hora</span>
                 <select
-                  className="border rounded px-2 py-1"
+                  className="border rounded px-3 py-2 focus:ring-2 focus:ring-brand-red"
                   value={destino.hora}
                   onChange={e => handleDestinoChange(destino.id, 'hora', e.target.value)}
                 >
@@ -273,10 +278,10 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
                 </select>
               </label>
               {/* Selector de prioridad */}
-              <label className="flex flex-col gap-1 text-sm">
-                Prioridad
+              <label className="flex flex-col gap-1 text-sm w-full md:w-1/3">
+                <span className="font-medium text-neutral-700">Prioridad</span>
                 <select
-                  className="border rounded px-2 py-1"
+                  className="border rounded px-3 py-2 focus:ring-2 focus:ring-brand-red"
                   value={destino.prioridad}
                   onChange={e => handleDestinoChange(destino.id, 'prioridad', e.target.value)}
                 >
@@ -284,24 +289,23 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
                 </select>
               </label>
               {/* Selector de frecuencia */}
-              <label className="flex flex-col gap-1 text-sm">
-                Frecuencia
+              <label className="flex flex-col gap-1 text-sm w-full md:w-1/3">
+                <span className="font-medium text-neutral-700">Frecuencia</span>
                 <select
-                  className="border rounded px-2 py-1"
+                  className="border rounded px-3 py-2 focus:ring-2 focus:ring-brand-red"
                   value={destino.frecuencia}
                   onChange={e => handleDestinoChange(destino.id, 'frecuencia', e.target.value)}
                 >
                   {FRECUENCIAS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                 </select>
               </label>
-              {/* Placeholder para más campos si se requiere */}
             </div>
           </div>
         ))}
       </div>
 
       {/* Selector de días */}
-      <div className="flex flex-col gap-2 mt-6">
+      <div className="w-full flex flex-col gap-2 mt-6">
         <div className="font-medium text-neutral-800 mb-1">Días de la semana</div>
         <div className="flex gap-2 flex-wrap">
           {DIAS_SEMANA.map(dia => (
@@ -325,13 +329,13 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
       </div>
 
       {/* Vista previa del mapa */}
-      <div className="mt-6">
+      <div className="w-full mt-6">
         <div className="font-medium text-neutral-800 mb-2">Vista previa del mapa</div>
         <ZonaMapaGoogle poligono={poligonoZona} puntos={puntosMapa} />
       </div>
 
       {/* Resumen final */}
-      <div className="mt-6 border rounded-lg bg-neutral-50 p-4">
+      <div className="w-full mt-6 border rounded-lg bg-neutral-50 p-4">
         <div className="font-semibold text-neutral-800 mb-1">Resumen</div>
         <div className="text-sm text-neutral-700">Zona: <span className="text-brand-red font-bold">{resumen.zona}</span></div>
         <div className="text-sm text-neutral-700">Destinos: {resumen.destinos}</div>
@@ -341,12 +345,12 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
       </div>
 
       {/* Botones */}
-      <div className="flex justify-between mt-6 gap-4">
+      <div className="w-full flex justify-between mt-6 gap-4">
         <button
           className="flex items-center gap-2 rounded-lg bg-neutral-200 px-5 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-300"
-          onClick={() => navigate('/supervisor/rutas')}
+          onClick={() => navigate('/supervisor/rutas/crear')}
         >
-          <ArrowLeft className="w-4 h-4" /> Inicio
+          <ArrowLeft className="w-4 h-4" /> Volver
         </button>
         <GuardarRutasButton
           destinos={destinosOrdenados}

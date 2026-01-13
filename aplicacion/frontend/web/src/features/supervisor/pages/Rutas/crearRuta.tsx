@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, ChevronUp, CheckCircle, Circle, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ZonaSelector } from '../../components/ZonaSelector';
+import { PasoCard } from '../../components/PasoCard';
+import { PageHero } from 'components/ui/PageHero';
 import { obtenerClientes } from '../../services/clientesApi';
 // Importar API para sucursales
 import { obtenerSucursales } from '../../services/sucursalesApi';
@@ -143,27 +145,41 @@ export default function SupervisorRouteCreatePage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8 space-y-6">
-      {/* Indicador de pasos */}
-      <div className="flex items-center justify-center gap-4 mb-6">
-        <div className={`flex items-center gap-2 ${step === 1 ? 'text-brand-red' : 'text-neutral-400'}`}>
-          <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-brand-red bg-white font-bold">1</span>
-          <span>Paso 1</span>
-        </div>
-        <div className="w-8 h-0.5 bg-neutral-300" />
-        <div className="flex items-center gap-2 text-neutral-400">
-          <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-neutral-300 bg-white font-bold">2</span>
-          <span>Paso 2</span>
+    <div className="space-y-6">
+      <div className="w-full mt-6 mb-2">
+        <PageHero
+          title="Gestión de Rutas"
+          subtitle="Organiza y administra las rutas de tus equipos de ventas o supervisión"
+          chips={['Logística', 'Rutas', 'Cobertura']}
+        />
+      </div>
+      <div className="w-full">
+        <PasoCard>
+          {/* Indicador de pasos centrado */}
+          <div className="flex items-center justify-center gap-4 w-full">
+            <div className={`flex items-center gap-2 ${step === 1 ? 'text-brand-red' : 'text-neutral-400'}`}>
+              <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-brand-red bg-white font-bold">1</span>
+              <span>Paso 1</span>
+            </div>
+            <div className="w-8 h-0.5 bg-neutral-300" />
+            <div className="flex items-center gap-2 text-neutral-400">
+              <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-neutral-300 bg-white font-bold">2</span>
+              <span>Paso 2</span>
+            </div>
+          </div>
+        </PasoCard>
+      </div>
+
+      {/* Barra de selección de zona */}
+      <div className="w-full flex md:justify-start justify-center mt-2 mb-4">
+        <div className="flex items-center gap-2 border border-neutral-200 rounded-lg bg-white px-3 py-2 shadow-sm">
+          <span className="font-medium text-neutral-700">Zona:</span>
+          <ZonaSelector value={zonaSeleccionada} onChange={setZonaSeleccionada} />
         </div>
       </div>
 
-      {/* Selector de zona */}
-      <div>
-        <ZonaSelector value={zonaSeleccionada} onChange={setZonaSeleccionada} />
-      </div>
-
-      {/* Lista de clientes */}
-      <div className="border rounded-lg divide-y">
+      {/* Lista de clientes en tarjeta */}
+      <div className="w-full bg-white rounded-xl shadow p-6 border border-neutral-200">
         {loadingClientes && (
           <div className="p-4 text-neutral-500 text-center">Cargando clientes...</div>
         )}
@@ -259,20 +275,32 @@ export default function SupervisorRouteCreatePage() {
               </div>
               {/* Sucursales solo de la zona seleccionada */}
               {sucursalesEnZona.length > 0 && clientesExpand[cliente.id] && !clienteSoloFueraZona && (
-                <div className="pl-8 flex flex-col gap-1">
-                  {sucursalesEnZona.map((suc: any) => (
-                    <label key={suc.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                <div className="pl-8 py-2 flex flex-col gap-0 bg-white/70 rounded-lg mt-1">
+                  {sucursalesEnZona.map((suc: any, idx: number) => (
+                    <label
+                      key={suc.id}
+                      className={
+                        "group flex items-start gap-3 px-3 py-3 cursor-pointer transition rounded-lg "+
+                        (idx !== 0 ? 'border-t border-neutral-100' : '')+
+                        " hover:bg-neutral-50"
+                      }
+                    >
                       <input
                         type="checkbox"
                         checked={seleccionados[cliente.id]?.includes(suc.id) || false}
                         onChange={() => toggleSucursal(cliente.id, suc.id)}
+                        className="accent-brand-red mt-1 w-4 h-4"
                       />
-                      <span>
-                        {suc.nombre_sucursal || suc.nombre}
-                        {suc.principal && suc.direccion_entrega ? (
-                          <span className="ml-2 text-xs text-blue-500">({suc.direccion_entrega})</span>
-                        ) : null}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className={
+                          (suc.principal ? "font-semibold text-brand-red" : "font-medium text-neutral-800") + " text-sm"
+                        }>
+                          {suc.principal ? "Dirección principal" : (suc.nombre_sucursal || suc.nombre)}
+                        </span>
+                        {suc.direccion_entrega && (
+                          <span className="text-xs text-neutral-400 mt-0.5">{suc.direccion_entrega}</span>
+                        )}
+                      </div>
                     </label>
                   ))}
                 </div>
@@ -283,7 +311,7 @@ export default function SupervisorRouteCreatePage() {
       </div>
 
       {/* Contador y botón continuar */}
-      <div className="flex items-center justify-between mt-4">
+      <div className="w-full flex items-center justify-between mt-4">
         <span className="text-sm text-neutral-700">{totalDestinos} destino(s) seleccionado(s)</span>
         <button
           className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all duration-150 ${zonaSeleccionada && totalDestinos > 0 ? 'bg-brand-red hover:bg-brand-red-dark' : 'bg-neutral-300 cursor-not-allowed'}`}
