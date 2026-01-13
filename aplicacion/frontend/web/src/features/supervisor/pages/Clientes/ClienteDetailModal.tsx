@@ -255,7 +255,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
             zonaId={cliente?.zona_comercial_id ?? null}
             ubicacionMatriz={mainLocation}
             onSubmit={async (vals) => {
-              if (!cliente) return
+              if (!cliente) return;
               const commonData: any = {
                 cliente_id: cliente.id,
                 nombre_sucursal: vals.nombre_sucursal,
@@ -263,15 +263,16 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
                 contacto_nombre: vals.contacto_nombre || undefined,
                 contacto_telefono: vals.contacto_telefono || undefined,
                 ubicacion_gps: vals.posicion ? { type: 'Point' as const, coordinates: [vals.posicion.lng, vals.posicion.lat] as [number, number] } : undefined,
-              }
+                zona_id: vals.zona_id ?? null,
+              };
               if (editingSucursal?.id) {
-                const updateData = { ...commonData }
-                delete updateData.cliente_id
-                await actualizarSucursal(cliente.id, editingSucursal.id, updateData)
+                const updateData = { ...commonData };
+                delete updateData.cliente_id;
+                await actualizarSucursal(cliente.id, editingSucursal.id, updateData);
               } else {
-                await crearSucursal(cliente.id, commonData)
+                await crearSucursal(cliente.id, commonData);
               }
-              await reloadSucursales()
+              await reloadSucursales();
             }}
           />
         </div>

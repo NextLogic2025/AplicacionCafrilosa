@@ -95,3 +95,21 @@ export async function obtenerZonas(): Promise<ZonaComercial[]> {
 export async function obtenerListasPrecios(): Promise<ListaPrecio[]> {
   return httpCatalogo<ListaPrecio[]>('/precios/listas')
 }
+
+// Servicio para obtener clientes por zona desde el backend
+export async function obtenerClientesPorZona(zonaId: string) {
+  if (!zonaId) return []
+  const url = `${import.meta.env.VITE_CATALOGO_BASE_URL}/api/clientes?zonaId=${zonaId}`
+  const token = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token')
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(url, { headers })
+  if (!res.ok) throw new Error('Error al cargar clientes')
+  const data = await res.json()
+  // Ajusta aquí según la estructura real de tu respuesta
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.clientes)) return data.clientes
+  return []
+}

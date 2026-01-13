@@ -37,12 +37,13 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
   })
 
   function handleAddSucursal() {
-    if (!newSucursal.nombre_sucursal.trim() && !newSucursal.direccion_entrega?.trim()) return
-    const payload: SucursalTemp = {
+    if (!newSucursal.nombre_sucursal.trim() && !newSucursal.direccion_entrega?.trim()) return;
+    const payload: SucursalTemp & { zona_id?: number | null } = {
       ...newSucursal,
       nombre_sucursal: newSucursal.nombre_sucursal.trim() || (newSucursal.direccion_entrega?.trim() ?? `Sucursal ${sucursales.length + 1}`),
-    }
-    onAddSucursal(payload)
+      zona_id: newSucursal.zonaId ?? null,
+    };
+    onAddSucursal(payload);
     setNewSucursal({
       nombre_sucursal: '',
       direccion_entrega: '',
@@ -52,7 +53,7 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
       longitud: null,
       ubicacion_gps: null,
       zonaId: null,
-    })
+    });
   }
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -170,7 +171,8 @@ export function SucursalesStep({ sucursales, zonaId, zonas, ubicacionMatriz, onA
                       <select
                         value={sucursal.zonaId ?? ''}
                         onChange={e => {
-                          const updated = { ...sucursal, zonaId: e.target.value ? Number(e.target.value) : null };
+                          const newZonaId = e.target.value ? Number(e.target.value) : null;
+                          const updated = { ...sucursal, zonaId: newZonaId, zona_id: newZonaId };
                           onUpdateSucursal(index, updated);
                         }}
                         className="ml-2 rounded border border-gray-300 px-2 py-1 text-xs"

@@ -1,4 +1,21 @@
-import { httpCatalogo } from '../../../services/api/http'
+// Servicio para obtener zonas desde el backend
+export async function obtenerZonas() {
+  const url = import.meta.env.VITE_CATALOGO_BASE_URL + '/api/zonas';
+  // Obtener token desde localStorage o sessionStorage
+  const token = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error('Error al cargar zonas');
+  const data = await res.json();
+  // Ajusta aquí según la estructura real de tu respuesta
+  // Si tu backend responde { zonas: [...] }:
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.zonas)) return data.zonas;
+  return [];
+}import { httpCatalogo } from '../../../services/api/http'
 
 export interface ZonaComercial {
   id: number

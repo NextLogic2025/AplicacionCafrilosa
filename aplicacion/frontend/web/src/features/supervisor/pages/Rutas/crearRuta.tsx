@@ -1,0 +1,206 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronDown, ChevronUp, CheckCircle, Circle, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ZonaSelector } from '../../components/ZonaSelector';
+import { obtenerClientes } from '../../services/clientesApi';
+// Importar API para sucursales
+import { obtenerSucursales } from '../../services/sucursalesApi';
+
+export default function SupervisorRouteCreatePage() {
+  const [step] = useState(1); // Solo paso 1 activo
+  const [zonaSeleccionada, setZonaSeleccionada] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [sucursalesPorCliente, setSucursalesPorCliente] = useState<Record<string, any[]>>({});
+  const [clientesExpand, setClientesExpand] = useState<Record<string, boolean>>({});
+  const [seleccionados, setSeleccionados] = useState<Record<string, string[]>>({}); // { clienteId: [sucursalId, ...] }
+  const [loadingClientes, setLoadingClientes] = useState(false);
+  const [errorClientes, setErrorClientes] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // Cargar todos los clientes una sola vez y filtrar por zona en frontend
+  useEffect(() => {
+    setLoadingClientes(true);
+    setErrorClientes(null);
+    obtenerClientes()
+      .then(setClientes)
+      .catch(err => setErrorClientes(err.message))
+      .finally(() => setLoadingClientes(false));
+  }, []);
+
+  // Log de todos los clientes y zona seleccionada para depuración visual
+  // ...existing code...
+
+  // Filtrar clientes por zona seleccionada
+  const clientesZona = useMemo(() => {
+    if (!zonaSeleccionada) return [];
+    return clientes.filter((c: any) => String(c.zona_comercial_id) === String(zonaSeleccionada));
+  }, [clientes, zonaSeleccionada]);
+
+  // Cargar sucursales de los clientes filtrados
+  useEffect(() => {
+    const cargarSucursales = async () => {
+      const nuevos: Record<string, any[]> = {};
+      await Promise.all(
+        clientesZona.map(async (cliente: any) => {
+          try {
+            const sucursales = await obtenerSucursales(cliente.id);
+            nuevos[cliente.id] = sucursales;
+          } catch {
+            nuevos[cliente.id] = [];
+          }
+        })
+      );
+      setSucursalesPorCliente(nuevos);
+    };
+    if (clientesZona.length > 0) cargarSucursales();
+    else setSucursalesPorCliente({});
+  }, [clientesZona]);
+
+  // Filtrado de clientes por búsqueda y zona
+  const clientesFiltrados = useMemo(() => {
+    return clientesZona.filter((c: any) =>
+      (c.nombre?.toLowerCase() || c.razon_social?.toLowerCase() || '').includes(busqueda.toLowerCase())
+    );
+  }, [busqueda, clientesZona]);
+
+  // Contador de destinos seleccionados
+  const totalDestinos = useMemo(() => {
+    return Object.values(seleccionados).reduce((acc, arr) => acc + (arr.length || 1), 0);
+  }, [seleccionados]);
+
+  // Manejo de selección
+  const toggleCliente = (clienteId: string) => {
+    setSeleccionados(prev => {
+      const nuevo = { ...prev };
+      if (nuevo[clienteId]) delete nuevo[clienteId];
+      else nuevo[clienteId] = [];
+      return nuevo;
+    });
+  };
+  const toggleSucursal = (clienteId: string, sucursalId: string) => {
+    setSeleccionados(prev => {
+      const actual = prev[clienteId] || [];
+      const existe = actual.includes(sucursalId);
+      return {
+        ...prev,
+        [clienteId]: existe ? actual.filter(id => id !== sucursalId) : [...actual, sucursalId],
+      };
+    });
+  };
+
+  // Continuar
+  const handleContinuar = () => {
+    if (!zonaSeleccionada || totalDestinos === 0) return;
+    // Construir destinations
+    const destinations = Object.entries(seleccionados).map(([clienteId, sucursales]) => ({
+      clienteId,
+      sucursales,
+    }));
+    navigate('/supervisor/rutas/crear/paso2', {
+      state: {
+        zone: zonaSeleccionada,
+        destinations,
+        existingRoutes: [], // Aquí deberías pasar las rutas existentes reales
+      },
+    });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto py-8 space-y-6">
+      {/* Indicador de pasos */}
+      <div className="flex items-center justify-center gap-4 mb-6">
+        <div className={`flex items-center gap-2 ${step === 1 ? 'text-brand-red' : 'text-neutral-400'}`}>
+          <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-brand-red bg-white font-bold">1</span>
+          <span>Paso 1</span>
+        </div>
+        <div className="w-8 h-0.5 bg-neutral-300" />
+        <div className="flex items-center gap-2 text-neutral-400">
+          <span className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-neutral-300 bg-white font-bold">2</span>
+          <span>Paso 2</span>
+        </div>
+      </div>
+
+      {/* Selector de zona */}
+      <div>
+        <ZonaSelector value={zonaSeleccionada} onChange={setZonaSeleccionada} />
+      </div>
+
+      {/* Lista de clientes */}
+      <div className="border rounded-lg divide-y">
+        {loadingClientes && (
+          <div className="p-4 text-neutral-500 text-center">Cargando clientes...</div>
+        )}
+        {errorClientes && (
+          <div className="p-4 text-red-500 text-center">{errorClientes}</div>
+        )}
+        {!loadingClientes && !errorClientes && clientesFiltrados.length === 0 && (
+          <div className="p-4 text-neutral-500 text-center">No hay clientes para mostrar</div>
+        )}
+        {clientesFiltrados.map((cliente: any) => {
+          const nombreCliente = cliente.nombre || cliente.razon_social || cliente.nombre_comercial || cliente.identificacion;
+          const sucursales = sucursalesPorCliente[cliente.id] || [];
+          return (
+            <div key={cliente.id} className="p-3 flex flex-col gap-2 bg-white">
+              <div className="flex items-center gap-2">
+                <button
+                  className="flex items-center justify-center w-5 h-5 border rounded-full mr-2"
+                  onClick={() => toggleCliente(cliente.id)}
+                  aria-label="Seleccionar cliente"
+                >
+                  {seleccionados[cliente.id] || sucursales.length === 0 ? (
+                    <CheckCircle className="text-brand-red w-5 h-5" />
+                  ) : (
+                    <Circle className="text-neutral-300 w-5 h-5" />
+                  )}
+                </button>
+                <span className="font-medium flex-1">{nombreCliente}</span>
+                {sucursales.length > 0 && (
+                  <button
+                    className="ml-2 text-neutral-400 hover:text-brand-red"
+                    onClick={() => setClientesExpand(prev => ({ ...prev, [cliente.id]: !prev[cliente.id] }))}
+                    aria-label="Expandir sucursales"
+                  >
+                    {clientesExpand[cliente.id] ? <ChevronUp /> : <ChevronDown />}
+                  </button>
+                )}
+              </div>
+              {/* Sucursales */}
+              {sucursales.length > 0 && clientesExpand[cliente.id] && (
+                <div className="pl-8 flex flex-col gap-1">
+                  {sucursales.map((suc: any) => {
+                    const fueraZona = String(suc.zona_id) !== String(zonaSeleccionada);
+                    return (
+                      <label key={suc.id} className={`flex items-center gap-2 text-sm ${fueraZona ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={seleccionados[cliente.id]?.includes(suc.id) || false}
+                          onChange={() => !fueraZona && toggleSucursal(cliente.id, suc.id)}
+                          disabled={fueraZona}
+                        />
+                        {suc.nombre_sucursal || suc.nombre}
+                        {fueraZona && <span className="ml-2 text-xs text-red-400">(Zona diferente)</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Contador y botón continuar */}
+      <div className="flex items-center justify-between mt-4">
+        <span className="text-sm text-neutral-700">{totalDestinos} destino(s) seleccionado(s)</span>
+        <button
+          className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all duration-150 ${zonaSeleccionada && totalDestinos > 0 ? 'bg-brand-red hover:bg-brand-red-dark' : 'bg-neutral-300 cursor-not-allowed'}`}
+          disabled={!zonaSeleccionada || totalDestinos === 0}
+          onClick={handleContinuar}
+        >
+          Continuar <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}

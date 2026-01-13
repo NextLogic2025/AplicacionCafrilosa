@@ -37,18 +37,19 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
   const [zonaSucursalId, setZonaSucursalId] = useState<number | null>(zonaId ?? null)
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
     if (initialData) {
-      const coords = (initialData as any)?.ubicacion_gps?.coordinates as [number, number] | undefined
+      const coords = (initialData as any)?.ubicacion_gps?.coordinates as [number, number] | undefined;
+      const zonaInit = (initialData as any)?.zona_id ?? zonaId ?? null;
       setValues({
         nombre_sucursal: initialData.nombre_sucursal || '',
         direccion_entrega: initialData.direccion_entrega || '',
         contacto_nombre: initialData.contacto_nombre || '',
         contacto_telefono: initialData.contacto_telefono || '',
         posicion: coords ? { lat: coords[1], lng: coords[0] } : null,
-        zona_id: (initialData as any)?.zona_id ?? null,
-      })
-      setZonaSucursalId((initialData as any)?.zona_id ?? zonaId ?? null)
+        zona_id: zonaInit,
+      });
+      setZonaSucursalId(zonaInit);
     } else {
       setValues({
         nombre_sucursal: '',
@@ -56,28 +57,31 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
         contacto_nombre: '',
         contacto_telefono: '',
         posicion: null,
-      })
-      setZonaSucursalId(zonaId ?? null)
+        zona_id: zonaId ?? null,
+      });
+      setZonaSucursalId(zonaId ?? null);
     }
-    setError(null)
-    setSaving(false)
-  }, [isOpen, initialData, zonaId])
+    setError(null);
+    setSaving(false);
+  }, [isOpen, initialData, zonaId]);
 
-  const canSubmit = useMemo(() => values.nombre_sucursal.trim().length > 0 && !!zonaSucursalId, [values.nombre_sucursal, zonaSucursalId])
+  const canSubmit = useMemo(() => values.nombre_sucursal.trim().length > 0 && !!(zonaSucursalId ?? values.zona_id), [values.nombre_sucursal, zonaSucursalId, values.zona_id]);
 
   const handleSubmit = async () => {
-    if (!canSubmit) return
+    if (!canSubmit) return;
     try {
-      setSaving(true)
-      setError(null)
-      await onSubmit({ ...values, zona_id: zonaSucursalId })
-      onClose()
+      setSaving(true);
+      setError(null);
+      // Siempre prioriza zonaSucursalId, pero si no existe usa values.zona_id
+      const zona_id_final = zonaSucursalId ?? values.zona_id ?? null;
+      await onSubmit({ ...values, zona_id: zona_id_final });
+      onClose();
     } catch (e: any) {
-      setError(e?.message || 'No se pudo guardar la sucursal')
+      setError(e?.message || 'No se pudo guardar la sucursal');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <Modal
@@ -138,7 +142,11 @@ export function SucursalFormModal({ isOpen, onClose, onSubmit, initialData, zona
           <select
             className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
             value={zonaSucursalId ?? ''}
-            onChange={e => setZonaSucursalId(e.target.value ? Number(e.target.value) : null)}
+            onChange={e => {
+              const newZonaId = e.target.value ? Number(e.target.value) : null;
+              setZonaSucursalId(newZonaId);
+              setValues((v) => ({ ...v, zona_id: newZonaId }));
+            }}
             disabled={saving}
           >
             <option value="">Seleccione una zona</option>

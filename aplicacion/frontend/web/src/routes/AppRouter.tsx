@@ -66,6 +66,8 @@ const SupervisorEquipo = React.lazy(() => import('../features/supervisor/pages/E
 const SupervisorCatalogo = React.lazy(() => import('../features/supervisor/pages/Catalogo'))
 const SupervisorZonas = React.lazy(() => import('../features/supervisor/pages/Zonas'))
 const SupervisorRutas = React.lazy(() => import('../features/supervisor/pages/Rutas'))
+const SupervisorRouteCreatePage = React.lazy(() => import('../features/supervisor/pages/Rutas/crearRuta'))
+const SupervisorRouteCreatePaso2Page = React.lazy(() => import('../features/supervisor/pages/Rutas/crearRutapaso2'))
 const SupervisorPedidos = React.lazy(() => import('../features/supervisor/pages/Pedidos'))
 const SupervisorBodega = React.lazy(() => import('../features/supervisor/pages/Bodega'))
 const SupervisorEntregas = React.lazy(() => import('../features/supervisor/pages/Entregas'))
@@ -190,7 +192,13 @@ export default function AppRouter() {
           <Route path="equipo" element={<SupervisorEquipo />} />
           <Route path="catalogo" element={<SupervisorCatalogo />} />
           <Route path="zonas" element={<SupervisorZonas />} />
-          <Route path="rutas" element={<SupervisorRutas />} />
+          <Route path="rutas">
+            <Route index element={<SupervisorRutas />} />
+            <Route path="crear" >
+              <Route index element={<SupervisorRouteCreatePage />} />
+              <Route path="paso2" element={<SupervisorRouteCreatePaso2Page />} />
+            </Route>
+          </Route>
           <Route path="pedidos" element={<SupervisorPedidos />} />
           <Route path="bodega" element={<SupervisorBodega />} />
           <Route path="entregas" element={<SupervisorEntregas />} />
