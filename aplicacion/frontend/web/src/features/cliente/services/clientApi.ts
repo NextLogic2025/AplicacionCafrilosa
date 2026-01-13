@@ -1,4 +1,4 @@
-import { httpAuth, httpCatalogo } from '../../../services/api/http'
+import { httpCatalogo, httpUsuarios, httpOrders } from '../../../services/api/http'
 import { getToken } from '../../../services/storage/tokenStorage'
 import type {
   PerfilCliente,
@@ -9,110 +9,134 @@ import type {
   Notificacion,
   Conversacion,
   Ticket,
+  EstadoPedido,
 } from '../types'
 
-export async function fetchClienteByUsuarioId(usuarioId: string) {
-  // Prefer the canonical /clientes/:id endpoint (coincide con lo que funciona en Postman)
-  const endpoints = [
-    `/clientes/${usuarioId}`,
-    `/clientes/usuario/${usuarioId}`,
-  ]
-  for (const path of endpoints) {
-    const resp = await httpCatalogo<any>(path).catch(() => null)
-    if (resp) return resp
+type ClienteContext = {
+  usuarioId: string | null
+  clienteId: string | null
+  listaPreciosId: number | null
+  usuario?: Record<string, unknown> | null
+}
+
+let cachedContext: ClienteContext | null = null
+let contextPromise: Promise<ClienteContext | null> | null = null
+
+function decodeTokenSub(): string | null {
+  const token = getToken()
+  if (!token) return null
+  const parts = token.split('.')
+  if (parts.length < 2) return null
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const decode = (globalThis as any).atob
+    if (typeof decode !== 'function') return null
+    const payload = JSON.parse(decode(base64)) as Record<string, unknown>
+    return typeof payload.sub === 'string' ? payload.sub : null
+  } catch {
+    return null
+  }
+}
+
+export async function getClienteContext(forceRefresh = false): Promise<ClienteContext | null> {
+  if (!forceRefresh && cachedContext) return cachedContext
+  if (!forceRefresh && contextPromise) return contextPromise
+
+  contextPromise = (async () => {
+    try {
+      const me = await httpUsuarios<Record<string, unknown>>('/usuarios/me').catch(() => null)
+      let usuarioId = typeof me?.id === 'string' ? (me.id as string) : null
+      if (!usuarioId && typeof me?.sub === 'string') usuarioId = me.sub as string
+      if (!usuarioId) usuarioId = decodeTokenSub()
+
+      if (!usuarioId) {
+        cachedContext = { usuarioId: null, clienteId: null, listaPreciosId: null, usuario: me }
+        return cachedContext
+      }
+
+      let clienteId: string | null = null
+      let listaPreciosId: number | null = null
+      const internal = await httpCatalogo<Record<string, unknown>>(`/internal/clients/by-user/${usuarioId}`).catch(() => null)
+      if (internal) {
+        if (typeof internal.id === 'string') clienteId = internal.id
+        if (internal.lista_precios_id != null) listaPreciosId = Number(internal.lista_precios_id)
+      }
+
+      const context: ClienteContext = {
+        usuarioId,
+        clienteId,
+        listaPreciosId,
+        usuario: me,
+      }
+      cachedContext = context
+      return context
+    } finally {
+      contextPromise = null
+    }
+  })()
+
+  return contextPromise
+}
+
+export function clearClienteContextCache() {
+  cachedContext = null
+}
+
+async function fetchClienteDetalleByCandidates(candidates: (string | null | undefined)[]): Promise<any | null> {
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const data = await httpCatalogo<any>(`/clientes/${candidate}`).catch(() => null)
+    if (data) return data
   }
   return null
+}
+
+export async function fetchClienteByUsuarioId(possibleId: string) {
+  const ctx = await getClienteContext()
+  const candidates = [ctx?.clienteId, possibleId, ctx?.usuarioId]
+  return fetchClienteDetalleByCandidates(candidates)
 }
 
 export async function getPerfilCliente(): Promise<PerfilCliente | null> {
-  // Some backends expose a direct client profile endpoint; try best-effort
-  const direct = await httpCatalogo<any>('/clientes/mis').catch(() => null)
-  if (direct) {
-    // If the endpoint returns an array, take the first; if it returns an object, use it
-    if (Array.isArray(direct) && direct.length > 0) return direct[0] as PerfilCliente
-    if (!Array.isArray(direct) && direct) return direct as PerfilCliente
-  }
+  const ctx = await getClienteContext()
+  if (!ctx?.usuarioId) return null
 
-  // Next try: call `/auth/me` to obtain the authenticated user's id (more reliable than decoding token)
-  try {
-    const me = await httpAuth<Record<string, unknown>>('/auth/me').catch(() => null)
-    const usuarioId = me && typeof me['sub'] === 'string' ? me['sub'] : undefined
-    if (usuarioId) {
-      const cliente = await fetchClienteByUsuarioId(usuarioId).catch(() => null)
-      if (cliente) {
-        const perfil: PerfilCliente = {
-          id: cliente.id,
-          contactName: cliente.razon_social ?? cliente.nombre_comercial ?? '',
-          currentDebt: cliente.saldo_actual ? Number(cliente.saldo_actual) : 0,
-          creditLimit: cliente.limite_credito ? Number(cliente.limite_credito) : 0,
-        }
-        return perfil
-      }
-
-      // If catalog lookup failed, fallback to building a minimal perfil from `/me` data
-      // so the UI can show sensible information instead of empty state.
-      try {
-        const perfilFromMe: PerfilCliente = {
-          id: usuarioId,
-          contactName: (me && (me['nombre'] as string)) || (me && (me['email'] as string)) || '',
-          currentDebt: 0,
-          creditLimit: 0,
-        }
-        return perfilFromMe
-      } catch {
-        // ignore and continue to next fallback
-      }
+  const cliente = await fetchClienteByUsuarioId(ctx.clienteId ?? ctx.usuarioId)
+  if (cliente) {
+    return {
+      id: String(cliente.id ?? ctx.clienteId ?? ctx.usuarioId),
+      contactName: (cliente.razon_social ?? cliente.nombre_comercial ?? ctx.usuario?.nombreCompleto ?? ctx.usuario?.email ?? '') as string,
+      currentDebt: cliente.saldo_actual ? Number(cliente.saldo_actual) : 0,
+      creditLimit: cliente.limite_credito ? Number(cliente.limite_credito) : 0,
     }
-  } catch {
-    // continue to token-decode fallback
   }
 
-  // Fallback: decode token to obtain usuario id and query catalog service
-  try {
-    const token = getToken()
-    if (token) {
-      const parts = token.split('.')
-      if (parts.length >= 2) {
-        try {
-          const payload = JSON.parse(atob(parts[1])) as Record<string, unknown>
-          const usuarioId = typeof payload.sub === 'string' ? payload.sub : undefined
-          if (usuarioId) {
-            const cliente = await fetchClienteByUsuarioId(usuarioId)
-            // Map backend `Cliente` shape to frontend `PerfilCliente`
-            const perfil: PerfilCliente = {
-              id: cliente.id,
-              contactName: cliente.razon_social ?? cliente.nombre_comercial ?? '',
-              currentDebt: cliente.saldo_actual ? Number(cliente.saldo_actual) : 0,
-              creditLimit: cliente.limite_credito ? Number(cliente.limite_credito) : 0,
-            }
-            return perfil
-          }
-        } catch (e) {
-          // ignore parse errors and continue to return null
-        }
-      }
-    }
-  } catch {
-    // ignore any error in fallback
+  const fallbackName = (ctx.usuario?.nombreCompleto ?? ctx.usuario?.email ?? '') as string
+  return {
+    id: String(ctx.usuarioId),
+    contactName: fallbackName,
+    currentDebt: 0,
+    creditLimit: 0,
   }
-
-  return null
 }
 
 export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: number; totalPages: number }> {
-  return await httpCatalogo<{ items: Pedido[]; page: number; totalPages: number }>(`/cliente/pedidos?page=${page}`).catch(() => ({
-    items: [],
-    page,
-    totalPages: 1,
-  }))
+  const ctx = await getClienteContext()
+  if (!ctx?.usuarioId) return { items: [], page, totalPages: 1 }
+
+  const data = await httpOrders<any[]>(`/orders/client/${ctx.usuarioId}`).catch(() => null)
+  if (!Array.isArray(data)) return { items: [], page, totalPages: 1 }
+
+  const items = data.map(mapPedidoFromBackend)
+  return { items, page: 1, totalPages: 1 }
 }
 
 export async function getFacturas(): Promise<Factura[]> {
-  return await httpCatalogo<Factura[]>('/cliente/facturas').catch(() => [])
+  return []
 }
 
 export async function getEntregas(): Promise<Entrega[]> {
-  return await httpCatalogo<Entrega[]>('/cliente/entregas').catch(() => [])
+  return []
 }
 
 export async function getProductos(options?: { page?: number; per_page?: number; category?: string; categoryId?: number }): Promise<Producto[]> {
@@ -182,27 +206,77 @@ export async function getProductos(options?: { page?: number; per_page?: number;
 }
 
 export async function getNotificaciones(): Promise<Notificacion[]> {
-  return await httpCatalogo<Notificacion[]>('/cliente/notificaciones').catch(() => [])
+  return []
 }
 
 export async function getConversaciones(): Promise<Conversacion[]> {
-  return await httpCatalogo<Conversacion[]>('/cliente/conversaciones').catch(() => [])
+  return []
 }
 
 export async function getTickets(): Promise<Ticket[]> {
-  return await httpCatalogo<Ticket[]>('/cliente/tickets').catch(() => [])
+  return []
 }
 
-export async function createTicket(nuevo: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
-  return await httpCatalogo<Ticket>('/cliente/tickets', { method: 'POST', body: nuevo })
+export async function createTicket(_: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
+  throw new Error('La creación de tickets no está disponible en este entorno')
 }
 
 export async function createPedido(
   items: { id: string; name: string; unitPrice: number; quantity: number }[],
   total: number,
 ): Promise<Pedido> {
-  return await httpCatalogo<Pedido>('/cliente/pedidos', {
-    method: 'POST',
-    body: { items, total },
-  })
+  const ctx = await getClienteContext()
+  if (!ctx?.usuarioId) throw new Error('No se encontró el usuario autenticado')
+
+  const cliente = await fetchClienteByUsuarioId(ctx.clienteId ?? ctx.usuarioId).catch(() => null)
+  const vendedorId = cliente?.vendedor_asignado_id ? String(cliente.vendedor_asignado_id) : ctx.usuarioId
+
+  const payload = {
+    cliente_id: ctx.usuarioId,
+    vendedor_id: vendedorId,
+    items: items.map((item) => ({
+      producto_id: item.id,
+      cantidad: item.quantity,
+      precio_unitario: item.unitPrice,
+      precio_original: item.unitPrice,
+      nombre_producto: item.name,
+    })),
+    descuento_total: Math.max(0, items.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0) - total),
+    origen_pedido: 'PORTAL_CLIENTE',
+  }
+
+  const backend = await httpOrders<any>('/orders', { method: 'POST', body: payload }).catch(() => null)
+  if (!backend) throw new Error('No se pudo crear el pedido')
+  return mapPedidoFromBackend(backend)
+}
+
+export async function createPedidoFromCart(): Promise<Pedido> {
+  const ctx = await getClienteContext()
+  if (!ctx?.usuarioId) throw new Error('No se encontró el usuario autenticado')
+  const backend = await httpOrders<any>(`/orders/from-cart/${ctx.usuarioId}`, { method: 'POST' }).catch(() => null)
+  if (!backend) throw new Error('No se pudo crear el pedido desde el carrito')
+  return mapPedidoFromBackend(backend)
+}
+
+function mapPedidoFromBackend(raw: any): Pedido {
+  const detalles = Array.isArray(raw?.detalles) ? raw.detalles : []
+  return {
+    id: String(raw?.id ?? ''),
+    orderNumber: String(raw?.codigo_visual ?? raw?.id ?? ''),
+    createdAt: String(raw?.created_at ?? new Date().toISOString()),
+    totalAmount: Number(raw?.total_final ?? 0),
+    status: String(raw?.estado_actual ?? 'PENDIENTE').toUpperCase() as EstadoPedido,
+    items: detalles.map((detalle: any) => {
+      const unitPrice = Number(detalle?.precio_final ?? detalle?.precio_unitario ?? 0)
+      const quantity = Number(detalle?.cantidad ?? 0)
+      return {
+        id: String(detalle?.id ?? detalle?.producto_id ?? ''),
+        productName: String(detalle?.nombre_producto ?? detalle?.producto_id ?? ''),
+        quantity,
+        unit: String(detalle?.unidad_medida ?? 'UN'),
+        unitPrice,
+        subtotal: unitPrice * quantity,
+      }
+    }),
+  }
 }

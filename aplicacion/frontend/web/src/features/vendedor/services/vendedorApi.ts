@@ -1,5 +1,5 @@
 
-import { httpAuth, httpCatalogo, httpOrders } from '../../../services/api/http'
+import { httpAuth, httpCatalogo } from '../../../services/api/http'
 import type { Cliente } from '../../supervisor/services/clientesApi'
 import type {
   PerfilCliente,
@@ -75,18 +75,11 @@ export async function createTicket(nuevo: Omit<Ticket, 'id' | 'createdAt' | 'upd
 }
 
 export async function createPedido(
-  clienteId: string,
-  items: { id: string; unitPrice: number; quantity: number }[],
+  items: { id: string; name: string; unitPrice: number; quantity: number }[],
+  total: number,
 ): Promise<Pedido> {
-  return await httpOrders<Pedido>('/orders', {
+  return await httpCatalogo<Pedido>('/vendedor/pedidos', {
     method: 'POST',
-    body: {
-      cliente_id: clienteId,
-      items: items.map(item => ({
-        producto_id: item.id,
-        cantidad: item.quantity,
-        precio_unitario: item.unitPrice,
-      })),
-    },
+    body: { items, total },
   })
 }

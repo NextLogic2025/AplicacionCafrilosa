@@ -83,11 +83,12 @@ export default function AppRouter() {
         <Route path="/" element={<SplashPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/app/*" element={<Navigate to="/login" replace />} />
 
         <Route
           path="/cliente/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['cliente']}>
               <ClienteLayout />
             </RequireAuth>
           }
@@ -113,7 +114,7 @@ export default function AppRouter() {
         <Route
           path="/bodeguero/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['bodeguero']}>
               <BodegueroLayout />
             </RequireAuth>
           }
@@ -137,7 +138,7 @@ export default function AppRouter() {
         <Route
           path="/vendedor/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['vendedor']}>
               <VendedorLayout />
             </RequireAuth>
           }
@@ -162,7 +163,7 @@ export default function AppRouter() {
         <Route
           path="/transportista/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['transportista']}>
               <TransportistaPage />
             </RequireAuth>
           }
@@ -182,7 +183,7 @@ export default function AppRouter() {
         <Route
           path="/supervisor/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['supervisor']}>
               <SupervisorLayout />
             </RequireAuth>
           }

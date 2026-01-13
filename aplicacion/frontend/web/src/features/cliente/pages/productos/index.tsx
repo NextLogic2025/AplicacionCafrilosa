@@ -6,6 +6,7 @@ import { LoadingSpinner, SkeletonCard } from 'components/ui/LoadingSpinner'
 import { Alert } from 'components/ui/Alert'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { ProductCard } from 'components/ui/ProductCard'
+import ProductDetailModal from '../../components/ProductDetailModal'
 import { PageHero } from 'components/ui/PageHero'
 import { Producto } from '../../types'
 import { getAllCategories } from '../../../supervisor/services/catalogApi'
@@ -69,8 +70,20 @@ export default function PaginaProductos() {
 		[busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos],
 	)
 
-	return (
-		<div className="space-y-6">
+			const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null)
+			const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+			const openDetail = (p: Producto) => {
+				setSelectedProducto(p)
+				setIsDetailOpen(true)
+			}
+			const closeDetail = () => {
+				setIsDetailOpen(false)
+				setSelectedProducto(null)
+			}
+
+			return (
+				<div className="space-y-6">
 			<PageHero
 				title="Catálogo de Productos"
 				subtitle="Explora nuestras opciones, filtra por categoría y agrega productos a tu carrito"
@@ -129,8 +142,6 @@ export default function PaginaProductos() {
 								<option key={cat.id} value={String(cat.id)}>{cat.nombre}</option>
 							))}
 						</select>
-
-
 					</div>
 
 					<div>
@@ -173,17 +184,20 @@ export default function PaginaProductos() {
 			</div>
 
 			{cargando ? (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
 					{Array.from({ length: 8 }).map((_, i) => (
 						<SkeletonCard key={i} />
 					))}
 				</div>
 			) : productosFiltrados.length > 0 ? (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-					{productosFiltrados.map(producto => (
-						<ProductCard key={producto.id} producto={producto} onAddToCart={addItem} />
-					))}
-				</div>
+				<>
+					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
+						{productosFiltrados.map(producto => (
+							<ProductCard key={producto.id} producto={producto} onAddToCart={addItem} onView={openDetail} />
+						))}
+					</div>
+					<ProductDetailModal isOpen={isDetailOpen} producto={selectedProducto} onClose={closeDetail} onAddToCart={addItem} />
+				</>
 			) : (
 				<div className="py-12 text-center">
 					<p className="text-lg text-gray-600">No se encontraron productos</p>

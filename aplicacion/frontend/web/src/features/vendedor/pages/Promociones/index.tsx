@@ -1,7 +1,5 @@
 
 import { useEffect, useState } from 'react'
-import { useCart } from '../../cartContext'
-import { toast } from 'sonner'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ProductCard } from '../../../../components/ui/ProductCard'
@@ -10,7 +8,6 @@ import { getAllProducts, Product } from '../../../supervisor/services/productosA
 import type { Producto } from '../../../cliente/types'
 
 export default function VendedorPromociones() {
-  const { addToCart } = useCart();
   const [loading, setLoading] = useState(true)
   const [promos, setPromos] = useState<Producto[]>([])
 
@@ -78,21 +75,7 @@ export default function VendedorPromociones() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-fr">
             {promos.map((p) => (
               <div key={p.id} className="h-full">
-                <ProductCard
-                  producto={p}
-                  onAddToCart={() => {
-                    addToCart({
-                      id: p.id,
-                      name: p.name,
-                      unitPrice: p.precio_oferta ?? p.price,
-                      quantity: 1,
-                      image: p.image,
-                      promo: true,
-                    });
-                    toast.success('Promoción agregada al carrito');
-                  }}
-                  fetchPromos
-                />
+                <ProductCard producto={p} onAddToCart={() => {}} fetchPromos />
               </div>
             ))}
           </div>

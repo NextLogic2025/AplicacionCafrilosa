@@ -9,11 +9,23 @@ import { LoadingSpinner, SkeletonCard } from 'components/ui/LoadingSpinner'
 import { ProductCard } from 'components/ui/ProductCard'
 import { useCart } from '../../cart/CartContext'
 import type { Producto } from '../../types'
+import ProductDetailModal from '../../components/ProductDetailModal'
 
 export default function PaginaPromociones() {
   const [loading, setLoading] = useState(true)
   const [promos, setPromos] = useState<Producto[]>([])
   const { addItem } = useCart()
+  const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  const openDetail = (p: Producto) => {
+    setSelectedProducto(p)
+    setIsDetailOpen(true)
+  }
+  const closeDetail = () => {
+    setIsDetailOpen(false)
+    setSelectedProducto(null)
+  }
 
   useEffect(() => {
     let mounted = true
@@ -44,7 +56,7 @@ export default function PaginaPromociones() {
       <SectionHeader title="Promociones" subtitle="Estructura preparada para catálogos y ofertas" />
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
           {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -63,11 +75,14 @@ export default function PaginaPromociones() {
           />
         </>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {promos.map(p => (
-            <ProductCard key={p.id} producto={p} onAddToCart={(item) => addItem(item)} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
+            {promos.map(p => (
+              <ProductCard key={p.id} producto={p} onAddToCart={(item) => addItem(item)} onView={openDetail} />
+            ))}
+          </div>
+          <ProductDetailModal isOpen={isDetailOpen} producto={selectedProducto} onClose={closeDetail} onAddToCart={addItem} />
+        </>
       )}
     </div>
   )

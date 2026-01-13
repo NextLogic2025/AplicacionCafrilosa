@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useCart } from '../../cartContext'
-import { toast } from 'sonner'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { ActionButton } from '../../../../components/ui/ActionButton'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ShoppingCart, Users, Package, Percent, Send, Trash2 } from 'lucide-react'
-import { getClientesAsignados, getProductosPorCliente, createPedido } from '../../services/vendedorApi'
+import { getClientesAsignados, getProductosPorCliente } from '../../services/vendedorApi'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
-import type { Producto } from '../../types'
+import type { Producto } from '../../services/vendedorApi'
 import { CardGrid } from '../../../../components/ui/CardGrid'
+import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { ProductCard } from '../../../../components/ui/ProductCard'
 import type { Producto as ProductoCliente } from '../../../cliente/types'
 
 export default function VendedorCrearPedido() {
-  const { cart, removeFromCart, clearCart, updateQuantity } = useCart();
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
   const [productos, setProductos] = useState<Producto[]>([])
@@ -21,9 +19,19 @@ export default function VendedorCrearPedido() {
   const [isLoadingClientes, setIsLoadingClientes] = useState(false)
   const [isLoadingProductos, setIsLoadingProductos] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // El carrito ahora es global
+  const [cart, setCart] = useState<Array<{ id: string; name: string; unitPrice: number; quantity: number }>>([])
 
-  // addToCart ahora es global
+  const addToCart = (item: { id: string; name: string; unitPrice: number; quantity: number }) => {
+    setCart((s) => {
+      const idx = s.findIndex((it) => it.id === item.id)
+      if (idx >= 0) {
+        const copy = [...s]
+        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + item.quantity }
+        return copy
+      }
+      return [...s, item]
+    })
+  }
 
   useEffect(() => {
     let mounted = true
@@ -66,38 +74,6 @@ export default function VendedorCrearPedido() {
       mounted = false
     }
   }, [clienteSeleccionado])
-  // Lógica para enviar pedido
-  const [isSending, setIsSending] = useState(false);
-  const totalPedido = cart.reduce((acc, item) => acc + Number(item.unitPrice) * item.quantity, 0);
-  const itemsCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = totalPedido;
-  const descuentos = 0; // Si en el futuro hay precio original, calcular ahorro aquí
-  const totalCalculado = Math.max(0, subtotal - descuentos);
-  const handleEnviarPedido = async () => {
-    if (!clienteSeleccionado) {
-      toast.error('Selecciona un cliente para asignar el pedido');
-      return;
-    }
-    if (cart.length === 0) {
-      toast.error('Agrega productos o promociones al carrito');
-      return;
-    }
-    setIsSending(true);
-    try {
-      await createPedido(
-        clienteSeleccionado,
-        cart.map(({ id, unitPrice, quantity }) => ({ id, unitPrice, quantity }))
-      );
-      toast.success('¡Pedido enviado correctamente!');
-      clearCart();
-      setClienteSeleccionado('');
-    } catch (e) {
-      console.error('Error al enviar pedido:', e);
-      toast.error('Error al enviar el pedido');
-    } finally {
-      setIsSending(false);
-    }
-  };
   return (
     <div className="space-y-6">
       <PageHero
@@ -144,73 +120,125 @@ export default function VendedorCrearPedido() {
           <Package className="h-5 w-5 text-brand-red" />
           2. Agrega Productos
         </h3>
-        {/* Mostrar solo productos/promociones agregados al carrito como cartas */}
-        {cart.length === 0 ? (
+        {isLoadingProductos ? (
+          <div className="py-6 text-center text-sm text-neutral-600">Cargando productos...</div>
+        ) : productos.length === 0 ? (
           <EmptyContent
             icon={<ShoppingCart className="h-16 w-16" />}
-            title="No has agregado productos"
-            description="Agrega productos o promociones desde el catálogo para verlos aquí."
+            title={clienteSeleccionado ? 'No hay productos para este cliente' : 'Carrito vacío'}
+            description={clienteSeleccionado ? 'No se encontraron productos asignados a este cliente.' : 'Selecciona un cliente para comenzar a agregar productos'}
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {cart.map((item) => {
-              const unit = Number(item.unitPrice) || 0;
-              const total = unit * item.quantity;
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex-1 pr-4">
+                <input
+                  type="text"
+                  placeholder="Buscar producto..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-200 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-red"
+                />
+              </div>
+            </div>
+
+            {/* Separar productos con promoción y sin promoción */}
+            {/** promoted: tiene precio de oferta o promociones **/}
+            {(() => {
+              const term = searchTerm.trim().toLowerCase()
+              const filtered = productos.filter((p) => {
+                const name = ((p as any).nombre ?? (p as any).name ?? '').toString().toLowerCase()
+                const sku = ((p as any).codigo_sku ?? '').toString().toLowerCase()
+                return term === '' || name.includes(term) || sku.includes(term)
+              })
+
+              const regular = filtered.filter((p) => {
+                const hasPromo = (p as any).precio_oferta != null || (Array.isArray((p as any).promociones) && (p as any).promociones.length > 0)
+                return !hasPromo
+              })
+
               return (
-                <div key={item.id} className="overflow-hidden rounded-lg border border-gray-100 bg-white shadow transition hover:shadow-lg h-full flex flex-col">
-                  <div className="relative flex h-40 w-full items-center justify-center overflow-hidden bg-gray-200 rounded-t-lg">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                    ) : null}
+                <>
+                  <div>
+                    <h4 className="mb-3 text-sm font-semibold">Catálogo ({regular.length})</h4>
+                    {regular.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">No hay productos en el catálogo para este cliente.</div>
+                    ) : (
+                      <CardGrid
+                        items={regular.map((p) => ({
+                          id: p.id,
+                          image: (p as any).imagen_url ?? (p as any).image ?? null,
+                          title: (p as any).nombre ?? (p as any).name ?? 'Producto sin nombre',
+                          subtitle: (p as any).codigo_sku ? `SKU: ${(p as any).codigo_sku}` : undefined,
+                          description: (p as any).descripcion ?? (p as any).description ?? undefined,
+                          tags: (p as any).categoria ? [(p as any).categoria.nombre ?? String((p as any).categoria)] : undefined,
+                          extra: (
+                            <StatusBadge variant={(p as any).activo ? 'success' : 'neutral'}>
+                              {(p as any).activo ? 'Activo' : 'Inactivo'}
+                            </StatusBadge>
+                          ),
+                          actions: (
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <div className="text-right">
+                                <div className="text-sm font-bold">${((p as any).precio_oferta ?? (p as any).price ?? 0).toFixed(2)}</div>
+                              </div>
+                              <button className="ml-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white">Agregar</button>
+                            </div>
+                          ),
+                        }))}
+                        columns={4}
+                      />
+                    )}
                   </div>
-                  <div className="p-4 flex flex-col gap-2 flex-1">
-                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Precio unitario</span>
-                      <span className="font-bold text-brand-red">${unit.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm text-gray-600">Cantidad</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="rounded border px-2 py-1 text-sm"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
-                        >-</button>
-                        <input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
-                          className="w-16 rounded border px-2 py-1 text-sm"
-                        />
-                        <button
-                          className="rounded border px-2 py-1 text-sm"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >+</button>
-                      </div>
-                    </div>
-                    {item.promo ? <span className="self-start px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs">Promoción</span> : null}
-                    <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-auto">
-                      <span className="text-sm text-gray-600">Total</span>
-                      <span className="font-bold text-brand-red text-base">${total.toFixed(2)}</span>
-                    </div>
-                    <button
-                      className="flex items-center gap-1 justify-center mt-2 w-full rounded-lg border border-red-500 bg-white px-3 py-2 text-sm font-medium text-red-500 transition hover:bg-red-50"
-                      onClick={() => {
-                        removeFromCart(item.id);
-                        toast.success('Producto eliminado del carrito');
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
+                </>
               )
-            })}
+            })()}
           </div>
         )}
+      </section>
+
+      {/* Promociones */}
+      <section className="rounded-xl border border-neutral-200 bg-white p-6">
+        <h3 className="text-lg font-bold text-neutral-950 mb-4 flex items-center gap-2">
+          <Percent className="h-5 w-5 text-brand-red" />
+          3. Aplica Promociones
+        </h3>
+        <p className="text-sm text-neutral-500">Las promociones aplicables se mostrarán automáticamente según los productos seleccionados</p>
+        <div className="mt-4">
+          {productos.length === 0 ? (
+            <div className="text-sm text-neutral-500">Selecciona un cliente para ver promociones aplicables.</div>
+          ) : (
+            (() => {
+              const promos = productos.filter((p) => (p as any).precio_oferta != null || (Array.isArray((p as any).promociones) && (p as any).promociones.length > 0))
+              if (promos.length === 0) return <div className="text-sm text-neutral-500">No hay promociones aplicables.</div>
+              const mapped = promos.map((p) => {
+                const prod: ProductoCliente = {
+                  id: (p as any).id,
+                  name: (p as any).nombre ?? (p as any).name ?? '',
+                  description: (p as any).descripcion ?? (p as any).description ?? '',
+                  price: Number((p as any).price ?? (p as any).precio_oferta ?? 0),
+                  precio_original: (p as any).precio_original ?? null,
+                  precio_oferta: (p as any).precio_oferta ?? (p as any).precio_oferta_fijo ?? null,
+                  ahorro: null,
+                  promociones: (p as any).promociones ?? [],
+                  campania_aplicada_id: (p as any).campania_aplicada_id ?? null,
+                  image: (p as any).imagen_url ?? (p as any).image ?? undefined,
+                  category: (p as any).categoria?.nombre ?? (p as any).category ?? '',
+                  inStock: Boolean((p as any).activo ?? (p as any).inStock ?? true),
+                }
+                return prod
+              })
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {mapped.map((mp) => (
+                    <ProductCard key={mp.id} producto={mp} onAddToCart={(item) => addToCart(item)} fetchPromos addButtonLabel="Agregar" />
+                  ))}
+                </div>
+              )
+            })()
+          )}
+        </div>
       </section>
 
       {/* Condición Comercial */}
@@ -246,32 +274,23 @@ export default function VendedorCrearPedido() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-neutral-600">Subtotal:</span>
-            <span className="font-semibold text-neutral-950">${subtotal.toFixed(2)}</span>
+            <span className="font-semibold text-neutral-950">--</span>
           </div>
           <div className="flex justify-between">
             <span className="text-neutral-600">Descuentos:</span>
-            <span className="font-semibold text-green-600">${descuentos.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-neutral-600">Items:</span>
-            <span className="font-semibold text-neutral-950">{itemsCount}</span>
+            <span className="font-semibold text-green-600">--</span>
           </div>
           <div className="flex justify-between pt-2 border-t border-neutral-200">
             <span className="font-bold text-neutral-950">Total:</span>
-            <span className="font-bold text-brand-red text-lg">${totalCalculado.toFixed(2)}</span>
+            <span className="font-bold text-brand-red text-lg">--</span>
           </div>
         </div>
       </section>
 
       {/* Acciones */}
       <section className="flex flex-wrap gap-3">
-        <ActionButton
-          variant="primary"
-          icon={<Send className="h-4 w-4" />}
-          onClick={handleEnviarPedido}
-          disabled={isSending || cart.length === 0 || !clienteSeleccionado}
-        >
-          {isSending ? 'Enviando...' : 'Enviar Pedido a Bodega'}
+        <ActionButton variant="primary" icon={<Send className="h-4 w-4" />}>
+          Enviar Pedido a Bodega
         </ActionButton>
         <ActionButton variant="secondary">
           Guardar Borrador

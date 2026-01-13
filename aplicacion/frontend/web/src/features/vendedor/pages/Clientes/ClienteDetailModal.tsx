@@ -9,7 +9,7 @@ import { obtenerSucursales, type Sucursal } from '../../../supervisor/services/s
 import { getSelectedRole } from '../../../../services/storage/roleStorage'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 
-const GOOGLE_MAP_LIBRARIES: Array<'drawing' | 'geometry'> = ['drawing', 'geometry']
+const GOOGLE_MAP_LIBRARIES: Array<'drawing'> = ['drawing']
 const mapStyle = { width: '100%', height: '320px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 

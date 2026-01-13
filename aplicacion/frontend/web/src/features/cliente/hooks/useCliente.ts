@@ -173,12 +173,9 @@ export function useCliente() {
     marcarNotificacionComoLeida,
     marcarTodasComoLeidas,
     limpiarError,
-    crearPedidoDesdeCarrito: async (
-      items: { id: string; name: string; unitPrice: number; quantity: number }[],
-      total: number,
-    ) => {
+    crearPedidoDesdeCarrito: async () => {
       try {
-        const nuevo = await api.createPedido(items, total)
+        const nuevo = await api.createPedidoFromCart()
         setPedidos(prev => [nuevo, ...prev])
       } catch {
         // si falla la API, no generamos datos locales
