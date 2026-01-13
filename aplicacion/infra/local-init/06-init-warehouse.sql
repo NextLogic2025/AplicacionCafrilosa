@@ -3,7 +3,7 @@
 -- BASE DE DATOS: warehouse_db
 -- MOTOR: PostgreSQL 14+
 -- ==================================================================================
-CREATE DATABASE warehouse_db;
+
 
 \c warehouse_db;
 -- =========================================
