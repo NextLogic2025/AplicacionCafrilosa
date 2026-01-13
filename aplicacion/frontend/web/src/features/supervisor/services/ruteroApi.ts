@@ -31,8 +31,6 @@ import { httpCatalogo } from '../../../services/api/http'
 import type { ClienteRutero, RuteroPlanificado, DiaSemana } from './types'
 
 export async function obtenerClientesPorZona(_zonaId: number): Promise<ClienteRutero[]> {
-  // No existe endpoint por zona en la colección; traemos todos los clientes
-  // y el caller decide cómo filtrar/mostrar.
   return httpCatalogo<ClienteRutero[]>(`/clientes`)
 }
 
@@ -59,7 +57,7 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
     id: r.id,
     cliente_id: r.cliente_id,
     zona_id: r.zona_id,
-    dia_semana: diaSemana,
+    dia_semana: r.dia_semana, // Usar el valor real del backend
     frecuencia: r.frecuencia ?? 'SEMANAL',
     prioridad_visita: r.prioridad_visita ?? 'MEDIA',
     orden_sugerido: r.orden_sugerido ?? 999,

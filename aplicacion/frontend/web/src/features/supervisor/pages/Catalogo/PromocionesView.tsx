@@ -12,7 +12,8 @@ import { usePromocionesCrud } from '../../services/usePromocionesCrud'
 import { usePromocionesProductos } from '../../services/usePromocionesProductos'
 import { usePromocionesClientes } from '../../services/usePromocionesClientes'
 import { useNotification } from '../../../../hooks/useNotification'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getAllListasPrecios } from '../../services/preciosApi'
 
 export function PromocionesView() {
   // CRUD campañas
@@ -39,6 +40,15 @@ export function PromocionesView() {
   const [filtroAlcance, setFiltroAlcance] = useState<'todos' | 'GLOBAL' | 'POR_LISTA' | 'POR_CLIENTE'>('todos')
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedCampania, setSelectedCampania] = useState<any | null>(null)
+
+  // Cargar listas de precios al abrir el modal
+  useEffect(() => {
+    if (isModalOpen) {
+      getAllListasPrecios()
+        .then((listas) => setListasPrecios(listas))
+        .catch(() => setListasPrecios([]))
+    }
+  }, [isModalOpen])
 
   // Productos de campaña
   const {

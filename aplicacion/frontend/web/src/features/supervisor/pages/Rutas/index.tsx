@@ -55,13 +55,13 @@ export default function RutasPage() {
         setLoadingRutas(false);
         return;
       }
-      // Mapear día a valor API
-      const diaMap: Record<string, DiaSemana> = {
-        'Lunes': 'LUNES',
-        'Martes': 'MARTES',
-        'Miércoles': 'MIERCOLES',
-        'Jueves': 'JUEVES',
-        'Viernes': 'VIERNES',
+      // Mapear día a número (API: Lunes=2, Martes=3, ... Viernes=6)
+      const diaMap: Record<string, number> = {
+        'Lunes': 1,
+        'Martes': 2,
+        'Miércoles': 3,
+        'Jueves': 4,
+        'Viernes': 5,
       };
       try {
         // Buscar zona seleccionada y su polígono
@@ -95,12 +95,17 @@ export default function RutasPage() {
         // Cargar rutas
         const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaMap[diaSeleccionado]);
         console.log('Rutas recibidas desde el API:', rutasApi);
-        
+         
         // Filtrar rutas localmente para asegurar que coincidan con la zona y el día seleccionados
-        const rutasFiltradas = rutasApi.filter(ruta =>
-          ruta.zona_id === Number(zonaSeleccionada) &&
-          ruta.dia_semana === diaMap[diaSeleccionado]
-        );
+        const rutasFiltradas = rutasApi.filter(ruta => {
+          const rutaDia = Number(ruta.dia_semana || ruta.dia);
+          const diaSeleccionadoNum = diaMap[diaSeleccionado];
+          return (
+            ruta.zona_id === Number(zonaSeleccionada) &&
+            rutaDia === diaSeleccionadoNum
+          );
+        });
+        console.log('Rutas filtradas por zona y día:', rutasFiltradas);
         console.log('Rutas filtradas localmente:', rutasFiltradas);
         setRutas(rutasFiltradas as Ruta[]);
         // Extraer puntos de las rutas filtradas (si tienen ubicación)
@@ -114,13 +119,13 @@ export default function RutasPage() {
               return {
                 lat: gps.coordinates[1],
                 lng: gps.coordinates[0],
-                nombre: r.sucursal_nombre || 'Sucursal no definida',
+                nombre: r.sucursal_nombre || r.cliente_nombre || 'Sucursal no definida',
               };
             }
             return null;
           })
-          .filter((p): p is { lat: number; lng: number; nombre?: string } => p !== null);
-        setPuntosMapa(puntos as { lat: number; lng: number; nombre?: string }[]);
+          .filter((p): p is { lat: number; lng: number; nombre: string } => p !== null);
+        setPuntosMapa(puntos as { lat: number; lng: number; nombre: string }[]);
         console.log('Puntos de rutas:', puntos);
       } catch {
         setRutas([]);
