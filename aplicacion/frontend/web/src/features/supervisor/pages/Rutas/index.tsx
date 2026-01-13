@@ -14,6 +14,11 @@ interface Ruta {
   prioridad_visita: string;
   frecuencia: string;
   hora_estimada?: string;
+  sucursal_nombre?: string | null;
+  ubicacion_gps?: {
+    type: 'Point';
+    coordinates: [number, number];
+  } | null;
 }
 
 export default function RutasPage() {
@@ -101,7 +106,7 @@ export default function RutasPage() {
               return {
                 lat: gps.coordinates[1],
                 lng: gps.coordinates[0],
-                nombre: r.cliente_id,
+                nombre: r.sucursal_nombre || 'Sucursal no definida',
               };
             }
             return null;
@@ -190,7 +195,7 @@ export default function RutasPage() {
               {rutas.map(ruta => (
                 <div key={ruta.id} className="bg-white border border-neutral-200 rounded-xl shadow-sm p-4 flex flex-col gap-2">
                   <div className="font-semibold text-brand-red text-lg mb-1">Ruta</div>
-                  <div className="text-sm text-neutral-700"><span className="font-medium">Cliente:</span> {ruta.cliente_id}</div>
+                  <div className="text-sm text-neutral-700"><span className="font-medium">Sucursal:</span> {ruta.sucursal_nombre || 'No definida'}</div>
                   <div className="text-sm text-neutral-700"><span className="font-medium">Prioridad:</span> {ruta.prioridad_visita}</div>
                   <div className="text-sm text-neutral-700"><span className="font-medium">Frecuencia:</span> {ruta.frecuencia}</div>
                   <div className="text-sm text-neutral-700"><span className="font-medium">Hora estimada:</span> {ruta.hora_estimada || 'No definida'}</div>

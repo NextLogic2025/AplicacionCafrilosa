@@ -47,6 +47,11 @@ export interface RuteroPlanificado {
   updated_at?: string
   tipo_direccion?: 'PRINCIPAL' | 'SUCURSAL'
   sucursal_id?: string | null
+  sucursal_nombre?: string | null
+  ubicacion_gps?: {
+    type: 'Point'
+    coordinates: [number, number]
+  } | null
 }
 
 export type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES' 

@@ -37,10 +37,7 @@ export async function obtenerClientesPorZona(_zonaId: number): Promise<ClienteRu
 }
 
 export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSemana): Promise<RuteroPlanificado[]> {
-  // La colección expone GET /rutero (lista completa) y no por zona/día.
-  // Obtenemos todo y filtramos localmente.
-  const all = await httpCatalogo<any[]>(`/rutero`).catch(() => [])
-
+  // Consumir directamente desde el endpoint de la API
   const diaToNumber = (d: DiaSemana): number => {
     const map: Record<DiaSemana, number> = {
       LUNES: 2,
@@ -51,12 +48,14 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
     }
     return map[d] ?? 2
   }
-
+ 
   const diaNum = diaToNumber(diaSemana)
-  const filtered = (all || []).filter((r) => r?.zona_id === zonaId && r?.dia_semana === diaNum)
-
+  console.log(`Consultando API con zona_id=${zonaId} y dia_semana=${diaNum}`);
+  const rutas = await httpCatalogo<any[]>(`/rutero?zona_id=${zonaId}&dia_semana=${diaNum}`).catch(() => [])
+  console.log('Datos recibidos desde el API:', rutas);
+ 
   // Normalizamos a nuestra interfaz local
-  return filtered.map((r: any) => ({
+  return rutas.map((r: any) => ({
     id: r.id,
     cliente_id: r.cliente_id,
     zona_id: r.zona_id,
@@ -66,6 +65,8 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSem
     orden_sugerido: r.orden_sugerido ?? 999,
     hora_estimada: r.hora_estimada_arribo ?? r.hora_estimada ?? null,
     activo: r.activo ?? true,
+    sucursal_nombre: r.sucursal_nombre ?? null,
+    ubicacion_gps: r.ubicacion_gps ?? null,
   })) as RuteroPlanificado[]
 }
 
