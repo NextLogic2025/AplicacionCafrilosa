@@ -1,7 +1,6 @@
-import React from 'react';
-import { GoogleMap, Polygon, Marker, useJsApiLoader } from '@react-google-maps/api';
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+import React, { useEffect, useState } from 'react';
+import { GoogleMap, Polygon, Marker } from '@react-google-maps/api';
+import { loadGoogleMaps } from '../../../utils/googleMapsLoader';
 
 export interface PuntoMapa {
   lat: number;
@@ -24,9 +23,15 @@ export const ZonaMapaGoogle: React.FC<ZonaMapaGoogleProps> = ({
   zoom = 13,
   style,
 }) => {
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-  });
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadMap = async () => {
+      const loaded = await loadGoogleMaps();
+      setIsLoaded(loaded);
+    };
+    loadMap();
+  }, []);
 
   // Calcular centro si no se pasa
   const mapCenter = center ||
