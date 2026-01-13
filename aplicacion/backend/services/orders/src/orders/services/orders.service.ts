@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -16,7 +17,31 @@ export class OrdersService {
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
+    private readonly configService: ConfigService,
   ) {}
+
+  // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
+  private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
+    if (!campaniaId) return false;
+    // Preferir llamada al servicio Catalog si está disponible
+    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+    const url = `${base.replace(/\/+$/, '')}/promociones/${campaniaId}/productos`;
+    try {
+      const fetchFn = (globalThis as any).fetch;
+      if (typeof fetchFn !== 'function') {
+        this.logger.debug('fetch not available in runtime; cannot verify promo via HTTP');
+        return false;
+      }
+      const resp: any = await fetchFn(url);
+      if (!resp || !resp.ok) return false;
+      const data = await resp.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
+    } catch (err) {
+      this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
+      return false;
+    }
+  }
 
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
@@ -36,6 +61,16 @@ export class OrdersService {
     });
     if (!pedido) throw new NotFoundException(`El pedido con ID ${id} no existe`);
     return pedido;
+  }
+
+  async findAllByUser(userId: string, role: string): Promise<Pedido[]> {
+    const qb = this.pedidoRepo.createQueryBuilder('o');
+    if (String(role).toLowerCase() === 'cliente') {
+      qb.where('o.cliente_id = :userId', { userId });
+    } else if (String(role).toLowerCase() === 'vendedor') {
+      qb.where('o.vendedor_id = :userId', { userId });
+    }
+    return qb.orderBy('o.created_at', 'DESC').getMany();
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<Pedido> {
@@ -76,7 +111,15 @@ export class OrdersService {
       const detallesGuardados: DetallePedido[] = [];
       for (const item of createOrderDto.items) {
         const tieneDescuento = item.precio_original && item.precio_original > item.precio_unitario;
-        
+
+        // Si el frontend declara una campaña aplicada, verificar su vigencia en BD
+        if (item.campania_aplicada_id) {
+          const esValida = await this.verificarVigenciaPromo(item.campania_aplicada_id, item.producto_id);
+          if (!esValida) {
+            throw new ConflictException(`La promoción para el producto ${item.nombre_producto || item.producto_id} ha expirado o no es válida. Actualice el carrito.`);
+          }
+        }
+
         const detalle = queryRunner.manager.create(DetallePedido, {
           pedido_id: pedidoGuardado.id,
           producto_id: item.producto_id,
@@ -87,23 +130,24 @@ export class OrdersService {
           precio_lista: item.precio_original || item.precio_unitario,
           precio_original_snapshot: tieneDescuento ? item.precio_original : null,
           precio_final: item.precio_unitario,
-          campania_aplicada_id: tieneDescuento ? (item.campania_aplicada_id || null) : null,
+          campania_aplicada_id: item.campania_aplicada_id || null,
           precio_timestamp: new Date(),
           motivo_descuento: item.motivo_descuento || null,
         });
         const saved = await queryRunner.manager.save(DetallePedido, detalle);
         detallesGuardados.push(saved);
 
-        // Guardar promoción aplicada si hay descuento
-        if (tieneDescuento && item.motivo_descuento) {
-          const descuentoLinea = (item.precio_original - item.precio_unitario) * item.cantidad;
+        // Guardar promoción aplicada si el frontend indicó una campaña
+        if (item.campania_aplicada_id) {
+          const descuentoLinea = (item.precio_original || item.precio_unitario) - item.precio_unitario;
+          const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
           const promocion = queryRunner.manager.create(PromocionAplicada, {
             pedido_id: pedidoGuardado.id,
             detalle_pedido_id: saved.id,
-            campaña_id: item.campania_aplicada_id || null,
+            campaña_id: item.campania_aplicada_id,
             tipo_descuento: 'PORCENTAJE',
-            valor_descuento: item.precio_original - item.precio_unitario,
-            monto_aplicado: descuentoLinea,
+            valor_descuento: item.precio_original != null ? (item.precio_original - item.precio_unitario) : 0,
+            monto_aplicado: montoAplicado,
           });
           await queryRunner.manager.save(PromocionAplicada, promocion);
         }

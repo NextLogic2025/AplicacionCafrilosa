@@ -83,10 +83,12 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/orders_db
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
       - JWT_SECRET=MiSecretoSuperSeguro2025
       - JWT_EXPIRES_IN=1h
     depends_on:
       - database
+      - catalog-service
     networks:
       - app-network
 
