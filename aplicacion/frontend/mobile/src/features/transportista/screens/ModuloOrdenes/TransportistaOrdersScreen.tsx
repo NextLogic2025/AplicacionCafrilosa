@@ -2,9 +2,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import React, { useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 
-import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
-import { TransportistaService, type TransportistaOrder } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { GenericList } from '../../../../components/ui/GenericList'
+import { TransportistaService, type TransportistaOrder } from '../../../../services/api/TransportistaService'
 
 export function TransportistaOrdersScreen() {
     const navigation = useNavigation<any>()

@@ -4,9 +4,9 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
-import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
-import { TransportistaService, type Return } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { GenericList } from '../../../../components/ui/GenericList'
+import { TransportistaService, type Return } from '../../../../services/api/TransportistaService'
 
 export function TransportistaReturnsScreen() {
     const [returns, setReturns] = useState<Return[]>([])

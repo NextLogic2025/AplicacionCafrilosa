@@ -5,19 +5,18 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
 // Screens
-import { WarehouseHomeScreen } from '../features/bodeguero/screens/WarehouseHomeScreen'
-import { WarehouseOrdersScreen } from '../features/bodeguero/screens/WarehouseOrdersScreen'
-import { WarehouseInventoryScreen } from '../features/bodeguero/screens/WarehouseInventoryScreen'
-import { WarehouseProfileScreen } from '../features/bodeguero/screens/WarehouseProfileScreen'
+// Screens
+import { WarehouseHomeScreen } from '../features/bodeguero/screens/ModuloInicio/WarehouseHomeScreen'
+import { WarehouseOrdersScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehouseOrdersScreen'
+import { WarehouseInventoryScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseInventoryScreen'
+import { WarehouseProfileScreen } from '../features/bodeguero/screens/ModuloPerfil/WarehouseProfileScreen'
 
 // FAB Screens
-import {
-    WarehouseLotsScreen,
-    WarehousePreparationScreen,
-    WarehouseDispatchScreen,
-    WarehouseReturnsScreen,
-    WarehouseNotificationsScreen
-} from '../features/bodeguero/screens/WarehouseFabScreens'
+import { WarehouseLotsScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseLotsScreen'
+import { WarehousePreparationScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehousePreparationScreen'
+import { WarehouseDispatchScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehouseDispatchScreen'
+import { WarehouseReturnsScreen } from '../features/bodeguero/screens/ModuloDevoluciones/WarehouseReturnsScreen'
+import { WarehouseNotificationsScreen } from '../features/bodeguero/screens/ModuloNotificaciones/WarehouseNotificationsScreen'
 
 import { TabNavigation } from '../components/ui/TabNavigation'
 

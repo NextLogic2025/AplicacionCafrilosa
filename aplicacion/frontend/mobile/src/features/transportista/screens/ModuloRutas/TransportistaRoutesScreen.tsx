@@ -4,9 +4,9 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
 
-import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
-import { TransportistaService, type Route } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { GenericList } from '../../../../components/ui/GenericList'
+import { TransportistaService, type Route } from '../../../../services/api/TransportistaService'
 
 export function TransportistaRoutesScreen() {
     const navigation = useNavigation()

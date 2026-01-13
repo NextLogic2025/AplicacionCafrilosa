@@ -3,10 +3,10 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native'
 import React, { useState } from 'react'
 import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native'
 
-import { Header } from '../../../components/ui/Header'
-import { TransportistaService, type TransportistaOrder } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { TransportistaService, type TransportistaOrder } from '../../../../services/api/TransportistaService'
 import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { GenericActionModal } from '../../../components/ui/GenericActionModal'
+import { GenericActionModal } from '../../../../components/ui/GenericActionModal'
 
 type RouteParams = {
     params: {

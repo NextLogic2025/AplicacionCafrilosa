@@ -5,18 +5,18 @@ import React from 'react'
 import { TabNavigation } from '../components/ui/TabNavigation'
 
 // Screens
-import { TransportistaHomeScreen } from '../features/transportista/screens/TransportistaHomeScreen'
-import { TransportistaOrdersScreen } from '../features/transportista/screens/TransportistaOrdersScreen'
-import { TransportistaOrderDetailScreen } from '../features/transportista/screens/TransportistaOrderDetailScreen'
-import { TransportistaDeliveriesScreen } from '../features/transportista/screens/TransportistaDeliveriesScreen'
-// import { TransportistaDeliveryDetailScreen } from '../features/transportista/screens/TransportistaDeliveryDetailScreen' // To be implemented
-import { TransportistaProfileScreen } from '../features/transportista/screens/TransportistaProfileScreen'
+import { TransportistaHomeScreen } from '../features/transportista/screens/ModuloInicio/TransportistaHomeScreen'
+import { TransportistaOrdersScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaOrdersScreen'
+import { TransportistaOrderDetailScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaOrderDetailScreen'
+import { TransportistaDeliveriesScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaDeliveriesScreen'
+// import { TransportistaDeliveryDetailScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaDeliveryDetailScreen' // To be implemented
+import { TransportistaProfileScreen } from '../features/transportista/screens/ModuloPerfil/TransportistaProfileScreen'
 
 // Fab/Modal Screens
-import { TransportistaRoutesScreen } from '../features/transportista/screens/TransportistaRoutesScreen'
-import { TransportistaReturnsScreen } from '../features/transportista/screens/TransportistaReturnsScreen'
-import { TransportistaHistoryScreen } from '../features/transportista/screens/TransportistaHistoryScreen'
-import { TransportistaNotificationsScreen } from '../features/transportista/screens/TransportistaNotificationsScreen'
+import { TransportistaRoutesScreen } from '../features/transportista/screens/ModuloRutas/TransportistaRoutesScreen'
+import { TransportistaReturnsScreen } from '../features/transportista/screens/ModuloDevoluciones/TransportistaReturnsScreen'
+import { TransportistaHistoryScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaHistoryScreen'
+import { TransportistaNotificationsScreen } from '../features/transportista/screens/ModuloNotificaciones/TransportistaNotificationsScreen'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()

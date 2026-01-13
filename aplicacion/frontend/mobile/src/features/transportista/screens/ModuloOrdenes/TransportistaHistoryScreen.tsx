@@ -3,9 +3,9 @@ import React, { useState, useCallback } from 'react'
 import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
-import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
-import { TransportistaService, type Route } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { GenericList } from '../../../../components/ui/GenericList'
+import { TransportistaService, type Route } from '../../../../services/api/TransportistaService'
 
 export function TransportistaHistoryScreen() {
     const [history, setHistory] = useState<Route[]>([])

@@ -2,10 +2,10 @@ import { useFocusEffect } from '@react-navigation/native'
 import React, { useState, useCallback } from 'react'
 import { View } from 'react-native'
 
-import { Header } from '../../../components/ui/Header'
-import { GenericList } from '../../../components/ui/GenericList'
-import { DeliveryCard } from '../../../components/ui/DeliveryCard'
-import { TransportistaService, type Delivery } from '../../../services/api/TransportistaService'
+import { Header } from '../../../../components/ui/Header'
+import { GenericList } from '../../../../components/ui/GenericList'
+import { DeliveryCard } from '../../../../components/ui/DeliveryCard'
+import { TransportistaService, type Delivery } from '../../../../services/api/TransportistaService'
 
 export function TransportistaDeliveriesScreen() {
     const [deliveries, setDeliveries] = useState<Delivery[]>([])
