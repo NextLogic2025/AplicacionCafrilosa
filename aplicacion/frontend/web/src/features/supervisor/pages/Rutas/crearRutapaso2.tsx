@@ -47,12 +47,13 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
   const { zone, destinations: initialDestinations = [], existingRoutes = [] } = location.state || {};
 
   // Estado de destinos configurables
+  // Corregido: cada destino es una sucursal o dirección principal seleccionada, no el cliente
   const [destinos, setDestinos] = useState<Destino[]>(() =>
     (initialDestinations || []).map((d: any, i: number): Destino => ({
-      id: d.clienteId + '-' + (d.sucursales?.[0] || 'principal'),
-      nombre: 'Destino ' + (i + 1), // Aquí deberías mapear el nombre real
+      id: d.id, // id de la sucursal o principal
+      nombre: d.nombre || `Destino ${i + 1}`,
       clienteId: d.clienteId,
-      sucursales: d.sucursales,
+      sucursales: [d.id],
       hora: '',
       prioridad: 'MEDIA',
       frecuencia: 'SEMANAL',

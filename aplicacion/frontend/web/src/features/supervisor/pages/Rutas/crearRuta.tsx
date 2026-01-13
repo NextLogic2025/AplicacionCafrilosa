@@ -78,33 +78,41 @@ export default function SupervisorRouteCreatePage() {
   }, [seleccionados]);
 
   // Manejo de selección
-  const toggleCliente = (clienteId: string) => {
+  // Selección de cliente: solo marca/desmarca todas las sucursales visibles si el usuario lo hace explícitamente
+  const toggleCliente = (clienteId: string, sucursalesEnZona: any[]) => {
     setSeleccionados(prev => {
-      const nuevo = { ...prev };
-      if (nuevo[clienteId]) delete nuevo[clienteId];
-      else nuevo[clienteId] = [];
-      return nuevo;
+      const actual = prev[clienteId] || [];
+      const todasSeleccionadas = sucursalesEnZona.every(suc => actual.includes(suc.id));
+      return {
+        ...prev,
+        [clienteId]: todasSeleccionadas ? [] : sucursalesEnZona.map(suc => suc.id),
+      };
     });
   };
+  // Selección de sucursal: solo afecta a la sucursal, no al cliente
   const toggleSucursal = (clienteId: string, sucursalId: string) => {
     setSeleccionados(prev => {
       const actual = prev[clienteId] || [];
       const existe = actual.includes(sucursalId);
+      const nuevo = existe ? actual.filter(id => id !== sucursalId) : [...actual, sucursalId];
       return {
         ...prev,
-        [clienteId]: existe ? actual.filter(id => id !== sucursalId) : [...actual, sucursalId],
+        [clienteId]: nuevo,
       };
     });
   };
 
   // Continuar
   const handleContinuar = () => {
-    if (!zonaSeleccionada || totalDestinos === 0) return;
-    // Construir destinations
-    const destinations = Object.entries(seleccionados).map(([clienteId, sucursales]) => ({
-      clienteId,
-      sucursales,
-    }));
+    if (!zonaSeleccionada || totalDestinos === 0) return;    
+    // Construir destinations: cada sucursal seleccionada es un destino
+    const destinations: { id: string; clienteId: string }[] = [];
+    Object.entries(seleccionados).forEach(([clienteId, sucursalIds]) => {
+      sucursalIds.forEach((sucursalId) => {
+        destinations.push({ id: sucursalId, clienteId });
+      });
+    });
+    // Solo enviar los IDs de sucursales o dirección principal seleccionados, nunca el ID del cliente
     navigate('/supervisor/rutas/crear/paso2', {
       state: {
         zone: zonaSeleccionada,
@@ -174,15 +182,49 @@ export default function SupervisorRouteCreatePage() {
               <div className="flex items-center gap-2">
                 <button
                   className={`flex items-center justify-center w-5 h-5 border rounded-full mr-2 ${clienteSoloFueraZona ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={() => !clienteSoloFueraZona && toggleCliente(cliente.id)}
+                  onClick={() => {
+                    if (!clienteSoloFueraZona) {
+                      // Solo marca/desmarca todas las sucursales visibles
+                      const sucursales = sucursalesPorCliente[cliente.id] || [];
+                      // Insertar la dirección principal como "sucursal principal" al inicio
+                      const principalId = `principal-${cliente.id}`;
+                      const principalSucursal = cliente.direccion_texto
+                        ? [{
+                            id: principalId,
+                            nombre_sucursal: 'Dirección principal',
+                            direccion_entrega: cliente.direccion_texto,
+                            zona_id: cliente.zona_comercial_id,
+                            principal: true
+                          }]
+                        : [];
+                      const todas = [...principalSucursal, ...sucursales].filter((suc: any) => String(suc.zona_id) === String(zonaSeleccionada));
+                      toggleCliente(cliente.id, todas);
+                    }
+                  }}
                   aria-label="Seleccionar cliente"
                   disabled={clienteSoloFueraZona}
                 >
-                  {seleccionados[cliente.id] || sucursales.length === 0 ? (
-                    <CheckCircle className="text-brand-red w-5 h-5" />
-                  ) : (
-                    <Circle className="text-neutral-300 w-5 h-5" />
-                  )}
+                  {(() => {
+                    const sucursales = sucursalesPorCliente[cliente.id] || [];
+                    const principalId = `principal-${cliente.id}`;
+                    const principalSucursal = cliente.direccion_texto
+                      ? [{
+                          id: principalId,
+                          nombre_sucursal: 'Dirección principal',
+                          direccion_entrega: cliente.direccion_texto,
+                          zona_id: cliente.zona_comercial_id,
+                          principal: true
+                        }]
+                      : [];
+                    const todas = [...principalSucursal, ...sucursales].filter((suc: any) => String(suc.zona_id) === String(zonaSeleccionada));
+                    const actual = seleccionados[cliente.id] || [];
+                    const todasSeleccionadas = todas.length > 0 && todas.every(suc => actual.includes(suc.id));
+                    return todasSeleccionadas ? (
+                      <CheckCircle className="text-brand-red w-5 h-5" />
+                    ) : (
+                      <Circle className="text-neutral-300 w-5 h-5" />
+                    );
+                  })()}
                 </button>
                 <span className={`font-medium flex-1 ${clienteSoloFueraZona ? 'opacity-50' : ''}`}>{nombreCliente}</span>
                 {sucursalesEnZona.length > 0 && !clienteSoloFueraZona && (
