@@ -1,9 +1,10 @@
-\c orders_db;
 -- ==================================================================================
--- MICROSERVICIO: ORDERS SERVICE (svc-orders) - VERSIÓN FINAL 100% COMPLETA
+-- MICROSERVICIO: ORDERS SERVICE (svc-orders) - VERSIÓN FINAL "SNAPSHOT STRATEGY"
 -- BASE DE DATOS: orders_db
 -- MOTOR: PostgreSQL 14+
 -- ==================================================================================
+
+\c orders_db; -- Descomentar si ejecutas desde consola
 
 -- =========================================
 -- 1. EXTENSIONES
@@ -33,7 +34,7 @@ INSERT INTO estados_pedido (codigo, nombre_visible, descripcion, es_estado_final
 ('RECHAZADO', 'Rechazado', 'Fallo en crédito o stock', TRUE, 0);
 
 -- =========================================
--- 3. CARRITO DE COMPRAS (con soft delete y updated_at)
+-- 3. CARRITO DE COMPRAS
 -- =========================================
 CREATE TABLE carritos_cabecera (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,63 +49,95 @@ CREATE TABLE carritos_cabecera (
 CREATE TABLE carritos_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     carrito_id UUID REFERENCES carritos_cabecera(id) ON DELETE CASCADE,
+    
     producto_id UUID NOT NULL,          -- referencia lógica a catalog_db.productos
     cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
-    precio_unitario_ref DECIMAL(10,2),
+    
+    -- PRECIO QUE PAGA EL CLIENTE (OFERTA)
+    precio_unitario_ref DECIMAL(10,2), 
+
+    -- === NUEVOS CAMPOS (SNAPSHOTS) ===
+    -- PRECIO NORMAL (Para mostrar tachado: "Antes $20")
+    precio_original_snapshot DECIMAL(10,2), 
+    
+    -- ID DE CAMPAÑA (Para validación estricta al comprar)
+    campania_aplicada_id INT,
+
+    -- NOMBRE DE LA OFERTA (Para mostrar: "Descuento Verano")
+    motivo_descuento VARCHAR(100),
+    -- =================================
+    
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(carrito_id, producto_id)
 );
 
 -- =========================================
--- 4. PEDIDOS (con soft delete, updated_at y estado de pago)
+-- 4. PEDIDOS
 -- =========================================
 CREATE TABLE pedidos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo_visual SERIAL UNIQUE,
-    cliente_id UUID NOT NULL,           -- referencia lógica a catalog_db.clientes
-    vendedor_id UUID NOT NULL,          -- referencia lógica a auth_db.usuarios
-    sucursal_id UUID,                   -- referencia lógica a catalog_db.sucursales_cliente
+    cliente_id UUID NOT NULL,
+    vendedor_id UUID NOT NULL,
+    sucursal_id UUID,
     estado_actual VARCHAR(20) NOT NULL REFERENCES estados_pedido(codigo) DEFAULT 'PENDIENTE',
+    
+    -- TOTALES
     subtotal DECIMAL(12,2) NOT NULL CHECK (subtotal >= 0),
     descuento_total DECIMAL(12,2) DEFAULT 0 CHECK (descuento_total >= 0),
     impuestos_total DECIMAL(12,2) NOT NULL CHECK (impuestos_total >= 0),
     total_final DECIMAL(12,2) NOT NULL CHECK (total_final >= 0),
+    
+    -- METADATA
     condicion_pago VARCHAR(50),
     fecha_entrega_solicitada DATE,
     origen_pedido VARCHAR(20),
     ubicacion_pedido GEOMETRY(POINT, 4326),
     observaciones_entrega TEXT,
+    
+    -- ESTADO DE PAGO
     monto_pagado DECIMAL(12,2) DEFAULT 0 CHECK (monto_pagado >= 0),
     estado_pago VARCHAR(20) DEFAULT 'PENDIENTE' 
         CHECK (estado_pago IN ('PENDIENTE','PARCIAL','PAGADO','ANULADO')),
+        
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ              -- SOFT DELETE
+    deleted_at TIMESTAMPTZ
 );
 
 -- =========================================
--- 5. DETALLE DE PEDIDO
+-- 5. DETALLE DE PEDIDO (HISTÓRICO)
 -- =========================================
 CREATE TABLE detalles_pedido (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pedido_id UUID REFERENCES pedidos(id) ON DELETE CASCADE,
     producto_id UUID NOT NULL,
+    
+    -- SNAPSHOTS DEL PRODUCTO (Por si cambian en el futuro)
     codigo_sku VARCHAR(50),
     nombre_producto VARCHAR(200),
-    cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
     unidad_medida VARCHAR(20),
-    precio_lista DECIMAL(10,2),
-    precio_final DECIMAL(10,2),
+    
+    cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
+    
+    -- PRECIOS CONGELADOS AL MOMENTO DE LA COMPRA
+    precio_lista DECIMAL(10,2),       -- Era 'precio_original_snapshot' en el carrito
+    precio_final DECIMAL(10,2),       -- Era 'precio_unitario_ref' en el carrito
+    
+    -- DATOS DE PROMOCIÓN
     es_bonificacion BOOLEAN DEFAULT FALSE,
-    motivo_descuento VARCHAR(100),
+    motivo_descuento VARCHAR(100),    -- "Oferta Verano"
+    campania_aplicada_id INT,         -- ID 5 (Para reportes)
+    
     subtotal_linea DECIMAL(12,2) GENERATED ALWAYS AS (cantidad * precio_final) STORED,
+    
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- =========================================
--- 6. PROMOCIONES APLICADAS
+-- 6. PROMOCIONES APLICADAS (ANALÍTICA)
 -- =========================================
 CREATE TABLE promociones_aplicadas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -113,7 +146,7 @@ CREATE TABLE promociones_aplicadas (
     campaña_id INT,
     tipo_descuento VARCHAR(20),
     valor_descuento DECIMAL(10,2),
-    monto_aplicado DECIMAL(12,2) NOT NULL CHECK (monto_aplicado >= 0),
+    monto_aplicado DECIMAL(12,2) NOT NULL CHECK (monto_aplicado >= 0), -- Cuánto dinero se ahorró
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -132,7 +165,7 @@ CREATE TABLE historial_estados (
 );
 
 -- =========================================
--- 8. PAGOS EN EFECTIVO (tabla principal de registro de pagos)
+-- 8. PAGOS EN EFECTIVO
 -- =========================================
 CREATE TABLE pagos_pedido (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -145,15 +178,13 @@ CREATE TABLE pagos_pedido (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
-
 -- =========================================
--- 9. RESUMEN DE PAGOS POR PEDIDO (para consultas rápidas del cliente/vendedor)
+-- 9. PAGOs RESUMEN (OPTIMIZACIÓN)
 -- =========================================
 CREATE TABLE pagos_resumen (
     pedido_id UUID PRIMARY KEY REFERENCES pedidos(id) ON DELETE CASCADE,
     monto_pagado DECIMAL(14,2) NOT NULL DEFAULT 0,
-    estado_pago VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' 
-        CHECK (estado_pago IN ('PENDIENTE','PARCIAL','PAGADO','ANULADO')),
+    estado_pago VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado_pago IN ('PENDIENTE','PARCIAL','PAGADO','ANULADO')),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

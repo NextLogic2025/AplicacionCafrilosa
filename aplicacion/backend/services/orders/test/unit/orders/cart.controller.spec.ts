@@ -23,7 +23,7 @@ describe('CartController', () => {
   });
 
   it('should call addItem', async () => {
-    const dto = { producto_id: 'p1', cantidad: 1, precio_unitario_ref: 5 };
+    const dto = { producto_id: 'p1', cantidad: 1 };
     mockCartService.addItem.mockResolvedValue({ id: 'item-1' });
     const res = await controller.addToCart('user-1', dto as any);
     expect(mockCartService.addItem).toHaveBeenCalledWith('user-1', dto);
@@ -45,9 +45,7 @@ describe('CartController', () => {
   });
 
   it('should call setClienteId', async () => {
-    mockCartService.setClienteId.mockResolvedValue({ cliente_id: 'c1' });
-    const res = await controller.setCartCliente('user-1', 'c1');
-    expect(mockCartService.setClienteId).toHaveBeenCalledWith('user-1', 'c1');
-    expect(res).toEqual({ cliente_id: 'c1' });
+    // setCartCliente endpoint removed; ensure controller does not expose it anymore
+    expect((controller as any).setCartCliente).toBeUndefined();
   });
 });

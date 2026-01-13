@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
@@ -12,13 +13,14 @@ export class CartService {
     constructor(
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
+        private readonly configService: ConfigService,
     ) { }
 
     /**
      * Obtiene el carrito del usuario. Si no existe, lo crea (Lazy Creation).
      * Solo obtiene carritos activos (deleted_at IS NULL)
      */
-    async getOrCreateCart(usuario_id: string): Promise<CarritoCabecera> {
+    async getOrCreateCart(usuario_id: string): Promise<any> {
         let cart = await this.cartRepo.findOne({
             where: { 
                 usuario_id,
@@ -42,7 +44,59 @@ export class CartService {
                 where: { id: cart.id },
                 relations: ['items'],
             });
+
+            // Validar promociones/ precios con el servicio Catalog (batch)
+            const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+            const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+            const fetchFn = (globalThis as any).fetch;
+            const removed_items: Array<any> = [];
+
+            if (typeof fetchFn === 'function' && cart.items && cart.items.length) {
+                try {
+                    const ids = cart.items.map((it: any) => it.producto_id);
+                    const url = `${base.replace(/\/+$/, '')}/products/internal/batch`;
+                    const resp: any = await fetchFn(url, {
+                        method: 'POST',
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
+                        body: JSON.stringify({ ids, cliente_id: cart.cliente_id ?? undefined }),
+                    });
+
+                    if (!resp || !resp.ok) {
+                        this.logger.debug('No se obtuvo respuesta batch de Catalog para carrito', { cartId: cart.id });
+                        (cart as any).warnings = (cart as any).warnings || [];
+                        (cart as any).warnings.push({ issue: 'catalog_batch_unavailable' });
+                    } else {
+                        const data = await resp.json();
+                        const map = new Map<string, any>();
+                        (data || []).forEach((p: any) => map.set(String(p.id), p));
+
+                        for (const item of cart.items) {
+                            const prod = map.get(String(item.producto_id));
+                            const appliedCampaign = prod?.promocion?.campania_id ?? null;
+
+                            if (item.campania_aplicada_id && !appliedCampaign) {
+                                await this.itemRepo.delete({ id: item.id });
+                                removed_items.push({ producto_id: item.producto_id, campania_aplicada_id: item.campania_aplicada_id });
+                            } else if (item.campania_aplicada_id && appliedCampaign && String(appliedCampaign) !== String(item.campania_aplicada_id)) {
+                                await this.itemRepo.delete({ id: item.id });
+                                removed_items.push({ producto_id: item.producto_id, campania_aplicada_id: item.campania_aplicada_id, expected_campaign: appliedCampaign });
+                            }
+                        }
+
+                        if (removed_items.length) {
+                            await this.recalculateTotals(cart.id);
+                            cart = await this.cartRepo.findOne({ where: { id: cart.id }, relations: ['items'] });
+                            (cart as any).removed_items = removed_items;
+                        }
+                    }
+                } catch (err) {
+                    this.logger.warn('Error consultando Catalog batch al validar carrito', { cartId: cart.id, err: err?.message || err });
+                    (cart as any).warnings = (cart as any).warnings || [];
+                    (cart as any).warnings.push({ issue: 'catalog_batch_error', message: err?.message || String(err) });
+                }
+            }
         }
+
         return cart;
     }
 
@@ -67,15 +121,54 @@ export class CartService {
 
             if (item) {
                 item.cantidad = dto.cantidad;
-                if (dto.precio_unitario_ref !== undefined) {
-                    item.precio_unitario_ref = dto.precio_unitario_ref;
+                if (dto.campania_aplicada_id !== undefined) {
+                    item.campania_aplicada_id = dto.campania_aplicada_id;
+                }
+                if (dto.motivo_descuento !== undefined) {
+                    item.motivo_descuento = dto.motivo_descuento;
                 }
             } else {
+                // Intentar obtener mejor promoción/precio desde Catalog y sobrescribir valores del cliente
+                const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+                const fetchFn = (globalThis as any).fetch;
+
+                let precioUnitarioRef = 0;
+                let precioOriginalSnapshot = null;
+                let campaniaAplicada = dto.campania_aplicada_id ?? null;
+
+                try {
+                    if (typeof fetchFn === 'function') {
+                        const url = `${base.replace(/\/+$/, '')}/products/internal/batch`;
+                        const resp: any = await fetchFn(url, {
+                            method: 'POST',
+                            headers: Object.assign({ 'Content-Type': 'application/json' }, serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
+                            body: JSON.stringify({ ids: [dto.producto_id], cliente_id: cart.cliente_id ?? undefined }),
+                        });
+                        if (resp && resp.ok) {
+                            const arr = await resp.json();
+                            const best = Array.isArray(arr) && arr.length ? arr[0] : null;
+                            if (best && best.promocion?.precio_final != null) {
+                                precioUnitarioRef = Number(best.promocion.precio_final);
+                                precioOriginalSnapshot = best.promocion.precio_lista ?? precioOriginalSnapshot;
+                                campaniaAplicada = best.promocion.campania_id ?? campaniaAplicada;
+                                (cart as any).warnings = (cart as any).warnings || [];
+                                (cart as any).warnings.push({ producto_id: dto.producto_id, action: 'precio_sobrescrito', precio_final: precioUnitarioRef });
+                            }
+                        }
+                    }
+                } catch (err) {
+                    this.logger.warn('No se pudo consultar Catalog al agregar item, usando valores del cliente', err?.message || err);
+                }
+
                 item = this.itemRepo.create({
                     carrito_id: cart.id,
                     producto_id: dto.producto_id,
                     cantidad: dto.cantidad,
-                    precio_unitario_ref: dto.precio_unitario_ref ?? 0,
+                    precio_unitario_ref: precioUnitarioRef,
+                    precio_original_snapshot: precioOriginalSnapshot,
+                    campania_aplicada_id: campaniaAplicada,
+                    motivo_descuento: dto.motivo_descuento ?? null,
                 });
             }
 

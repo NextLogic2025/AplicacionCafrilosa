@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
-import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { OrderOwnershipGuard } from '../guards/order-ownership.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -86,11 +85,17 @@ export class OrdersController {
         };
     }
 
-    @Post()
-    @UseGuards(OrderOwnershipGuard) // Valida que el cliente_id en el DTO sea el del usuario logueado
-    @Roles('admin', 'vendedor', 'cliente')
-    async createOrder(@Body() createOrderDto: CreateOrderDto) {
-        return this.ordersService.create(createOrderDto);
+    // NOTE: Manual `POST /orders` creation was removed in favor of `POST /orders/from-cart/:userId`.
+    // Orders must be created from cart using the `from-cart` endpoint to ensure server-side
+    // price/promotion resolution and snapshot consistency.
+
+    @Post('/from-cart/:userId')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'cliente', 'vendedor')
+    async createFromCart(@Param('userId') userId: string, @Req() req: any) {
+        const usuarioId = req.user?.userId || req.user?.sub || null;
+        const role = (req.user?.role || '').toString().toLowerCase();
+        return this.ordersService.createFromCart(userId, usuarioId, role);
     }
 
     @Get('user/history')

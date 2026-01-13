@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, Query, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -6,6 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 import { PromocionesService } from './promociones.service';
 import { PreciosService } from '../precios/precios.service';
+import { ClientesService } from '../clientes/clientes.service';
 import { CreateCampaniaDto } from './dto/create-campania.dto';
 import { UpdateCampaniaDto } from './dto/update-campania.dto';
 import { AsignProductoPromoDto } from './dto/asign-producto-promo.dto';
@@ -13,7 +14,13 @@ import { AsignClientePromoDto } from './dto/asign-cliente-promo.dto';
 
 @Controller('promociones')
 export class PromocionesController {
-  constructor(private svc: PromocionesService, private preciosService: PreciosService) {}
+  private readonly logger = new Logger(PromocionesController.name);
+
+  constructor(
+    private svc: PromocionesService,
+    private preciosService: PreciosService,
+    private clientesService: ClientesService,
+  ) {}
 
   // ===== CAMPAÑAS =====
   @Get()
@@ -132,11 +139,60 @@ export class PromocionesController {
     return { items };
   }
 
+  @Get('mejor/producto/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
+  async getBestPromotion(@Param('id') id: string, @Req() req: any, @Query('cliente_id') queryClienteId?: string) {
+    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req, queryClienteId);
+    try {
+      const best = await this.svc.getBestPromotionForProduct(id, { clienteId, listaId: clienteListaId });
+      return best || {};
+    } catch (err) {
+      this.logger.warn({ msg: 'Error obteniendo mejor promo', err: err.message });
+      return {};
+    }
+  }
+
   @Delete(':id/productos/:productoId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removeProducto(@Param('id') id: string, @Param('productoId') productoId: string) {
     return this.svc.removeProductoPromo(Number(id), productoId);
+  }
+
+  // Helper para resolver contexto cliente similar a products.controller
+  private async resolveClientContext(req: any, queryClienteId?: string) {
+    const roles = Array.isArray(req.user?.role)
+      ? req.user.role.map((r: any) => String(r).toLowerCase())
+      : [String(req.user?.role || '').toLowerCase()];
+
+    let clienteListaId: number | null = null;
+    let clienteId: string | undefined = undefined;
+
+    if (roles.includes('cliente')) {
+      clienteListaId = req.user['lista_precios_id'] ?? null;
+      clienteId = req.user?.userId ?? undefined;
+
+      if (!clienteListaId && req.user?.userId) {
+        const cliente = await this.clientesService.findByUsuarioPrincipalId(req.user.userId);
+        if (cliente) {
+          clienteListaId = (cliente as any).lista_precios_id ?? null;
+          clienteId = (cliente as any).id ?? clienteId;
+        }
+      }
+    } else {
+      const qClienteId = queryClienteId || req.query?.cliente_id || req.query?.clienteId;
+      if (qClienteId && roles.some((r) => ['admin', 'supervisor', 'vendedor'].includes(r))) {
+        const cliente = await this.clientesService.findOne(String(qClienteId));
+        if (cliente) {
+          clienteListaId = (cliente as any).lista_precios_id ?? null;
+          clienteId = (cliente as any).id ?? undefined;
+          if (!roles.includes('cliente')) roles.push('cliente');
+        }
+      }
+    }
+
+    return { roles, clienteListaId, clienteId };
   }
 
   // ===== CLIENTES PERMITIDOS (para alcance POR_CLIENTE) =====

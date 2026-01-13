@@ -38,11 +38,5 @@ export class CartController {
   removeFromCart(@Param('userId') userId: string, @Param('productId') productId: string) {
     return this.cartService.removeItem(userId, productId);
   }
-
-  @Post(':userId/cliente')
-  @UseGuards(OrderOwnershipGuard)
-  @Roles('admin', 'cliente', 'vendedor')
-  setCartCliente(@Param('userId') userId: string, @Body('cliente_id') clienteId: string) {
-    return this.cartService.setClienteId(userId, clienteId);
-  }
 }
+
