@@ -1,6 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ZonaMapaGoogle, PuntoMapa } from '../../components/ZonaMapaGoogle';
+import { obtenerZonas } from '../../services/zonasApi';
+import { obtenerSucursal } from '../../services/sucursalesApi';
+import { obtenerClientes } from '../../services/clientesApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Circle, X, ArrowLeft, Save, Plus } from 'lucide-react';
+import { GuardarRutasButton } from '../../components/GuardarRutasButton';
+import { useState as useReactState } from 'react';
 
 type Prioridad = 'ALTA' | 'MEDIA' | 'BAJA';
 type Frecuencia = 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
@@ -16,7 +22,7 @@ interface Destino {
 }
 
 const AVAILABLE_HOURS = [
-  '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
+  '08:00', '09:00', '10:00', '11:00', '12:00',
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
 ];
 const PRIORIDADES = [
@@ -46,11 +52,73 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
   const navigate = useNavigate();
   const { zone, destinations: initialDestinations = [], existingRoutes = [] } = location.state || {};
 
+  // Estado para polígono y puntos del mapa
+  const [poligonoZona, setPoligonoZona] = useState<Array<{ lat: number; lng: number }>>([]);
+  const [puntosMapa, setPuntosMapa] = useState<PuntoMapa[]>([]);
+
+  // Cargar polígono de la zona y puntos de los destinos seleccionados
+  useEffect(() => {
+    async function cargarDatosMapa() {
+      // 1. Obtener polígono de la zona
+      let poligono: Array<{ lat: number; lng: number }> = [];
+      try {
+        const zonas = await obtenerZonas();
+        const zona = zonas.find((z: any) => String(z.id) === String(zone));
+        if (zona?.poligono_geografico?.coordinates) {
+          const coords = zona.poligono_geografico.coordinates[0];
+          poligono = coords.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
+        }
+      } catch {}
+      setPoligonoZona(poligono);
+
+      // 2. Obtener puntos de los destinos seleccionados
+      const puntos: PuntoMapa[] = [];
+      // Para direcciones principales, necesitamos los datos del cliente
+      const clientes = await obtenerClientes();
+      for (const destino of initialDestinations) {
+        if (destino.id && !String(destino.id).startsWith('principal-')) {
+          // Sucursal
+          try {
+            const suc = await obtenerSucursal(destino.clienteId, destino.id);
+            if (suc?.ubicacion_gps?.coordinates) {
+              puntos.push({
+                lat: suc.ubicacion_gps.coordinates[1],
+                lng: suc.ubicacion_gps.coordinates[0],
+                nombre: destino.nombre,
+              });
+            }
+          } catch {}
+        } else if (String(destino.id).startsWith('principal-')) {
+          // Dirección principal: buscar cliente y usar ubicacion_gps o latitud/longitud
+          const cliente = clientes.find((c: any) => String(c.id) === String(destino.clienteId));
+          if (cliente) {
+            if (cliente.ubicacion_gps && cliente.ubicacion_gps.coordinates) {
+              puntos.push({
+                lat: cliente.ubicacion_gps.coordinates[1],
+                lng: cliente.ubicacion_gps.coordinates[0],
+                nombre: destino.nombre,
+              });
+            } else if (cliente.latitud && cliente.longitud) {
+              puntos.push({
+                lat: Number(cliente.latitud),
+                lng: Number(cliente.longitud),
+                nombre: destino.nombre,
+              });
+            }
+          }
+        }
+      }
+      setPuntosMapa(puntos);
+    }
+    cargarDatosMapa();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone, initialDestinations]);
+
   // Estado de destinos configurables
   // Corregido: cada destino es una sucursal o dirección principal seleccionada, no el cliente
   const [destinos, setDestinos] = useState<Destino[]>(() =>
     (initialDestinations || []).map((d: any, i: number): Destino => ({
-      id: d.id, // id de la sucursal o principal
+      id: d.id,
       nombre: d.nombre || `Destino ${i + 1}`,
       clienteId: d.clienteId,
       sucursales: [d.id],
@@ -98,6 +166,57 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
     totalRutas: destinosOrdenados.length * diasSeleccionados.length,
   };
 
+  // Estado para feedback de guardado
+  const [guardando, setGuardando] = useReactState(false);
+  const [mensajeGuardado, setMensajeGuardado] = useReactState<string | null>(null);
+
+  // Guardar rutas en la base
+  const handleGuardarRutas = async () => {
+    setGuardando(true);
+    setMensajeGuardado(null);
+    try {
+      // Mapear días seleccionados a número (Lunes=1, ..., Viernes=5)
+      const diasMap: Record<string, number> = {
+        'Lunes': 1,
+        'Martes': 2,
+        'Miércoles': 3,
+        'Jueves': 4,
+        'Viernes': 5,
+      };
+      // Para cada destino y cada día seleccionado, crear una ruta
+      let orden = 1;
+      for (const destino of destinosOrdenados) {
+        for (const dia of diasSeleccionados) {
+          const body = {
+            cliente_id: destino.clienteId,
+            sucursal_id: destino.id.startsWith('principal-') ? null : destino.id,
+            zona_id: Number(zone),
+            dia_semana: diasMap[dia],
+            frecuencia: destino.frecuencia,
+            prioridad_visita: destino.prioridad === 'ALTA' ? 'ALTA' : destino.prioridad === 'MEDIA' ? 'NORMAL' : 'BAJA',
+            orden_sugerido: orden,
+            hora_estimada_arribo: destino.hora || null,
+          };
+          // POST a la API
+          await fetch('http://localhost:3003/api/rutero', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Si usas auth, añade el token aquí
+              // 'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          });
+        }
+        orden++;
+      }
+      setMensajeGuardado('Rutas guardadas correctamente.');
+    } catch (err) {
+      setMensajeGuardado('Error al guardar rutas.');
+    }
+    setGuardando(false);
+  };
+
   return (
     <div className="max-w-3xl mx-auto py-8 space-y-6">
       {/* Indicador de pasos */}
@@ -137,7 +256,7 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
               <X />
             </button>
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-brand-red">Destino {idx + 1}</span>
+              <span className="font-semibold text-brand-red">{destino.nombre}</span>
               <span className="text-xs text-neutral-500">ID: {destino.id}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">
@@ -205,12 +324,10 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
         </div>
       </div>
 
-      {/* Vista previa del mapa (opcional, placeholder) */}
+      {/* Vista previa del mapa */}
       <div className="mt-6">
-        <div className="font-medium text-neutral-800 mb-2">Vista previa del mapa (opcional)</div>
-        <div className="h-40 bg-neutral-100 border rounded-lg flex items-center justify-center text-neutral-400">
-          Mapa aquí (opcional)
-        </div>
+        <div className="font-medium text-neutral-800 mb-2">Vista previa del mapa</div>
+        <ZonaMapaGoogle poligono={poligonoZona} puntos={puntosMapa} />
       </div>
 
       {/* Resumen final */}
@@ -231,12 +348,16 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Inicio
         </button>
-        <button
-          className="flex items-center gap-2 rounded-lg bg-brand-red px-5 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark"
-          onClick={() => alert('Ruta guardada (simulado)')}
-        >
-          <Save className="w-4 h-4" /> Guardar
-        </button>
+        <GuardarRutasButton
+          destinos={destinosOrdenados}
+          zonaId={zone}
+          diasSeleccionados={diasSeleccionados}
+          onSuccess={() => {
+            setTimeout(() => {
+              navigate('/supervisor/rutas');
+            }, 4000);
+          }}
+        />
       </div>
     </div>
   );

@@ -1,3 +1,32 @@
+// Servicio para crear rutas en el rutero
+export interface CrearRutaPayload {
+  cliente_id: string;
+  sucursal_id: string | null;
+  zona_id: number;
+  dia_semana: number;
+  frecuencia: string;
+  prioridad_visita: string;
+  orden_sugerido: number;
+  hora_estimada_arribo: string | null;
+}
+
+export async function crearRuta(payload: CrearRutaPayload): Promise<any> {
+  const baseUrl = import.meta.env.VITE_CATALOGO_BASE_URL;
+  const url = `${baseUrl}/api/rutero`;
+  // Obtener token de localStorage/sessionStorage
+  const token = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Error al guardar ruta');
+  return await res.json();
+}
 import { httpCatalogo } from '../../../services/api/http'
 import type { ClienteRutero, RuteroPlanificado, DiaSemana } from './types'
 

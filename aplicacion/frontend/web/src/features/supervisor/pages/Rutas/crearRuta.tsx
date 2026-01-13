@@ -106,10 +106,30 @@ export default function SupervisorRouteCreatePage() {
   const handleContinuar = () => {
     if (!zonaSeleccionada || totalDestinos === 0) return;    
     // Construir destinations: cada sucursal seleccionada es un destino
-    const destinations: { id: string; clienteId: string }[] = [];
+    // Enviar también el nombre de la sucursal o dirección principal
+    const destinations: { id: string; clienteId: string; nombre: string }[] = [];
     Object.entries(seleccionados).forEach(([clienteId, sucursalIds]) => {
+      const cliente = clientes.find((c: any) => c.id === clienteId);
+      const sucursales = sucursalesPorCliente[clienteId] || [];
+      // Dirección principal como sucursal
+      const principalId = `principal-${clienteId}`;
+      const principalSucursal = cliente?.direccion_texto
+        ? [{
+            id: principalId,
+            nombre_sucursal: 'Dirección principal',
+            direccion_entrega: cliente.direccion_texto,
+            zona_id: cliente.zona_comercial_id,
+            principal: true
+          }]
+        : [];
+      const todas = [...principalSucursal, ...sucursales];
       sucursalIds.forEach((sucursalId) => {
-        destinations.push({ id: sucursalId, clienteId });
+        const suc = todas.find((s: any) => s.id === sucursalId);
+        destinations.push({
+          id: sucursalId,
+          clienteId,
+          nombre: suc?.nombre_sucursal || suc?.nombre || 'Destino',
+        });
       });
     });
     // Solo enviar los IDs de sucursales o dirección principal seleccionados, nunca el ID del cliente
