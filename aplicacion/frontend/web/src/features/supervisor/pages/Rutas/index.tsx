@@ -94,9 +94,17 @@ export default function RutasPage() {
         }
         // Cargar rutas
         const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaMap[diaSeleccionado]);
-        setRutas(rutasApi as Ruta[]);
-        // Extraer puntos de las rutas (si tienen ubicación)
-        const puntos = rutasApi
+        console.log('Rutas recibidas desde el API:', rutasApi);
+        
+        // Filtrar rutas localmente para asegurar que coincidan con la zona y el día seleccionados
+        const rutasFiltradas = rutasApi.filter(ruta =>
+          ruta.zona_id === Number(zonaSeleccionada) &&
+          ruta.dia_semana === diaMap[diaSeleccionado]
+        );
+        console.log('Rutas filtradas localmente:', rutasFiltradas);
+        setRutas(rutasFiltradas as Ruta[]);
+        // Extraer puntos de las rutas filtradas (si tienen ubicación)
+        const puntos = rutasFiltradas
           .map((r: any) => {
             // Buscar coordenadas en r.ubicacion_gps, r.cliente.ubicacion_gps, o r.sucursal.ubicacion_gps
             let gps = r.ubicacion_gps;
@@ -112,7 +120,7 @@ export default function RutasPage() {
             return null;
           })
           .filter((p): p is { lat: number; lng: number; nombre?: string } => p !== null);
-        setPuntosMapa(puntos);
+        setPuntosMapa(puntos as { lat: number; lng: number; nombre?: string }[]);
         console.log('Puntos de rutas:', puntos);
       } catch {
         setRutas([]);
