@@ -33,7 +33,7 @@ type DiaResumen = {
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
 const GOOGLE_MAP_LIBRARIES: Array<'drawing'> = ['drawing']
-const MAP_CONTAINER_STYLE = { width: '100%', height: '100%' }
+const MAP_CONTAINER_STYLE = { width: '100%', height: '450px' }
 const DEFAULT_CENTER = { lat: -0.234292, lng: -78.524789 }
 const PRIORIDAD_ORDEN: Record<RuteroPlanificado['prioridad_visita'], number> = {
   ALTA: 0,
@@ -116,18 +116,53 @@ const cargarDatos = useCallback(async () => {
     return { totalVisitas, visitasHoy, prioritarias }
   }, [rutas, diaActivo])
 
+  // Mapeo de días para comparación robusta (como en supervisor)
+  // Mapeo de día a número y viceversa
+  // Corregido para coincidir con la base de datos
+  const DIA_MAP: Record<DiaSemana, number> = {
+    LUNES: 1,
+    MARTES: 3,
+    MIERCOLES: 4,
+    JUEVES: 5,
+    VIERNES: 6,
+  }
+  const DIA_MAP_INV: Record<number, DiaSemana> = {
+    1: 'LUNES',
+    3: 'MARTES',
+    4: 'MIERCOLES',
+    5: 'JUEVES',
+    6: 'VIERNES',
+  }
+
+  // Normaliza rutas para que siempre tengan dia_semana como número
+  const rutasNormalizadas = useMemo(() => {
+    return rutas.map((item) => {
+      let diaNum = typeof item.plan.dia_semana === 'number'
+        ? item.plan.dia_semana
+        : DIA_MAP[item.plan.dia_semana as DiaSemana] || item.plan.dia_semana;
+      return {
+        ...item,
+        plan: {
+          ...item.plan,
+          dia_semana: diaNum,
+        },
+      };
+    });
+  }, [rutas]);
+
   const rutasPorDia = useMemo(() => {
     return DIAS_SEMANA.reduce<Record<DiaSemana, RutaConCliente[]>>((acc, dia) => {
-      acc[dia] = rutas.filter((item) => item.plan.dia_semana === dia)
-      return acc
+      const diaNum = DIA_MAP[dia];
+      acc[dia] = rutasNormalizadas.filter((item) => item.plan.dia_semana === diaNum);
+      return acc;
     }, {
       LUNES: [],
       MARTES: [],
       MIERCOLES: [],
       JUEVES: [],
       VIERNES: [],
-    })
-  }, [rutas])
+    });
+  }, [rutasNormalizadas]);
 
   const diasResumen: DiaResumen[] = useMemo(() => {
     return DIAS_SEMANA.map((dia) => ({

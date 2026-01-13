@@ -34,24 +34,12 @@ export async function obtenerClientesPorZona(_zonaId: number): Promise<ClienteRu
   return httpCatalogo<ClienteRutero[]>(`/clientes`)
 }
 
-export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: DiaSemana): Promise<RuteroPlanificado[]> {
+export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: number): Promise<RuteroPlanificado[]> {
   // Consumir directamente desde el endpoint de la API
-  const diaToNumber = (d: DiaSemana): number => {
-    const map: Record<DiaSemana, number> = {
-      LUNES: 2,
-      MARTES: 3,
-      MIERCOLES: 4,
-      JUEVES: 5,
-      VIERNES: 6,
-    }
-    return map[d] ?? 2
-  }
- 
-  const diaNum = diaToNumber(diaSemana)
-  console.log(`Consultando API con zona_id=${zonaId} y dia_semana=${diaNum}`);
-  const rutas = await httpCatalogo<any[]>(`/rutero?zona_id=${zonaId}&dia_semana=${diaNum}`).catch(() => [])
+  console.log(`Consultando API con zona_id=${zonaId} y dia_semana=${diaSemana}`);
+  const rutas = await httpCatalogo<any[]>(`/rutero?zona_id=${zonaId}&dia_semana=${diaSemana}`).catch(() => [])
   console.log('Datos recibidos desde el API:', rutas);
- 
+  
   // Normalizamos a nuestra interfaz local
   return rutas.map((r: any) => ({
     id: r.id,
@@ -174,7 +162,17 @@ function numberToDia(num: number): DiaSemana {
 
 export async function eliminarRutaPorZonaYDia(zonaId: number, diaSemana: DiaSemana): Promise<void> {
   // Como no hay endpoint específico, obtenemos las rutas y eliminamos una por una
-  const rutas = await obtenerRuteroPorZonaYDia(zonaId, diaSemana)
+  const diaToNumber = (d: DiaSemana): number => {
+    const map: Record<DiaSemana, number> = {
+      LUNES: 2,
+      MARTES: 3,
+      MIERCOLES: 4,
+      JUEVES: 5,
+      VIERNES: 6,
+    }
+    return map[d] ?? 2
+  }
+  const rutas = await obtenerRuteroPorZonaYDia(zonaId, diaToNumber(diaSemana))
   
   for (const ruta of rutas) {
     // Asumiendo que existe DELETE /rutero/:id, ajustar según API real

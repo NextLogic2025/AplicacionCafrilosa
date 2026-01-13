@@ -94,13 +94,13 @@ export default function RutasPage() {
           console.warn('No hay polígono para la zona seleccionada');
         }
         // Cargar rutas
-        const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaMap[diaSeleccionado]);
+        const diaSeleccionadoNum = diaMap[diaSeleccionado];
+        const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaSeleccionadoNum);
         console.log('Rutas recibidas desde el API:', rutasApi);
-         
+          
         // Filtrar rutas localmente para asegurar que coincidan con la zona y el día seleccionados
         const rutasFiltradas = rutasApi.filter(ruta => {
-          const rutaDia = Number(ruta.dia_semana || ruta.dia);
-          const diaSeleccionadoNum = diaMap[diaSeleccionado];
+          const rutaDia = Number(ruta.dia_semana);
           return (
             ruta.zona_id === Number(zonaSeleccionada) &&
             rutaDia === diaSeleccionadoNum
