@@ -146,6 +146,23 @@ export class OrdersController {
     }
 
     /**
+     * DELETE /orders/cart/:userId
+     *
+     * Vacía completamente el carrito del usuario.
+     * Elimina todos los items y resetea el total a 0.
+     *
+     * @param userId - UUID del usuario
+     * @returns void (204 No Content)
+     */
+    @Delete('/cart/:userId')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'cliente', 'vendedor')
+    async clearCart(@Param('userId', ParseUUIDPipe) userId: string) {
+        await this.cartService.clearCart(userId);
+        return { success: true, message: 'Carrito vaciado correctamente' };
+    }
+
+    /**
      * DELETE /orders/cart/:userId/item/:productId
      *
      * Elimina un producto específico del carrito del usuario.
@@ -168,6 +185,26 @@ export class OrdersController {
         @Param('productId', ParseUUIDPipe) productId: string,
     ) {
         return this.cartService.removeItem(userId, productId);
+    }
+
+    /**
+     * PATCH /orders/cart/:userId/cliente
+     *
+     * Actualiza el cliente_id asociado al carrito del usuario.
+     * Útil cuando un vendedor selecciona un cliente para el pedido.
+     *
+     * @param userId - UUID del usuario (vendedor)
+     * @param body.cliente_id - UUID del cliente seleccionado
+     * @returns CarritoCabecera actualizado
+     */
+    @Post('/cart/:userId/cliente')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'cliente', 'vendedor')
+    async setCartCliente(
+        @Param('userId', ParseUUIDPipe) userId: string,
+        @Body('cliente_id', ParseUUIDPipe) clienteId: string,
+    ) {
+        return this.cartService.setClienteId(userId, clienteId);
     }
 
 }

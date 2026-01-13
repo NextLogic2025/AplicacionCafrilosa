@@ -107,18 +107,32 @@ export interface CreateOrderPayload {
         producto_id: string
         cantidad: number
         precio_unitario: number
+        precio_original?: number
         codigo_sku?: string
         nombre_producto?: string
         unidad_medida?: string
         motivo_descuento?: string
+        campania_aplicada_id?: number
     }[]
     observaciones_entrega?: string
+    condicion_pago?: string
+    fecha_entrega_solicitada?: string
+    origen_pedido?: string
+    ubicacion?: {
+        lat: number
+        lng: number
+    }
+    descuento_total?: number
 }
 
 export interface CartItemDto {
     producto_id: string
     cantidad: number
     precio_unitario_ref?: number
+    precio_original_snapshot?: number
+    codigo_sku?: string
+    nombre_producto?: string
+    campania_aplicada_id?: number
 }
 
 export interface Cart {
@@ -208,13 +222,44 @@ export const OrderService = {
      * Servicio: Eliminar item del carrito del cliente
      * Elimina completamente un producto del carrito
      */
-    removeFromCart: async (userId: string, productId: string): Promise<Cart> => {
+    removeFromCart: async (userId: string, productId: string): Promise<void> => {
         try {
-            return await apiRequest<Cart>(`${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`, {
+            await apiRequest<{ success: boolean }>(`${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`, {
                 method: 'DELETE'
             })
         } catch (error) {
             console.error('Error removing from cart:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Servicio: Asignar cliente al carrito
+     * Asocia un cliente_id al carrito del vendedor
+     */
+    setCartCliente: async (userId: string, clienteId: string): Promise<Cart> => {
+        try {
+            return await apiRequest<Cart>(`${env.api.ordersUrl}/orders/cart/${userId}/cliente`, {
+                method: 'POST',
+                body: JSON.stringify({ cliente_id: clienteId })
+            })
+        } catch (error) {
+            console.error('Error setting cart cliente:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Servicio: Vaciar el carrito completo
+     * Elimina todos los items del carrito del usuario
+     */
+    clearCart: async (userId: string): Promise<void> => {
+        try {
+            await apiRequest<{ success: boolean }>(`${env.api.ordersUrl}/orders/cart/${userId}`, {
+                method: 'DELETE'
+            })
+        } catch (error) {
+            console.error('Error clearing cart:', error)
             throw error
         }
     },

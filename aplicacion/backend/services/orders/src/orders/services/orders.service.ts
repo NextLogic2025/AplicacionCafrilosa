@@ -1,21 +1,29 @@
-import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { DetallePedido } from '../entities/detalle-pedido.entity';
+import { PromocionAplicada } from '../entities/promocion-aplicada.entity';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
+import { CartService } from './cart.service';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
-  ) { }
+    @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
+  ) {}
 
-  async findAllByClient(clienteId: string): Promise<Pedido[]> {
+  async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
-      where: { cliente_id: clienteId },
+      where: [
+        { cliente_id: userId },
+        { vendedor_id: userId }
+      ],
       relations: ['detalles'],
       order: { created_at: 'DESC' },
     });
@@ -30,64 +38,91 @@ export class OrdersService {
     return pedido;
   }
 
-  /**
-   * Creación de pedido con Transacción Atómica
-   * Cumple con el requisito de integridad de datos "Cloud Code"
-   */
   async create(createOrderDto: CreateOrderDto): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 1. Calcular totales (Lógica de negocio)
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
-      const descuento_total = 0; // TODO: Calcular con promociones
-      const impuestos_total = subtotal * 0.12; // IVA 12%
+      const descuento_total = createOrderDto.descuento_total ?? 0;
+      const impuestos_total = (subtotal - descuento_total) * 0.12;
       const total_final = subtotal - descuento_total + impuestos_total;
 
-      // 2. Crear cabecera del pedido
       const nuevoPedido = queryRunner.manager.create(Pedido, {
         cliente_id: createOrderDto.cliente_id,
         vendedor_id: createOrderDto.vendedor_id,
-        sucursal_id: createOrderDto.sucursal_id,
-        observaciones_entrega: createOrderDto.observaciones_entrega,
+        sucursal_id: createOrderDto.sucursal_id || null,
+        observaciones_entrega: createOrderDto.observaciones_entrega || null,
+        condicion_pago: createOrderDto.condicion_pago || 'CONTADO',
+        fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
+        origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
         subtotal,
         descuento_total,
         impuestos_total,
         total_final,
         estado_actual: 'PENDIENTE',
-        origen_pedido: 'APP_MOVIL',
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
 
-      // 3. Crear detalles vinculados
-      const detalles = createOrderDto.items.map(item => {
-        return queryRunner.manager.create(DetallePedido, {
+      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
+        await queryRunner.manager.query(
+          `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
+          [createOrderDto.ubicacion.lng, createOrderDto.ubicacion.lat, pedidoGuardado.id]
+        );
+      }
+
+      const detallesGuardados: DetallePedido[] = [];
+      for (const item of createOrderDto.items) {
+        const tieneDescuento = item.precio_original && item.precio_original > item.precio_unitario;
+        
+        const detalle = queryRunner.manager.create(DetallePedido, {
           pedido_id: pedidoGuardado.id,
           producto_id: item.producto_id,
           codigo_sku: item.codigo_sku || null,
           nombre_producto: item.nombre_producto || null,
           cantidad: item.cantidad,
           unidad_medida: item.unidad_medida || 'UN',
-          precio_lista: item.precio_unitario,
+          precio_lista: item.precio_original || item.precio_unitario,
+          precio_original_snapshot: tieneDescuento ? item.precio_original : null,
           precio_final: item.precio_unitario,
-          es_bonificacion: false,
+          campania_aplicada_id: tieneDescuento ? (item.campania_aplicada_id || null) : null,
+          precio_timestamp: new Date(),
           motivo_descuento: item.motivo_descuento || null,
         });
-      });
+        const saved = await queryRunner.manager.save(DetallePedido, detalle);
+        detallesGuardados.push(saved);
 
-      await queryRunner.manager.save(DetallePedido, detalles);
+        // Guardar promoción aplicada si hay descuento
+        if (tieneDescuento && item.motivo_descuento) {
+          const descuentoLinea = (item.precio_original - item.precio_unitario) * item.cantidad;
+          const promocion = queryRunner.manager.create(PromocionAplicada, {
+            pedido_id: pedidoGuardado.id,
+            detalle_pedido_id: saved.id,
+            campaña_id: item.campania_aplicada_id || null,
+            tipo_descuento: 'PORCENTAJE',
+            valor_descuento: item.precio_original - item.precio_unitario,
+            monto_aplicado: descuentoLinea,
+          });
+          await queryRunner.manager.save(PromocionAplicada, promocion);
+        }
+      }
 
-      // Si todo sale bien, confirmar cambios
       await queryRunner.commitTransaction();
+
+      try {
+        await this.cartService.clearCart(createOrderDto.vendedor_id);
+      } catch (cartError) {
+        this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
+      }
+
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
-      // Si algo falla, revertir todo (Rollback)
       await queryRunner.rollbackTransaction();
-      throw new InternalServerErrorException('No se pudo procesar el pedido. Intente más tarde.');
+      this.logger.error('Error al crear pedido', { error: err.message, stack: err.stack, dto: createOrderDto });
+      throw new InternalServerErrorException('No se pudo procesar el pedido.');
     } finally {
       await queryRunner.release();
     }

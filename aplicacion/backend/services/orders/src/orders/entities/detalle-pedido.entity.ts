@@ -6,14 +6,14 @@ export class DetallePedido {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid' })
   pedido_id: string;
 
   @ManyToOne(() => Pedido, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pedido_id' })
   pedido: Pedido;
 
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid' })
   producto_id: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
@@ -32,15 +32,21 @@ export class DetallePedido {
   precio_lista: number | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  precio_original_snapshot: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   precio_final: number | null;
 
-  @Column({ type: 'boolean', default: false })
-  es_bonificacion: boolean;
+  @Column({ type: 'int', nullable: true })
+  campania_aplicada_id: number | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  precio_timestamp: Date | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   motivo_descuento: string | null;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true, insert: false, update: false })
   subtotal_linea: number | null;
 
   @CreateDateColumn({ type: 'timestamptz' })

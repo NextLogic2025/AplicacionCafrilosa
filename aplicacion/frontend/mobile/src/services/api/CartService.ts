@@ -16,6 +16,7 @@ export interface CartItem {
     lista_precios_id: number     // Lista de precios del precio
     tiene_promocion: boolean
     descuento_porcentaje?: number
+    campania_aplicada_id?: number // ID de la campaña/promoción aplicada
     subtotal: number             // cantidad * precio_final
 }
 

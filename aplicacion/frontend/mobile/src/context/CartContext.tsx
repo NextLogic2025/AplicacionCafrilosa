@@ -5,6 +5,7 @@ import type { Client } from '../services/api/ClientService'
 import { UserService } from '../services/api/UserService'
 import { OrderService } from '../services/api/OrderService'
 import { CatalogService, Product } from '../services/api/CatalogService'
+import { ClientService } from '../services/api/ClientService'
 
 /**
  * Interfaz del contexto del carrito
@@ -65,6 +66,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 if (user?.id) {
                     setUserId(user.id)
                     await loadCart(user.id)
+                    
+                    // Obtener cliente y asociarlo al carrito
+                    try {
+                        const cliente = await ClientService.getMyClientData()
+                        if (cliente?.id) {
+                            await OrderService.setCartCliente(user.id, cliente.id)
+                        }
+                    } catch (e) {
+                        console.log('No se pudo asociar cliente al carrito:', e)
+                    }
                 }
             } catch (error) {
                 console.log('Error inicializando carrito:', error)
@@ -92,7 +103,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     const mapServerCartToState = async (serverCart: any) => {
         // El backend del carrito solo guarda producto_id, cantidad, precio_unitario_ref
-        // Necesitamos enriquecer con datos del catálogo (nombre, SKU, imagen)
+        // Necesitamos enriquecer con datos del catálogo (nombre, SKU, imagen, promociones)
         
         const enrichedItems: CartItem[] = await Promise.all(
             serverCart.items.map(async (item: any) => {
@@ -110,18 +121,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 const imagenUrl = producto?.imagen_url || item.producto?.imagen_url || null
                 const unidadMedida = producto?.unidad_medida || 'UN'
                 
-                // Precios: preferir los del item guardado, luego los del catálogo
-                const precioRef = Number(item.precio_unitario_ref || 0)
-                const precioLista = precioRef > 0 ? precioRef : Number(producto?.precio_original || 0)
-                const precioFinal = precioRef > 0 ? precioRef : Number(producto?.precio_oferta || precioLista)
+                // Precio guardado en el carrito (es el precio al que se agregó)
+                const precioGuardado = Number(item.precio_unitario_ref || 0)
                 
-                // Calcular si tiene promoción
-                const tienePromocion = precioFinal < precioLista && precioLista > 0
-                const descuentoPorcentaje = tienePromocion 
+                // Precios del catálogo (actuales)
+                const precioOriginalCatalogo = Number(producto?.precio_original || 0)
+                const precioOfertaCatalogo = Number(producto?.precio_oferta || 0)
+                
+                // Determinar si tiene promoción desde el catálogo
+                // El producto tiene promoción si precio_oferta existe y es menor que precio_original
+                const tienePromocionCatalogo = producto?.promociones && producto.promociones.length > 0
+                const tieneOfertaActiva = precioOfertaCatalogo > 0 && precioOfertaCatalogo < precioOriginalCatalogo
+                const tienePromocion = tienePromocionCatalogo || tieneOfertaActiva
+                
+                // Calcular precios finales
+                // Si hay datos del catálogo, usarlos. Si no, usar el precio guardado
+                let precioLista: number
+                let precioFinal: number
+                
+                if (precioOriginalCatalogo > 0) {
+                    // Tenemos datos del catálogo - usar esos
+                    precioLista = precioOriginalCatalogo
+                    precioFinal = tieneOfertaActiva ? precioOfertaCatalogo : precioOriginalCatalogo
+                } else if (precioGuardado > 0) {
+                    // Solo tenemos el precio guardado - usarlo como precio lista y final
+                    precioLista = precioGuardado
+                    precioFinal = precioGuardado
+                } else {
+                    // Fallback a 0
+                    precioLista = 0
+                    precioFinal = 0
+                }
+                
+                // Calcular descuento
+                const descuentoPorcentaje = tienePromocion && precioLista > 0
                     ? Math.round(((precioLista - precioFinal) / precioLista) * 100) 
                     : 0
                 
                 const cantidad = Number(item.cantidad || 1)
+                
+                // Obtener ID de campaña aplicada
+                const campaniaAplicadaId = producto?.campania_aplicada_id || 
+                    (producto?.promociones && producto.promociones.length > 0 ? producto.promociones[0].campana_id : undefined)
                 
                 return {
                     id: item.id || `item-${item.producto_id}`,
@@ -136,6 +177,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                     lista_precios_id: item.lista_precios_id || 1,
                     tiene_promocion: tienePromocion,
                     descuento_porcentaje: descuentoPorcentaje,
+                    campania_aplicada_id: tienePromocion ? campaniaAplicadaId : undefined,
                     subtotal: cantidad * precioFinal
                 }
             })
@@ -243,7 +285,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             const currentUser = userId || (await UserService.getProfile())?.id
             if (currentUser) {
                 if (!userId) setUserId(currentUser)
-                // Solo enviar campos que el backend acepta: producto_id, cantidad, precio_unitario_ref
+                // Solo enviar campos que el backend acepta
                 await OrderService.addToCart(currentUser, {
                     producto_id: product.id,
                     cantidad: newQuantity,
@@ -323,6 +365,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
      * Limpiar carrito
      */
     const clearCart = useCallback(async () => {
+        // 1. Limpiar estado local inmediatamente (optimistic)
         setCart({
             items: [],
             subtotal: 0,
@@ -330,8 +373,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             impuestos_total: 0,
             total_final: 0
         })
-        // Backend clear logic not strictly defined in OrderService tools yet, but assuming individual removes or checkout clears it.
-    }, [])
+        
+        // 2. Sincronizar con el backend
+        try {
+            const currentUser = userId || (await UserService.getProfile())?.id
+            if (currentUser) {
+                await OrderService.clearCart(currentUser)
+            }
+        } catch (error) {
+            console.error('Error clearing cart in backend:', error)
+            // Si falla el backend, recargar el carrito para sincronizar
+            if (userId) loadCart(userId)
+        }
+    }, [userId, loadCart])
 
     /**
      * Asignar cliente al carrito

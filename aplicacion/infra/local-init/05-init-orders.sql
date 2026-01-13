@@ -100,7 +100,6 @@ CREATE TABLE detalles_pedido (
     precio_final DECIMAL(10,2),
     campania_aplicada_id INT,
     precio_timestamp TIMESTAMPTZ DEFAULT NOW(),
-    es_bonificacion BOOLEAN DEFAULT FALSE,
     motivo_descuento VARCHAR(100),
     subtotal_linea DECIMAL(12,2) GENERATED ALWAYS AS (cantidad * precio_final) STORED,
     created_at TIMESTAMPTZ DEFAULT NOW(),

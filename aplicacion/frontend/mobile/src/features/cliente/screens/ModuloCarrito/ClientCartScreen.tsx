@@ -6,25 +6,20 @@ import { useNavigation } from '@react-navigation/native'
 
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { Header } from '../../../../components/ui/Header'
+import { SuccessModal } from '../../../../components/ui/SuccessModal'
 import { useCart } from '../../../../context/CartContext'
 
-/**
- * ClientCartScreen - Pantalla del Carrito del Cliente
- *
- * Muestra los productos agregados al carrito con:
- * - Lista scrolleable de productos
- * - Control de cantidad (+/-)
- * - Toggle para mostrar/ocultar desglose de precios
- * - Resumen de totales (subtotal, descuentos, IVA)
- * - Botón de checkout
- *
- * Usa NativeWind (TailwindCSS) para estilos consistentes
- */
 export function ClientCartScreen() {
   const navigation = useNavigation()
   const { cart, items, updateQuantity, removeItem, totalItems, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [showPriceDetails, setShowPriceDetails] = React.useState(true)
+  const [showClearModal, setShowClearModal] = React.useState(false)
+
+  const handleClearCart = async () => {
+    await clearCart()
+    setShowClearModal(true)
+  }
 
   const handleCheckout = React.useCallback(() => {
     if (items.length === 0) return
@@ -153,7 +148,7 @@ export function ClientCartScreen() {
               '¿Estás seguro de que deseas vaciar el carrito?',
               [
                 { text: 'Cancelar', style: 'cancel' },
-                { text: 'Vaciar', style: 'destructive', onPress: clearCart }
+                { text: 'Vaciar', style: 'destructive', onPress: handleClearCart }
               ]
             )
           }}
@@ -259,6 +254,14 @@ export function ClientCartScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <SuccessModal
+        visible={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        title="Carrito Vaciado"
+        message="Todos los productos han sido eliminados del carrito."
+        primaryButtonText="Entendido"
+      />
     </View>
   )
 }
