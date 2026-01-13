@@ -183,10 +183,10 @@ export function PromocionesList({
                         onAddClientes(campania)
                       }}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100 shadow-sm"
-                      title="Agregar clientes"
+                      title="Agregar Empresas"
                     >
                       <UserPlus className="h-4 w-4" />
-                      <span>Clientes</span>
+                      <span>Empresas</span>
                     </button>
                   )}
                 </div>

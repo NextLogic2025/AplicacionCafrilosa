@@ -1,3 +1,8 @@
+// Obtener todos los usuarios desde /auth/usuarios
+export async function obtenerUsuarios(): Promise<Usuario[]> {
+  // Cambiado a la ruta correcta
+  return httpUsuarios<Usuario[]>('/usuarios/me');
+}
 import { httpAuth, httpUsuarios } from '../../../services/api/http'
 
 export interface CreateUsuarioDto {
