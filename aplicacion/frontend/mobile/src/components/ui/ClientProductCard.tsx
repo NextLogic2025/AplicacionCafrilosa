@@ -220,7 +220,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#F3F4F6'
     },
     infoContainer: {
-        padding: 12
+        padding: 12,
+        flex: 1, // Occupy remaining space
+        justifyContent: 'space-between' // Push content apart
     },
     productName: {
         fontSize: 14,
@@ -231,8 +233,25 @@ const styles = StyleSheet.create({
         minHeight: 40
     },
     priceContainer: {
-        marginBottom: 8
+        marginBottom: 'auto' // Let price sit naturally, or use space-between on parent
     },
+    // ... rest of styles
+    addToCartButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#DC2626',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        marginTop: 12, // Increased margin for visual separation
+        shadowColor: '#DC2626',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 4
+    },
+
     beforePriceContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -296,7 +315,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 12,
-        marginTop: 4,
+        marginTop: 12, // Increased margin for visual separation
         shadowColor: '#DC2626',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,

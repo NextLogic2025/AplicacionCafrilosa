@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -16,7 +17,31 @@ export class OrdersService {
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
+    private readonly configService: ConfigService,
   ) {}
+
+  // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
+  private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
+    if (!campaniaId) return false;
+    // Preferir llamada al servicio Catalog si está disponible
+    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+    const url = `${base.replace(/\/+$/, '')}/promociones/${campaniaId}/productos`;
+    try {
+      const fetchFn = (globalThis as any).fetch;
+      if (typeof fetchFn !== 'function') {
+        this.logger.debug('fetch not available in runtime; cannot verify promo via HTTP');
+        return false;
+      }
+      const resp: any = await fetchFn(url);
+      if (!resp || !resp.ok) return false;
+      const data = await resp.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
+    } catch (err) {
+      this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
+      return false;
+    }
+  }
 
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
@@ -38,13 +63,71 @@ export class OrdersService {
     return pedido;
   }
 
-  async create(createOrderDto: CreateOrderDto): Promise<Pedido> {
+  async findAllByUser(userId: string, role: string): Promise<Pedido[]> {
+    const qb = this.pedidoRepo.createQueryBuilder('o');
+    if (String(role).toLowerCase() === 'cliente') {
+      qb.where('o.cliente_id = :userId', { userId });
+    } else if (String(role).toLowerCase() === 'vendedor') {
+      qb.where('o.vendedor_id = :userId', { userId });
+    }
+    return qb.orderBy('o.created_at', 'DESC').getMany();
+  }
+
+  async create(createOrderDto: CreateOrderDto, usuarioId?: string): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      const subtotal = createOrderDto.items.reduce((acc, item) => acc + (item.precio_unitario * item.cantidad), 0);
+      // Antes de calcular totales, obtener precios canónicos desde Catalog
+      const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+      const fetchFn = (globalThis as any).fetch;
+
+      for (const item of createOrderDto.items) {
+        try {
+          // 1) Intentar obtener la mejor promoción para el cliente
+          let best: any = null;
+          if (typeof fetchFn === 'function') {
+            const promoUrl = `${base.replace(/\/+$/, '')}/promociones/mejor/producto/${item.producto_id}?cliente_id=${createOrderDto.cliente_id}`;
+            const resp: any = await fetchFn(promoUrl, { headers: serviceToken ? { Authorization: `Bearer ${serviceToken}` } : undefined });
+            if (resp && resp.ok) best = await resp.json();
+          }
+
+          if (best && best.precio_final != null) {
+            // Sobrescribir datos del item
+            (item as any).precio_original = best.precio_lista ?? null;
+            (item as any).precio_unitario = best.precio_final;
+            (item as any).campania_aplicada_id = best.campania_id ?? (item as any).campania_aplicada_id ?? null;
+          } else {
+            // 2) Fallback: solicitar precios desde /precios/producto/:id y escoger el menor
+            if (typeof fetchFn === 'function') {
+              const preciosUrl = `${base.replace(/\/+$/, '')}/precios/producto/${item.producto_id}`;
+              const resp2: any = await fetchFn(preciosUrl, { headers: serviceToken ? { Authorization: `Bearer ${serviceToken}` } : undefined });
+              if (resp2 && resp2.ok) {
+                const precios = await resp2.json();
+                const arr = Array.isArray(precios) ? precios : (precios || []);
+                if (arr.length) {
+                  const min = Math.min(...arr.map((p: any) => Number(p.precio || p.price || 0)));
+                  (item as any).precio_original = min;
+                  (item as any).precio_unitario = min;
+                } else {
+                  throw new BadRequestException(`No hay precio disponible para el producto ${item.producto_id}`);
+                }
+              } else {
+                throw new BadRequestException(`No se pudo obtener precio para producto ${item.producto_id}`);
+              }
+            } else {
+              throw new BadRequestException('Fetch no disponible en runtime para obtener precios');
+            }
+          }
+        } catch (err) {
+          this.logger.warn('Error al resolver precio/campaña para item', { producto: item.producto_id, err: err?.message || err });
+          throw new BadRequestException(`Error validando precio para producto ${item.producto_id}`);
+        }
+      }
+
+      const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
       const descuento_total = createOrderDto.descuento_total ?? 0;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
       const total_final = subtotal - descuento_total + impuestos_total;
@@ -75,8 +158,16 @@ export class OrdersService {
 
       const detallesGuardados: DetallePedido[] = [];
       for (const item of createOrderDto.items) {
-        const tieneDescuento = item.precio_original && item.precio_original > item.precio_unitario;
-        
+        const tieneDescuento = (item as any).precio_original && (item as any).precio_original > (item as any).precio_unitario;
+
+        // Si el frontend declara una campaña aplicada, verificar su vigencia en BD
+        if ((item as any).campania_aplicada_id) {
+          const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id);
+          if (!esValida) {
+            throw new ConflictException(`La promoción para el producto ${item.nombre_producto || item.producto_id} ha expirado o no es válida. Actualice el carrito.`);
+          }
+        }
+
         const detalle = queryRunner.manager.create(DetallePedido, {
           pedido_id: pedidoGuardado.id,
           producto_id: item.producto_id,
@@ -84,26 +175,25 @@ export class OrdersService {
           nombre_producto: item.nombre_producto || null,
           cantidad: item.cantidad,
           unidad_medida: item.unidad_medida || 'UN',
-          precio_lista: item.precio_original || item.precio_unitario,
-          precio_original_snapshot: tieneDescuento ? item.precio_original : null,
-          precio_final: item.precio_unitario,
-          campania_aplicada_id: tieneDescuento ? (item.campania_aplicada_id || null) : null,
-          precio_timestamp: new Date(),
+          precio_lista: (item as any).precio_original || (item as any).precio_unitario,
+          precio_final: (item as any).precio_unitario,
+          campania_aplicada_id: (item as any).campania_aplicada_id || null,
           motivo_descuento: item.motivo_descuento || null,
         });
         const saved = await queryRunner.manager.save(DetallePedido, detalle);
         detallesGuardados.push(saved);
 
-        // Guardar promoción aplicada si hay descuento
-        if (tieneDescuento && item.motivo_descuento) {
-          const descuentoLinea = (item.precio_original - item.precio_unitario) * item.cantidad;
+        // Guardar promoción aplicada si el frontend indicó una campaña
+        if ((item as any).campania_aplicada_id) {
+          const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
+          const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
           const promocion = queryRunner.manager.create(PromocionAplicada, {
             pedido_id: pedidoGuardado.id,
             detalle_pedido_id: saved.id,
-            campaña_id: item.campania_aplicada_id || null,
+            campania_id: (item as any).campania_aplicada_id,
             tipo_descuento: 'PORCENTAJE',
-            valor_descuento: item.precio_original - item.precio_unitario,
-            monto_aplicado: descuentoLinea,
+            valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
+            monto_aplicado: montoAplicado,
           });
           await queryRunner.manager.save(PromocionAplicada, promocion);
         }
@@ -112,7 +202,9 @@ export class OrdersService {
       await queryRunner.commitTransaction();
 
       try {
-        await this.cartService.clearCart(createOrderDto.vendedor_id);
+        // Limpiar carrito del usuario que originó el pedido si se proporcionó
+        if (usuarioId) await this.cartService.clearCart(usuarioId);
+        else await this.cartService.clearCart(createOrderDto.vendedor_id);
       } catch (cartError) {
         this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
       }
@@ -126,6 +218,72 @@ export class OrdersService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /**
+   * Crea un pedido a partir del carrito del usuario `usuarioIdParam`.
+   * - Resuelve items del carrito
+   * - Construye un CreateOrderDto mínimo
+   * - Llama a `create()` para persistir
+   */
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string): Promise<Pedido> {
+    // 1. Obtener carrito
+    const cart = await this.cartService.getOrCreateCart(usuarioIdParam);
+    if (!cart || !cart.items || cart.items.length === 0) {
+      throw new BadRequestException('Carrito vacío, no hay items para crear el pedido');
+    }
+
+    // 2. Resolver cliente_id y vendedor_id según actor
+    let clienteId = cart.cliente_id ?? null;
+    let vendedorId: string | null = null;
+    if (actorRole === 'vendedor') {
+      vendedorId = actorUserId ?? null;
+    }
+    if (!clienteId && actorRole === 'cliente') clienteId = actorUserId || null;
+
+    if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
+
+    // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
+    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+    const fetchFn = (globalThis as any).fetch;
+    if (actorRole === 'cliente') {
+      try {
+        if (typeof fetchFn === 'function') {
+          const url = `${base.replace(/\/+$/, '')}/internal/clients/${clienteId}`;
+          const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: `Bearer ${serviceToken}` } : undefined });
+          if (resp && resp.ok) {
+            const clientInfo = await resp.json();
+            vendedorId = clientInfo?.vendedor_asignado_id ?? vendedorId;
+          }
+        }
+      } catch (err) {
+        this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
+      }
+    }
+
+    // Fallbacks: usar vendedor del carrito o actorUserId si no se resolvió aún
+    if (!vendedorId) vendedorId = cart.vendedor_id ?? actorUserId ?? null;
+
+    // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
+    const dto: any = {
+      cliente_id: clienteId,
+      vendedor_id: vendedorId,
+      items: cart.items.map((it: any) => ({
+        producto_id: it.producto_id,
+        cantidad: it.cantidad,
+        codigo_sku: null,
+        nombre_producto: null,
+        unidad_medida: 'UN',
+        campania_aplicada_id: it.campania_aplicada_id ?? null,
+        motivo_descuento: it.motivo_descuento ?? null,
+      })),
+      origen_pedido: 'FROM_CART',
+      ubicacion: null,
+    };
+
+    // Delegar a create() pasándole el actorUserId para limpiar carrito correctamente
+    return this.create(dto as any, actorUserId);
   }
 
   async getOrderDetailProfessional(orderId: string): Promise<Pedido> {

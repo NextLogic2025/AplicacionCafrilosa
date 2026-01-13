@@ -28,6 +28,10 @@ import { ClientPromotionsScreen } from '../features/cliente/screens/ModuloPromoc
 import { ClientTrackingScreen } from '../features/cliente/screens/ModuloTracking/ClientTrackingScreen'
 import { PlaceholderScreen } from '../features/shared/screens/PlaceholderScreen'
 
+import { ClientSucursalesScreen } from '../features/cliente/screens/ModuloSucursal/ClientSucursales'
+import { ClientDetallesSucursalesScreen } from '../features/cliente/screens/ModuloSucursal/ClientDetallesSucursales'
+import { CrearClienteSucursalesScreen } from '../features/cliente/screens/ModuloSucursal/CrearClienteSucursales'
+
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
 
@@ -58,6 +62,16 @@ function InvoicesStack() {
     )
 }
 
+function BranchesStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="ClientSucursales" component={ClientSucursalesScreen} />
+            <Stack.Screen name="ClientDetallesSucursales" component={ClientDetallesSucursalesScreen} />
+            <Stack.Screen name="CrearClienteSucursales" component={CrearClienteSucursalesScreen} />
+        </Stack.Navigator>
+    )
+}
+
 /**
  * TabWithFab - Wrapper que agrega el FAB a las pantallas del tab
  *
@@ -73,7 +87,8 @@ function TabWithFab({ children, routeName }: { children: React.ReactNode; routeN
         { icon: 'refresh-circle-outline', label: 'Devoluciones', onPress: () => (navigation as any).navigate('Returns') },
         { icon: 'time-outline', label: 'Entregas', onPress: () => (navigation as any).navigate('Tracking') },
         { icon: 'wallet-outline', label: 'Facturas', onPress: () => (navigation as any).navigate('Facturas') },
-        { icon: 'receipt-outline', label: 'Mis Pedidos', onPress: () => (navigation as any).navigate('Pedidos') }
+        { icon: 'receipt-outline', label: 'Mis Pedidos', onPress: () => (navigation as any).navigate('Pedidos') },
+        { icon: 'business-outline', label: 'Sucursales', onPress: () => (navigation as any).navigate('Sucursales') }
     ]
 
     // No mostrar FAB en Perfil ni en Carrito
@@ -133,6 +148,7 @@ export function ClientNavigator() {
             <Stack.Screen name="Pedidos" component={OrdersStack} />
             <Stack.Screen name="Soporte" component={SupportStack} />
             <Stack.Screen name="Facturas" component={InvoicesStack} />
+            <Stack.Screen name="Sucursales" component={BranchesStack} />
         </Stack.Navigator>
     )
 }

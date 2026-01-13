@@ -125,35 +125,7 @@ export interface CreateOrderPayload {
     descuento_total?: number
 }
 
-export interface CartItemDto {
-    producto_id: string
-    cantidad: number
-    precio_unitario_ref?: number
-    precio_original_snapshot?: number
-    codigo_sku?: string
-    nombre_producto?: string
-    campania_aplicada_id?: number
-}
 
-export interface Cart {
-    id: string
-    usuario_id: string
-    cliente_id?: string
-    items: {
-        id: string
-        producto_id: string
-        cantidad: number
-        precio_unitario_ref: number
-        producto?: {
-            id: string
-            nombre: string
-            codigo_principal: string
-            precio_venta: number
-            imagen_url?: string
-        }
-    }[]
-    total_estimado: number
-}
 
 export interface OrderFilters {
     vendedor_id?: string
@@ -188,84 +160,17 @@ export const OrderService = {
     },
 
     /**
-     * Servicio: Obtener el carrito del usuario cliente en la vista de productos
-     * Retorna todos los items del carrito con sus precios y cantidades
+     * Servicio: Crear pedido desde el carrito (Server-side cart)
+     * Endpoint: POST /orders/from-cart/:userId
      */
-    getCart: async (userId: string): Promise<Cart> => {
+    createOrderFromCart: async (userId: string, data?: Partial<CreateOrderPayload>): Promise<Order> => {
         try {
-            return await apiRequest<Cart>(`${env.api.ordersUrl}/orders/cart/${userId}`, {
-                method: 'GET'
-            })
-        } catch (error) {
-            console.error('Error fetching cart:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Servicio: Agregar o actualizar item en el carrito del cliente
-     * Si el producto ya existe, actualiza la cantidad; si no, lo agrega
-     */
-    addToCart: async (userId: string, item: CartItemDto): Promise<Cart> => {
-        try {
-            return await apiRequest<Cart>(`${env.api.ordersUrl}/orders/cart/${userId}`, {
+            return await apiRequest<Order>(`${env.api.ordersUrl}/orders/from-cart/${userId}`, {
                 method: 'POST',
-                body: JSON.stringify(item)
+                body: data ? JSON.stringify(data) : undefined
             })
         } catch (error) {
-            console.error('Error adding to cart:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Servicio: Eliminar item del carrito del cliente
-     * Elimina completamente un producto del carrito
-     */
-    removeFromCart: async (userId: string, productId: string): Promise<void> => {
-        const url = `${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`
-        console.log('[OrderService] removeFromCart - URL:', url)
-        try {
-            await apiRequest<{ success: boolean }>(url, {
-                method: 'DELETE'
-            })
-            console.log('[OrderService] removeFromCart - Éxito')
-        } catch (error) {
-            console.error('[OrderService] removeFromCart - Error:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Servicio: Asignar cliente al carrito
-     * Asocia un cliente_id al carrito del vendedor
-     */
-    setCartCliente: async (userId: string, clienteId: string): Promise<Cart> => {
-        try {
-            return await apiRequest<Cart>(`${env.api.ordersUrl}/orders/cart/${userId}/cliente`, {
-                method: 'POST',
-                body: JSON.stringify({ cliente_id: clienteId })
-            })
-        } catch (error) {
-            console.error('Error setting cart cliente:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Servicio: Vaciar el carrito completo
-     * Elimina todos los items del carrito del usuario
-     */
-    clearCart: async (userId: string): Promise<void> => {
-        const url = `${env.api.ordersUrl}/orders/cart/${userId}`
-        console.log('[OrderService] clearCart - URL:', url)
-        try {
-            await apiRequest<{ success: boolean }>(url, {
-                method: 'DELETE'
-            })
-            console.log('[OrderService] clearCart - Éxito')
-        } catch (error) {
-            console.error('[OrderService] clearCart - Error:', error)
+            console.error('Error creating order from cart:', error)
             throw error
         }
     },

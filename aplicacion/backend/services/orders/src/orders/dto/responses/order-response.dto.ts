@@ -16,15 +16,22 @@ export class OrderResponseDto {
         return this.estado_relacion?.nombre_visible || this.estado_actual;
     }
 
-    @Expose() total_pedido: number;
-    @Expose() fecha_creacion: Date;
+    // Mapear a los campos de la entidad `Pedido`
+    @Expose()
+    get total_pedido(): number {
+        return (this as any).total_final;
+    }
+
+    @Expose()
+    get fecha_creacion(): Date {
+        return (this as any).created_at;
+    }
 
     // Transformación de PostGIS a Objeto Simple
     @Expose()
     get ubicacion() {
-        if (!this.geolocalizacion_entrega) return null;
-        // Lógica para convertir el string/buffer de PostGIS a { lat, lng }
-        return this.geolocalizacion_entrega;
+        if (!(this as any).ubicacion_pedido) return null;
+        return (this as any).ubicacion_pedido;
     }
 
     @Expose()

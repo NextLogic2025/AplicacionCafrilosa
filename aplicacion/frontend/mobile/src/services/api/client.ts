@@ -5,6 +5,7 @@ import { resetToLogin } from '../../navigation/navigationRef'
 
 interface ApiRequestOptions extends RequestInit {
     useIdInsteadOfNumber?: boolean // For endpoints expecting IDs as strings
+    silent?: boolean // Suppress console.error on failure
 }
 
 export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -49,9 +50,16 @@ export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions
             return {} as T
         }
 
-        return await response.json() as T
+        const text = await response.text()
+        try {
+            return text ? JSON.parse(text) : {} as T
+        } catch (e) {
+            // Si falla el parseo pero el status es OK, retornamos vacío
+            console.warn(`[API] JSON Parse Error on ${endpoint}:`, e)
+            return {} as T
+        }
     } catch (error: any) {
-        if (error?.message !== 'SESSION_EXPIRED') {
+        if (error?.message !== 'SESSION_EXPIRED' && !options.silent) {
             console.error(`API Request Error [${endpoint}]:`, error)
         }
         throw error

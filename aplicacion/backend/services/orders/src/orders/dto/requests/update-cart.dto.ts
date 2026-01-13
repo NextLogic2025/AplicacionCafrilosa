@@ -1,6 +1,9 @@
-import { IsUUID, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsUUID, IsNumber, IsOptional, Min, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+// Nota: Se eliminan los campos de precio que anteriormente permitían que el cliente
+// enviara valores que el servidor debe calcular. Ahora el cliente solo puede enviar
+// identificadores de campaña y un posible `referido_id`.
 export class UpdateCartItemDto {
   @IsUUID('4', { message: 'El producto_id debe ser un UUID válido' })
   producto_id: string;
@@ -15,6 +18,14 @@ export class UpdateCartItemDto {
 
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => (value === undefined || value === null || value === '') ? undefined : parseFloat(value))
-  precio_unitario_ref?: number;
+  @Transform(({ value }) => (value === undefined || value === null || value === '') ? undefined : parseInt(value))
+  campania_aplicada_id?: number;
+
+  @IsOptional()
+  @IsString()
+  motivo_descuento?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  referido_id?: string;
 }

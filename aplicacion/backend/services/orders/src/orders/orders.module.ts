@@ -11,6 +11,8 @@ import { HistorialEstado } from './entities/historial-estado.entity';
 import { PromocionAplicada } from './entities/promocion-aplicada.entity';
 
 import { OrdersController } from './controllers/orders.controller';
+import { CartController } from './controllers/cart.controller';
+import { EstadosController } from './controllers/estados.controller';
 import { OrdersService } from './services/orders.service';
 import { CartService } from './services/cart.service';
 import { OrderListenerService } from './services/order-listener.service';
@@ -28,7 +30,7 @@ import { OrderListenerService } from './services/order-listener.service';
       PromocionAplicada,
     ]),
   ],
-  controllers: [OrdersController],
+  controllers: [OrdersController, CartController, EstadosController],
   providers: [OrdersService, CartService, OrderListenerService],
   exports: [OrdersService, CartService],
 })

@@ -13,8 +13,8 @@ export class PromocionAplicada {
   @Column({ type: 'uuid', nullable: true })
   detalle_pedido_id: string;
 
-  @Column({ type: 'int', nullable: true })
-  campaña_id: number;
+  @Column({ name: 'campania_id', type: 'int', nullable: true })
+  campania_id: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   tipo_descuento: string;

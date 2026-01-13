@@ -10,6 +10,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 
 import { useCart } from '../../../../context/CartContext'
 import { OrderService } from '../../../../services/api/OrderService'
+import { CartService } from '../../../../services/api/CartService'
 import { UserService } from '../../../../services/api/UserService'
 import { ClientService, ClientBranch, Client } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
@@ -88,11 +89,11 @@ export function ClientCheckoutScreen() {
     const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false)
     const [orderNumber, setOrderNumber] = useState<string>('')
 
-    // Calcular totales
-    const subtotal = cart.items.reduce((sum, item) => sum + item.subtotal, 0)
+    // Calcular totales usando valores del backend (preservados en el contexto)
+    const subtotal = cart.subtotal || cart.items.reduce((sum, item) => sum + item.subtotal, 0)
     const descuentos = cart.descuento_total || 0
-    const iva = (subtotal - descuentos) * 0.12 // IVA 12% sobre base imponible
-    const total = subtotal - descuentos + iva
+    const iva = cart.impuestos_total || (subtotal - descuentos) * 0.12
+    const total = cart.total_final || (subtotal - descuentos + iva)
 
     /**
      * Cargar datos iniciales: cliente y sucursales
@@ -111,13 +112,10 @@ export function ClientCheckoutScreen() {
                     if (cliente) {
                         setClienteData(cliente)
                         setClienteId(cliente.id)
-                        
+
                         // Guardar cliente_id en el carrito del backend
-                        try {
-                            await OrderService.setCartCliente(user.id, cliente.id)
-                        } catch (e) {
-                            console.log('No se pudo asociar cliente al carrito:', e)
-                        }
+                        // Guardar cliente_id implicitamente al crear orden
+                        // (El backend actual no tiene endpoint para asociarlo al carrito)
 
                         // 3. Configurar condición de pago según crédito del cliente
                         if (cliente.tiene_credito && cliente.dias_plazo > 0) {
@@ -158,7 +156,7 @@ export function ClientCheckoutScreen() {
      */
     const handleDeliveryOptionChange = useCallback((option: DeliveryOption) => {
         setSelectedDeliveryOption(option)
-        
+
         if (option === 'MATRIZ') {
             // Usar ubicación de la matriz (cliente principal)
             if (clienteData?.ubicacion_gps?.coordinates) {
@@ -177,7 +175,7 @@ export function ClientCheckoutScreen() {
                 })
             }
         }
-        
+
         // Cerrar acordeón después de seleccionar
         if (option !== 'MATRIZ') {
             setShowSucursalesAccordion(false)
@@ -253,17 +251,6 @@ export function ClientCheckoutScreen() {
                 cliente_id: clienteId || userId,
                 vendedor_id: userId,
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined,
-                items: cart.items.map(item => ({
-                    producto_id: item.producto_id,
-                    cantidad: item.cantidad,
-                    precio_unitario: item.precio_final,
-                    precio_original: item.tiene_promocion ? item.precio_lista : undefined,
-                    codigo_sku: item.codigo_sku,
-                    nombre_producto: item.nombre_producto,
-                    unidad_medida: item.unidad_medida || 'UN',
-                    motivo_descuento: item.tiene_promocion ? `Descuento ${item.descuento_porcentaje}%` : undefined,
-                    campania_aplicada_id: item.campania_aplicada_id,
-                })),
                 observaciones_entrega: observaciones || undefined,
                 condicion_pago: condicionPago,
                 fecha_entrega_solicitada: fechaEntrega
@@ -274,8 +261,12 @@ export function ClientCheckoutScreen() {
                 descuento_total: descuentos > 0 ? descuentos : undefined,
             }
 
-            const newOrder = await OrderService.createOrder(orderData)
-            await clearCart()
+            // Usar endpoint específico para crear pedido desde el carrito del servidor
+            const newOrder = await OrderService.createOrderFromCart(userId, orderData)
+
+            // Limpiar estado local del carrito (el backend ya lo vació)
+            // Se usa setTimeout para no bloquear la UI mientras se actualiza el contexto
+            setTimeout(() => clearCart(), 100)
 
             setOrderNumber(newOrder.codigo_visual?.toString() || 'N/A')
             setShowSuccessModal(true)
@@ -293,11 +284,11 @@ export function ClientCheckoutScreen() {
 
     const handleSuccessModalClose = () => {
         setShowSuccessModal(false)
-        // Navegar a Mis Pedidos y limpiar el stack para que no vuelva al checkout vacío
-        (navigation as any).reset({
-            index: 0,
-            routes: [{ name: 'MainTabs' }],
-        })
+            // Navegar a Mis Pedidos y limpiar el stack para que no vuelva al checkout vacío
+            (navigation as any).reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+            })
         // Navegar a Pedidos después de resetear
         setTimeout(() => {
             (navigation as any).navigate('Pedidos')
@@ -344,9 +335,8 @@ export function ClientCheckoutScreen() {
                     {cart.items.map((item, index) => (
                         <View
                             key={item.id}
-                            className={`flex-row justify-between items-center py-3 ${
-                                index < cart.items.length - 1 ? 'border-b border-neutral-100' : ''
-                            }`}
+                            className={`flex-row justify-between items-center py-3 ${index < cart.items.length - 1 ? 'border-b border-neutral-100' : ''
+                                }`}
                         >
                             <View className="flex-1">
                                 <Text className="text-neutral-900 font-medium" numberOfLines={1}>
@@ -379,11 +369,10 @@ export function ClientCheckoutScreen() {
                             {/* Opción: Local Principal (Matriz) - Siempre visible */}
                             <TouchableOpacity
                                 onPress={() => handleDeliveryOptionChange('MATRIZ')}
-                                className={`flex-row items-center p-4 rounded-xl border mb-2 ${
-                                    selectedDeliveryOption === 'MATRIZ'
-                                        ? 'bg-red-50 border-brand-red'
-                                        : 'bg-neutral-50 border-neutral-200'
-                                }`}
+                                className={`flex-row items-center p-4 rounded-xl border mb-2 ${selectedDeliveryOption === 'MATRIZ'
+                                    ? 'bg-red-50 border-brand-red'
+                                    : 'bg-neutral-50 border-neutral-200'
+                                    }`}
                             >
                                 <Ionicons
                                     name={selectedDeliveryOption === 'MATRIZ' ? 'radio-button-on' : 'radio-button-off'}
@@ -391,9 +380,8 @@ export function ClientCheckoutScreen() {
                                     color={selectedDeliveryOption === 'MATRIZ' ? BRAND_COLORS.red : '#9CA3AF'}
                                 />
                                 <View className="flex-1 ml-3">
-                                    <Text className={`font-bold ${
-                                        selectedDeliveryOption === 'MATRIZ' ? 'text-brand-red' : 'text-neutral-800'
-                                    }`}>
+                                    <Text className={`font-bold ${selectedDeliveryOption === 'MATRIZ' ? 'text-brand-red' : 'text-neutral-800'
+                                        }`}>
                                         Local Principal (Matriz)
                                     </Text>
                                     {clienteData?.direccion_texto && (
@@ -434,11 +422,10 @@ export function ClientCheckoutScreen() {
                                                 <TouchableOpacity
                                                     key={sucursal.id}
                                                     onPress={() => handleDeliveryOptionChange(sucursal.id)}
-                                                    className={`flex-row items-center p-4 rounded-xl border mb-2 ${
-                                                        selectedDeliveryOption === sucursal.id
-                                                            ? 'bg-red-50 border-brand-red'
-                                                            : 'bg-neutral-50 border-neutral-200'
-                                                    }`}
+                                                    className={`flex-row items-center p-4 rounded-xl border mb-2 ${selectedDeliveryOption === sucursal.id
+                                                        ? 'bg-red-50 border-brand-red'
+                                                        : 'bg-neutral-50 border-neutral-200'
+                                                        }`}
                                                 >
                                                     <Ionicons
                                                         name={selectedDeliveryOption === sucursal.id ? 'radio-button-on' : 'radio-button-off'}
@@ -446,9 +433,8 @@ export function ClientCheckoutScreen() {
                                                         color={selectedDeliveryOption === sucursal.id ? BRAND_COLORS.red : '#9CA3AF'}
                                                     />
                                                     <View className="flex-1 ml-3">
-                                                        <Text className={`font-bold ${
-                                                            selectedDeliveryOption === sucursal.id ? 'text-brand-red' : 'text-neutral-800'
-                                                        }`}>
+                                                        <Text className={`font-bold ${selectedDeliveryOption === sucursal.id ? 'text-brand-red' : 'text-neutral-800'
+                                                            }`}>
                                                             {sucursal.nombre_sucursal}
                                                         </Text>
                                                         {sucursal.direccion_entrega && (
@@ -497,15 +483,13 @@ export function ClientCheckoutScreen() {
                                 {/* Opción Contado siempre disponible */}
                                 <TouchableOpacity
                                     onPress={() => setCondicionPago('CONTADO')}
-                                    className={`px-4 py-2.5 rounded-xl border mr-2 mb-2 ${
-                                        condicionPago === 'CONTADO'
-                                            ? 'bg-red-50 border-brand-red'
-                                            : 'bg-neutral-50 border-neutral-200'
-                                    }`}
+                                    className={`px-4 py-2.5 rounded-xl border mr-2 mb-2 ${condicionPago === 'CONTADO'
+                                        ? 'bg-red-50 border-brand-red'
+                                        : 'bg-neutral-50 border-neutral-200'
+                                        }`}
                                 >
-                                    <Text className={`font-semibold ${
-                                        condicionPago === 'CONTADO' ? 'text-brand-red' : 'text-neutral-700'
-                                    }`}>
+                                    <Text className={`font-semibold ${condicionPago === 'CONTADO' ? 'text-brand-red' : 'text-neutral-700'
+                                        }`}>
                                         Contado
                                     </Text>
                                 </TouchableOpacity>
@@ -513,15 +497,13 @@ export function ClientCheckoutScreen() {
                                 {/* Opción Crédito según días de plazo del cliente */}
                                 <TouchableOpacity
                                     onPress={() => setCondicionPago(diasPlazoToCondicion(clienteData.dias_plazo))}
-                                    className={`px-4 py-2.5 rounded-xl border mr-2 mb-2 ${
-                                        condicionPago !== 'CONTADO'
-                                            ? 'bg-red-50 border-brand-red'
-                                            : 'bg-neutral-50 border-neutral-200'
-                                    }`}
+                                    className={`px-4 py-2.5 rounded-xl border mr-2 mb-2 ${condicionPago !== 'CONTADO'
+                                        ? 'bg-red-50 border-brand-red'
+                                        : 'bg-neutral-50 border-neutral-200'
+                                        }`}
                                 >
-                                    <Text className={`font-semibold ${
-                                        condicionPago !== 'CONTADO' ? 'text-brand-red' : 'text-neutral-700'
-                                    }`}>
+                                    <Text className={`font-semibold ${condicionPago !== 'CONTADO' ? 'text-brand-red' : 'text-neutral-700'
+                                        }`}>
                                         {getDiasPlazoLabel(clienteData.dias_plazo)}
                                     </Text>
                                 </TouchableOpacity>
@@ -611,7 +593,7 @@ export function ClientCheckoutScreen() {
                     <Text className="text-neutral-900 font-bold text-base mb-2">
                         📍 Ubicación de entrega
                     </Text>
-                    
+
                     {/* Mostrar el lugar seleccionado */}
                     <View className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3">
                         <View className="flex-row items-center">
@@ -742,13 +724,12 @@ export function ClientCheckoutScreen() {
             </ScrollView>
 
             {/* ========== BOTÓN DE CONFIRMACIÓN FIJO ========== */}
-            <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-5 py-4 shadow-lg">
+            <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-200 px-5 pt-4 pb-8 shadow-lg">
                 <TouchableOpacity
                     onPress={handleConfirmOrder}
                     disabled={loading}
-                    className={`flex-row items-center justify-center py-4 rounded-xl ${
-                        loading ? 'bg-neutral-300' : 'bg-brand-red'
-                    }`}
+                    className={`flex-row items-center justify-center py-4 rounded-xl ${loading ? 'bg-neutral-300' : 'bg-brand-red'
+                        }`}
                     activeOpacity={0.8}
                 >
                     {loading ? (

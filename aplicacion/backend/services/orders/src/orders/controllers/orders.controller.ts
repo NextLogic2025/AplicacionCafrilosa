@@ -1,12 +1,10 @@
 import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
-import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { OrderOwnershipGuard } from '../guards/order-ownership.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { CartService } from '../services/cart.service';
-import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
+// Cart endpoints have been moved to `CartController` to avoid duplicated logic
 import { plainToInstance } from 'class-transformer';
 import { OrderResponseDto } from '../dto/responses/order-response.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
@@ -22,7 +20,6 @@ export class OrdersController {
     constructor(
         // 1. Inyección del servicio de lógica de negocio
         private readonly ordersService: OrdersService,
-        private readonly cartService: CartService,
 
         // 2. Inyección directa del Repositorio (Si se requiere acceso rápido)
         @InjectRepository(Pedido)
@@ -88,131 +85,28 @@ export class OrdersController {
         };
     }
 
-    @Post()
-    @UseGuards(OrderOwnershipGuard) // Valida que el cliente_id en el DTO sea el del usuario logueado
+    // NOTE: Manual `POST /orders` creation was removed in favor of `POST /orders/from-cart/:userId`.
+    // Orders must be created from cart using the `from-cart` endpoint to ensure server-side
+    // price/promotion resolution and snapshot consistency.
+
+    @Post('/from-cart/:userId')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'cliente', 'vendedor')
+    async createFromCart(@Param('userId') userId: string, @Req() req: any) {
+        const usuarioId = req.user?.userId || req.user?.sub || null;
+        const role = (req.user?.role || '').toString().toLowerCase();
+        return this.ordersService.createFromCart(userId, usuarioId, role);
+    }
+
+    @Get('user/history')
     @Roles('admin', 'vendedor', 'cliente')
-    async createOrder(@Body() createOrderDto: CreateOrderDto) {
-        return this.ordersService.create(createOrderDto);
+    async findMyOrders(@Req() req: any) {
+        const userId = req.user?.userId || req.user?.sub;
+        const role = req.user?.role;
+        return this.ordersService.findAllByUser(userId, role);
     }
 
-    /**
-     * GET /orders/cart/:userId
-     *
-     * Obtiene el carrito del usuario. Si no existe, lo crea automáticamente (Lazy Creation).
-     *
-     * @param userId - UUID del usuario
-     * @returns CarritoCabecera con sus items
-     *
-     * Roles: admin, cliente, vendedor
-     * Guard: OrderOwnershipGuard valida que el userId coincida con el usuario logueado
-     */
-    @Get('/cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async getCart(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.cartService.getOrCreateCart(userId);
-    }
-
-    /**
-     * POST /orders/cart/:userId
-     *
-     * Agrega o actualiza un producto en el carrito del usuario.
-     *
-     * Comportamiento Upsert:
-     * - Si el producto YA existe en el carrito, actualiza su cantidad
-     * - Si el producto NO existe, lo agrega como nuevo item
-     *
-     * @param userId - UUID del usuario
-     * @param dto - UpdateCartItemDto con producto_id, cantidad y precio_unitario_ref (opcional)
-     * @returns CarritoItem guardado
-     *
-     * Validaciones automáticas del DTO:
-     * - producto_id: UUID válido
-     * - cantidad: Mínimo 0.1 (permite fracciones para venta por peso)
-     * - precio_unitario_ref: Opcional, si no se envía se usa 0 por defecto
-     *
-     * Manejo de errores:
-     * - 400 BadRequest: Producto no existe, datos inválidos, UUID malformado
-     * - 403 Forbidden: Usuario no autorizado (OrderOwnershipGuard)
-     *
-     * Roles: admin, cliente, vendedor
-     */
-    @Post('/cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async addToCart(
-        @Param('userId', ParseUUIDPipe) userId: string,
-        @Body() dto: UpdateCartItemDto,
-    ) {
-        return this.cartService.addItem(userId, dto);
-    }
-
-    /**
-     * DELETE /orders/cart/:userId
-     *
-     * Vacía completamente el carrito del usuario.
-     * Elimina todos los items y resetea el total a 0.
-     *
-     * @param userId - UUID del usuario
-     * @returns void (204 No Content)
-     */
-    @Delete('/cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async clearCart(@Param('userId', ParseUUIDPipe) userId: string) {
-        this.logger.log(`[DELETE /cart/:userId] Petición recibida - userId: ${userId}`);
-        await this.cartService.clearCart(userId);
-        this.logger.log(`[DELETE /cart/:userId] Carrito vaciado exitosamente`);
-        return { success: true, message: 'Carrito vaciado correctamente' };
-    }
-
-    /**
-     * DELETE /orders/cart/:userId/item/:productId
-     *
-     * Elimina un producto específico del carrito del usuario.
-     *
-     * @param userId - UUID del usuario
-     * @param productId - UUID del producto a eliminar
-     * @returns void (204 No Content)
-     *
-     * Manejo de errores:
-     * - 404 NotFound: El producto no está en el carrito
-     * - 403 Forbidden: Usuario no autorizado (OrderOwnershipGuard)
-     *
-     * Roles: admin, cliente, vendedor
-     */
-    @Delete('/cart/:userId/item/:productId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async removeFromCart(
-        @Param('userId', ParseUUIDPipe) userId: string,
-        @Param('productId', ParseUUIDPipe) productId: string,
-    ) {
-        this.logger.log(`[DELETE /cart/:userId/item/:productId] Petición recibida - userId: ${userId}, productId: ${productId}`);
-        const result = await this.cartService.removeItem(userId, productId);
-        this.logger.log(`[DELETE /cart/:userId/item/:productId] Item eliminado exitosamente`);
-        return result;
-    }
-
-    /**
-     * PATCH /orders/cart/:userId/cliente
-     *
-     * Actualiza el cliente_id asociado al carrito del usuario.
-     * Útil cuando un vendedor selecciona un cliente para el pedido.
-     *
-     * @param userId - UUID del usuario (vendedor)
-     * @param body.cliente_id - UUID del cliente seleccionado
-     * @returns CarritoCabecera actualizado
-     */
-    @Post('/cart/:userId/cliente')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async setCartCliente(
-        @Param('userId', ParseUUIDPipe) userId: string,
-        @Body('cliente_id', ParseUUIDPipe) clienteId: string,
-    ) {
-        return this.cartService.setClienteId(userId, clienteId);
-    }
+    // Cart endpoints moved to `CartController` to avoid duplication.
 
     /**
      * PATCH /orders/:id/cancel
@@ -242,6 +136,13 @@ export class OrdersController {
         // Obtener el usuario del JWT
         const usuarioId = req.user?.sub || req.user?.id;
         return this.ordersService.cancelOrder(id, usuarioId, motivo);
+    }
+
+    @Patch('/:id/status')
+    @Roles('admin', 'bodeguero')
+    async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string, @Req() req: any) {
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.updateStatus(id, status, usuarioId);
     }
 
 }

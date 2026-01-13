@@ -102,7 +102,9 @@ export function ClientProductDetailScreen() {
             precio_final: precioFinal,
             lista_precios_id: (product as any).lista_precios_id || 0,
             tiene_promocion: hasPromotion,
-            descuento_porcentaje: descuentoPorcentaje
+            descuento_porcentaje: descuentoPorcentaje,
+            campania_aplicada_id: product.campania_aplicada_id,
+            motivo_descuento: hasPromotion ? 'Promoción Aplicada' : undefined
         }, quantity)
 
         Alert.alert(
@@ -259,8 +261,8 @@ export function ClientProductDetailScreen() {
                                 Promoción Activa
                             </Text>
                             {product.promociones.map((promo, index) => (
-                                <View 
-                                    key={index} 
+                                <View
+                                    key={index}
                                     className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500"
                                 >
                                     <Text className="text-sm font-semibold text-brand-red mb-1">

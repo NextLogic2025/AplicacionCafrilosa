@@ -54,7 +54,7 @@ export function SellerProductCard({ product, selectedListId, selectedListName, o
 
     return (
         <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, styles.cardFixed]}
             onPress={() => onPress(product)}
             activeOpacity={0.8}
         >
@@ -244,7 +244,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#F3F4F6'
     },
     infoContainer: {
-        padding: 12
+        padding: 12,
+        flex: 1,
+        justifyContent: 'space-between'
     },
     productName: {
         fontSize: 14,
@@ -347,6 +349,10 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 3
+    },
+    // Card fixed height to match client view and keep add button aligned
+    cardFixed: {
+        height: 350
     },
     addToCartText: {
         fontSize: 13,

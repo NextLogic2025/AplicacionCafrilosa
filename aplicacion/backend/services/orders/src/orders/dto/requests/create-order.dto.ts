@@ -8,15 +8,7 @@ export class OrderDetailDto {
   @IsNumber()
   @Min(0.01)
   cantidad: number;
-
-  @IsNumber()
-  @Min(0)
-  precio_unitario: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  precio_original?: number;
+  // Nota: el servidor calcula y valida precios/promociones. El cliente no debe enviar precios.
 
   @IsOptional()
   @IsString()

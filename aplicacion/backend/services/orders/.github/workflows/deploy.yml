@@ -1,0 +1,30 @@
+name: Deploy Orders Service
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd aplicacion/backend/services/orders
+          npm ci
+
+      - name: Build
+        run: |
+          cd aplicacion/backend/services/orders
+          npm run build

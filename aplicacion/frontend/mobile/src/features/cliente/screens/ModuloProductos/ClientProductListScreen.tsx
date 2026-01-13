@@ -144,7 +144,9 @@ export function ClientProductListScreen() {
             precio_final: precioFinal,
             lista_precios_id: (product as any).lista_precios_id || 0,
             tiene_promocion: hasPromotion,
-            descuento_porcentaje: descuentoPorcentaje
+            descuento_porcentaje: descuentoPorcentaje,
+            campania_aplicada_id: (product as any).campania_aplicada_id,
+            motivo_descuento: hasPromotion ? 'Promoción Aplicada' : undefined
         }, 1)
 
         showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
@@ -175,26 +177,23 @@ export function ClientProductListScreen() {
                 </View>
                 <View className="w-[140px]">
                     <TouchableOpacity
-                        className={`h-[52px] rounded-xl border-[1.5px] flex-row items-center justify-center px-3 shadow-sm ${
-                            showOnlyPromotions 
-                                ? 'bg-brand-red border-brand-red' 
-                                : 'bg-white border-brand-red'
-                        }`}
+                        className={`h-[52px] rounded-xl border-[1.5px] flex-row items-center justify-center px-3 shadow-sm ${showOnlyPromotions
+                            ? 'bg-brand-red border-brand-red'
+                            : 'bg-white border-brand-red'
+                            }`}
                         onPress={() => setShowOnlyPromotions(!showOnlyPromotions)}
                         activeOpacity={0.8}
                     >
-                        <View className={`w-6 h-6 rounded-full justify-center items-center mr-1.5 ${
-                            showOnlyPromotions ? 'bg-white/25' : 'bg-red-50'
-                        }`}>
+                        <View className={`w-6 h-6 rounded-full justify-center items-center mr-1.5 ${showOnlyPromotions ? 'bg-white/25' : 'bg-red-50'
+                            }`}>
                             <Ionicons
                                 name="pricetag"
                                 size={16}
                                 color={showOnlyPromotions ? '#FFFFFF' : '#DC2626'}
                             />
                         </View>
-                        <Text className={`text-[13px] font-bold ${
-                            showOnlyPromotions ? 'text-white' : 'text-brand-red'
-                        }`}>
+                        <Text className={`text-[13px] font-bold ${showOnlyPromotions ? 'text-white' : 'text-brand-red'
+                            }`}>
                             Promociones
                         </Text>
                     </TouchableOpacity>
@@ -214,15 +213,13 @@ export function ClientProductListScreen() {
                             const isSelected = selectedCategory === item.id
                             return (
                                 <TouchableOpacity
-                                    className={`px-4 py-2 rounded-full mr-2 ${
-                                        isSelected ? 'bg-brand-red' : 'bg-neutral-100'
-                                    }`}
+                                    className={`px-4 py-2 rounded-full mr-2 ${isSelected ? 'bg-brand-red' : 'bg-neutral-100'
+                                        }`}
                                     onPress={() => handleCategoryPress(item.id)}
                                     activeOpacity={0.7}
                                 >
-                                    <Text className={`text-sm font-semibold ${
-                                        isSelected ? 'text-white' : 'text-neutral-500'
-                                    }`}>
+                                    <Text className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-neutral-500'
+                                        }`}>
                                         {item.nombre}
                                     </Text>
                                 </TouchableOpacity>

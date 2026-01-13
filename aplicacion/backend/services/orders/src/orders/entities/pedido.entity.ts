@@ -33,6 +33,12 @@ export class Pedido {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   total_final: number;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  monto_pagado: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
+  estado_pago: string;
+
   @Column({ type: 'varchar', length: 50, nullable: true })
   condicion_pago: string;
 

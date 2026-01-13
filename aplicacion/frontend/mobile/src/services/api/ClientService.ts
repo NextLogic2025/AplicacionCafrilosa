@@ -44,6 +44,10 @@ export interface CommercialZone {
     ciudad?: string
     macrorregion?: string
     activo: boolean
+    poligono?: {
+        type: 'Polygon' | 'MultiPolygon'
+        coordinates: any[]
+    }
 }
 
 // Interfaz para Sucursales del Cliente
@@ -132,53 +136,16 @@ export const ClientService = {
 
     /**
      * Obtiene los clientes asignados al vendedor autenticado
-     *
-     * WORKAROUND: El backend tiene un problema de orden de rutas donde @Get('mis') está después
-     * de @Get(':id'), por lo que 'mis' se interpreta como un ID y causa error 500.
-     *
-     * Solución implementada:
-     * 1. Obtener rutero del vendedor con GET /api/rutero/mio (funciona correctamente)
-     * 2. Extraer IDs únicos de clientes del rutero
-     * 3. Cargar información completa de cada cliente con GET /api/clientes/:id
-     *
-     * SOLUCIÓN BACKEND RECOMENDADA:
-     * Mover @Get('mis') ANTES de @Get(':id') en clientes.controller.ts línea 52 → línea 33
-     *
-     * Endpoint workaround: GET /api/rutero/mio + GET /api/clientes/:id
-     * Endpoint original roto: GET /api/clientes/mis (devuelve 500)
+     * 
+     * Endpoint: GET /api/clientes/mis
      * Roles permitidos: vendedor, admin, supervisor
      */
     getMyClients: async (): Promise<Client[]> => {
         try {
-            // WORKAROUND: Obtener clientes a través del rutero
-            // 1. Obtener rutero del vendedor (que incluye cliente_id)
-            const routes = await apiRequest<any[]>(`${env.api.catalogUrl}/api/rutero/mio`)
-
-            // 2. Extraer IDs únicos de clientes
-            const uniqueClientIds = [...new Set(routes.map(route => route.cliente_id))]
-
-            // 3. Cargar información completa de cada cliente
-            const clientsPromises = uniqueClientIds.map(clientId =>
-                ClientService.getClient(clientId).catch(error => {
-                    console.error(`Error loading client ${clientId}:`, error)
-                    return null
-                })
-            )
-
-            const clients = await Promise.all(clientsPromises)
-
-            // 4. Filtrar nulls y retornar solo clientes válidos
-            return clients.filter(client => client !== null) as Client[]
-        } catch (error: any) {
-            console.error('Error fetching clients via rutero:', error)
-
-            // Fallback: intentar con el endpoint original /mis por si fue corregido en backend
-            try {
-                return await apiRequest<Client[]>('/api/clientes/mis')
-            } catch (misError: any) {
-                console.error('Fallback /api/clientes/mis also failed:', misError)
-                return []
-            }
+            return await apiRequest<Client[]>(`${env.api.catalogUrl}/api/clientes/mis`)
+        } catch (error) {
+            console.error('Error fetching my clients:', error)
+            return []
         }
     },
 
@@ -191,12 +158,21 @@ export const ClientService = {
         }
     },
 
-    getCommercialZones: async (): Promise<CommercialZone[]> => {
+    getCommercialZones: async (silent = false): Promise<CommercialZone[]> => {
         try {
-            return await apiRequest<CommercialZone[]>(`${env.api.catalogUrl}/api/zonas`)
+            return await apiRequest<CommercialZone[]>(`${env.api.catalogUrl}/api/zonas`, { silent })
         } catch (error) {
-            console.error('Error fetching commercial zones:', error)
+            if (!silent) console.error('Error fetching commercial zones:', error)
             return []
+        }
+    },
+
+    getCommercialZoneById: async (id: number, silent = false): Promise<CommercialZone | null> => {
+        try {
+            return await apiRequest<CommercialZone>(`${env.api.catalogUrl}/api/zonas/${id}`, { silent })
+        } catch (error) {
+            if (!silent) console.error(`Error fetching commercial zone ${id}:`, error)
+            return null
         }
     },
 
@@ -204,7 +180,7 @@ export const ClientService = {
      * Obtiene las sucursales activas de un cliente
      *
      * Endpoint: GET /api/clientes/:clienteId/sucursales
-     * Roles permitidos: admin, supervisor, cliente
+     * Roles permitidos: admin, supervisor, cliente, vendedor
      */
     getClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
         try {
@@ -213,5 +189,12 @@ export const ClientService = {
             console.error('Error fetching client branches:', error)
             return []
         }
+    },
+
+    createClientBranch: async (clientId: string, branch: Partial<ClientBranch>): Promise<ClientBranch> => {
+        return apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/clientes/${clientId}/sucursales`, {
+            method: 'POST',
+            body: JSON.stringify(branch)
+        })
     }
 }

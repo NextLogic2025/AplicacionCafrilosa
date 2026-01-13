@@ -145,11 +145,18 @@ export const CatalogService = {
     /**
      * Obtiene productos paginados con precios y promociones del cliente
      * Para rol 'cliente': precios filtrados por lista_precios_id, promociones por alcance
+     * Para rol 'vendedor': puede pasar cliente_id para filtrar productos por lista del cliente
+     * 
+     * @param page - Número de página
+     * @param perPage - Items por página
+     * @param searchQuery - Búsqueda por nombre/SKU
+     * @param clienteId - ID del cliente para filtrar precios y promociones (opcional, usado por vendedor)
      */
     getProductsPaginated: async (
         page: number = 1,
         perPage: number = 20,
-        searchQuery?: string
+        searchQuery?: string,
+        clienteId?: string
     ): Promise<ProductsResponse> => {
         try {
             const params = new URLSearchParams({
@@ -159,6 +166,11 @@ export const CatalogService = {
 
             if (searchQuery) {
                 params.append('q', searchQuery)
+            }
+
+            // Si hay cliente_id, el backend filtra precios/promociones por su lista
+            if (clienteId) {
+                params.append('cliente_id', clienteId)
             }
 
             return await apiRequest<ProductsResponse>(`/api/products?${params.toString()}`)
@@ -174,12 +186,19 @@ export const CatalogService = {
     /**
      * Obtiene productos filtrados por categoría con paginación
      * Misma lógica de precios y promociones que getProductsPaginated
+     * 
+     * @param categoryId - ID de la categoría
+     * @param page - Número de página
+     * @param perPage - Items por página
+     * @param searchQuery - Búsqueda por nombre/SKU
+     * @param clienteId - ID del cliente para filtrar precios y promociones (opcional)
      */
     getProductsByCategory: async (
         categoryId: number,
         page: number = 1,
         perPage: number = 20,
-        searchQuery?: string
+        searchQuery?: string,
+        clienteId?: string
     ): Promise<ProductsResponse> => {
         try {
             const params = new URLSearchParams({
@@ -189,6 +208,10 @@ export const CatalogService = {
 
             if (searchQuery) {
                 params.append('q', searchQuery)
+            }
+
+            if (clienteId) {
+                params.append('cliente_id', clienteId)
             }
 
             return await apiRequest<ProductsResponse>(
