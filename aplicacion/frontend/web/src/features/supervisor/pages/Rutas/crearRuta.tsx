@@ -139,7 +139,19 @@ export default function SupervisorRouteCreatePage() {
         )}
         {clientesFiltrados.map((cliente: any) => {
           const nombreCliente = cliente.nombre || cliente.razon_social || cliente.nombre_comercial || cliente.identificacion;
-          const sucursales = sucursalesPorCliente[cliente.id] || [];
+          let sucursales = sucursalesPorCliente[cliente.id] || [];
+          // Insertar la dirección principal como "sucursal principal" al inicio
+          const principalId = `principal-${cliente.id}`;
+          const principalSucursal = cliente.direccion_texto
+            ? [{
+                id: principalId,
+                nombre_sucursal: 'Dirección principal',
+                direccion_entrega: cliente.direccion_texto,
+                zona_id: cliente.zona_comercial_id,
+                principal: true
+              }]
+            : [];
+          sucursales = [...principalSucursal, ...sucursales];
           return (
             <div key={cliente.id} className="p-3 flex flex-col gap-2 bg-white">
               <div className="flex items-center gap-2">
@@ -178,7 +190,12 @@ export default function SupervisorRouteCreatePage() {
                           onChange={() => !fueraZona && toggleSucursal(cliente.id, suc.id)}
                           disabled={fueraZona}
                         />
-                        {suc.nombre_sucursal || suc.nombre}
+                        <span>
+                          {suc.nombre_sucursal || suc.nombre}
+                          {suc.principal && suc.direccion_entrega ? (
+                            <span className="ml-2 text-xs text-blue-500">({suc.direccion_entrega})</span>
+                          ) : null}
+                        </span>
                         {fueraZona && <span className="ml-2 text-xs text-red-400">(Zona diferente)</span>}
                       </label>
                     );
