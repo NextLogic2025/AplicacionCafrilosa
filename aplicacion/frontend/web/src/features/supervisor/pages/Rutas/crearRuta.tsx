@@ -31,18 +31,24 @@ export default function SupervisorRouteCreatePage() {
   // Log de todos los clientes y zona seleccionada para depuración visual
   // ...existing code...
 
-  // Filtrar clientes por zona seleccionada
+  // Filtrar clientes que tengan sucursales o dirección principal en la zona seleccionada
   const clientesZona = useMemo(() => {
     if (!zonaSeleccionada) return [];
-    return clientes.filter((c: any) => String(c.zona_comercial_id) === String(zonaSeleccionada));
-  }, [clientes, zonaSeleccionada]);
+    return clientes.filter((c: any) => {
+      // Considerar dirección principal
+      const principalEnZona = String(c.zona_comercial_id) === String(zonaSeleccionada);
+      const sucursales = sucursalesPorCliente[c.id] || [];
+      const sucursalEnZona = sucursales.some((suc: any) => String(suc.zona_id) === String(zonaSeleccionada));
+      return principalEnZona || sucursalEnZona;
+    });
+  }, [clientes, zonaSeleccionada, sucursalesPorCliente]);
 
-  // Cargar sucursales de los clientes filtrados
+  // Cargar sucursales de todos los clientes (para poder filtrar por sucursales en la zona)
   useEffect(() => {
     const cargarSucursales = async () => {
       const nuevos: Record<string, any[]> = {};
       await Promise.all(
-        clientesZona.map(async (cliente: any) => {
+        clientes.map(async (cliente: any) => {
           try {
             const sucursales = await obtenerSucursales(cliente.id);
             nuevos[cliente.id] = sucursales;
@@ -53,9 +59,9 @@ export default function SupervisorRouteCreatePage() {
       );
       setSucursalesPorCliente(nuevos);
     };
-    if (clientesZona.length > 0) cargarSucursales();
+    if (clientes.length > 0) cargarSucursales();
     else setSucursalesPorCliente({});
-  }, [clientesZona]);
+  }, [clientes]);
 
   // Filtrado de clientes por búsqueda y zona
   const clientesFiltrados = useMemo(() => {
@@ -63,6 +69,8 @@ export default function SupervisorRouteCreatePage() {
       (c.nombre?.toLowerCase() || c.razon_social?.toLowerCase() || '').includes(busqueda.toLowerCase())
     );
   }, [busqueda, clientesZona]);
+
+  // El usuario debe seleccionar manualmente, no hay selección automática
 
   // Contador de destinos seleccionados
   const totalDestinos = useMemo(() => {
@@ -152,13 +160,23 @@ export default function SupervisorRouteCreatePage() {
               }]
             : [];
           sucursales = [...principalSucursal, ...sucursales];
+
+          // Sucursales en la zona seleccionada
+          const sucursalesEnZona = sucursales.filter((suc: any) => String(suc.zona_id) === String(zonaSeleccionada));
+          const sucursalesFueraZona = sucursales.filter((suc: any) => String(suc.zona_id) !== String(zonaSeleccionada));
+          const tieneEnZona = sucursalesEnZona.length > 0;
+          const tieneFueraZona = sucursalesFueraZona.length > 0;
+          // Si solo tiene fuera de la zona, el cliente queda completamente bloqueado (no seleccionable ni expandible)
+          const clienteSoloFueraZona = !tieneEnZona && tieneFueraZona;
+
           return (
             <div key={cliente.id} className="p-3 flex flex-col gap-2 bg-white">
               <div className="flex items-center gap-2">
                 <button
-                  className="flex items-center justify-center w-5 h-5 border rounded-full mr-2"
-                  onClick={() => toggleCliente(cliente.id)}
+                  className={`flex items-center justify-center w-5 h-5 border rounded-full mr-2 ${clienteSoloFueraZona ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={() => !clienteSoloFueraZona && toggleCliente(cliente.id)}
                   aria-label="Seleccionar cliente"
+                  disabled={clienteSoloFueraZona}
                 >
                   {seleccionados[cliente.id] || sucursales.length === 0 ? (
                     <CheckCircle className="text-brand-red w-5 h-5" />
@@ -166,8 +184,8 @@ export default function SupervisorRouteCreatePage() {
                     <Circle className="text-neutral-300 w-5 h-5" />
                   )}
                 </button>
-                <span className="font-medium flex-1">{nombreCliente}</span>
-                {sucursales.length > 0 && (
+                <span className={`font-medium flex-1 ${clienteSoloFueraZona ? 'opacity-50' : ''}`}>{nombreCliente}</span>
+                {sucursalesEnZona.length > 0 && !clienteSoloFueraZona && (
                   <button
                     className="ml-2 text-neutral-400 hover:text-brand-red"
                     onClick={() => setClientesExpand(prev => ({ ...prev, [cliente.id]: !prev[cliente.id] }))}
@@ -177,29 +195,24 @@ export default function SupervisorRouteCreatePage() {
                   </button>
                 )}
               </div>
-              {/* Sucursales */}
-              {sucursales.length > 0 && clientesExpand[cliente.id] && (
+              {/* Sucursales solo de la zona seleccionada */}
+              {sucursalesEnZona.length > 0 && clientesExpand[cliente.id] && !clienteSoloFueraZona && (
                 <div className="pl-8 flex flex-col gap-1">
-                  {sucursales.map((suc: any) => {
-                    const fueraZona = String(suc.zona_id) !== String(zonaSeleccionada);
-                    return (
-                      <label key={suc.id} className={`flex items-center gap-2 text-sm ${fueraZona ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={seleccionados[cliente.id]?.includes(suc.id) || false}
-                          onChange={() => !fueraZona && toggleSucursal(cliente.id, suc.id)}
-                          disabled={fueraZona}
-                        />
-                        <span>
-                          {suc.nombre_sucursal || suc.nombre}
-                          {suc.principal && suc.direccion_entrega ? (
-                            <span className="ml-2 text-xs text-blue-500">({suc.direccion_entrega})</span>
-                          ) : null}
-                        </span>
-                        {fueraZona && <span className="ml-2 text-xs text-red-400">(Zona diferente)</span>}
-                      </label>
-                    );
-                  })}
+                  {sucursalesEnZona.map((suc: any) => (
+                    <label key={suc.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={seleccionados[cliente.id]?.includes(suc.id) || false}
+                        onChange={() => toggleSucursal(cliente.id, suc.id)}
+                      />
+                      <span>
+                        {suc.nombre_sucursal || suc.nombre}
+                        {suc.principal && suc.direccion_entrega ? (
+                          <span className="ml-2 text-xs text-blue-500">({suc.direccion_entrega})</span>
+                        ) : null}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               )}
             </div>
