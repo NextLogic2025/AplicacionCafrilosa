@@ -16,17 +16,32 @@ export class CartService {
 
     /**
      * Obtiene el carrito del usuario. Si no existe, lo crea (Lazy Creation).
+     * Solo obtiene carritos activos (deleted_at IS NULL)
      */
     async getOrCreateCart(usuario_id: string): Promise<CarritoCabecera> {
         let cart = await this.cartRepo.findOne({
-            where: { usuario_id },
+            where: { 
+                usuario_id,
+                deleted_at: null  // Solo carritos activos (no soft-deleted)
+            },
             relations: ['items'],
         });
 
         if (!cart) {
-            cart = this.cartRepo.create({ usuario_id });
+            cart = this.cartRepo.create({ 
+                usuario_id,
+                total_estimado: 0
+            });
             cart = await this.cartRepo.save(cart);
             cart.items = [];
+        } else {
+            // Recalcular totales al cargar el carrito para asegurar consistencia
+            await this.recalculateTotals(cart.id);
+            // Recargar el carrito con el total actualizado
+            cart = await this.cartRepo.findOne({
+                where: { id: cart.id },
+                relations: ['items'],
+            });
         }
         return cart;
     }
@@ -42,7 +57,7 @@ export class CartService {
      */
     async addItem(usuario_id: string, dto: UpdateCartItemDto): Promise<CarritoItem> {
         try {
-            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id} al carrito`);
+            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id}`);
 
             const cart = await this.getOrCreateCart(usuario_id);
 
@@ -51,28 +66,22 @@ export class CartService {
             });
 
             if (item) {
-                // Actualizar item existente
-                this.logger.debug(`Actualizando cantidad de ${item.cantidad} a ${dto.cantidad}`);
                 item.cantidad = dto.cantidad;
-
-                // Actualizar precio de referencia solo si se proporciona
-                if (dto.precio_unitario_ref !== undefined && dto.precio_unitario_ref !== null) {
+                if (dto.precio_unitario_ref !== undefined) {
                     item.precio_unitario_ref = dto.precio_unitario_ref;
                 }
             } else {
-                // Crear nuevo item con valores por defecto seguros
-                this.logger.debug(`Creando nuevo item en el carrito`);
                 item = this.itemRepo.create({
                     carrito_id: cart.id,
                     producto_id: dto.producto_id,
                     cantidad: dto.cantidad,
-                    // Si precio_unitario_ref no viene, usar 0 como valor por defecto
                     precio_unitario_ref: dto.precio_unitario_ref ?? 0,
                 });
             }
 
             const savedItem = await this.itemRepo.save(item);
-            this.logger.log(`Item guardado exitosamente: ${savedItem.id}`);
+            await this.recalculateTotals(cart.id);
+
             return savedItem;
 
         } catch (error) {
@@ -112,17 +121,84 @@ export class CartService {
         }
     }
 
-    async removeItem(usuario_id: string, producto_id: string): Promise<void> {
-        const cart = await this.getOrCreateCart(usuario_id);
+    async removeItem(usuario_id: string, producto_id: string): Promise<{ success: boolean }> {
+        this.logger.log(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id}`);
+        
+        const cart = await this.cartRepo.findOne({
+            where: { 
+                usuario_id,
+                deleted_at: null
+            },
+        });
+        
+        if (!cart) {
+            this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
+            throw new NotFoundException('Carrito no encontrado');
+        }
+        
         const result = await this.itemRepo.delete({ carrito_id: cart.id, producto_id });
+        this.logger.log(`Resultado de eliminación: ${result.affected} items eliminados`);
 
         if (result.affected === 0) {
             throw new NotFoundException('El producto no se encuentra en el carrito');
         }
+
+        await this.recalculateTotals(cart.id);
+        return { success: true };
     }
 
     async clearCart(usuario_id: string): Promise<void> {
+        this.logger.log(`Vaciando carrito del usuario ${usuario_id}`);
+        
+        const cart = await this.cartRepo.findOne({
+            where: { 
+                usuario_id,
+                deleted_at: null
+            },
+        });
+        
+        if (!cart) {
+            this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
+            return; // No hay carrito que vaciar
+        }
+        
+        const deleteResult = await this.itemRepo.delete({ carrito_id: cart.id });
+        this.logger.log(`Carrito vaciado: ${deleteResult.affected} items eliminados`);
+        
+        // Resetear total a 0
+        cart.total_estimado = 0;
+        await this.cartRepo.save(cart);
+    }
+
+    /**
+     * Actualiza el cliente_id asociado al carrito
+     * Útil cuando un vendedor selecciona un cliente
+     */
+    async setClienteId(usuario_id: string, cliente_id: string): Promise<CarritoCabecera> {
+        this.logger.log(`Actualizando cliente_id=${cliente_id} para usuario=${usuario_id}`);
         const cart = await this.getOrCreateCart(usuario_id);
-        await this.itemRepo.delete({ carrito_id: cart.id });
+        cart.cliente_id = cliente_id;
+        const saved = await this.cartRepo.save(cart);
+        this.logger.log(`Cliente guardado en carrito ${cart.id}`);
+        return saved;
+    }
+
+    /**
+     * Recalcula el total_estimado del carrito basado en sus items
+     * Se ejecuta después de cualquier modificación de items
+     */
+    async recalculateTotals(carrito_id: string): Promise<number> {
+        const items = await this.itemRepo.find({ where: { carrito_id } });
+        
+        const total_estimado = items.reduce((acc, item) => {
+            const cantidad = Number(item.cantidad) || 0;
+            const precio = Number(item.precio_unitario_ref) || 0;
+            return acc + (cantidad * precio);
+        }, 0);
+
+        this.logger.log(`Recalculando totales para carrito ${carrito_id}: ${items.length} items, total=${total_estimado}`);
+        
+        await this.cartRepo.update(carrito_id, { total_estimado });
+        return total_estimado;
     }
 }

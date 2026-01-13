@@ -197,7 +197,7 @@ export class ProductsService {
       // Mapear promociones aplicables y calcular mejor oferta
       const promosProducto = allPromos.filter(pr => pr.producto_id === p.id);
       const promosMapped: any[] = [];
-      let mejorOferta: { precio_oferta: number; campania_id: number; ahorro: number } | null = null;
+      let mejorOferta: { precio_oferta: number; campania_id: number; ahorro: number; campania_nombre?: string } | null = null;
 
       for (const pr of promosProducto) {
         const camp: any = (pr as any).campania || null;
@@ -226,6 +226,7 @@ export class ProductsService {
 
         const mapped = {
           campana_id: pr.campania_id,
+          campana_nombre: (pr as any).campania?.nombre ?? null,
           precio_oferta: precioOferta,
           tipo_descuento: (pr as any).campania?.tipo_descuento ?? null,
           valor_descuento: (pr as any).campania?.valor_descuento ?? null,
@@ -235,7 +236,7 @@ export class ProductsService {
         if (precioOferta != null && precioOriginal != null) {
           const ahorro = +(precioOriginal - precioOferta);
           if (!mejorOferta || precioOferta < mejorOferta.precio_oferta) {
-            mejorOferta = { precio_oferta: precioOferta, campania_id: pr.campania_id, ahorro };
+            mejorOferta = { precio_oferta: precioOferta, campania_id: pr.campania_id, ahorro, campania_nombre: (pr as any).campania?.nombre ?? null };
           }
         }
       }
@@ -246,6 +247,7 @@ export class ProductsService {
         base.precio_oferta = mejorOferta.precio_oferta;
         base.ahorro = Math.round((mejorOferta.ahorro) * 100) / 100;
         base.campania_aplicada_id = mejorOferta.campania_id;
+        base.campania_aplicada_nombre = mejorOferta.campania_nombre ?? null;
       } else if (precioOriginal != null) {
         base.precio_original = precioOriginal;
       }
