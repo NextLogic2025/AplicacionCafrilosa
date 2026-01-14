@@ -3,18 +3,30 @@ import { CarritoItem } from './carrito-item.entity';
 
 @Entity('carritos_cabecera')
 export class CarritoCabecera {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({ type: 'uuid', unique: true })
-    usuario_id: string;
+  @Column({ type: 'uuid' })
+  usuario_id: string;
 
-    @CreateDateColumn({ type: 'timestamp with time zone' })
-    fecha_creacion: Date;
+  @Column({ type: 'uuid', nullable: true })
+  vendedor_id: string;
 
-    @UpdateDateColumn({ type: 'timestamp with time zone' })
-    fecha_actualizacion: Date;
+  @Column({ type: 'uuid', nullable: true })
+  cliente_id: string;
 
-    @OneToMany(() => CarritoItem, (item) => item.carrito, { cascade: true })
-    items: CarritoItem[];
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  total_estimado: number;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updated_at: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  deleted_at: Date;
+
+  @OneToMany(() => CarritoItem, (item) => item.carrito, { cascade: true })
+  items: CarritoItem[];
 }

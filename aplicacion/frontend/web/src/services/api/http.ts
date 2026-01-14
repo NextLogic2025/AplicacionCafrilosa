@@ -69,8 +69,9 @@ export async function httpCatalogo<T>(path: string, options: HttpOptions = {}): 
   return httpRequest<T>(env.api.catalogo, pathWithApi, options)
 }
 
-// Función para servicio de Orders/Pedidos (puerto 3004)
+// Función para servicio de Orders/Pedidos (puerto 3004) - NO incluye /api prefix
 export async function httpOrders<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  // El servicio de orders usa /orders directamente, sin prefijo /api
   return httpRequest<T>(env.api.orders, path, options)
 }
 

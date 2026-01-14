@@ -6,11 +6,14 @@ export class DetallePedido {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  pedido_id: string;
+
   @ManyToOne(() => Pedido, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pedido_id' })
   pedido: Pedido;
 
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid' })
   producto_id: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
@@ -37,7 +40,10 @@ export class DetallePedido {
   @Column({ type: 'varchar', length: 100, nullable: true })
   motivo_descuento: string | null;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  @Column({ name: 'campania_aplicada_id', type: 'int', nullable: true })
+  campania_aplicada_id: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true, insert: false, update: false })
   subtotal_linea: number | null;
 
   @CreateDateColumn({ type: 'timestamptz' })

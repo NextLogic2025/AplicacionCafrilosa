@@ -1,32 +1,92 @@
-import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min, IsString, IsDateString, IsInt, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderDetailDto {
-    @IsUUID()
-    producto_id: string;
+  @IsUUID()
+  producto_id: string;
 
-    @IsNumber()
-    @Min(0.01)
-    cantidad: number;
+  @IsNumber()
+  @Min(0.01)
+  cantidad: number;
+  // Nota: el servidor calcula y valida precios/promociones. El cliente no debe enviar precios.
 
-    @IsNumber()
-    @Min(0)
-    precio_unitario: number;
+  @IsOptional()
+  @IsString()
+  codigo_sku?: string;
+
+  @IsOptional()
+  @IsString()
+  nombre_producto?: string;
+
+  @IsOptional()
+  @IsString()
+  unidad_medida?: string;
+
+  @IsOptional()
+  @IsString()
+  motivo_descuento?: string;
+
+  @IsOptional()
+  @IsInt()
+  campania_aplicada_id?: number;
+
+  // Campos de precios: se ignoran si vienen del cliente, se rellenan en el servidor
+  @IsOptional()
+  @IsNumber()
+  precio_original?: number;
+
+  @IsOptional()
+  @IsNumber()
+  precio_unitario?: number;
+}
+
+export class UbicacionDto {
+  @IsNumber()
+  lat: number;
+
+  @IsNumber()
+  lng: number;
 }
 
 export class CreateOrderDto {
-    @IsUUID()
-    cliente_id: string;
+  @IsUUID()
+  cliente_id: string;
 
-    @IsUUID()
-    @IsOptional()
-    sucursal_id?: string;
+  @IsUUID()
+  vendedor_id: string;
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => OrderDetailDto)
-    items: OrderDetailDto[];
+  @IsOptional()
+  @IsUUID()
+  sucursal_id?: string;
 
-    @IsOptional()
-    notas?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderDetailDto)
+  items: OrderDetailDto[];
+
+  @IsOptional()
+  @IsString()
+  observaciones_entrega?: string;
+
+  @IsString({ message: 'condicion_pago es requerido' })
+  @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], { message: 'condicion_pago debe ser: CONTADO, CREDITO, TRANSFERENCIA o CHEQUE' })
+  condicion_pago: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Fecha de entrega debe ser formato YYYY-MM-DD' })
+  fecha_entrega_solicitada?: string;
+
+  @IsOptional()
+  @IsString()
+  origen_pedido?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UbicacionDto)
+  ubicacion?: UbicacionDto;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  descuento_total?: number;
 }

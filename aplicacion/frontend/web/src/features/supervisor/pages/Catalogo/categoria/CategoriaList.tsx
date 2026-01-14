@@ -31,7 +31,7 @@ export function CategoriaList({ categories, onEdit, onDelete }: CategoriaListPro
         id: category.id,
         image: category.imagen_url || null,
         title: category.nombre,
-        description: category.descripcion,
+        description: category.descripcion ?? undefined,
         extra: (
           <StatusBadge variant={category.activo ? 'success' : 'neutral'}>
             {category.activo ? 'Activo' : 'Inactivo'}

@@ -1,6 +1,12 @@
 module.exports = {
   root: true,
-  ignorePatterns: ['.eslintrc.js'],
+  // Añade aquí los archivos que quieres que ESLint ignore por completo
+  ignorePatterns: [
+    '.eslintrc.js', 
+    'jest.config.cjs', // <--- Añade esto
+    'dist/', 
+    'node_modules/'
+  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     project: './tsconfig.json',
@@ -11,6 +17,12 @@ module.exports = {
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   rules: {
     '@typescript-eslint/no-explicit-any': 'off',
-    'import/order': ['warn', { groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'], 'newlines-between': 'always' }]
+    'import/order': [
+      'warn', 
+      { 
+        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'], 
+        'newlines-between': 'always' 
+      }
+    ]
   }
 };
