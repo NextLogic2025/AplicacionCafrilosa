@@ -38,6 +38,7 @@ export default function PaginaEntregas() {
       return
     }
 
+    console.log('Reporte enviado:', { deliveryId: entregaConProblema, description: descripcionProblema })
     alert('Reporte enviado correctamente (mock)')
     setEntregaConProblema(null)
     setDescripcionProblema('')

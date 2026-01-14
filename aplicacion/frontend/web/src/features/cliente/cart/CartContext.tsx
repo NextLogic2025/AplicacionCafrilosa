@@ -1,6 +1,8 @@
 import * as React from 'react'
-import { getCart, upsertCartItem, removeFromCart } from '../services/cartApi'
+import { getCart, upsertCartItem, removeFromCart, addToCartForUser } from '../services/cartApi'
 import { getToken } from '../../../services/storage/tokenStorage'
+import { getClienteContext } from '../services/clientApi'
+import { httpCatalogo } from '../../../services/api/http'
 
 export type CartItem = {
   id: string // product id
@@ -44,30 +46,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [warnings, setWarnings] = React.useState<Array<{ issue: string }>>([])
   const [removedItems, setRemovedItems] = React.useState<Array<{ producto_id: string; campania_aplicada_id?: number | null }>>([])
 
-  // Try to sync with backend when user is authenticated
-  React.useEffect(() => {
-    const token = getToken()
-    if (!token) return
-    // Try fetching server cart and merge
-    ;(async () => {
-      try {
-        // backend determines user from token via /orders/cart/items polymorphic endpoint
-        const server = await getCart('me')
-        if (server && Array.isArray(server.items)) {
-          const mapped = server.items.map(i => ({ id: i.producto_id, name: i.producto_id, unitPrice: Number(i.precio_unitario_ref ?? 0), quantity: Number(i.cantidad) }))
-          setItems(() => {
-            // server takes precedence
-            saveCart(mapped)
-            return mapped
-          })
-          setWarnings(Array.isArray((server as any).warnings) ? (server as any).warnings : [])
-          setRemovedItems(Array.isArray((server as any).removed_items) ? (server as any).removed_items : [])
-        }
-      } catch {
-        // ignore
-      }
-    })()
-  }, [])
+  // NOTE: Removed automatic server sync on mount to avoid calling
+  // `/orders/cart/:userId` from the client. Cart stays local and
+  // server sync is performed only on explicit user actions.
 
   const addItem = React.useCallback((item: CartItem) => {
     ;(async () => {
@@ -82,10 +63,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       })
 
       try {
-        if (!getToken()) return
-        const resp: any = await upsertCartItem({ producto_id: item.id, cantidad: item.quantity })
+      if (!getToken()) return
+      // include cliente_id and usuario_id when available so backend can operate on behalf of the client
+      const ctx = await getClienteContext().catch(() => null)
+      const clienteId = ctx?.clienteId ?? null
+      const usuarioId = ctx?.usuarioId ?? null
+      const resp: any = await upsertCartItem({ producto_id: item.id, cantidad: item.quantity, cliente_id: clienteId, usuario_id: usuarioId })
         if (resp && Array.isArray(resp.items)) {
           const mapped = resp.items.map((i: any) => ({ id: i.producto_id, name: i.producto_id, unitPrice: Number(i.precio_unitario_ref ?? 0), quantity: Number(i.cantidad) }))
+          // enrich names from catalog if possible
+          try {
+            const ids = Array.from(new Set(mapped.map((m: any) => String(m.id))))
+            const namesMap: Record<string, string> = {}
+            await Promise.all(ids.map(async (pid: string) => {
+              try {
+                const p: any = await httpCatalogo(`/api/products/${pid}`).catch(() => null)
+                if (p && (p.nombre || p.name || p.codigo_sku)) namesMap[pid] = String(p.nombre ?? p.name ?? p.codigo_sku)
+              } catch {}
+            }))
+            if (Object.keys(namesMap).length > 0) mapped.forEach((m: any) => { const k = String(m.id); if (namesMap[k]) m.name = namesMap[k] })
+          } catch {}
           setItems(mapped)
           saveCart(mapped)
           setWarnings(Array.isArray((resp).warnings) ? (resp).warnings : [])
@@ -108,10 +105,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       })
 
       try {
-        if (!getToken()) return
-        const resp: any = await upsertCartItem({ producto_id: productId, cantidad: quantity })
+      if (!getToken()) return
+      const ctx = await getClienteContext().catch(() => null)
+      const clienteId = ctx?.clienteId ?? null
+      const usuarioId = ctx?.usuarioId ?? null
+      const resp: any = await upsertCartItem({ producto_id: productId, cantidad: quantity, cliente_id: clienteId, usuario_id: usuarioId })
         if (resp && Array.isArray(resp.items)) {
           const mapped = resp.items.map((i: any) => ({ id: i.producto_id, name: i.producto_id, unitPrice: Number(i.precio_unitario_ref ?? 0), quantity: Number(i.cantidad) }))
+          // enrich names if possible
+          try {
+            const ids = Array.from(new Set(mapped.map((m: any) => String(m.id))))
+            const namesMap: Record<string, string> = {}
+            await Promise.all(ids.map(async (pid: string) => {
+              try {
+                const p: any = await httpCatalogo(`/api/products/${pid}`).catch(() => null)
+                if (p && (p.nombre || p.name || p.codigo_sku)) namesMap[pid] = String(p.nombre ?? p.name ?? p.codigo_sku)
+              } catch {}
+            }))
+            if (Object.keys(namesMap).length > 0) mapped.forEach((m: any) => { const k = String(m.id); if (namesMap[k]) m.name = namesMap[k] })
+          } catch {}
           setItems(mapped)
           saveCart(mapped)
           setWarnings(Array.isArray((resp).warnings) ? (resp).warnings : [])
@@ -127,7 +139,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems(prev => {
       const next = prev.filter(i => i.id !== productId)
       saveCart(next)
-      try { if (getToken()) removeFromCart('me', productId) } catch {}
+        try {
+          if (getToken()) {
+            getClienteContext()
+              .then((c) => {
+                const uid = c?.usuarioId ?? null
+                if (uid) removeFromCart(uid, productId).catch(() => {})
+              })
+              .catch(() => {
+                // no-op when client context cannot be resolved
+              })
+          }
+        } catch {}
       return next
     })
   }, [])
@@ -152,3 +175,7 @@ export function useCart() {
   if (!ctx) throw new Error('useCart debe usarse dentro de <CartProvider />')
   return ctx
 }
+
+const t = localStorage.getItem('cafrilosa.token')
+const payload = t ? JSON.parse(atob(t.split('.')[1])) : null
+console.log('token sub, rol:', payload?.sub, payload?.role ?? payload?.roles ?? payload)

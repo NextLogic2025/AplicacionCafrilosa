@@ -25,9 +25,16 @@ export default function  	PaginaCarrito() {
 	const confirmarPedido = async () => {
 		if (items.length === 0) return
 		if (superaCredito) return
-		await crearPedidoDesdeCarrito()
-		clearCart()
-		navigate('/cliente/pedidos', { replace: true })
+		try {
+			await crearPedidoDesdeCarrito()
+			clearCart()
+			// notify orders list to refresh and provide a success message
+			try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } })) } catch {}
+			navigate('/cliente/pedidos', { replace: true })
+		} catch (e) {
+			// eslint-disable-next-line no-alert
+			alert('No se pudo crear el pedido: ' + (e instanceof Error ? e.message : 'error'))
+		}
 	}
 
 	return (

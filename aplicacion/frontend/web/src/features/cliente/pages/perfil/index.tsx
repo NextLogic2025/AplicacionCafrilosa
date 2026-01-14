@@ -32,7 +32,7 @@ export default function PerfilCliente() {
   }, [activeStep])
 
   useEffect(() => {
-    setForm({ nombre: profile?.nombre ?? '', telefono: profile?.telefono ?? '', avatarUrl: profile?.avatarUrl ?? '' })
+    setForm({ nombre: profile?.nombre ?? (profile as any)?.nombreCompleto ?? client?.nombre_comercial ?? client?.razon_social ?? '', telefono: profile?.telefono ?? '', avatarUrl: profile?.avatarUrl ?? '' })
     if (client) {
       setClientForm({
         identificacion: client.identificacion ?? '',
@@ -63,7 +63,7 @@ export default function PerfilCliente() {
 
   if (loading && !profile) return <LoadingSpinner text="Cargando perfil..." />
 
-  const name = profile?.nombre || 'Cliente Cafrilosa'
+  const name = profile?.nombre || (profile as any)?.nombreCompleto || client?.nombre_comercial || client?.razon_social || profile?.email || 'Cliente'
   const email = profile?.email || 'Sin correo'
   const phone = profile?.telefono || 'Sin teléfono'
   const role = profile?.rol?.nombre || 'Sin rol'
@@ -73,6 +73,7 @@ export default function PerfilCliente() {
     try {
       setSuccess(null)
       await updateProfile({ nombre: form.nombre, telefono: form.telefono || null, avatarUrl: form.avatarUrl || null })
+      try { await refresh() } catch (e) { /* ignore refresh errors */ }
       setSuccess('Perfil actualizado')
       setEditing(false)
     } catch (e) {
@@ -303,6 +304,7 @@ export default function PerfilCliente() {
               label="Vendedor asignado"
               value={client.vendedor_asignado_id
                 ? (client.nombre_vendedor_cache
+                    ?? client.vendedor_nombre
                     ?? vendedorMap[client.vendedor_asignado_id]?.nombre
                     ?? 'Vendedor no disponible')
                 : '—'}

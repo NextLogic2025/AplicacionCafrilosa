@@ -115,8 +115,9 @@ export default function PaginaNotificaciones() {
           <button
             key={tipo}
             onClick={() => setFiltros({ ...filtros, type: tipo })}
-            className={`flex items-center gap-1 rounded-lg px-3 py-1 text-sm font-medium transition ${filtros.type === tipo ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+            className={`flex items-center gap-1 rounded-lg px-3 py-1 text-sm font-medium transition ${
+              filtros.type === tipo ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
             {tipo === 'all' ? '📌 Todas' : `${configTipo[tipo].icon} ${configTipo[tipo].label}`}
           </button>
@@ -131,8 +132,9 @@ export default function PaginaNotificaciones() {
             notificacionesFiltradas.map(notif => (
               <div
                 key={notif.id}
-                className={`rounded-lg border-l-4 p-4 transition ${notif.read ? 'border-gray-300 bg-gray-50 opacity-75' : 'border-blue-500 bg-white shadow'
-                  }`}
+                className={`rounded-lg border-l-4 p-4 transition ${
+                  notif.read ? 'border-gray-300 bg-gray-50 opacity-75' : 'border-blue-500 bg-white shadow'
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -161,7 +163,7 @@ export default function PaginaNotificaciones() {
                       </button>
                     )}
                     <button
-                      onClick={() => {/* TODO: Implement delete */ }}
+                      onClick={() => console.log('Eliminar:', notif.id)}
                       className="rounded-lg p-2 text-gray-600 transition hover:bg-brand-cream hover:text-brand-red"
                       title="Eliminar"
                     >
@@ -173,7 +175,7 @@ export default function PaginaNotificaciones() {
                 {notif.relatedId && (
                   <div className="mt-2 border-t border-gray-200 pt-2">
                     <button
-                      onClick={() => {/* TODO: Navigate to related item */ }}
+                      onClick={() => console.log('Ver:', notif.relatedId)}
                       className="text-xs font-medium text-blue-600 transition hover:text-blue-800"
                     >
                       Ver {notif.type.toLowerCase()} →
