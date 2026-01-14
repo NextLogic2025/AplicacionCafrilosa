@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-import { AppLayout } from '../pages/app/AppLayout'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { SplashPage } from '../pages/SplashPage'
@@ -23,7 +22,6 @@ const NotificacionesBodegaPage = React.lazy(() => import('../features/bodeguero/
 
 import { RequireAuth } from './RequireAuth'
 
-const AppIndexPage = React.lazy(() => import('../pages/app/AppIndexPage'))
 import ClienteLayout from '../features/cliente/ClientePage'
 const PaginaPanelCliente = React.lazy(() => import('../features/cliente/pages/dashboard'))
 const PaginaPedidos = React.lazy(() => import('../features/cliente/pages/pedidos'))
@@ -33,6 +31,8 @@ const PaginaCarrito = React.lazy(() => import('../features/cliente/pages/carrito
 const PaginaEntregas = React.lazy(() => import('../features/cliente/pages/entregas'))
 import PaginaPromociones from '../features/cliente/pages/promociones'
 import PaginaDevolucionesCliente from '../features/cliente/pages/devoluciones'
+
+const PaginaSucursal = React.lazy(() => import('../features/cliente/pages/sucursal'))
 const PaginaSoporte = React.lazy(() => import('../features/cliente/pages/soporte'))
 const PaginaNotificaciones = React.lazy(() => import('../features/cliente/pages/notificaciones'))
 const PaginaPerfilCliente = React.lazy(() => import('../features/cliente/pages/perfil'))
@@ -41,6 +41,7 @@ const SupervisorLayout = React.lazy(() => import('../features/supervisor/Supervi
 const VendedorLayout = React.lazy(() => import('../features/vendedor/VendedorPage'))
 const VendedorDashboard = React.lazy(() => import('../features/vendedor/pages/Dashboard'))
 const VendedorClientes = React.lazy(() => import('../features/vendedor/pages/Clientes'))
+const VendedorRutas = React.lazy(() => import('../features/vendedor/pages/Rutas'))
 const VendedorProductos = React.lazy(() => import('../features/vendedor/pages/Productos'))
 const VendedorPromociones = React.lazy(() => import('../features/vendedor/pages/Promociones'))
 const VendedorCrearPedido = React.lazy(() => import('../features/vendedor/pages/CrearPedido'))
@@ -63,7 +64,12 @@ const TransportistaPerfil = React.lazy(() => import('../features/transportista/p
 
 const SupervisorDashboard = React.lazy(() => import('../features/supervisor/pages/Dashboard'))
 const SupervisorClientes = React.lazy(() => import('../features/supervisor/pages/Clientes'))
-const SupervisorVendedores = React.lazy(() => import('../features/supervisor/pages/Vendedores'))
+const SupervisorEquipo = React.lazy(() => import('../features/supervisor/pages/Equipo'))
+const SupervisorCatalogo = React.lazy(() => import('../features/supervisor/pages/Catalogo'))
+const SupervisorZonas = React.lazy(() => import('../features/supervisor/pages/Zonas'))
+const SupervisorRutas = React.lazy(() => import('../features/supervisor/pages/Rutas'))
+const SupervisorRouteCreatePage = React.lazy(() => import('../features/supervisor/pages/Rutas/crearRuta'))
+const SupervisorRouteCreatePaso2Page = React.lazy(() => import('../features/supervisor/pages/Rutas/crearRutapaso2'))
 const SupervisorPedidos = React.lazy(() => import('../features/supervisor/pages/Pedidos'))
 const SupervisorBodega = React.lazy(() => import('../features/supervisor/pages/Bodega'))
 const SupervisorEntregas = React.lazy(() => import('../features/supervisor/pages/Entregas'))
@@ -79,11 +85,12 @@ export default function AppRouter() {
         <Route path="/" element={<SplashPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/app/*" element={<Navigate to="/login" replace />} />
 
         <Route
           path="/cliente/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['cliente']}>
               <ClienteLayout />
             </RequireAuth>
           }
@@ -100,6 +107,7 @@ export default function AppRouter() {
           <Route path="mensajes" element={<PaginaMensajesCliente />} />
           <Route path="notificaciones" element={<PaginaNotificaciones />} />
           <Route path="perfil" element={<PaginaPerfilCliente />} />
+          <Route path="sucursal" element={<PaginaSucursal />} />
         </Route>
 
         <Route path="/app/cliente/*" element={<Navigate to="/cliente" replace />} />
@@ -109,7 +117,7 @@ export default function AppRouter() {
         <Route
           path="/bodeguero/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['bodeguero']}>
               <BodegueroLayout />
             </RequireAuth>
           }
@@ -133,13 +141,14 @@ export default function AppRouter() {
         <Route
           path="/vendedor/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['vendedor']}>
               <VendedorLayout />
             </RequireAuth>
           }
         >
           <Route index element={<VendedorDashboard />} />
           <Route path="clientes" element={<VendedorClientes />} />
+          <Route path="rutas" element={<VendedorRutas />} />
           <Route path="productos" element={<VendedorProductos />} />
           <Route path="promociones" element={<VendedorPromociones />} />
           <Route path="crear-pedido" element={<VendedorCrearPedido />} />
@@ -157,7 +166,7 @@ export default function AppRouter() {
         <Route
           path="/transportista/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['transportista']}>
               <TransportistaPage />
             </RequireAuth>
           }
@@ -177,14 +186,23 @@ export default function AppRouter() {
         <Route
           path="/supervisor/*"
           element={
-            <RequireAuth>
+            <RequireAuth allowedRoles={['supervisor']}>
               <SupervisorLayout />
             </RequireAuth>
           }
         >
           <Route index element={<SupervisorDashboard />} />
           <Route path="clientes" element={<SupervisorClientes />} />
-          <Route path="vendedores" element={<SupervisorVendedores />} />
+          <Route path="equipo" element={<SupervisorEquipo />} />
+          <Route path="catalogo" element={<SupervisorCatalogo />} />
+          <Route path="zonas" element={<SupervisorZonas />} />
+          <Route path="rutas">
+            <Route index element={<SupervisorRutas />} />
+            <Route path="crear" >
+              <Route index element={<SupervisorRouteCreatePage />} />
+              <Route path="paso2" element={<SupervisorRouteCreatePaso2Page />} />
+            </Route>
+          </Route>
           <Route path="pedidos" element={<SupervisorPedidos />} />
           <Route path="bodega" element={<SupervisorBodega />} />
           <Route path="entregas" element={<SupervisorEntregas />} />
@@ -194,15 +212,7 @@ export default function AppRouter() {
           <Route path="perfil" element={<SupervisorPerfil />} />
         </Route>
 
-        <Route path="/app"
-          element={
-            <RequireAuth>
-              <AppLayout />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<AppIndexPage />} />
-        </Route>
+        <Route path="/app/*" element={<Navigate to="/login" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

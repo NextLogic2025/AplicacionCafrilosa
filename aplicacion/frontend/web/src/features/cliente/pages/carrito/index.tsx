@@ -8,21 +8,33 @@ import { Alert } from 'components/ui/Alert'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { PageHero } from 'components/ui/PageHero'
 
-export default function PaginaCarrito() {
+export default function  	PaginaCarrito() {
 	const navigate = useNavigate()
-	const { items, total, updateQuantity, removeItem, clearCart } = useCart()
-	const { crearPedidoDesdeCarrito, perfil } = useCliente()
+	const { items, total, updateQuantity, removeItem, clearCart, warnings, removedItems } = useCart()
+	const { crearPedidoDesdeCarrito, perfil, fetchPerfilCliente } = useCliente()
+
+	// Ensure perfil is loaded when opening the carrito page directly
+	React.useEffect(() => {
+		if (!perfil) fetchPerfilCliente()
+	}, [perfil, fetchPerfilCliente])
 
 	const creditoDisponible = Math.max((perfil?.creditLimit || 0) - (perfil?.currentDebt || 0), 0)
 	const superaCredito = total > creditoDisponible
   const condicionComercial = superaCredito ? 'Contado' : 'Crédito'
 
-	const confirmarPedido = () => {
+	const confirmarPedido = async () => {
 		if (items.length === 0) return
 		if (superaCredito) return
-		crearPedidoDesdeCarrito(items, total)
-		clearCart()
-		navigate('/cliente/pedidos', { replace: true })
+		try {
+			await crearPedidoDesdeCarrito()
+			clearCart()
+			// notify orders list to refresh and provide a success message
+			try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } })) } catch {}
+			navigate('/cliente/pedidos', { replace: true })
+		} catch (e) {
+			// eslint-disable-next-line no-alert
+			alert('No se pudo crear el pedido: ' + (e instanceof Error ? e.message : 'error'))
+		}
 	}
 
 	return (
@@ -58,8 +70,22 @@ export default function PaginaCarrito() {
 					Tu carrito está vacío.
 				</div>
 			) : (
-				<div className="grid gap-4 lg:grid-cols-3">
-					<div className="lg:col-span-2 space-y-3">
+					<div className="grid gap-4 lg:grid-cols-3 items-start">
+					{warnings && warnings.length > 0 ? (
+						<div className="lg:col-span-3">
+							<Alert variant="warning">
+								{warnings.map(w => w.issue).join(', ')}
+							</Alert>
+						</div>
+					) : null}
+					{removedItems && removedItems.length > 0 ? (
+						<div className="lg:col-span-3">
+							<Alert variant="destructive">
+								Algunas líneas fueron eliminadas del carrito: {removedItems.map(r => r.producto_id).join(', ')}
+							</Alert>
+						</div>
+					) : null}
+						<div className="lg:col-span-2 space-y-3 max-h-[60vh] overflow-auto pr-2">
 						{items.map(item => (
 							<div key={item.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
 								<div className="flex-1">
@@ -107,7 +133,7 @@ export default function PaginaCarrito() {
 						</div>
 					</div>
 
-					<div className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+						<div className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm lg:col-span-1 lg:sticky lg:top-24">
 						<div className="flex items-center justify-between">
 							<p className="text-sm text-neutral-700">Total</p>
 							<p className="text-xl font-bold text-neutral-900">${total.toFixed(2)}</p>

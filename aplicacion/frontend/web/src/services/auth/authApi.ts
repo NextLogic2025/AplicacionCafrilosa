@@ -1,72 +1,100 @@
-import type { SignInResponse } from '@cafrilosa/shared-types'
-
 import { env } from '../../config/env'
+import type { AppRole } from '../../types/roles'
+import { APP_ROLES } from '../../types/roles'
+import { httpAuth, httpUsuarios } from '../api/http'
 
 type ErrorResponse = { message?: string }
+type LoginResponse = {
+  access_token?: string
+  refresh_token?: string
+  usuario?: unknown
+  message?: string
+}
+
+export type UserProfile = {
+  id: string
+  email: string
+  nombre: string
+  nombre_completo?: string
+  nombreCompleto?: string
+  telefono: string | null
+  avatarUrl?: string | null
+  emailVerificado: boolean
+  activo: boolean
+  createdAt: string
+  rol?: { id: number; nombre: string }
+}
+
+const ROLE_BY_ID: Record<number, AppRole> = {
+  2: 'supervisor',
+  3: 'bodeguero',
+  4: 'vendedor',
+  5: 'transportista',
+  6: 'cliente',
+}
+
+function mapRoleFromPayload(payload: unknown): AppRole | null {
+  if (!payload || typeof payload !== 'object') return null
+
+  const user = payload as Record<string, unknown>
+  const roleId = (user.rolId ?? user.roleId ?? user.rol_id ?? user.role_id ?? user['rol_id']) as
+    | number
+    | string
+    | undefined
+  const roleName = (user.rol ?? user.role ?? user['rol']) as unknown
+
+  const normalizedId = typeof roleId === 'string' ? Number(roleId) : roleId
+  if (typeof normalizedId === 'number' && ROLE_BY_ID[normalizedId]) return ROLE_BY_ID[normalizedId]
+
+  const normalizedName = typeof roleName === 'string' ? roleName.toLowerCase() : undefined
+  const fromName = APP_ROLES.find((r) => r.key === normalizedName) ??
+    APP_ROLES.find((r) => r.label.toLowerCase() === normalizedName)
+  return fromName?.key ?? null
+}
 
 export async function signInWithPassword(email: string, password: string) {
-  const url = env.auth.loginUrl
-  if (!url) {
-    console.warn('Login URL no configurada. Usando token mock para desarrollo.')
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    return { token: 'mock-token-desarrollo' }
-  }
-
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 10_000)
-
   try {
-    const res = await fetch(url, {
+    const data = await httpAuth<LoginResponse>('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-      signal: controller.signal,
+      body: { email, password },
+      auth: false,
     })
 
-    const data = (await res.json().catch(() => null)) as (Partial<SignInResponse> & ErrorResponse) | null
+    if (!data?.access_token) throw new Error('Respuesta inválida del servidor (falta access_token)')
 
-    if (!res.ok)
-      throw new Error(typeof data?.message === 'string' ? data.message : 'No se pudo iniciar sesión')
-    if (!data?.token) throw new Error('Respuesta inválida del servidor (falta token)')
+    const role = mapRoleFromPayload(data.usuario) ?? mapRoleFromPayload(data)
 
-    return { token: data.token }
+    return { token: data.access_token, refreshToken: data.refresh_token, role }
   } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('Tiempo de espera agotado')
+    if (e instanceof Error && e.message.includes('fetch')) {
+      throw new Error('No se pudo conectar con el servidor')
     }
     throw e
-  } finally {
-    window.clearTimeout(timeout)
   }
 }
 
-export async function requestPasswordReset(email: string) {
-  const url = env.auth.forgotPasswordUrl
-  if (!url) throw new Error('Servicio de recuperación no disponible')
-
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 10_000)
-
+export async function signOutFromServer(accessToken: string) {
   try {
-    const res = await fetch(url, {
+    await httpAuth('/auth/logout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-      signal: controller.signal,
+      body: {},
+      headers: { Authorization: `Bearer ${accessToken}` },
     })
-
-    if (res.ok) return
-
-    const data = (await res.json().catch(() => null)) as ErrorResponse | null
-    throw new Error(
-      typeof data?.message === 'string' ? data.message : 'No se pudo enviar el correo de recuperación'
-    )
   } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new Error('Tiempo de espera agotado')
-    }
-    throw e
-  } finally {
-    window.clearTimeout(timeout)
+    // Silenciaremos cualquier fallo de red; el frontend igual limpiará la sesión
+    console.warn('No se pudo cerrar sesión en el servidor', e)
   }
+}
+
+export async function fetchProfile(): Promise<UserProfile> {
+  // El endpoint real es /usuarios/me según la colección Postman
+  return httpUsuarios<UserProfile>('/usuarios/me')
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await httpAuth('/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
+    auth: false,
+  })
 }
