@@ -17,7 +17,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"supervisor@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"Supervisor\",\r\n  \"rolId\": 2\r\n}",
+							"raw": "{\r\n  \"email\": \"aa@cafrilosa.com\",\r\n  \"password\": \"mipass123\",\r\n  \"nombre\": \"Supervisor\",\r\n  \"rolId\": 2\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -50,7 +50,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"lucas@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}",
+							"raw": "{\r\n  \"email\": \"denis@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -602,7 +602,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5NDc1MCwiZXhwIjoxNzY4MjM3OTUwfQ.4QASBBeUyujWbHfCHtZ9kGrwCHymksx_nW0SGop3IWY",
 										"type": "text"
 									},
 									{
@@ -1377,7 +1377,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMTNjYzBjYi1mMjIzLTRiNjAtYTU3Ni01ZWJhNTUxYTRmYzUiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzcwNzk5LCJleHAiOjE3Njc4MTM5OTl9.q08_OQWTXmZdYGAdCZhCZvbEmJ9UOarBKVxqs2R7PXs",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1OTU0NzJlYi03YjBmLTQzZGUtOTg0OS0yOTdjMzI3N2EyNTEiLCJlbWFpbCI6ImFhQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODI5NjU4NiwiZXhwIjoxNzY4MzM5Nzg2fQ.1FJJPWq2b6eJQLwjI4yFXtctmiDFugRVs6WVH-fsVys",
 										"type": "text"
 									},
 									{
@@ -1761,7 +1761,7 @@
 									"response": []
 								},
 								{
-									"name": "Listar sucursales de un Usuario",
+									"name": "Listar sucursales de un Cliente",
 									"protocolProfileBehavior": {
 										"disableBodyPruning": true
 									},
@@ -1770,7 +1770,7 @@
 										"header": [
 											{
 												"key": "Authorization",
-												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMzBkYzE1Ny1jMzYxLTQzN2MtYWE1ZC1iODY2OThjNzUxOWEiLCJlbWFpbCI6Im9tZXJAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NTQ4NjIyLCJleHAiOjE3Njc1OTE4MjJ9.qwMIdGK3okF4tvpHbquv_aSGkz0N5QKCh0RZVKWfm9k",
+												"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5Njg0NywiZXhwIjoxNzY4MjQwMDQ3fQ.5K4ZDgGAzFoCsGow2VI0D7gAKhiLH7lJz7CLKLQv4Zs",
 												"type": "text"
 											},
 											{
@@ -1784,14 +1784,14 @@
 											"raw": ""
 										},
 										"url": {
-											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales",
+											"raw": "{{baseURL}}/api/clientes/3d767130-2660-47da-a19f-9de23420c5ed/sucursales",
 											"host": [
 												"{{baseURL}}"
 											],
 											"path": [
 												"api",
 												"clientes",
-												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"3d767130-2660-47da-a19f-9de23420c5ed",
 												"sucursales"
 											]
 										}
@@ -1932,14 +1932,14 @@
 											"raw": ""
 										},
 										"url": {
-											"raw": "{{baseURL}}/api/clientes/79863b0c-f9a5-4598-8b52-64cc761d5da4/sucursales/desactivadas",
+											"raw": "{{baseURL}}/api/clientes/3d767130-2660-47da-a19f-9de23420c5ed/sucursales/desactivadas",
 											"host": [
 												"{{baseURL}}"
 											],
 											"path": [
 												"api",
 												"clientes",
-												"79863b0c-f9a5-4598-8b52-64cc761d5da4",
+												"3d767130-2660-47da-a19f-9de23420c5ed",
 												"sucursales",
 												"desactivadas"
 											]
@@ -2035,7 +2035,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZWZkOThiMy1jMTRhLTRkNWMtOGIyZS00MGNkYmIyNzliYTgiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTc0OTgzLCJleHAiOjE3NjgyMTgxODN9.ii6EwJiwOqkPo2AtRGehlotBiK8bfc4v1X24fYSCzhg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOWIzZTVkMi04YzM1LTRkNWMtOWY5Zi00NGNkZDg3N2M2MzUiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODM1NTEzMiwiZXhwIjoxNzY4Mzk4MzMyfQ.bHOaFNwUH8KOvImGkar6OTohPfD7eYnP8cdsTBm0GRs",
 										"type": "text"
 									},
 									{
@@ -2076,7 +2076,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NzhkM2ViNy0yZGY5LTRiYTUtYmYyZi1hOTQ5YzZiMWVmNjEiLCJlbWFpbCI6Imx1Y2FzQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE3NTg1OCwiZXhwIjoxNzY4MjE5MDU4fQ.EQjEE7lY36rULP8kMkfidZMAYNFMR1Xaste3d_QUdkU",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5NDc1MCwiZXhwIjoxNzY4MjM3OTUwfQ.4QASBBeUyujWbHfCHtZ9kGrwCHymksx_nW0SGop3IWY",
 										"type": "text"
 									},
 									{
@@ -2090,14 +2090,14 @@
 									"raw": ""
 								},
 								"url": {
-									"raw": "{{baseURL}}/api/clientes/678d3eb7-2df9-4ba5-bf2f-a949c6b1ef61",
+									"raw": "{{baseURL}}/api/clientes/d6e5c313-5083-4557-bc33-1958252ecb9d",
 									"host": [
 										"{{baseURL}}"
 									],
 									"path": [
 										"api",
 										"clientes",
-										"678d3eb7-2df9-4ba5-bf2f-a949c6b1ef61"
+										"d6e5c313-5083-4557-bc33-1958252ecb9d"
 									]
 								}
 							},
@@ -2251,7 +2251,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyNTYzYTRhYS1kZGVkLTQ3Y2EtOTRiOS1jY2MxNmZjNDVlZTYiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG8uY29tIiwicm9sZSI6InZlbmRlZG9yIiwiaWF0IjoxNzY4MTU5OTE1LCJleHAiOjE3NjgyMDMxMTV9._oZZvq20qRfDymyWpGlIzSz5NIUdvCfiF0vgqLU0m6I",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjhhYmJlYy0wMTU4LTRhYjYtODExNC04ZjYzYWQ5YTk5YTgiLCJlbWFpbCI6ImpqQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoidmVuZGVkb3IiLCJpYXQiOjE3NjgxODU1ODQsImV4cCI6MTc2ODIyODc4NH0.qK3SRa_O7MnXTZYNgQQAv5X5y1FvSQCIYB6VaxlPSMY",
 										"type": "text"
 									},
 									{
@@ -2816,7 +2816,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwYjVlNmZhZC1kYWQ0LTRiNGUtODg2ZS03NDQwOGJiOGY2ZmQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY4MTUxNzE1LCJleHAiOjE3NjgxOTQ5MTV9.CkYUwOV0X-4FVEwLGewrZh-DLlUPFRIzWy_fex8dfD4",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOWIzZTVkMi04YzM1LTRkNWMtOWY5Zi00NGNkZDg3N2M2MzUiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODM1NTEzMiwiZXhwIjoxNzY4Mzk4MzMyfQ.bHOaFNwUH8KOvImGkar6OTohPfD7eYnP8cdsTBm0GRs",
 										"type": "text"
 									},
 									{
@@ -2827,7 +2827,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n  \"cliente_id\": \"a5e09259-0802-4106-8a3e-86c0d10f01ab\",\r\n  \"sucursal_id\": \"7f521126-5b8d-4869-8fce-04be72e79372\",  // ← ID de la sucursal\r\n  \"zona_id\": 2,\r\n  \"dia_semana\": 3,      // Miércoles\r\n  \"frecuencia\": \"SEMANAL\",\r\n  \"prioridad_visita\": \"NORMAL\",\r\n  \"orden_sugerido\": 2,\r\n  \"hora_estimada_arribo\": \"10:00:00\"\r\n}"
+									"raw": "{\r\n  \"cliente_id\": \"efa7dd5e-367f-4275-937a-48f371a5b6a8\",\r\n  \"zona_id\": 2,\r\n  \"dia_semana\": 3,      // Miércoles\r\n  \"frecuencia\": \"SEMANAL\",\r\n  \"prioridad_visita\": \"NORMAL\",\r\n  \"orden_sugerido\": 2,\r\n  \"hora_estimada_arribo\": \"10:00:00\"\r\n}"
 								},
 								"url": {
 									"raw": "{{baseURL}}/api/rutero",
@@ -2959,6 +2959,45 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Editar Ruta",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOWIzZTVkMi04YzM1LTRkNWMtOWY5Zi00NGNkZDg3N2M2MzUiLCJlbWFpbCI6ImRlbmlzQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODM1NTEzMiwiZXhwIjoxNzY4Mzk4MzMyfQ.bHOaFNwUH8KOvImGkar6OTohPfD7eYnP8cdsTBm0GRs",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"zona_id\": 1,\r\n  \"dia_semana\": 4,\r\n  \"frecuencia\": \"SEMANAL\",\r\n  \"prioridad_visita\": \"ALTA\",\r\n  \"orden_sugerido\": 1,\r\n  \"hora_estimada_arribo\": \"10:30:00\",\r\n  \"activo\": true\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseURL}}/api/rutero/d34bd4c2-f3e6-423f-81bc-948e8ea057cb",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"rutero",
+										"d34bd4c2-f3e6-423f-81bc-948e8ea057cb"
+									]
+								}
+							},
+							"response": []
 						}
 					],
 					"event": [
@@ -3004,7 +3043,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"Andres@cafrilos.com\",\r\n  \"password\": \"123456\"\r\n}"
+							"raw": "{\r\n  \"email\": \"juana@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}"
 						},
 						"url": {
 							"raw": "{{auth}}/auth/login",
@@ -3092,7 +3131,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiODc1ZDA2MC01OTg4LTQ1NjYtOTc4NS02MWQzYzk3ZGY4NWIiLCJlbWFpbCI6ImNsaWVudGVAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY3NzE4NzA3LCJleHAiOjE3Njc3NjE5MDd9.P2IBwt6r8ZFOSXrTNAdfX08WT2OzzZZCzU2n8DJvy24",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI3NTMzNywiZXhwIjoxNzY4MzE4NTM3fQ.QAwdqGkuSrWK73_PONyRK--Yhca-WT9dDc-2bfKlEC8",
 								"type": "text"
 							},
 							{
@@ -3223,10 +3262,106 @@
 			"name": "Orders",
 			"item": [
 				{
-					"name": "Crear Nuevo Pedido",
+					"name": "Crear Carrito",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI5MjE4MiwiZXhwIjoxNzY4MzM1MzgyfQ.Wv9nQXaFHn6drk76wJLr44oug_VVavwlwYpM4i8mpv8",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"producto_id\": \"a7add99b-ed16-4d6e-ba2e-b785239470eb\",\r\n  \"cantidad\": 2,\r\n  \"precio_unitario_ref\": 20\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{orders}}/orders/cart/d6e5c313-5083-4557-bc33-1958252ecb9d",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"cart",
+								"d6e5c313-5083-4557-bc33-1958252ecb9d"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Carrito",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI3NTMzNywiZXhwIjoxNzY4MzE4NTM3fQ.QAwdqGkuSrWK73_PONyRK--Yhca-WT9dDc-2bfKlEC8",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{orders}}/orders/cart/d6e5c313-5083-4557-bc33-1958252ecb9d",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"cart",
+								"d6e5c313-5083-4557-bc33-1958252ecb9d"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Pedido",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5NDc1MCwiZXhwIjoxNzY4MjM3OTUwfQ.4QASBBeUyujWbHfCHtZ9kGrwCHymksx_nW0SGop3IWY",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"cliente_id\": \"33333333-3333-4333-8333-333333333333\",\r\n  \"vendedor_id\": \"11111111-1111-4111-8111-111111111111\",\r\n  \"sucursal_id\": null,\r\n  \"items\": [\r\n    {\r\n      \"producto_id\": \"22222222-2222-4222-8222-222222222222\",\r\n      \"cantidad\": 2,\r\n      \"precio_unitario\": 12.5,\r\n      \"precio_original\": 15.0,\r\n      \"codigo_sku\": \"SKU-001\",\r\n      \"nombre_producto\": \"Producto A\",\r\n      \"unidad_medida\": \"UN\",\r\n      \"motivo_descuento\": \"Promoción X\",\r\n      \"campania_aplicada_id\": 123\r\n    }\r\n  ],\r\n  \"observaciones_entrega\": \"Dejar en portería\",\r\n  \"condicion_pago\": \"CONTADO\",\r\n  \"fecha_entrega_solicitada\": \"2026-01-20\",\r\n  \"origen_pedido\": \"APP_MOVIL\",\r\n  \"ubicacion\": { \"lat\": -0.12345, \"lng\": -78.12345 },\r\n  \"descuento_total\": 5.0\r\n}"
+						},
 						"url": {
 							"raw": "{{orders}}/orders",
 							"host": [
@@ -3242,13 +3377,13 @@
 			]
 		},
 		{
-			"name": "New Request",
+			"name": "Crear un Pedido",
 			"request": {
 				"method": "POST",
 				"header": [
 					{
 						"key": "Authorization",
-						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NmFlZTFmMy03Nzk0LTQwZmYtYmJkNC05Y2YwMTMwNmJiZWUiLCJlbWFpbCI6Imp1YW5AY2Fmcmlsb3NhLmNvbSIsInJvbElkIjoyLCJpYXQiOjE3NjcwNDQzNzYsImV4cCI6MTc2NzA0NDk3Nn0.3MsxyhARncDC1DPCFEVDfivj2d8YkQeaeeFTlsJ65lY",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI3NTMzNywiZXhwIjoxNzY4MzE4NTM3fQ.QAwdqGkuSrWK73_PONyRK--Yhca-WT9dDc-2bfKlEC8",
 						"type": "text"
 					},
 					{
@@ -3259,7 +3394,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": " { \"nombre\": \"Bebidas\", \"descripcion\": \"Bebidas frías\" }",
+					"raw": "{\r\n  \"producto_id\": \"e3fdbb72-1561-462c-8cb3-ab88026c2629\",\r\n  \"cantidad\": 2,\r\n  \"precio_unitario_ref\": 35\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -3267,13 +3402,15 @@
 					}
 				},
 				"url": {
-					"raw": "{{baseURL}}/api/categories",
+					"raw": "{{baseURL}}/api/orders/cart/:",
 					"host": [
 						"{{baseURL}}"
 					],
 					"path": [
 						"api",
-						"categories"
+						"orders",
+						"cart",
+						":"
 					]
 				}
 			},

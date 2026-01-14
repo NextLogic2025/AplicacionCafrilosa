@@ -27,6 +27,36 @@ export async function crearRuta(payload: CrearRutaPayload): Promise<any> {
   if (!res.ok) throw new Error('Error al guardar ruta');
   return await res.json();
 }
+
+// NUEVA FUNCIÓN PARA EDITAR RUTA FILTRADA
+export async function editarRutaFiltrada(
+  id: string,
+  data: {
+    zona_id: number;
+    dia_semana: number;
+    frecuencia: string;
+    prioridad_visita: string;
+    orden_sugerido: number;
+    hora_estimada_arribo: string;
+    activo: boolean;
+  }
+): Promise<any> {
+  const baseUrl = import.meta.env.VITE_CATALOGO_BASE_URL || 'http://localhost:3003';
+  const url = `${baseUrl}/api/rutero/${id}`;
+  const token = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Error al editar ruta');
+  return await res.json();
+}
+
 import { httpCatalogo } from '../../../services/api/http'
 import type { ClienteRutero, RuteroPlanificado, DiaSemana } from './types'
 
@@ -39,7 +69,7 @@ export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: number
   console.log(`Consultando API con zona_id=${zonaId} y dia_semana=${diaSemana}`);
   const rutas = await httpCatalogo<any[]>(`/rutero?zona_id=${zonaId}&dia_semana=${diaSemana}`).catch(() => [])
   console.log('Datos recibidos desde el API:', rutas);
-  
+
   // Normalizamos a nuestra interfaz local
   return rutas.map((r: any) => ({
     id: r.id,
@@ -72,7 +102,6 @@ export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: str
 
   for (const item of datos) {
     const payload: any = {
-      cliente_id: item.cliente_id,
       zona_id: item.zona_id,
       dia_semana: diaToNumber(item.dia_semana),
       frecuencia: item.frecuencia || 'SEMANAL',
@@ -80,30 +109,26 @@ export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: str
       orden_sugerido: item.orden_sugerido,
       hora_estimada_arribo: formatearHora(item.hora_estimada),
       activo: item.activo ?? true,
-      tipo_direccion: item.tipo_direccion || 'PRINCIPAL',
-    }
-    
+    };
+
     // Agregar sucursal_id solo si tipo_direccion es SUCURSAL
     if (item.tipo_direccion === 'SUCURSAL' && item.sucursal_id) {
       payload.sucursal_id = item.sucursal_id
     }
-    
+
     if (item.id) {
       await httpCatalogo<void>(`/rutero/${item.id}`, {
         method: 'PUT',
         body: payload,
-      }).catch(async (error) => {
-        console.error('Error actualizando ruta, intentando recrear', error)
-        await httpCatalogo<void>('/rutero', {
-          method: 'POST',
-          body: payload,
-        })
-      })
+      }).catch((error) => {
+        console.error('Error actualizando ruta:', error);
+        throw error;
+      });
     } else {
       await httpCatalogo<void>('/rutero', {
         method: 'POST',
         body: payload,
-      })
+      });
     }
   }
 
@@ -135,7 +160,7 @@ export async function actualizarOrdenRutero(
 
 export async function obtenerTodasLasRutas(): Promise<RuteroPlanificado[]> {
   const all = await httpCatalogo<any[]>(`/rutero`).catch(() => [])
-  
+
   return (all || []).map((r: any) => ({
     id: r.id,
     cliente_id: r.cliente_id,
@@ -173,13 +198,13 @@ export async function eliminarRutaPorZonaYDia(zonaId: number, diaSemana: DiaSema
     return map[d] ?? 2
   }
   const rutas = await obtenerRuteroPorZonaYDia(zonaId, diaToNumber(diaSemana))
-  
+
   for (const ruta of rutas) {
     // Asumiendo que existe DELETE /rutero/:id, ajustar según API real
     if (!ruta.id) continue
     await httpCatalogo(`/rutero/${ruta.id}`, {
       method: 'DELETE',
-    }).catch(() => {})
+    }).catch(() => { })
   }
 }
 

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ZonaMapaGoogle } from '../../components/ZonaMapaGoogle';
 import { PageHero } from 'components/ui/PageHero';
+import { Modal } from 'components/ui/Modal';
+import { FormField } from 'components/ui/FormField';
 import { Plus, Map } from 'lucide-react';
 import { ZonaSelector } from '../../components/ZonaSelector';
-import { obtenerRuteroPorZonaYDia } from '../../services/ruteroApi';
+import { obtenerRuteroPorZonaYDia, editarRutaFiltrada } from '../../services/ruteroApi';
 import { obtenerZonas } from '../../services/zonasApi';
 
 type DiaSemana = 'LUNES' | 'MARTES' | 'MIERCOLES' | 'JUEVES' | 'VIERNES';
@@ -38,6 +40,22 @@ export default function RutasPage() {
   const [poligonoZona, setPoligonoZona] = useState<Array<{ lat: number; lng: number }>>([]);
   const [puntosMapa, setPuntosMapa] = useState<Array<{ lat: number; lng: number; nombre?: string }>>([]);
   const [zonas, setZonas] = useState<any[]>([]);
+
+  // Estado para edición de ruta
+  const [rutaEditando, setRutaEditando] = useState<Ruta | null>(null);
+  const [editForm, setEditForm] = useState({
+    zona_id: '',
+    dia_semana: '',
+    frecuencia: '',
+    prioridad_visita: '',
+    orden_sugerido: '',
+    hora_estimada_arribo: '',
+    activo: true,
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Estado para notificaciones toast
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const navigate = useNavigate();
 
@@ -73,7 +91,7 @@ export default function RutasPage() {
           if (typeof poligono === 'string') {
             try {
               poligono = JSON.parse(poligono);
-            } catch {}
+            } catch { }
           }
           // Si es GeoJSON tipo Polygon, transformar a array de {lat, lng}
           if (poligono && poligono.type === 'Polygon' && Array.isArray(poligono.coordinates)) {
@@ -97,7 +115,7 @@ export default function RutasPage() {
         const diaSeleccionadoNum = diaMap[diaSeleccionado];
         const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaSeleccionadoNum);
         console.log('Rutas recibidas desde el API:', rutasApi);
-          
+
         // Filtrar rutas localmente para asegurar que coincidan con la zona y el día seleccionados
         const rutasFiltradas = rutasApi.filter(ruta => {
           const rutaDia = Number(ruta.dia_semana);
@@ -137,6 +155,21 @@ export default function RutasPage() {
     }
     cargarRutasYPoligono();
   }, [zonaSeleccionada, diaSeleccionado, zonas]);
+
+  // Cuando se abre el modal, cargar los datos actuales
+  useEffect(() => {
+    if (rutaEditando) {
+      setEditForm({
+        zona_id: zonaSeleccionada,
+        dia_semana: String(diasSemana.indexOf(diaSeleccionado) + 1),
+        frecuencia: rutaEditando.frecuencia || '',
+        prioridad_visita: rutaEditando.prioridad_visita || '',
+        orden_sugerido: '1',
+        hora_estimada_arribo: rutaEditando.hora_estimada || '',
+        activo: true,
+      });
+    }
+  }, [rutaEditando]);
 
   return (
     <div className="space-y-6">
@@ -178,7 +211,7 @@ export default function RutasPage() {
           </button>
           <button
             className="flex items-center gap-2 rounded-lg bg-brand-red px-5 py-2 text-sm font-semibold text-white shadow hover:bg-brand-red-dark transition-all duration-150"
-            // Aquí puedes poner la lógica para el mapa general
+          // Aquí puedes poner la lógica para el mapa general
           >
             <Plus className="h-4 w-4" />
             Mapa General
@@ -210,13 +243,173 @@ export default function RutasPage() {
                   <div className="text-sm text-neutral-700"><span className="font-medium">Prioridad:</span> {ruta.prioridad_visita}</div>
                   <div className="text-sm text-neutral-700"><span className="font-medium">Frecuencia:</span> {ruta.frecuencia}</div>
                   <div className="text-sm text-neutral-700"><span className="font-medium">Hora estimada:</span> {ruta.hora_estimada || 'No definida'}</div>
+                  <button
+                    className="mt-2 px-4 py-1 rounded bg-brand-red text-white font-semibold hover:bg-brand-red-dark"
+                    onClick={() => setRutaEditando(ruta)}
+                  >
+                    Editar
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+      {/* Modal de edición */}
+      <Modal
+        isOpen={!!rutaEditando}
+        title="Editar Ruta"
+        onClose={() => setRutaEditando(null)}
+        headerGradient="red"
+        maxWidth="md"
+      >
+        <form
+          onSubmit={async e => {
+            e.preventDefault();
+            setEditLoading(true);
+            try {
+              await editarRutaFiltrada(rutaEditando!.id!, {
+                zona_id: Number(editForm.zona_id),
+                dia_semana: Number(editForm.dia_semana),
+                frecuencia: editForm.frecuencia,
+                prioridad_visita: editForm.prioridad_visita,
+                orden_sugerido: Number(editForm.orden_sugerido),
+                hora_estimada_arribo: editForm.hora_estimada_arribo,
+                activo: editForm.activo,
+              });
+              setRutaEditando(null);
+              // Actualizar el estado local con los campos correctamente mapeados
+              setRutas(rutas => rutas.map(r =>
+                r.id === rutaEditando!.id
+                  ? {
+                    ...r,
+                    prioridad_visita: editForm.prioridad_visita,
+                    frecuencia: editForm.frecuencia,
+                    hora_estimada: editForm.hora_estimada_arribo, // Mapear correctamente
+                  }
+                  : r
+              ));
+              setToast({ type: 'success', message: '¡Ruta editada con éxito!' });
+              setTimeout(() => setToast(null), 3000);
+            } catch (err) {
+              setToast({ type: 'error', message: 'Error al editar la ruta' });
+              setTimeout(() => setToast(null), 3000);
+            }
+            setEditLoading(false);
+          }}
+          className="space-y-4"
+        >
+          <FormField
+            label="Prioridad"
+            type="select"
+            value={editForm.prioridad_visita}
+            onChange={value => setEditForm(f => ({ ...f, prioridad_visita: value }))}
+            options={[
+              { label: 'ALTA', value: 'ALTA' },
+              { label: 'MEDIA', value: 'MEDIA' },
+              { label: 'BAJA', value: 'BAJA' },
+            ]}
+          />
+          <FormField
+            label="Día de la semana"
+            type="select"
+            value={editForm.dia_semana}
+            onChange={value => setEditForm(f => ({ ...f, dia_semana: value }))}
+            options={[
+              { label: 'Lunes', value: '1' },
+              { label: 'Martes', value: '2' },
+              { label: 'Miércoles', value: '3' },
+              { label: 'Jueves', value: '4' },
+              { label: 'Viernes', value: '5' },
+            ]}
+          />
+          <FormField
+            label="Frecuencia"
+            type="select"
+            value={editForm.frecuencia}
+            onChange={value => setEditForm(f => ({ ...f, frecuencia: value }))}
+            options={[
+              { label: 'SEMANAL', value: 'SEMANAL' },
+              { label: 'QUINCENAL', value: 'QUINCENAL' },
+              { label: 'MENSUAL', value: 'MENSUAL' },
+            ]}
+          />
+          <FormField
+            label="Hora estimada de arribo"
+            type="select"
+            value={editForm.hora_estimada_arribo}
+            onChange={value => setEditForm(f => ({ ...f, hora_estimada_arribo: value }))}
+            options={[
+              { label: '08:00', value: '08:00:00' },
+              { label: '09:00', value: '09:00:00' },
+              { label: '10:00', value: '10:00:00' },
+              { label: '11:00', value: '11:00:00' },
+              { label: '12:00', value: '12:00:00' },
+              { label: '13:00', value: '13:00:00' },
+              { label: '14:00', value: '14:00:00' },
+              { label: '15:00', value: '15:00:00' },
+              { label: '16:00', value: '16:00:00' },
+              { label: '17:00', value: '17:00:00' },
+              { label: '18:00', value: '18:00:00' },
+            ]}
+          />
+          <div className="flex gap-3 mt-6">
+            <button
+              type="submit"
+              className="flex-1 bg-brand-red text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-brand-red-dark transition-all duration-150 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={editLoading}
+            >
+              {editLoading ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button
+              type="button"
+              className="flex-1 bg-neutral-200 text-neutral-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-neutral-300 transition-all duration-150"
+              onClick={() => setRutaEditando(null)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'success'
+            ? 'bg-green-500 text-white'
+            : 'bg-red-500 text-white'
+            }`}
+          style={{
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {toast.type === 'success' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-semibold">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
-
 }
