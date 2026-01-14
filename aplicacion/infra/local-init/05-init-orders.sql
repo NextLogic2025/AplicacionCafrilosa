@@ -143,7 +143,7 @@ CREATE TABLE promociones_aplicadas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pedido_id UUID REFERENCES pedidos(id) ON DELETE CASCADE,
     detalle_pedido_id UUID REFERENCES detalles_pedido(id) ON DELETE CASCADE,
-    campaña_id INT,
+    campania_id INT,
     tipo_descuento VARCHAR(20),
     valor_descuento DECIMAL(10,2),
     monto_aplicado DECIMAL(12,2) NOT NULL CHECK (monto_aplicado >= 0), -- Cuánto dinero se ahorró

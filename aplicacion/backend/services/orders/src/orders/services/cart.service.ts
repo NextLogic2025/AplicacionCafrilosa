@@ -36,6 +36,27 @@ export class CartService {
             });
             cart = await this.cartRepo.save(cart);
             cart.items = [];
+            // Intentar resolver cliente_id desde Catalog para usuarios que sean clientes
+            try {
+                const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+                const fetchFn = (globalThis as any).fetch;
+                if (typeof fetchFn === 'function') {
+                    const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                    const url = apiBase + '/internal/clients/by-user/' + usuario_id;
+                    const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
+                    if (resp && resp.ok) {
+                        const body = await resp.json();
+                        if (body && body.id) {
+                            cart.cliente_id = body.id;
+                            await this.cartRepo.save(cart);
+                            this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id);
+                        }
+                    }
+                }
+            } catch (err) {
+                this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id, err: err?.message || String(err) });
+            }
         } else {
             // Recalcular totales al cargar el carrito para asegurar consistencia
             await this.recalculateTotals(cart.id);
@@ -54,10 +75,11 @@ export class CartService {
             if (typeof fetchFn === 'function' && cart.items && cart.items.length) {
                 try {
                     const ids = cart.items.map((it: any) => it.producto_id);
-                    const url = `${base.replace(/\/+$/, '')}/products/internal/batch`;
+                    const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                    const url = apiBase + '/products/internal/batch';
                     const resp: any = await fetchFn(url, {
                         method: 'POST',
-                        headers: Object.assign({ 'Content-Type': 'application/json' }, serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
+                        headers: Object.assign({ 'Content-Type': 'application/json' }, serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {}),
                         body: JSON.stringify({ ids, cliente_id: cart.cliente_id ?? undefined }),
                     });
 
@@ -139,22 +161,63 @@ export class CartService {
 
                 try {
                     if (typeof fetchFn === 'function') {
-                        const url = `${base.replace(/\/+$/, '')}/products/internal/batch`;
+                        const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                        const url = `${apiBase}/products/internal/batch`;
                         const resp: any = await fetchFn(url, {
                             method: 'POST',
                             headers: Object.assign({ 'Content-Type': 'application/json' }, serviceToken ? { Authorization: `Bearer ${serviceToken}` } : {}),
                             body: JSON.stringify({ ids: [dto.producto_id], cliente_id: cart.cliente_id ?? undefined }),
                         });
-                        if (resp && resp.ok) {
-                            const arr = await resp.json();
-                            const best = Array.isArray(arr) && arr.length ? arr[0] : null;
-                            if (best && best.promocion?.precio_final != null) {
-                                precioUnitarioRef = Number(best.promocion.precio_final);
-                                precioOriginalSnapshot = best.promocion.precio_lista ?? precioOriginalSnapshot;
-                                campaniaAplicada = best.promocion.campania_id ?? campaniaAplicada;
-                                (cart as any).warnings = (cart as any).warnings || [];
-                                (cart as any).warnings.push({ producto_id: dto.producto_id, action: 'precio_sobrescrito', precio_final: precioUnitarioRef });
-                            }
+                                if (resp && resp.ok) {
+                                    const arr = await resp.json();
+                                    const best = Array.isArray(arr) && arr.length ? arr[0] : null;
+                                    if (best) {
+                                        // Si hay promoción aplicada, usarla y setear motivo con el nombre
+                                        if (best.promocion?.precio_final != null) {
+                                            precioUnitarioRef = Number(best.promocion.precio_final);
+                                            precioOriginalSnapshot = best.promocion.precio_lista ?? precioOriginalSnapshot;
+                                            campaniaAplicada = best.promocion.campania_id ?? campaniaAplicada;
+                                            dto.motivo_descuento = dto.motivo_descuento ?? (best.promocion.campania_nombre ?? null);
+                                            (cart as any).warnings = (cart as any).warnings || [];
+                                            (cart as any).warnings.push({ producto_id: dto.producto_id, action: 'precio_sobrescrito', precio_final: precioUnitarioRef });
+                                        } else {
+                                            // No hay promoción: intentar elegir precio de la lista del cliente
+                                            let chosenPrice: number | null = null;
+                                            try {
+                                                if (cart.cliente_id) {
+                                                    // Resolver lista de precios del cliente
+                                                    const baseCli = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                                                    const tokenCli = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+                                                    const fetchFn2 = (globalThis as any).fetch;
+                                                    if (typeof fetchFn2 === 'function') {
+                                                        const apiBaseCli = baseCli.replace(/\/+$/, '') + (baseCli.includes('/api') ? '' : '/api');
+                                                        const clientUrl = apiBaseCli + '/internal/clients/' + cart.cliente_id;
+                                                        const clientResp: any = await fetchFn2(clientUrl, { headers: tokenCli ? { Authorization: 'Bearer ' + tokenCli } : {} });
+                                                        if (clientResp && clientResp.ok) {
+                                                            const clientBody = await clientResp.json();
+                                                            const listaId = clientBody?.lista_precios_id ?? null;
+                                                            if (listaId && Array.isArray(best.precios) && best.precios.length) {
+                                                                const match = best.precios.find((p: any) => Number(p.lista_id) === Number(listaId));
+                                                                if (match) chosenPrice = Number(match.precio);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } catch (err) {
+                                                this.logger.debug('No se pudo resolver lista del cliente para precio', { err: err?.message || String(err) });
+                                            }
+
+                                            // Fallback: usar precio mínimo si no se obtuvo precio de la lista del cliente
+                                            if (chosenPrice == null && Array.isArray(best.precios) && best.precios.length) {
+                                                chosenPrice = Math.min(...best.precios.map((p: any) => Number(p.precio || 0)));
+                                            }
+
+                                            if (chosenPrice != null) {
+                                                precioUnitarioRef = Number(chosenPrice);
+                                                precioOriginalSnapshot = precioUnitarioRef;
+                                            }
+                                        }
+                                    }
                         }
                     }
                 } catch (err) {

@@ -1,0 +1,6 @@
+projectKey=cafrilosa
+serverUrl=http://localhost:9000
+serverVersion=26.1.0.118079
+dashboardUrl=http://localhost:9000/dashboard?id=cafrilosa
+ceTaskId=b50bde0c-db8d-4054-9f35-977c7508b869
+ceTaskUrl=http://localhost:9000/api/ce/task?id=b50bde0c-db8d-4054-9f35-977c7508b869

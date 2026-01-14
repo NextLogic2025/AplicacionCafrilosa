@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, Query, Logger, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -193,6 +193,25 @@ export class PromocionesController {
     }
 
     return { roles, clienteListaId, clienteId };
+  }
+
+  // Internal S2S endpoint for best promo (used by other services)
+  @Get('internal/mejor/producto/:id')
+  async getBestPromotionInternal(@Param('id') id: string, @Req() req: any, @Query('cliente_id') queryClienteId?: string) {
+    const serviceToken = process.env.SERVICE_TOKEN;
+    const auth = (req.headers?.authorization || '').toString();
+    if (serviceToken) {
+      const expected = 'Bearer ' + serviceToken;
+      if (auth !== expected) throw new BadRequestException('Unauthorized internal access');
+    }
+    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req, queryClienteId);
+    try {
+      const best = await this.svc.getBestPromotionForProduct(id, { clienteId, listaId: clienteListaId });
+      return best || {};
+    } catch (err) {
+      this.logger.warn({ msg: 'Error obteniendo mejor promo (internal)', err: err.message });
+      return {};
+    }
   }
 
   // ===== CLIENTES PERMITIDOS (para alcance POR_CLIENTE) =====

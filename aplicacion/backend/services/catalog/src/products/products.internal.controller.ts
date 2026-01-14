@@ -42,7 +42,7 @@ export class ProductsInternalController {
       nombre: r.nombre,
       unidad_medida: r.unidad_medida,
       precios: r.precios ?? [],
-      promocion: r.precio_oferta != null ? { campania_id: r.campania_aplicada_id ?? null, precio_final: r.precio_oferta, precio_lista: r.precio_original ?? null } : null,
+      promocion: r.precio_oferta != null ? { campania_id: r.campania_aplicada_id ?? null, campania_nombre: r.campania_aplicada_nombre ?? null, precio_final: r.precio_oferta, precio_lista: r.precio_original ?? null } : null,
     }));
   }
 }
