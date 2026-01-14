@@ -8,6 +8,8 @@ import { AccountOverview, QuickStats, RecentActivity } from '../../components/Da
 
 import { getUserName } from '../../../../storage/authStorage'
 
+import { ExpandableFab, type FabAction } from '../../../../components/ui/ExpandableFab'
+
 /**
  * ClientHomeScreen - Pantalla de Inicio del Cliente
  *
@@ -16,7 +18,7 @@ import { getUserName } from '../../../../storage/authStorage'
  * - Estadísticas rápidas (pedidos, facturas, entregas)
  * - Actividad reciente
  *
- * Nota: El FAB (botón flotante) se agrega automáticamente desde ClientNavigator
+ * Incluye el FAB (ExpandableFab) con acciones rápidas.
  */
 export function ClientHomeScreen() {
     const navigation = useNavigation()
@@ -27,6 +29,16 @@ export function ClientHomeScreen() {
             if (name) setUserName(name)
         })
     }, [])
+
+    const fabActions: FabAction[] = [
+        { icon: 'notifications-outline', label: 'Notificaciones', onPress: () => (navigation as any).navigate('Notifications') },
+        { icon: 'ticket-outline', label: 'Soporte', onPress: () => (navigation as any).navigate('Soporte') },
+        { icon: 'refresh-circle-outline', label: 'Devoluciones', onPress: () => (navigation as any).navigate('Returns') },
+        { icon: 'time-outline', label: 'Entregas', onPress: () => (navigation as any).navigate('Tracking') },
+        { icon: 'wallet-outline', label: 'Facturas', onPress: () => (navigation as any).navigate('Facturas') },
+        { icon: 'receipt-outline', label: 'Mis Pedidos', onPress: () => (navigation as any).navigate('Pedidos') },
+        { icon: 'business-outline', label: 'Sucursales', onPress: () => (navigation as any).navigate('Sucursales') }
+    ]
 
     return (
         <View className="flex-1 bg-neutral-50">
@@ -52,6 +64,8 @@ export function ClientHomeScreen() {
                 <QuickStats />
                 <RecentActivity navigation={navigation} />
             </ScrollView>
+
+            <ExpandableFab actions={fabActions} />
         </View>
     )
 }

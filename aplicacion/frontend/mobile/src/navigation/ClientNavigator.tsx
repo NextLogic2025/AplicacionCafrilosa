@@ -72,36 +72,6 @@ function BranchesStack() {
     )
 }
 
-/**
- * TabWithFab - Wrapper que agrega el FAB a las pantallas del tab
- *
- * Envuelve cada pantalla del tab con el FAB (botón flotante)
- * Recibe el nombre de la ruta para decidir si mostrar el FAB
- */
-function TabWithFab({ children, routeName }: { children: React.ReactNode; routeName: string }) {
-    const navigation = useNavigation()
-
-    const fabActions: FabAction[] = [
-        { icon: 'notifications-outline', label: 'Notificaciones', onPress: () => (navigation as any).navigate('Notifications') },
-        { icon: 'ticket-outline', label: 'Soporte', onPress: () => (navigation as any).navigate('Soporte') },
-        { icon: 'refresh-circle-outline', label: 'Devoluciones', onPress: () => (navigation as any).navigate('Returns') },
-        { icon: 'time-outline', label: 'Entregas', onPress: () => (navigation as any).navigate('Tracking') },
-        { icon: 'wallet-outline', label: 'Facturas', onPress: () => (navigation as any).navigate('Facturas') },
-        { icon: 'receipt-outline', label: 'Mis Pedidos', onPress: () => (navigation as any).navigate('Pedidos') },
-        { icon: 'business-outline', label: 'Sucursales', onPress: () => (navigation as any).navigate('Sucursales') }
-    ]
-
-    // No mostrar FAB en Perfil ni en Carrito
-    const shouldShowFab = routeName !== 'Perfil' && routeName !== 'Carrito'
-
-    return (
-        <View style={{ flex: 1 }}>
-            {children}
-            {shouldShowFab && <ExpandableFab actions={fabActions} />}
-        </View>
-    )
-}
-
 // --- TABS (Vista Principal) ---
 function ClientTabs() {
     return (
@@ -115,18 +85,10 @@ function ClientTabs() {
                 },
             }}
         >
-            <Tab.Screen name="Inicio">
-                {() => <TabWithFab routeName="Inicio"><ClientHomeScreen /></TabWithFab>}
-            </Tab.Screen>
-            <Tab.Screen name="Productos">
-                {() => <TabWithFab routeName="Productos"><ClientProductListScreen /></TabWithFab>}
-            </Tab.Screen>
-            <Tab.Screen name="Carrito">
-                {() => <TabWithFab routeName="Carrito"><ClientCartScreen /></TabWithFab>}
-            </Tab.Screen>
-            <Tab.Screen name="Perfil">
-                {() => <TabWithFab routeName="Perfil"><ClientProfileScreen /></TabWithFab>}
-            </Tab.Screen>
+            <Tab.Screen name="Inicio" component={ClientHomeScreen} />
+            <Tab.Screen name="Productos" component={ClientProductListScreen} />
+            <Tab.Screen name="Carrito" component={ClientCartScreen} />
+            <Tab.Screen name="Perfil" component={ClientProfileScreen} />
         </Tab.Navigator>
     )
 }

@@ -26,20 +26,35 @@ export function GenericModal({ visible, onClose, title, children, height = 'auto
             >
                 <View
                     className="bg-white rounded-t-3xl w-full"
-                    style={{ maxHeight: '90%', height: height === 'auto' ? undefined : height }}
+                    style={{
+                        maxHeight: '90%',
+                        height: height === 'auto' ? undefined : height,
+                        shadowColor: "#000",
+                        shadowOffset: {
+                            width: 0,
+                            height: -4,
+                        },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 10,
+                        elevation: 20,
+                    }}
                 >
                     {/* Header */}
                     <View className="flex-row justify-between items-center p-5 border-b border-neutral-100">
-                        <Text className="text-xl font-bold text-neutral-900">
+                        <Text className="text-xl font-bold text-neutral-900 tracking-tight">
                             {title}
                         </Text>
-                        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <Ionicons name="close" size={24} color="#6B7280" />
+                        <TouchableOpacity
+                            onPress={onClose}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            className="bg-neutral-100 p-2 rounded-full"
+                        >
+                            <Ionicons name="close" size={20} color="#6B7280" />
                         </TouchableOpacity>
                     </View>
 
                     {/* Content */}
-                    <ScrollView className="p-5" contentContainerStyle={{ paddingBottom: 40 }}>
+                    <ScrollView className="px-5 pt-2" contentContainerStyle={{ paddingBottom: 40 }}>
                         {children}
                     </ScrollView>
                 </View>

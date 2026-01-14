@@ -69,11 +69,23 @@ export const FeedbackModal = ({
             onRequestClose={onClose}
         >
             <View className="flex-1 bg-black/50 justify-center items-center px-6">
-                <View className="bg-white w-full rounded-2xl p-6 shadow-xl items-center">
+                <View
+                    className="bg-white w-full rounded-2xl p-6 items-center"
+                    style={{
+                        shadowColor: "#000",
+                        shadowOffset: {
+                            width: 0,
+                            height: 10,
+                        },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 10,
+                        elevation: 10,
+                    }}
+                >
                     {/* Icon Header */}
                     <View
-                        className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                        style={{ backgroundColor: config.bgColor }}
+                        className="w-16 h-16 rounded-full items-center justify-center mb-4 border-2 border-white shadow-sm"
+                        style={{ backgroundColor: config.bgColor, borderColor: config.bgColor }}
                     >
                         <Ionicons name={config.icon as any} size={32} color={config.color} />
                     </View>
@@ -88,24 +100,33 @@ export const FeedbackModal = ({
                     </Text>
 
                     {/* Actions */}
-                    <View className="flex-row w-full">
+                    <View className="flex-row w-full space-x-3">
                         {showCancel && (
                             <TouchableOpacity
-                                className="flex-1 py-3 rounded-xl border border-neutral-200 items-center justify-center bg-white mr-3"
+                                className="flex-1 py-3.5 rounded-xl border border-neutral-200 items-center justify-center bg-white"
                                 onPress={onClose}
+                                activeOpacity={0.7}
                             >
-                                <Text className="text-neutral-600 font-semibold text-base">
+                                <Text className="text-neutral-600 font-bold text-base">
                                     {cancelText}
                                 </Text>
                             </TouchableOpacity>
                         )}
 
                         <TouchableOpacity
-                            className="flex-1 py-3 rounded-xl items-center justify-center shadow-sm"
-                            style={{ backgroundColor: config.color }}
+                            className="flex-1 py-3.5 rounded-xl items-center justify-center shadow-md"
+                            style={{
+                                backgroundColor: config.color,
+                                shadowColor: config.color,
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 6,
+                                elevation: 6
+                            }}
                             onPress={onConfirm || onClose}
+                            activeOpacity={0.8}
                         >
-                            <Text className="text-white font-semibold text-base">
+                            <Text className="text-white font-bold text-base">
                                 {confirmText}
                             </Text>
                         </TouchableOpacity>
