@@ -444,4 +444,53 @@ it('Client creates order only from their cart', async () => {
 2. **ParÃ¡metro explÃ­cito**: `vendedorIdParam: string | null`
 3. **Controller especializado**: `POST /from-cart/me` vs `POST /from-cart/client/:id`
 
-Con estas tres cosas, cada actor SOLO ve y modifica su carrito. ðŸ”’
+Con estas tres cosas, cada actor SOLO ve y modifica su carrito. 
+
+## Rutas y payloads
+
+### Cliente
+- GET /orders/cart/me
+  - Headers: Authorization: Bearer <jwt_cliente>
+  - Body: none
+- POST /orders/cart/me
+  - Headers: Authorization: Bearer <jwt_cliente>
+  - Body JSON: { "producto_id": "<uuid>", "cantidad": <number>, "campania_aplicada_id"?: <number|null>, "motivo_descuento"?: <string> }
+- DELETE /orders/cart/me
+  - Headers: Authorization: Bearer <jwt_cliente>
+  - Body: none
+- DELETE /orders/cart/me/item/:productId
+  - Headers: Authorization: Bearer <jwt_cliente>
+  - Body: none
+- POST /orders/from-cart/me
+  - Headers: Authorization: Bearer <jwt_cliente>
+  - Body JSON: { "condicion_pago"?: "CONTADO"|"CREDITO", "sucursal_id"?: "<uuid>", "fecha_entrega_solicitada"?: "<iso8601>", "observaciones_entrega"?: "<string>", "ubicacion"?: { "lat": <number>, "lng": <number> } }
+  - vendededor_id se resuelve desde Catalog (vendedor_asignado_id) o queda null
+
+### Vendedor
+- GET /orders/cart/client/:clienteId
+  - Headers: Authorization: Bearer <jwt_vendedor>
+  - Body: none
+- POST /orders/cart/client/:clienteId
+  - Headers: Authorization: Bearer <jwt_vendedor>
+  - Body JSON: { "producto_id": "<uuid>", "cantidad": <number>, "campania_aplicada_id"?: <number|null>, "motivo_descuento"?: <string> }
+- DELETE /orders/cart/client/:clienteId
+  - Headers: Authorization: Bearer <jwt_vendedor>
+  - Body: none
+- DELETE /orders/cart/client/:clienteId/item/:productId
+  - Headers: Authorization: Bearer <jwt_vendedor>
+  - Body: none
+- POST /orders/from-cart/client/:clienteId
+  - Headers: Authorization: Bearer <jwt_vendedor>
+  - Body JSON: { "condicion_pago"?: "CONTADO"|"CREDITO", "sucursal_id"?: "<uuid>", "fecha_entrega_solicitada"?: "<iso8601>", "observaciones_entrega"?: "<string>", "ubicacion"?: { "lat": <number>, "lng": <number> } }
+  - vendedor_id = JWT del vendedor
+  - cliente_id = :clienteId del path
+  - limpia el carrito exacto por ID
+
+### Campos opcionales comunes
+- condicion_pago: default CONTADO
+- sucursal_id: null si no se envía
+- fecha_entrega_solicitada: null si no se envía
+- observaciones_entrega: null si no se envía
+- ubicacion: si no se envía, se intenta resolver desde Catalog (sucursal o cliente)
+- campania_aplicada_id, motivo_descuento: opcionales en items
+ðŸ”’
