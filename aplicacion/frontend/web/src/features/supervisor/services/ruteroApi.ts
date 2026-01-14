@@ -66,9 +66,7 @@ export async function obtenerClientesPorZona(_zonaId: number): Promise<ClienteRu
 
 export async function obtenerRuteroPorZonaYDia(zonaId: number, diaSemana: number): Promise<RuteroPlanificado[]> {
   // Consumir directamente desde el endpoint de la API
-  console.log(`Consultando API con zona_id=${zonaId} y dia_semana=${diaSemana}`);
   const rutas = await httpCatalogo<any[]>(`/rutero?zona_id=${zonaId}&dia_semana=${diaSemana}`).catch(() => [])
-  console.log('Datos recibidos desde el API:', rutas);
 
   // Normalizamos a nuestra interfaz local
   return rutas.map((r: any) => ({

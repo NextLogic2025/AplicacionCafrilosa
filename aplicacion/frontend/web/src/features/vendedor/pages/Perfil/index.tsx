@@ -28,45 +28,45 @@ export default function VendedorPerfil() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const t = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token')
-        if (!t) {
+      ; (async () => {
+        try {
+          const t = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token')
+          if (!t) {
+            if (!cancelled) {
+              setTokenUserId(null)
+              setCanEditSelf(false)
+            }
+            return
+          }
+          const parts = t.split('.')
+          if (parts.length < 2) {
+            if (!cancelled) {
+              setTokenUserId(null)
+              setCanEditSelf(false)
+            }
+            return
+          }
+          const payload = JSON.parse(atob(parts[1])) as Record<string, any>
+          const id = (payload.sub ?? payload.id ?? payload.userId ?? payload.usuario_id ?? payload.uid) as string | undefined
+          if (!cancelled) setTokenUserId(id ?? null)
+
+          const rawRoleId = payload.rolId ?? payload.roleId ?? payload.rol_id ?? payload.role_id
+          const rawRoleName = payload.rol ?? payload.role ?? (payload.roleName ?? payload.nombre_rol)
+          const roleId = typeof rawRoleId === 'string' ? Number(rawRoleId) : rawRoleId
+          const roleName = typeof rawRoleName === 'string' ? String(rawRoleName).toLowerCase() : undefined
+          const isSupervisor = roleId === 2 || roleName === 'supervisor'
+          const tokenEmail = (payload.email ?? payload.usuario?.email ?? payload.user_email) as string | undefined
+          const isSelfById = !!id && profile?.id ? String(id) === String(profile.id) : false
+          const isSelfByEmail = tokenEmail && profile?.email ? String(tokenEmail).toLowerCase() === String(profile.email).toLowerCase() : false
+
+          if (!cancelled) setCanEditSelf(isSupervisor || isSelfById || isSelfByEmail)
+        } catch (err) {
           if (!cancelled) {
             setTokenUserId(null)
             setCanEditSelf(false)
           }
-          return
         }
-        const parts = t.split('.')
-        if (parts.length < 2) {
-          if (!cancelled) {
-            setTokenUserId(null)
-            setCanEditSelf(false)
-          }
-          return
-        }
-        const payload = JSON.parse(atob(parts[1])) as Record<string, any>
-        const id = (payload.sub ?? payload.id ?? payload.userId ?? payload.usuario_id ?? payload.uid) as string | undefined
-        if (!cancelled) setTokenUserId(id ?? null)
-
-        const rawRoleId = payload.rolId ?? payload.roleId ?? payload.rol_id ?? payload.role_id
-        const rawRoleName = payload.rol ?? payload.role ?? (payload.roleName ?? payload.nombre_rol)
-        const roleId = typeof rawRoleId === 'string' ? Number(rawRoleId) : rawRoleId
-        const roleName = typeof rawRoleName === 'string' ? String(rawRoleName).toLowerCase() : undefined
-        const isSupervisor = roleId === 2 || roleName === 'supervisor'
-        const tokenEmail = (payload.email ?? payload.usuario?.email ?? payload.user_email) as string | undefined
-        const isSelfById = !!id && profile?.id ? String(id) === String(profile.id) : false
-        const isSelfByEmail = tokenEmail && profile?.email ? String(tokenEmail).toLowerCase() === String(profile.email).toLowerCase() : false
-
-        if (!cancelled) setCanEditSelf(isSupervisor || isSelfById || isSelfByEmail)
-      } catch (err) {
-        if (!cancelled) {
-          setTokenUserId(null)
-          setCanEditSelf(false)
-        }
-      }
-    })()
+      })()
     return () => { cancelled = true }
   }, [profile])
 
@@ -86,7 +86,7 @@ export default function VendedorPerfil() {
         chips={[{ label: 'Datos personales', variant: 'blue' }, { label: 'Zona comercial', variant: 'green' }]}
       />
 
-      {error && <Alert type="error" title="Error" message={error} />} 
+      {error && <Alert type="error" title="Error" message={error} />}
 
       <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-4 justify-between">
@@ -123,19 +123,19 @@ export default function VendedorPerfil() {
 
           <div>
             {!editing ? (
-                <>
-                  <button
-                    className={`inline-flex items-center gap-2 rounded-md px-3 py-1 text-sm font-semibold ${canEditSelf ? 'bg-brand-red text-white' : 'bg-gray-200 text-gray-600 cursor-not-allowed'}`}
-                    onClick={() => { if (canEditSelf) { setEditing(true); setSuccess(null) } }}
-                    title={canEditSelf ? 'Editar' : 'No tienes permisos para editar este usuario con las credenciales actuales'}
-                  >
-                    Editar
-                  </button>
-                  {!canEditSelf && (
-                    <div className="mt-2 text-sm text-yellow-700">No puedes editar este perfil con tu sesión actual. Inicia sesión con la cuenta correcta o solicita permisos.</div>
-                  )}
-                </>
-              ) : (
+              <>
+                <button
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-1 text-sm font-semibold ${canEditSelf ? 'bg-brand-red text-white' : 'bg-gray-200 text-gray-600 cursor-not-allowed'}`}
+                  onClick={() => { if (canEditSelf) { setEditing(true); setSuccess(null) } }}
+                  title={canEditSelf ? 'Editar' : 'No tienes permisos para editar este usuario con las credenciales actuales'}
+                >
+                  Editar
+                </button>
+                {!canEditSelf && (
+                  <div className="mt-2 text-sm text-yellow-700">No puedes editar este perfil con tu sesión actual. Inicia sesión con la cuenta correcta o solicita permisos.</div>
+                )}
+              </>
+            ) : (
               <div className="flex gap-2">
                 <button
                   className="inline-flex items-center gap-2 rounded-md bg-brand-red px-3 py-1 text-white text-sm font-semibold"
@@ -144,15 +144,6 @@ export default function VendedorPerfil() {
                       setSuccess(null)
                       setLocalError(null)
                       const body = { nombre: form.nombre || null, telefono: form.telefono || null }
-                      // Temporary debug logs (only in dev)
-                      try {
-                        if (import.meta.env.DEV) {
-                          // eslint-disable-next-line no-console
-                          console.log('DEBUG updateProfile - profileId:', profile?.id, 'usuariosBase:', env.api.usuarios, 'body:', body)
-                        }
-                      } catch (e) {
-                        // ignore logging errors
-                      }
                       await updateProfile(body as any)
                       setSuccess('Perfil actualizado')
                       setEditing(false)

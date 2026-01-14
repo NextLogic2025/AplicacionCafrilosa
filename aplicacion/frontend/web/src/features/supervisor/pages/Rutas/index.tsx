@@ -99,22 +99,17 @@ export default function RutasPage() {
             const coords = poligono.coordinates[0];
             const poligonoGoogle = coords.map((c: [number, number]) => ({ lat: c[1], lng: c[0] }));
             setPoligonoZona(poligonoGoogle);
-            console.log('Polígono transformado:', poligonoGoogle);
           } else if (Array.isArray(poligono)) {
             setPoligonoZona(poligono);
-            console.log('Polígono cargado:', poligono);
           } else {
             setPoligonoZona([]);
-            console.warn('Polígono no es array ni GeoJSON:', poligono);
           }
         } else {
           setPoligonoZona([]);
-          console.warn('No hay polígono para la zona seleccionada');
         }
         // Cargar rutas
         const diaSeleccionadoNum = diaMap[diaSeleccionado];
         const rutasApi = await obtenerRuteroPorZonaYDia(Number(zonaSeleccionada), diaSeleccionadoNum);
-        console.log('Rutas recibidas desde el API:', rutasApi);
 
         // Filtrar rutas localmente para asegurar que coincidan con la zona y el día seleccionados
         const rutasFiltradas = rutasApi.filter(ruta => {
@@ -124,8 +119,6 @@ export default function RutasPage() {
             rutaDia === diaSeleccionadoNum
           );
         });
-        console.log('Rutas filtradas por zona y día:', rutasFiltradas);
-        console.log('Rutas filtradas localmente:', rutasFiltradas);
         setRutas(rutasFiltradas as Ruta[]);
         // Extraer puntos de las rutas filtradas (si tienen ubicación)
         const puntos = rutasFiltradas
@@ -145,7 +138,6 @@ export default function RutasPage() {
           })
           .filter((p): p is { lat: number; lng: number; nombre: string } => p !== null);
         setPuntosMapa(puntos as { lat: number; lng: number; nombre: string }[]);
-        console.log('Puntos de rutas:', puntos);
       } catch {
         setRutas([]);
         setPoligonoZona([]);
@@ -214,7 +206,7 @@ export default function RutasPage() {
           // Aquí puedes poner la lógica para el mapa general
           >
             <Plus className="h-4 w-4" />
-            Mapa General
+            Rutas Inactivas
           </button>
         </div>
       </div>

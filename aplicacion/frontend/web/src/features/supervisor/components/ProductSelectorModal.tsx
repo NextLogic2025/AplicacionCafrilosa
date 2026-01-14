@@ -54,7 +54,7 @@ export function ProductSelectorModal({
   }
 
   const productosAsignadosArray = Array.isArray(productosAsignados) ? productosAsignados : []
-  
+
   const productosDisponibles = productos.filter(
     (p) =>
       !productosAsignadosArray.find((pa) => pa.producto_id === p.id) &&
@@ -67,15 +67,15 @@ export function ProductSelectorModal({
       isOpen={isOpen}
       title="Gestionar Productos de Campaña"
       onClose={handleClose}
-      headerGradient="blue"
+      headerGradient="red"
       maxWidth="lg"
     >
       <div className="relative space-y-6">
         {notifications && notifications.length > 0 && (
           <div className="mb-4">
-            <NotificationStack 
-              notifications={notifications} 
-              onRemove={onRemoveNotification || (() => {})} 
+            <NotificationStack
+              notifications={notifications}
+              onRemove={onRemoveNotification || (() => { })}
             />
           </div>
         )}
@@ -166,9 +166,8 @@ export function ProductSelectorModal({
                         setSelectedProductId(producto.id)
                         setSearchProducto('')
                       }}
-                      className={`w-full border-b border-neutral-200 px-4 py-3 text-left transition hover:bg-blue-50 ${
-                        selectedProductId === producto.id ? 'bg-blue-100' : 'bg-white'
-                      }`}
+                      className={`w-full border-b border-neutral-200 px-4 py-3 text-left transition hover:bg-blue-50 ${selectedProductId === producto.id ? 'bg-blue-100' : 'bg-white'
+                        }`}
                     >
                       <p className="text-sm font-medium text-gray-900">{producto.nombre}</p>
                       <p className="text-xs text-gray-600">{producto.codigo_sku}</p>

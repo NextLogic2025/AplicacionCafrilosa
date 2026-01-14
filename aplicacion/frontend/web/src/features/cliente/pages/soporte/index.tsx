@@ -56,7 +56,6 @@ export default function PaginaSoporte() {
 
   const enviarMensaje = () => {
     if (!mensajeNuevo.trim() || !ticketSeleccionado) return
-    console.log('Mensaje enviado (mock):', mensajeNuevo)
     setMensajeNuevo('')
     alert('Mensaje enviado (mock)')
   }

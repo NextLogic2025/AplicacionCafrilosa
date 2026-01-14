@@ -17,6 +17,9 @@ export default function ClientesPage() {
   const [zonas, setZonas] = useState<ZonaComercial[]>([])
   const [listasPrecios, setListasPrecios] = useState<ListaPrecio[]>([])
 
+  // Estado para notificaciones toast globales
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
   useEffect(() => {
     cargarClientes()
     cargarCatalogos()
@@ -63,6 +66,10 @@ export default function ClientesPage() {
 
   const handleSuccessCreate = () => {
     cargarClientes()
+    // Mostrar toast de éxito
+    const message = editingCliente ? '¡Cliente actualizado con éxito!' : '¡Cliente creado con éxito!'
+    setToast({ type: 'success', message })
+    setTimeout(() => setToast(null), 3000)
   }
 
   const handleEdit = (cliente: Cliente) => {
@@ -130,15 +137,15 @@ export default function ClientesPage() {
           razon_social: editingCliente.razon_social,
           nombre_comercial: editingCliente.nombre_comercial || '',
           tiene_credito: editingCliente.tiene_credito,
-          limite_credito: typeof editingCliente.limite_credito === 'string' 
-            ? parseFloat(editingCliente.limite_credito) || 0 
+          limite_credito: typeof editingCliente.limite_credito === 'string'
+            ? parseFloat(editingCliente.limite_credito) || 0
             : editingCliente.limite_credito,
           dias_plazo: editingCliente.dias_plazo,
           direccion_texto: editingCliente.direccion_texto || '',
           lista_precios_id: editingCliente.lista_precios_id,
           zona_comercial_id: editingCliente.zona_comercial_id,
           // Extraer coordenadas de ubicacion_gps (GeoJSON format) o usar latitud/longitud si existen
-          latitud: editingCliente.ubicacion_gps?.coordinates 
+          latitud: editingCliente.ubicacion_gps?.coordinates
             ? editingCliente.ubicacion_gps.coordinates[1]  // lat es el segundo elemento
             : editingCliente.latitud,
           longitud: editingCliente.ubicacion_gps?.coordinates
@@ -159,6 +166,45 @@ export default function ClientesPage() {
         zonas={zonas}
         listasPrecios={listasPrecios}
       />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+            }`}
+          style={{
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {toast.type === 'success' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-semibold">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
 }

@@ -25,6 +25,9 @@ export default function ZonasPage() {
   const [zonaEditando, setZonaEditando] = useState<ZonaComercial | null>(null)
   const [zonaDetalle, setZonaDetalle] = useState<ZonaComercial | null>(null)
   const [isMapaGeneralOpen, setIsMapaGeneralOpen] = useState(false)
+
+  // Estado para notificaciones toast globales
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const emptyForm: CreateZonaDto = {
     codigo: '',
     nombre: '',
@@ -108,10 +111,13 @@ export default function ZonasPage() {
       if (modalMode === 'crear') {
         await crearZonaConVendedor(formData, vendedorSeleccionado || undefined)
         setSubmitMessage({ type: 'success', message: 'Zona creada correctamente' })
+        // Mostrar toast global
+        setToast({ type: 'success', message: '¡Zona creada con éxito!' })
+        setTimeout(() => setToast(null), 3000)
       } else if (zonaEditando) {
         await actualizarZonaConVendedor(
-          zonaEditando.id, 
-          formData, 
+          zonaEditando.id,
+          formData,
           vendedorSeleccionado || undefined,
           zonaEditando.vendedor_asignado?.id
         )
@@ -120,11 +126,17 @@ export default function ZonasPage() {
           loadZonas();
         }, 400);
         setSubmitMessage({ type: 'success', message: 'Zona actualizada correctamente' })
+        // Mostrar toast global
+        setToast({ type: 'success', message: '¡Zona actualizada con éxito!' })
+        setTimeout(() => setToast(null), 3000)
       }
       await loadZonas()
       setTimeout(() => handleCloseModal(), 1000)
     } catch (err: any) {
       setSubmitMessage({ type: 'error', message: err?.message ?? 'No se pudo guardar la zona' })
+      // Mostrar toast de error
+      setToast({ type: 'error', message: 'Error al guardar la zona' })
+      setTimeout(() => setToast(null), 3000)
     } finally {
       setIsSubmitting(false)
     }
@@ -220,6 +232,45 @@ export default function ZonasPage() {
 
       <ZonaDetailModal zona={zonaDetalle} isOpen={!!zonaDetalle} onClose={handleCloseDetalle} />
       <MapaGeneralModal zonas={zonas} isOpen={isMapaGeneralOpen} onClose={() => setIsMapaGeneralOpen(false)} />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+            }`}
+          style={{
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {toast.type === 'success' ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-semibold">{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
 }

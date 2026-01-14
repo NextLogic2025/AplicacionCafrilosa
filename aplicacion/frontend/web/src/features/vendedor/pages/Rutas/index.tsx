@@ -51,15 +51,7 @@ export default function VendedorRutas() {
   const [isDetalleAbierto, setIsDetalleAbierto] = useState(false)
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAP_LIBRARIES })
 
-  // Log de depuración para ver los datos filtrados
-  useEffect(() => {
-    if (rutas.length > 0) {
-      console.log('Clientes asignados mostrados en rutas:', rutas.map(r => r.cliente));
-      console.log('Rutas planificadas mostradas:', rutas.map(r => r.plan));
-    } else {
-      console.log('No hay rutas filtradas para mostrar.');
-    }
-  }, [rutas]);
+
   useEffect(() => {
     cancelRef.current = false
     return () => {
@@ -67,41 +59,41 @@ export default function VendedorRutas() {
     }
   }, [])
 
-const cargarDatos = useCallback(async () => {
-  try {
-    setIsLoading(true)
-    setError(null)
+  const cargarDatos = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
 
-    const [clientesAsignados, rutasPlanificadas] = await Promise.all([
-      getClientesAsignados().catch(() => []),
-      obtenerTodasLasRutas().catch(() => []),
-    ])
+      const [clientesAsignados, rutasPlanificadas] = await Promise.all([
+        getClientesAsignados().catch(() => []),
+        obtenerTodasLasRutas().catch(() => []),
+      ])
 
-    // Indexar clientes asignados por id y por identificacion
-    const clientesIndex = new Map<string, Cliente>()
-    clientesAsignados.forEach((cliente) => {
-      if (cliente.id) clientesIndex.set(cliente.id, cliente)
-      if (cliente.identificacion) clientesIndex.set(cliente.identificacion, cliente)
-    })
-
-    // Filtrar rutas solo de clientes asignados y activos (no bloqueados ni eliminados)
-    const rutasFiltradas: RutaConCliente[] = rutasPlanificadas
-      .map((plan) => {
-        const cliente = clientesIndex.get(plan.cliente_id)
-        return cliente ? { plan, cliente } : null
+      // Indexar clientes asignados por id y por identificacion
+      const clientesIndex = new Map<string, Cliente>()
+      clientesAsignados.forEach((cliente) => {
+        if (cliente.id) clientesIndex.set(cliente.id, cliente)
+        if (cliente.identificacion) clientesIndex.set(cliente.identificacion, cliente)
       })
-      .filter(Boolean)
-      .map((x) => x as RutaConCliente)
-      .filter(({ cliente }) => !cliente.bloqueado && !cliente.deleted_at)
 
-    if (!cancelRef.current) setRutas(rutasFiltradas)
-  } catch (err: any) {
-    setError(err?.message ?? 'No se pudieron cargar las rutas')
-    setRutas([])
-  } finally {
-    setIsLoading(false)
-  }
-}, [])
+      // Filtrar rutas solo de clientes asignados y activos (no bloqueados ni eliminados)
+      const rutasFiltradas: RutaConCliente[] = rutasPlanificadas
+        .map((plan) => {
+          const cliente = clientesIndex.get(plan.cliente_id)
+          return cliente ? { plan, cliente } : null
+        })
+        .filter(Boolean)
+        .map((x) => x as RutaConCliente)
+        .filter(({ cliente }) => !cliente.bloqueado && !cliente.deleted_at)
+
+      if (!cancelRef.current) setRutas(rutasFiltradas)
+    } catch (err: any) {
+      setError(err?.message ?? 'No se pudieron cargar las rutas')
+      setRutas([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     cargarDatos().catch(() => {
@@ -358,11 +350,10 @@ const cargarDatos = useCallback(async () => {
                 key={dia}
                 type="button"
                 onClick={() => setDiaActivo(dia)}
-                className={`flex flex-col rounded-xl border px-4 py-2 text-left transition ${
-                  activo
+                className={`flex flex-col rounded-xl border px-4 py-2 text-left transition ${activo
                     ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm'
                     : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-brand-red hover:text-brand-red'
-                }`}
+                  }`}
               >
                 <span className="text-xs font-semibold uppercase tracking-[0.08em]">{label.corto}</span>
                 <span className="text-lg font-bold">{visitas}</span>

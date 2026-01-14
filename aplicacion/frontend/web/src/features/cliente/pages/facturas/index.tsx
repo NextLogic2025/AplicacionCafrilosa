@@ -51,7 +51,6 @@ export default function PaginaFacturas() {
 		.reduce((sum, inv) => sum + inv.total, 0)
 
 	const descargarPdf = (invoiceId: string) => {
-		console.log('Descargando factura:', invoiceId)
 		alert('Descarga iniciada (mock)')
 	}
 
@@ -86,16 +85,16 @@ export default function PaginaFacturas() {
 				</div>
 			</div>
 
-<FilterGroup
-			filters={[
-				{ value: 'all', label: 'Todas' },
-				{ value: 'PAID', label: facturaStatusConfig[EstadoFactura.PAID].label },
-				{ value: 'PENDING', label: facturaStatusConfig[EstadoFactura.PENDING].label },
-				{ value: 'OVERDUE', label: facturaStatusConfig[EstadoFactura.OVERDUE].label },
-			]}
-			activeFilter={filtros.status}
-			onChange={(value) => setFiltros({ ...filtros, status: value as any })}
-		/>
+			<FilterGroup
+				filters={[
+					{ value: 'all', label: 'Todas' },
+					{ value: 'PAID', label: facturaStatusConfig[EstadoFactura.PAID].label },
+					{ value: 'PENDING', label: facturaStatusConfig[EstadoFactura.PENDING].label },
+					{ value: 'OVERDUE', label: facturaStatusConfig[EstadoFactura.OVERDUE].label },
+				]}
+				activeFilter={filtros.status}
+				onChange={(value) => setFiltros({ ...filtros, status: value as any })}
+			/>
 
 			{cargando ? (
 				<SkeletonTable />
@@ -187,8 +186,8 @@ export default function PaginaFacturas() {
 								</div>
 								<div>
 									<p className="text-sm text-gray-600">Estado</p>
-								<p className={`font-semibold ${facturaStatusConfig[facturaSeleccionada.status].color}`}>
-									{facturaStatusConfig[facturaSeleccionada.status].label}
+									<p className={`font-semibold ${facturaStatusConfig[facturaSeleccionada.status].color}`}>
+										{facturaStatusConfig[facturaSeleccionada.status].label}
 									</p>
 								</div>
 								<div>

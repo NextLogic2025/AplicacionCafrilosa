@@ -3,7 +3,7 @@ import { GoogleMap, Marker, Polygon, useJsApiLoader } from '@react-google-maps/a
 import { type ZonaOption } from './ClienteForm'
 
 const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
-const sucursalMapStyle = { width: '100%', height: '350px' }
+const sucursalMapStyle = { width: '100%', height: '280px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
 interface SucursalLocationPickerProps {
@@ -68,7 +68,7 @@ export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatri
 
   if (!isLoaded) {
     return (
-      <div className="flex h-[350px] items-center justify-center rounded-lg bg-gray-50">
+      <div className="flex h-[280px] items-center justify-center rounded-lg bg-gray-50">
         <p className="text-sm text-gray-600">Cargando mapa...</p>
       </div>
     )

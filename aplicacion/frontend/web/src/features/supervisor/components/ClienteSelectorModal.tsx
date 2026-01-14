@@ -93,71 +93,71 @@ export default function ClienteSelectorModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+        {/* Header with Red Gradient */}
+        <div className="bg-gradient-to-r from-brand-red to-brand-red/90 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">
             Asignar Empresas a la Campaña
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 text-white" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Success Message */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-2.5 rounded-lg text-sm">
               {successMessage}
             </div>
           )}
 
           {/* Search Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700">Buscar Empresa</h3>
-            
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700">Buscar Empresa</h3>
+
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, razón social, identificación o usuario principal..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red/20 focus:border-brand-red outline-none"
               />
             </div>
 
             {selectedCliente && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-800">
+                    <p className="text-sm font-semibold text-gray-800">
                       {selectedCliente.razon_social}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs text-gray-600">
                       ID: {selectedCliente.identificacion}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedCliente(null)}
-                    className="p-2 hover:bg-blue-100 rounded-full transition-colors"
+                    className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors"
                   >
-                    <X className="w-5 h-5 text-blue-600" />
+                    <X className="w-4 h-4 text-blue-600" />
                   </button>
                 </div>
               </div>
             )}
 
             {searchTerm && !selectedCliente && (
-              <div className="border border-gray-200 rounded-lg divide-y max-h-60 overflow-y-auto">
+              <div className="border border-gray-200 rounded-lg divide-y max-h-48 overflow-y-auto">
                 {loading ? (
-                  <div className="p-4 text-center text-gray-500">Cargando...</div>
+                  <div className="p-3 text-center text-sm text-gray-500">Cargando...</div>
                 ) : clientesFiltrados.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
+                  <div className="p-3 text-center text-sm text-gray-500">
                     No se encontraron clientes
                   </div>
                 ) : (
@@ -167,12 +167,8 @@ export default function ClienteSelectorModal({
                       onClick={() => setSelectedCliente(cliente)}
                       className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
-                      <p className="font-medium text-gray-800">{cliente.nombre_comercial || cliente.razon_social}</p>
-                      <p className="text-sm text-gray-600">Razón social: {cliente.razon_social}</p>
-                      <p className="text-sm text-gray-600">ID: {cliente.identificacion}</p>
-                      {searchTerm && cliente.usuario_principal_id && cliente.usuario_principal_id.toLowerCase().includes(searchTerm.trim().toLowerCase()) && (
-                        <p className="text-sm text-blue-600">Nombre encontrado: {cliente.nombre_comercial || cliente.razon_social}</p>
-                      )}
+                      <p className="text-sm font-medium text-gray-800">{cliente.nombre_comercial || cliente.razon_social}</p>
+                      <p className="text-xs text-gray-600">ID: {cliente.identificacion}</p>
                     </div>
                   ))
                 )}
@@ -182,20 +178,20 @@ export default function ClienteSelectorModal({
             <button
               onClick={handleAddCliente}
               disabled={!selectedCliente}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+              className="w-full bg-gray-300 text-gray-700 py-2.5 px-4 rounded-lg hover:bg-gray-400 disabled:bg-gray-200 disabled:cursor-not-allowed transition-colors font-medium text-sm"
             >
               Agregar Cliente
             </button>
           </div>
 
           {/* Assigned Clients */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700">
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700">
               Empresas Asignados ({clientesAsignados.length})
             </h3>
-            
+
             {clientesAsignados.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
+              <p className="text-gray-500 text-center py-6 text-sm">
                 No hay clientes asignados a esta campaña
               </p>
             ) : (
@@ -203,22 +199,22 @@ export default function ClienteSelectorModal({
                 {clientesAsignados.map((clienteCampania) => (
                   <div
                     key={clienteCampania.cliente_id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                   >
                     <div>
-                      <p className="font-medium text-gray-800">
+                      <p className="text-sm font-medium text-gray-800">
                         {clienteCampania.cliente?.razon_social || 'Cliente'}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         ID: {clienteCampania.cliente?.identificacion || clienteCampania.cliente_id}
                       </p>
                     </div>
                     <button
                       onClick={() => handleDeleteCliente(clienteCampania.cliente_id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Eliminar cliente"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
@@ -228,10 +224,10 @@ export default function ClienteSelectorModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t p-6">
+        <div className="border-t p-4 bg-gray-50">
           <button
             onClick={onClose}
-            className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            className="w-full bg-gray-600 text-white py-2.5 px-4 rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm"
           >
             Cerrar
           </button>
