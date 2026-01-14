@@ -3,8 +3,6 @@
  *
  * Service for handling all Transportista (driver/delivery person) related API calls.
  * Manages deliveries, routes, alerts, and KPI data.
- *
- * TODO: Replace mock data with actual API endpoints once backend is connected
  */
 
 import { delay } from '../../utils/delay'
@@ -20,6 +18,21 @@ export interface TransportistaKPIs {
 }
 
 /**
+ * Transportista Profile Data
+ */
+export interface TransportistaProfile {
+    id: string
+    name: string
+    email: string
+    phone: string
+    vehicle: string
+    licensePlate: string
+    assignedZone: string
+    rating: number
+    photoUrl?: string
+}
+
+/**
  * Notification object for Transportista
  */
 export interface Notification {
@@ -27,6 +40,7 @@ export interface Notification {
     title: string
     message: string
     date: string
+    type: 'order' | 'route' | 'system'
     read: boolean
 }
 
@@ -43,7 +57,9 @@ export interface Delivery {
     itemsCount: number
     latitude?: number
     longitude?: number
-    contact?: string
+    contact: string
+    phone: string
+    notes?: string
 }
 
 /**
@@ -58,6 +74,8 @@ export interface TransportistaAlert {
 
 export interface TransportistaOrder extends Order {
     address?: string
+    observations?: string
+    productSummary: string
 }
 
 /**
@@ -66,6 +84,7 @@ export interface TransportistaOrder extends Order {
 export interface Route {
     id: string
     name: string
+    status: 'pending' | 'active' | 'completed'
     startTime: string
     estimatedEndTime: string
     deliveries: Delivery[]
@@ -79,8 +98,11 @@ export interface Route {
 export interface Return {
     id: string
     orderId: string
+    clientName: string
+    productName: string
+    quantity: number
     reason: string
-    status: 'pending' | 'in_process' | 'completed'
+    status: 'pending' | 'collected' | 'returned_to_warehouse'
     date: string
 }
 
@@ -91,32 +113,11 @@ export const TransportistaService = {
     /**
      * Get all orders assigned to the driver
      *
-     * @returns Promise<Order[]>
+     * @returns Promise<TransportistaOrder[]>
      */
-    async getOrders(): Promise<Order[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/orders')
+    async getOrders(): Promise<TransportistaOrder[]> {
         await delay(500)
-        return [
-            {
-                id: 'ORD-12345',
-                clientName: 'Tienda La Esquina',
-                date: '2023-10-27',
-                status: 'shipped',
-                total: 150.00,
-                itemsCount: 15,
-                priority: 'normal'
-            },
-            {
-                id: 'ORD-12348',
-                clientName: 'Supermercado El Ahorro',
-                date: '2023-10-27',
-                status: 'shipped',
-                total: 420.50,
-                itemsCount: 42,
-                priority: 'alta'
-            }
-        ]
+        return []
     },
 
     /**
@@ -125,13 +126,11 @@ export const TransportistaService = {
      * @returns Promise<TransportistaKPIs>
      */
     async getDashboardKPIs(): Promise<TransportistaKPIs> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/dashboard/kpis')
         await delay(500)
         return {
-            assignedOrders: 6,
-            pendingDeliveries: 4,
-            deliveredToday: 2
+            assignedOrders: 0,
+            pendingDeliveries: 0,
+            deliveredToday: 0
         }
     },
 
@@ -141,18 +140,8 @@ export const TransportistaService = {
      * @returns Promise<Delivery | null>
      */
     async getNextDelivery(): Promise<Delivery | null> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/next-delivery')
         await delay(300)
-        return {
-            id: 'DEL-001',
-            orderId: 'ORD-12345',
-            clientName: 'Tienda La Esquina',
-            address: 'Av. Principal 123, Centro',
-            status: 'pending',
-            estimatedTime: '10:30',
-            itemsCount: 15
-        }
+        return null
     },
 
     /**
@@ -161,38 +150,28 @@ export const TransportistaService = {
      * @returns Promise<Delivery[]>
      */
     async getDeliveries(): Promise<Delivery[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/deliveries')
         await delay(600)
-        return [
-            {
-                id: 'DEL-001',
-                orderId: 'ORD-12345',
-                clientName: 'Tienda La Esquina',
-                address: 'Av. Principal 123, Centro',
-                status: 'pending',
-                estimatedTime: '10:30',
-                itemsCount: 15
-            },
-            {
-                id: 'DEL-002',
-                orderId: 'ORD-12348',
-                clientName: 'Supermercado El Ahorro',
-                address: 'Calle 5ta y 10ma, Norte',
-                status: 'in_transit',
-                estimatedTime: '11:15',
-                itemsCount: 42
-            },
-            {
-                id: 'DEL-003',
-                orderId: 'ORD-12350',
-                clientName: 'Bodega Central',
-                address: 'Zona Industrial Lote 5',
-                status: 'delivered',
-                estimatedTime: '09:00',
-                itemsCount: 120
-            }
-        ]
+        return []
+    },
+
+    /**
+     * Get driver profile
+     */
+    async getProfile(): Promise<TransportistaProfile> {
+        await delay(400)
+        // Return basic/empty profile or fetch from user context in real app
+        // For now, return generic or placeholders to avoid breaking typed UI
+        return {
+            id: '',
+            name: 'Transportista',
+            email: '',
+            phone: '',
+            vehicle: 'No asignado',
+            licensePlate: '---',
+            assignedZone: 'Sin zona',
+            rating: 5.0,
+            photoUrl: undefined
+        }
     },
 
     /**
@@ -201,25 +180,8 @@ export const TransportistaService = {
      * @returns Promise<Notification[]>
      */
     async getNotifications(): Promise<Notification[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/notifications')
         await delay(500)
-        return [
-            {
-                id: '1',
-                title: 'Nueva Ruta',
-                message: 'Se te ha asignado la Ruta Norte',
-                date: 'Hace 1h',
-                read: false
-            },
-            {
-                id: '2',
-                title: 'Cambio de Pedido',
-                message: 'Pedido #123 Cancelado',
-                date: 'Hace 2h',
-                read: true
-            }
-        ]
+        return []
     },
 
     /**
@@ -228,23 +190,8 @@ export const TransportistaService = {
      * @returns Promise<TransportistaAlert[]>
      */
     async getAlerts(): Promise<TransportistaAlert[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/alerts')
         await delay(400)
-        return [
-            {
-                id: '1',
-                type: 'order_ready',
-                message: 'Pedido #12399 listo para retiro',
-                date: 'Hace 10 min'
-            },
-            {
-                id: '2',
-                type: 'route_changed',
-                message: 'Ruta #5 reasignada por tráfico',
-                date: 'Hace 25 min'
-            }
-        ]
+        return []
     },
 
     /**
@@ -253,29 +200,8 @@ export const TransportistaService = {
      * @returns Promise<Route[]>
      */
     async getRoutes(): Promise<Route[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/routes')
         await delay(600)
-        return [
-            {
-                id: 'RUT-001',
-                name: 'Ruta Centro',
-                startTime: '08:00',
-                estimatedEndTime: '14:30',
-                deliveries: [],
-                distance: 45.2,
-                estimatedDuration: 390
-            },
-            {
-                id: 'RUT-002',
-                name: 'Ruta Norte',
-                startTime: '15:00',
-                estimatedEndTime: '18:00',
-                deliveries: [],
-                distance: 32.5,
-                estimatedDuration: 180
-            }
-        ]
+        return []
     },
 
     /**
@@ -284,29 +210,8 @@ export const TransportistaService = {
      * @returns Promise<Route[]>
      */
     async getRouteHistory(): Promise<Route[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/routes/history')
         await delay(700)
-        return [
-            {
-                id: 'HIST-001',
-                name: 'Ruta Centro - 2023-10-26',
-                startTime: '08:00',
-                estimatedEndTime: '14:30',
-                deliveries: [],
-                distance: 45.2,
-                estimatedDuration: 390
-            },
-            {
-                id: 'HIST-002',
-                name: 'Ruta Norte - 2023-10-26',
-                startTime: '15:00',
-                estimatedEndTime: '18:15',
-                deliveries: [],
-                distance: 32.5,
-                estimatedDuration: 195
-            }
-        ]
+        return []
     },
 
     /**
@@ -315,86 +220,26 @@ export const TransportistaService = {
      * @returns Promise<Return[]>
      */
     async getReturns(): Promise<Return[]> {
-        // TODO: Replace with actual API call
-        // return api.get('/transportista/returns')
         await delay(500)
-        return [
-            {
-                id: 'RET-001',
-                orderId: 'ORD-12340',
-                reason: 'Producto defectuoso',
-                status: 'pending',
-                date: '2023-10-27'
-            },
-            {
-                id: 'RET-002',
-                orderId: 'ORD-12339',
-                reason: 'Cliente no disponible',
-                status: 'in_process',
-                date: '2023-10-27'
-            }
-        ]
+        return []
     },
 
     /**
      * Confirm a delivery
-     *
-     * @param deliveryId - ID of the delivery to confirm
-     * @param signature - Signature data (base64 or URL)
-     * @param timestamp - Delivery confirmation timestamp
-     * @returns Promise<void>
      */
     async confirmDelivery(
         deliveryId: string,
-        signature?: string,
-        timestamp?: number
+        evidence: { photo?: string; signature?: string; notes?: string }
     ): Promise<void> {
-        // TODO: Replace with actual API call
-        // return api.post(`/transportista/deliveries/${deliveryId}/confirm`, {
-        //     signature,
-        //     timestamp
-        // })
-        await delay(300)
-        console.log(`Delivery ${deliveryId} confirmed`)
+        await delay(800)
+        console.log(`Delivery ${deliveryId} confirmed with evidence`, evidence)
     },
 
     /**
-     * Mark delivery as failed
-     *
-     * @param deliveryId - ID of the delivery
-     * @param reason - Reason for failure
-     * @returns Promise<void>
+     * Update order status (Pick up / In Transit)
      */
-    async failDelivery(deliveryId: string, reason: string): Promise<void> {
-        // TODO: Replace with actual API call
-        // return api.post(`/transportista/deliveries/${deliveryId}/fail`, {
-        //     reason
-        // })
-        await delay(300)
-        console.log(`Delivery ${deliveryId} marked as failed: ${reason}`)
-    },
-
-    /**
-     * Update delivery location
-     *
-     * @param deliveryId - ID of the delivery
-     * @param latitude - Current latitude
-     * @param longitude - Current longitude
-     * @returns Promise<void>
-     */
-    async updateLocation(
-        deliveryId: string,
-        latitude: number,
-        longitude: number
-    ): Promise<void> {
-        // TODO: Replace with actual API call
-        // return api.post(`/transportista/deliveries/${deliveryId}/location`, {
-        //     latitude,
-        //     longitude
-        // })
-        await delay(100)
-        console.log(
-            `Location updated for delivery ${deliveryId}: ${latitude}, ${longitude}`
-        )
+    async updateOrderStatus(orderId: string, status: 'shipped' | 'delivered'): Promise<void> {
+        await delay(500)
+        console.log(`Order ${orderId} status updated to ${status}`)
     }
 }

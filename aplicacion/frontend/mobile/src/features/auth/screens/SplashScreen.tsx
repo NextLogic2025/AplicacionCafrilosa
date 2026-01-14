@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { StatusBar } from 'expo-status-bar'
 import * as React from 'react'
 import { Animated, Easing, Image, View } from 'react-native'

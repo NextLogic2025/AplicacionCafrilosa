@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
 import { Text, View, Pressable } from 'react-native'
@@ -11,7 +11,10 @@ type Props = {
 }
 
 export function WarehouseOrderCard({ order, onPress, onAction }: Props) {
-    const isUrgent = order.priority === 'urgente'
+    const isUrgent = false // order.priority is not in interface yet
+    const clientName = order.cliente?.razon_social || 'Cliente Desconocido'
+    const createdDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Fecha desc.'
+    const isVendedor = order.origen_pedido === 'VENDEDOR'
 
     return (
         <Pressable
@@ -21,35 +24,35 @@ export function WarehouseOrderCard({ order, onPress, onAction }: Props) {
             {/* Header: ID + Fecha + Priority */}
             <View className={`flex-row justify-between items-center p-3 ${isUrgent ? 'bg-red-50/50' : 'bg-neutral-50'}`}>
                 <View className="flex-row items-center gap-2">
-                    <Text className="font-bold text-neutral-800">#{order.id}</Text>
+                    <Text className="font-bold text-neutral-800">#{order.codigo_visual || order.id.substring(0, 8)}</Text>
                     {isUrgent && (
                         <View className="bg-red-100 px-2 py-0.5 rounded">
                             <Text className="text-[10px] font-bold text-red-700 uppercase">URGENTE</Text>
                         </View>
                     )}
                 </View>
-                <Text className="text-xs text-neutral-500">{new Date(order.date).toLocaleDateString()}</Text>
+                <Text className="text-xs text-neutral-500">{createdDate}</Text>
             </View>
 
             <View className="p-3">
                 {/* Cliente */}
                 <View className="flex-row items-center mb-2">
                     <Ionicons name="person-circle-outline" size={20} color="#6B7280" />
-                    <Text className="ml-2 font-bold text-neutral-900 text-base">{order.clientName || 'Cliente Desconocido'}</Text>
+                    <Text className="ml-2 font-bold text-neutral-900 text-base">{clientName}</Text>
                 </View>
 
                 {/* Origen */}
                 <View className="flex-row items-center mb-3">
-                    <View className={`px-2 py-0.5 rounded-md ${order.origin === 'vendedor' ? 'bg-purple-100' : 'bg-blue-100'}`}>
-                        <Text className={`text-[10px] font-bold uppercase ${order.origin === 'vendedor' ? 'text-purple-700' : 'text-blue-700'}`}>
-                            {order.origin === 'vendedor' ? 'Pedido Web Vendedor' : 'Pedido App Cliente'}
+                    <View className={`px-2 py-0.5 rounded-md ${isVendedor ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                        <Text className={`text-[10px] font-bold uppercase ${isVendedor ? 'text-purple-700' : 'text-blue-700'}`}>
+                            {isVendedor ? 'Pedido Web Vendedor' : 'Pedido App Cliente'}
                         </Text>
                     </View>
                 </View>
 
                 {/* Resumen */}
                 <View className="flex-row justify-between items-center border-t border-neutral-100 pt-3">
-                    <Text className="text-neutral-500 text-xs">{order.itemsCount} productos</Text>
+                    <Text className="text-neutral-500 text-xs">{order.detalles?.length || 0} productos</Text>
                     <Pressable
                         className="flex-row items-center bg-brand-red px-3 py-1.5 rounded-lg"
                         onPress={onAction}

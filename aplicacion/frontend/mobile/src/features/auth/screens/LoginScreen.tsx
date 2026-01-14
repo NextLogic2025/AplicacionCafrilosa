@@ -1,4 +1,4 @@
-import { BRAND_COLORS, credentialsSchema, type Credentials } from '@cafrilosa/shared-types'
+import { BRAND_COLORS, credentialsSchema, type Credentials } from '../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { StatusBar } from 'expo-status-bar'
@@ -14,7 +14,7 @@ import { signIn } from '../../../services/auth/authClient'
 import { setToken } from '../../../storage/authStorage'
 
 type Props = {
-  onSignedIn: () => void
+  onSignedIn: (role?: string) => void
   onForgotPassword: () => void
 }
 
@@ -41,8 +41,8 @@ export function LoginScreen({ onSignedIn, onForgotPassword }: Props) {
     try {
       setServerError(null)
       const result = await signIn(email, password)
-      await setToken(result.token, { persist: remember })
-      onSignedIn()
+      // Tokens are already stored by signIn
+      onSignedIn(result.user?.role)
     } catch (e) {
       setServerError(e instanceof Error ? e.message : 'Credenciales incorrectas')
     }
@@ -152,14 +152,6 @@ export function LoginScreen({ onSignedIn, onForgotPassword }: Props) {
                       <Text className="text-brand-red font-semibold text-sm py-1">
                         ¿Olvidaste tu contraseña?
                       </Text>
-                    </Pressable>
-                    {/* Modo Desarrollador - ELIMINAR EN PRODUCCIÓN */}
-                    <Pressable
-                      onPress={() => onSignedIn() /* Simula login exitoso hacia el selector */}
-                      className="mt-8 flex-row items-center justify-center gap-2 p-2 opacity-50"
-                    >
-                      <Ionicons name="code-slash" size={16} color="#6B7280" />
-                      <Text className="text-xs text-neutral-500 font-medium">Modo Desarrollador</Text>
                     </Pressable>
                   </View>
                 </View>

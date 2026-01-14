@@ -1,13 +1,14 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import {
     Animated,
-    Dimensions,
     Pressable,
     StyleSheet,
     Text,
     View,
+    TouchableOpacity,
+    Modal
 } from 'react-native'
 
 export type FabAction = {
@@ -19,33 +20,31 @@ export type FabAction = {
 
 type Props = {
     actions: FabAction[]
-    onPressMain?: () => void
 }
 
-export function ExpandableFab({ actions, onPressMain }: Props) {
+export function ExpandableFab({ actions }: Props) {
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
 
-    const toggleMenu = () => {
-        const toValue = isOpen ? 0 : 1
-
-        Animated.spring(animation, {
-            toValue,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
-
-        setIsOpen(!isOpen)
-    }
+    React.useEffect(() => {
+        if (isOpen) {
+            Animated.spring(animation, {
+                toValue: 1,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }).start()
+        } else {
+            Animated.spring(animation, {
+                toValue: 0,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }).start()
+        }
+    }, [isOpen])
 
     const closeMenu = () => {
-        Animated.spring(animation, {
-            toValue: 0,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
         setIsOpen(false)
     }
 
@@ -54,17 +53,12 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
         outputRange: ['0deg', '45deg'],
     })
 
-    const opacity = animation.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 1],
-    })
-
     // Estilos y animaciones para los botones de acción
     const getActionStyle = (index: number) => {
         // Desplegar hacia arriba, espaciado de 60px
         const translateY = animation.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, -60 * (index + 1)],
+            outputRange: [20, -60 * (index + 1)], // Start slightly lower to pop up
         })
 
         const scale = animation.interpolate({
@@ -74,81 +68,92 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
 
         return {
             transform: [{ translateY }, { scale }],
-            opacity, // Aparecer suavemente
+            opacity: animation,
         }
     }
 
-    return (
-        <View style={[StyleSheet.absoluteFill, styles.rootContainer]} pointerEvents="box-none">
-
-            {/* Backdrop (Fondo oscuro) */}
-            <Animated.View
-                style={[
-                    StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(0,0,0,0.4)', opacity }
-                ]}
-                pointerEvents={isOpen ? 'auto' : 'none'}
+    const renderFabButton = (onPress: () => void, isClone: boolean = false) => (
+        <View style={styles.fabContainer}>
+            <Pressable
+                onPress={onPress}
+                style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isClone ? 0 : 5 }]}
             >
-                <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
-            </Animated.View>
+                <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+                    <Ionicons name="add" size={32} color="white" />
+                </Animated.View>
+            </Pressable>
+        </View>
+    )
 
-            {/* Contenedor de Botones y FAB (Posicionado abajo a la derecha) */}
-            <View style={styles.fabContainer} pointerEvents="box-none">
+    return (
+        <>
+            {/* 1. Botón "Real" (Visible cuando el menú está cerrado) */}
+            {!isOpen && renderFabButton(() => setIsOpen(true))}
 
-                {/* Acciones */}
+            {/* 2. Capa Superior (Visible cuando el menú está abierto) */}
+            <Modal
+                visible={isOpen}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={closeMenu}
+                statusBarTranslucent={true}
+            >
+                {/* Fondo oscuro (Backdrop) */}
+                <Pressable
+                    style={styles.backdrop}
+                    onPress={closeMenu}
+                >
+                    <View style={StyleSheet.absoluteFill} />
+                </Pressable>
+
+                {/* Acciones del Menú */}
                 <View style={styles.actionsContainer} pointerEvents="box-none">
                     {actions.map((action, index) => (
                         <Animated.View
                             key={index}
                             style={[styles.actionItem, getActionStyle(index)]}
-                            pointerEvents={isOpen ? 'auto' : 'none'}
                         >
-                            <View style={styles.labelContainer}>
-                                <Text style={styles.label}>{action.label}</Text>
-                            </View>
-                            <Pressable
+                            <TouchableOpacity
+                                activeOpacity={0.8}
                                 onPress={() => {
                                     closeMenu()
                                     action.onPress()
                                 }}
-                                style={[styles.miniFab, { backgroundColor: action.color || 'white' }]}
+                                style={styles.actionButtonContent}
                             >
-                                <Ionicons
-                                    name={action.icon}
-                                    size={20}
-                                    color={action.color ? 'white' : BRAND_COLORS.red700}
-                                />
-                            </Pressable>
+                                <View style={styles.labelContainer}>
+                                    <Text style={styles.label}>{action.label}</Text>
+                                </View>
+                                <View style={[styles.miniFab, { backgroundColor: 'white' }]}>
+                                    <Ionicons
+                                        name={action.icon as any}
+                                        size={20}
+                                        color={BRAND_COLORS.red}
+                                    />
+                                </View>
+                            </TouchableOpacity>
                         </Animated.View>
                     ))}
                 </View>
 
-                {/* FAB Principal */}
-                <Pressable
-                    onPress={toggleMenu}
-                    style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isOpen ? 0 : 6 }]} // Remove elevation when open to avoid shadow stacking weirdness if needed, or keep it.
-                >
-                    <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-                        <Ionicons name="add" size={32} color="white" />
-                    </Animated.View>
-                </Pressable>
-            </View>
-        </View>
+                {/* 3. Botón "Clon" (Para cerrar) - Misma posición exacta */}
+                {renderFabButton(closeMenu, true)}
+            </Modal>
+        </>
     )
 }
 
 const styles = StyleSheet.create({
-    rootContainer: {
-        zIndex: 9999, // Super high to be on top of everything
-        elevation: 99,
+    backdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
     },
     fabContainer: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110, // Adjusted to avoid potential tab bar conflicts visually if needed, but user kept 110 in old code
         right: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100,
     },
     fab: {
         width: 56,
@@ -160,30 +165,32 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
-        elevation: 6,
-        zIndex: 10,
+        elevation: 5,
     },
     actionsContainer: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
+        bottom: 110, // Anchor relative to FAB position
+        right: 24,
         alignItems: 'flex-end',
-        width: 60,
-        height: 650, // Increased height for 7 items
-        zIndex: 20,
-        elevation: 20, // Critical for android touches
+        justifyContent: 'flex-end',
+        zIndex: 40,
     },
     actionItem: {
         position: 'absolute',
+        right: 6, // Center align with FAB (56/2 - 40/2 + offset?) Visual tweaking might be needed, keeping simple.
+        // Actually, previous code used fixed bottom offsets.
+        // Let's rely on translateY from getActionStyle relative to this container.
         bottom: 0,
-        right: 8,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
         width: 200,
+        paddingRight: 0,
+    },
+    actionButtonContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingRight: 0,
-        zIndex: 30, // Higher than container
-        elevation: 30,
+        paddingVertical: 4, // Spacing between items handled by translateY
     },
     miniFab: {
         width: 40,
@@ -195,8 +202,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     labelContainer: {
         marginRight: 12,
@@ -208,8 +214,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     label: {
         fontSize: 12,

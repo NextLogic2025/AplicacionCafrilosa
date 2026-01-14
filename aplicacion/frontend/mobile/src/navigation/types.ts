@@ -8,4 +8,5 @@ export type RootStackParamList = {
   Vendedor: undefined
   Transportista: undefined
   Bodeguero: undefined
+  SupervisorProductForm: { product?: any }
 }
