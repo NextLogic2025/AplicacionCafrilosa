@@ -1,0 +1,144 @@
+services:
+  # --- BASE DE DATOS (Ya la tenías) ---
+  database:
+    image: postgis/postgis:17-3.4-alpine
+    container_name: gcp-sql-local
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/local-init:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # --- PGADMIN (Ya lo tenías) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin-local
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "8080:80"
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO USUARIOS ---
+  usuarios-service:
+    build:
+      context: ./backend/services/usuarios  # 👈 Docker buscará el Dockerfile aquí
+      dockerfile: Dockerfile
+    container_name: usuarios-service
+    restart: on-failure
+    ports:
+      - "3002:3000"  # 👈 Tu PC (3002) -> Contenedor (3000)
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO CATALOG ---
+  catalog-service:
+    build:
+      context: ./backend/services/catalog
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    restart: on-failure
+    ports:
+      - "3003:3000"  # Host 3003 -> Contenedor 3000
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO ORDERS ---
+  orders-service:
+    build:
+      context: ./backend/services/orders
+      dockerfile: Dockerfile
+    container_name: orders-service
+    restart: on-failure
+    ports:
+      - "3004:3000"  # Host 3004 -> Contenedor 3000
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/orders_db
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - SERVICE_TOKEN=MiTokenS2S123
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
+    depends_on:
+      - database
+      - catalog-service
+    networks:
+      - app-network
+
+  # --- NUEVO: MICROSERVICIO AUTH (login/refresh/logout) ---
+  auth-service:
+    build:
+      context: ./backend/services/auth
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: on-failure
+    ports:
+      - "3001:3000"  # Host 3001 -> Contenedor 3000
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
+    depends_on:
+      - database
+    networks:
+      - app-network
+  
+    # --- NUEVO: MICROSERVICIO WAREHOUSE ---
+  warehouse-service:
+    build:
+      context: ./backend/services/warehouse
+      dockerfile: Dockerfile
+    container_name: warehouse-service
+    restart: on-failure
+    ports:
+      - "3005:3000" # Host 3005 -> Contenedor 3000
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/warehouse_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_EXPIRES_IN=1h
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

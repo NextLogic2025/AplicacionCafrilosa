@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { useNavigation as useReactNavigation } from '@react-navigation/native'
+import { BRAND_COLORS } from '../../shared/types'
 import React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { navigationRef } from '../../navigation/navigationRef'
 
 type HeaderProps = {
   userName?: string
@@ -17,7 +17,14 @@ type HeaderProps = {
   onCartPress?: () => void
   onMenuPress?: () => void
   style?: any
+  variant?: 'home' | 'standard'
+  title?: string
+  onBackPress?: () => void
   notificationRoute?: string
+  rightAction?: {
+    icon: keyof typeof Ionicons.glyphMap
+    onPress: () => void
+  }
 }
 
 export function Header({
@@ -35,21 +42,22 @@ export function Header({
   variant = 'home',
   title,
   onBackPress,
-  notificationRoute
-}: HeaderProps & { variant?: 'home' | 'standard'; title?: string; onBackPress?: () => void }) {
+  notificationRoute,
+  rightAction
+}: HeaderProps) {
   const insets = useSafeAreaInsets()
-  const navigation = useReactNavigation()
+
+  // Removed unsafe useNavigation hook usage which caused crashes when context was lost/unavailable.
+  // We now use global navigationRef for navigation actions, or the onBackPress prop.
+
   const isStandard = variant === 'standard' || !!title
 
   const handleNotificationPress = () => {
     if (onNotificationPress) {
       onNotificationPress()
-    } else if (notificationRoute && navigation) {
-      try {
-        // @ts-ignore
-        navigation.navigate(notificationRoute)
-      } catch (e) {
-        console.warn('[Header] Navigation error:', e)
+    } else if (notificationRoute) {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate(notificationRoute as never);
       }
     }
   }
@@ -113,12 +121,12 @@ export function Header({
         )}
 
         {/* DERECHA: Acciones */}
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center">
           {/* Solo mostrar carrito en Home si se pide explicitamente (aunque ahora está en Tabs) */}
           {showCart && (
             <Pressable
               onPress={onCartPress}
-              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="cart-outline" size={22} color="white" />
               {cartCount > 0 && (
@@ -130,12 +138,21 @@ export function Header({
           {showNotification && (
             <Pressable
               onPress={handleNotificationPress}
-              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="notifications-outline" size={22} color="white" />
               {notificationCount > 0 && (
                 <View className="absolute top-2 right-2 h-2.5 w-2.5 bg-brand-gold rounded-full border border-brand-red" />
               )}
+            </Pressable>
+          )}
+
+          {rightAction && (
+            <Pressable
+              onPress={rightAction.onPress}
+              className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20"
+            >
+              <Ionicons name={rightAction.icon} size={22} color="white" />
             </Pressable>
           )}
 

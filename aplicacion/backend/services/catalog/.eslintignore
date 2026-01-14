@@ -1,0 +1,11 @@
+# Ignore Jest config files and test-runner configs that are not part of TS project
+jest.config.cjs
+jest.config.*.cjs
+
+# Ignore node and build artifacts
+node_modules/
+dist/
+
+# Ignore environment files
+.env
+.env.*

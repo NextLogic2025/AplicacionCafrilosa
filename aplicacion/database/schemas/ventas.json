@@ -1,7 +1,0 @@
-{
-  "collection": "ventas",
-  "fields": {
-    "usuarioId": "string",
-    "total": "number"
-  }
-}

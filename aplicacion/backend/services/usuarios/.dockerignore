@@ -1,0 +1,37 @@
+node_modules
+dist
+.git
+.gitignore
+Dockerfile
+README.md
+
+# Additional ignores added to avoid leaking secrets, caches and local artifacts
+# Environment variants
+.env.local
+.env.*
+.env.*.local
+.env.test
+.env.production
+
+# Lockfiles (if using multiple package managers)
+yarn.lock
+
+# Logs and temp files
+*.log
+logs/*
+tmp/
+tmp/*
+
+# Test / coverage artifacts
+.nyc_output
+
+# Build artifacts
+build
+out
+
+# Caches
+.cache
+
+# Misc
+.serverless
+npm-debug.log*

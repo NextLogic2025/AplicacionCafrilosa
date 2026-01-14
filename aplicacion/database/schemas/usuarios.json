@@ -1,7 +1,0 @@
-{
-  "collection": "usuarios",
-  "fields": {
-    "email": "string",
-    "rol": "string"
-  }
-}

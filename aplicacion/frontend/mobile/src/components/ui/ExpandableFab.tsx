@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import {
@@ -8,6 +8,7 @@ import {
     StyleSheet,
     Text,
     View,
+    TouchableOpacity
 } from 'react-native'
 
 export type FabAction = {
@@ -19,34 +20,71 @@ export type FabAction = {
 
 type Props = {
     actions: FabAction[]
+    tabActions?: FabAction[] // Acciones de navegación de tabs (opcional)
     onPressMain?: () => void
 }
 
-export function ExpandableFab({ actions, onPressMain }: Props) {
+export function ExpandableFab({ actions, tabActions, onPressMain }: Props) {
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
+    const backdropOpacity = React.useRef(new Animated.Value(0)).current
+    const tabBarAnimation = React.useRef(new Animated.Value(0)).current // Animación para la barra de tabs
 
     const toggleMenu = () => {
         const toValue = isOpen ? 0 : 1
 
-        Animated.spring(animation, {
-            toValue,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
+        if (!isOpen) {
+            setIsOpen(true)
+        }
 
-        setIsOpen(!isOpen)
+        Animated.parallel([
+            Animated.spring(animation, {
+                toValue,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            // Animación para mostrar/ocultar la barra de tabs
+            Animated.spring(tabBarAnimation, {
+                toValue,
+                friction: 6,
+                tension: 40,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            if (isOpen) {
+                setIsOpen(false)
+            }
+        })
     }
 
     const closeMenu = () => {
-        Animated.spring(animation, {
-            toValue: 0,
-            friction: 5,
-            tension: 40,
-            useNativeDriver: true,
-        }).start()
-        setIsOpen(false)
+        Animated.parallel([
+            Animated.spring(animation, {
+                toValue: 0,
+                friction: 5,
+                tension: 40,
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.spring(tabBarAnimation, {
+                toValue: 0,
+                friction: 6,
+                tension: 40,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            setIsOpen(false)
+        })
     }
 
     const rotation = animation.interpolate({
@@ -79,13 +117,16 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
     }
 
     return (
-        <View style={[StyleSheet.absoluteFill, styles.rootContainer]} pointerEvents="box-none">
-
-            {/* Backdrop (Fondo oscuro) */}
+        <>
+            {/* Backdrop (Fondo oscuro semi-transparente) - Cubre toda la pantalla incluyendo TabNavigation */}
             <Animated.View
                 style={[
                     StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(0,0,0,0.4)', opacity }
+                    {
+                        backgroundColor: 'rgba(0,0,0,0.4)',
+                        opacity: backdropOpacity,
+                        zIndex: 99999, // Muy alto para cubrir TabNavigation (zIndex: 50)
+                    }
                 ]}
                 pointerEvents={isOpen ? 'auto' : 'none'}
             >
@@ -103,22 +144,25 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                             style={[styles.actionItem, getActionStyle(index)]}
                             pointerEvents={isOpen ? 'auto' : 'none'}
                         >
-                            <View style={styles.labelContainer}>
-                                <Text style={styles.label}>{action.label}</Text>
-                            </View>
-                            <Pressable
+                            <TouchableOpacity
+                                activeOpacity={0.8}
                                 onPress={() => {
                                     closeMenu()
                                     action.onPress()
                                 }}
-                                style={[styles.miniFab, { backgroundColor: action.color || 'white' }]}
+                                style={styles.actionButtonContent}
                             >
-                                <Ionicons
-                                    name={action.icon}
-                                    size={20}
-                                    color={action.color ? 'white' : BRAND_COLORS.red700}
-                                />
-                            </Pressable>
+                                <View style={styles.labelContainer}>
+                                    <Text style={styles.label}>{action.label}</Text>
+                                </View>
+                                <View style={[styles.miniFab, { backgroundColor: 'white' }]}>
+                                    <Ionicons
+                                        name={action.icon as any}
+                                        size={20}
+                                        color={BRAND_COLORS.red}
+                                    />
+                                </View>
+                            </TouchableOpacity>
                         </Animated.View>
                     ))}
                 </View>
@@ -126,29 +170,70 @@ export function ExpandableFab({ actions, onPressMain }: Props) {
                 {/* FAB Principal */}
                 <Pressable
                     onPress={toggleMenu}
-                    style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isOpen ? 0 : 6 }]} // Remove elevation when open to avoid shadow stacking weirdness if needed, or keep it.
+                    style={[styles.fab, { shadowColor: BRAND_COLORS.red, elevation: isOpen ? 0 : 5 }]}
                 >
                     <Animated.View style={{ transform: [{ rotate: rotation }] }}>
                         <Ionicons name="add" size={32} color="white" />
                     </Animated.View>
                 </Pressable>
             </View>
-        </View>
+
+            {/* Barra de navegación de tabs (Header oscuro overlay) - Solo si se proporcionan tabActions */}
+            {tabActions && tabActions.length > 0 && (
+                <Animated.View
+                    style={[
+                        styles.tabBarOverlay,
+                        {
+                            opacity: tabBarAnimation,
+                            transform: [
+                                {
+                                    translateY: tabBarAnimation.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [100, 0], // Se desliza desde abajo
+                                    }),
+                                },
+                            ],
+                        }
+                    ]}
+                    pointerEvents={isOpen ? 'auto' : 'none'}
+                >
+                    <View style={styles.tabBarContent}>
+                        {tabActions.map((tab, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.tabButton}
+                                onPress={() => {
+                                    closeMenu()
+                                    tab.onPress()
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.tabIconCircle}>
+                                    <Ionicons
+                                        name={tab.icon as any}
+                                        size={24}
+                                        color="#FFFFFF"
+                                    />
+                                </View>
+                                <Text style={styles.tabLabel}>{tab.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </Animated.View>
+            )}
+        </>
     )
 }
 
 const styles = StyleSheet.create({
-    rootContainer: {
-        zIndex: 9999, // Super high to be on top of everything
-        elevation: 99,
-    },
     fabContainer: {
         position: 'absolute',
-        bottom: 90,
+        bottom: 110,
         right: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100,
+        zIndex: 100000, // Más alto que el backdrop para estar encima
+        backgroundColor: 'transparent',
     },
     fab: {
         width: 56,
@@ -160,8 +245,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
-        elevation: 6,
-        zIndex: 10,
+        elevation: 5,
+        zIndex: 50,
     },
     actionsContainer: {
         position: 'absolute',
@@ -169,21 +254,25 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'flex-end',
         width: 60,
-        height: 650, // Increased height for 7 items
-        zIndex: 20,
-        elevation: 20, // Critical for android touches
+        height: 650,
+        zIndex: 40,
+        backgroundColor: 'transparent', // Ensure no shadow from this
     },
     actionItem: {
         position: 'absolute',
         bottom: 0,
         right: 8,
         width: 200,
+        alignItems: 'flex-end', // Align content to right
+        justifyContent: 'center',
+        paddingRight: 0,
+        zIndex: 45,
+        backgroundColor: 'transparent', // Ensure no shadow from this
+    },
+    actionButtonContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingRight: 0,
-        zIndex: 30, // Higher than container
-        elevation: 30,
     },
     miniFab: {
         width: 40,
@@ -195,8 +284,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     labelContainer: {
         marginRight: 12,
@@ -208,12 +296,62 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
-        elevation: 10,
-        zIndex: 40,
+        elevation: 5,
     },
     label: {
         fontSize: 12,
         fontWeight: '600',
         color: '#374151',
+    },
+    // Estilos para la barra de tabs overlay (Header oscuro)
+    tabBarOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(30, 30, 30, 0.97)', // Fondo oscuro semi-transparente
+        paddingBottom: 24,
+        paddingTop: 16,
+        zIndex: 99998, // Justo debajo del backdrop pero encima de todo lo demás
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 20,
+    },
+    tabBarContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    tabButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        minWidth: 70,
+    },
+    tabIconCircle: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: BRAND_COLORS.red,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 6,
+        shadowColor: BRAND_COLORS.red,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    tabLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.3,
     },
 })

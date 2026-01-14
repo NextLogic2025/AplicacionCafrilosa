@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Invoice } from '../../services/api/InvoiceService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 
 interface InvoiceCardProps {
     invoice: Invoice
