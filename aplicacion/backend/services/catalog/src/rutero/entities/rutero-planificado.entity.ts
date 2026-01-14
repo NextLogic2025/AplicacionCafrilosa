@@ -8,6 +8,9 @@ export class RuteroPlanificado {
   @Column({ name: 'cliente_id', type: 'uuid' })
   cliente_id: string;
 
+  @Column({ name: 'sucursal_id', type: 'uuid', nullable: true })
+  sucursal_id: string | null;
+
   @Column({ name: 'zona_id', type: 'int' })
   zona_id: number;
 

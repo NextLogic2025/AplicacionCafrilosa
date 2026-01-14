@@ -11,6 +11,7 @@ import { PromocionesModule } from '../promociones/promociones.module';
 
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
+import { ProductsInternalController } from './products.internal.controller';
 import { Product } from './entities/product.entity';
 
 @Module({
@@ -20,7 +21,7 @@ import { Product } from './entities/product.entity';
     PreciosModule,
     PromocionesModule,
   ],
-  controllers: [ProductsController],
+  controllers: [ProductsController, ProductsInternalController],
   providers: [ProductsService]
 })
 export class ProductsModule {}

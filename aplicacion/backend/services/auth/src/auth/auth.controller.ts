@@ -3,7 +3,7 @@ import { Request } from 'express'; // Importante para tipar Express
 
 import { AuthService } from './auth.service';
 import { CreateUsuarioDto, LoginDto, RefreshTokenDto } from './dto';
-import { JwtAuthGuard } from './jwt.guard';
+import { JwtAuthGuard } from './guards/jwt.guard';
 
 // Definimos la interfaz del usuario que inyecta el Guard en el Request
 interface JwtUser {
@@ -52,6 +52,17 @@ export class AuthController {
     const token = typeof authHeader === 'string' ? authHeader.split(' ')[1] : undefined;
     
     return this.authService.logout(usuarioId, token, ip, userAgent);
+  }
+
+  @Post('validate-token')
+  @UseGuards(JwtAuthGuard)
+  validateToken(@Req() _req: AuthRequest) {
+    return {
+      valid: true,
+      userId: _req.user?.sub,
+      email: _req.user?.email,
+      role: _req.user?.role,
+    };
   }
 
   @Post('dispositivo')

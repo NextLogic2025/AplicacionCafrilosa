@@ -1,0 +1,561 @@
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
+import { Pedido } from '../entities/pedido.entity';
+import { DetallePedido } from '../entities/detalle-pedido.entity';
+import { PromocionAplicada } from '../entities/promocion-aplicada.entity';
+import { CreateOrderDto } from '../dto/requests/create-order.dto';
+import { HistorialEstado } from '../entities/historial-estado.entity';
+import { CartService } from './cart.service';
+
+@Injectable()
+export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
+  private maskToken(token?: string) {
+    if (!token) return 'none';
+    try {
+      if (token.length <= 8) return '****';
+      return token.slice(0, 4) + '...' + token.slice(-4);
+    } catch {
+      return '****';
+    }
+  }
+  constructor(
+    private dataSource: DataSource,
+    @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
+    @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
+  private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
+    if (!campaniaId) return false;
+    // Preferir llamada al servicio Catalog si está disponible
+    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+    const url = base.replace(/\/+$/, '') + '/promociones/' + campaniaId + '/productos';
+    try {
+      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+      const fetchFn = (globalThis as any).fetch;
+      if (typeof fetchFn === 'function') {
+        const apiUrl = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api') + '/promociones/' + campaniaId + '/productos';
+        const resp: any = await fetchFn(apiUrl, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
+        if (!resp || !resp.ok) return false;
+        const data = await resp.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
+      }
+      return false;
+    } catch (err) {
+      this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
+      return false;
+    }
+  }
+
+  async findAllByClient(userId: string): Promise<Pedido[]> {
+    return this.pedidoRepo.find({
+      where: [
+        { cliente_id: userId },
+        { vendedor_id: userId }
+      ],
+      relations: ['detalles'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async findAll(): Promise<Pedido[]> {
+    return this.pedidoRepo.find({
+      relations: ['detalles'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
+  async findOne(id: string): Promise<Pedido> {
+    const pedido = await this.pedidoRepo.findOne({
+      where: { id },
+      relations: ['detalles'],
+    });
+    if (!pedido) throw new NotFoundException('El pedido con ID ' + id + ' no existe');
+    return pedido;
+  }
+
+  async findAllByUser(userId: string, role: string): Promise<Pedido[]> {
+    const qb = this.pedidoRepo.createQueryBuilder('o');
+    if (String(role).toLowerCase() === 'cliente') {
+      qb.where('o.cliente_id = :userId', { userId });
+    } else if (String(role).toLowerCase() === 'vendedor') {
+      qb.where('o.vendedor_id = :userId', { userId });
+    }
+    return qb.orderBy('o.created_at', 'DESC').getMany();
+  }
+
+  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false): Promise<Pedido> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Antes de calcular totales, obtener precios canónicos desde Catalog
+      const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+      const fetchFn = (globalThis as any).fetch;
+
+      for (const item of createOrderDto.items) {
+        try {
+          // 1) Intentar obtener la mejor promoción para el cliente
+          let best: any = null;
+          if (typeof fetchFn === 'function') {
+            const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+            const promoUrl = apiBase + '/promociones/internal/mejor/producto/' + item.producto_id + '?cliente_id=' + createOrderDto.cliente_id;
+            const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+            this.logger.log('Calling Catalog (promo) ' + promoUrl + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+            const resp: any = await fetchFn(promoUrl, { headers: headersObj });
+            if (resp && resp.ok) best = await resp.json();
+            else this.logger.debug('Catalog promo call not ok', { promoUrl, status: resp?.status });
+          }
+
+          if (best && best.precio_final != null) {
+            // Sobrescribir datos del item
+            (item as any).precio_original = best.precio_lista ?? null;
+            (item as any).precio_unitario = best.precio_final;
+            (item as any).campania_aplicada_id = best.campania_id ?? (item as any).campania_aplicada_id ?? null;
+          } else {
+            // 2) Fallback: solicitar precios desde /precios/producto/:id y escoger el menor
+            if (typeof fetchFn === 'function') {
+              const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+              const preciosUrl = apiBase + '/precios/internal/producto/' + item.producto_id;
+              const headersObj2 = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+              this.logger.log('Calling Catalog (precios) ' + preciosUrl + ' auth=' + (headersObj2 ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+              const resp2: any = await fetchFn(preciosUrl, { headers: headersObj2 });
+              if (!resp2 || !resp2.ok) {
+                let bodyText: string | null = null;
+                try { bodyText = resp2 ? await resp2.text() : null; } catch (e) { bodyText = null; }
+                this.logger.warn('Catalog precios call failed', { preciosUrl, status: resp2?.status, body: bodyText });
+                throw new BadRequestException('No se pudo obtener precio para producto ' + item.producto_id + (bodyText ? (' - ' + bodyText) : ''));
+              }
+              const precios = await resp2.json();
+              const arr = Array.isArray(precios) ? precios : (precios || []);
+              if (arr.length) {
+                const min = Math.min(...arr.map((p: any) => Number(p.precio || p.price || 0)));
+                (item as any).precio_original = min;
+                (item as any).precio_unitario = min;
+              } else {
+                throw new BadRequestException('No hay precio disponible para el producto ' + item.producto_id);
+              }
+            } else {
+              throw new BadRequestException('Fetch no disponible en runtime para obtener precios');
+            }
+          }
+        } catch (err) {
+          this.logger.warn('Error al resolver precio/campaña para item', { producto: item.producto_id, err: err?.message || err });
+          throw new BadRequestException('Error validando precio para producto ' + item.producto_id);
+        }
+      }
+
+      const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
+      
+      // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
+      // descuento por item = (precio_original - precio_unitario) * cantidad
+      const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
+        const precioOriginal = Number((item as any).precio_original) || 0;
+        const precioFinal = Number((item as any).precio_unitario) || 0;
+        const descuentoLinea = precioOriginal > precioFinal ? (precioOriginal - precioFinal) * Number(item.cantidad) : 0;
+        return acc + descuentoLinea;
+      }, 0);
+      
+      // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
+      const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
+      const impuestos_total = (subtotal - descuento_total) * 0.12;
+      const total_final = subtotal - descuento_total + impuestos_total;
+
+      // RESOLVER UBICACIÓN: Si hay sucursal_id → ubicación de sucursal, si no → ubicación del cliente
+      let ubicacionPedido: { lng: number; lat: number } | null = null;
+      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
+        // Si viene ubicación explícita en el DTO, usarla
+        ubicacionPedido = { lng: createOrderDto.ubicacion.lng, lat: createOrderDto.ubicacion.lat };
+      } else if (typeof fetchFn === 'function') {
+        try {
+          // Intentar obtener ubicación desde Catalog (cliente o sucursal)
+          let urlUbicacion = '';
+          if (createOrderDto.sucursal_id) {
+            urlUbicacion = base.replace(/\/+$/, '') + '/internal/sucursales/' + createOrderDto.sucursal_id;
+          } else {
+            urlUbicacion = base.replace(/\/+$/, '') + '/internal/clients/' + createOrderDto.cliente_id;
+          }
+          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+          this.logger.debug('Fetching ubicación desde Catalog', { url: urlUbicacion });
+          const resp: any = await fetchFn(urlUbicacion, { headers: headersObj });
+          if (resp && resp.ok) {
+            const data = await resp.json();
+            const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
+            if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
+              // GeoJSON format: [lng, lat]
+              ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
+            } else if (data?.lat && data?.lng) {
+              ubicacionPedido = { lng: data.lng, lat: data.lat };
+            }
+          }
+        } catch (err) {
+          this.logger.debug('No se pudo obtener ubicación desde Catalog', { error: err?.message || err });
+        }
+      }
+
+      const nuevoPedido = queryRunner.manager.create(Pedido, {
+        cliente_id: createOrderDto.cliente_id,
+        vendedor_id: createOrderDto.vendedor_id,
+        sucursal_id: createOrderDto.sucursal_id || null,
+        observaciones_entrega: createOrderDto.observaciones_entrega || null,
+        condicion_pago: createOrderDto.condicion_pago || 'CONTADO',
+        fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
+        origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
+        subtotal,
+        descuento_total,
+        impuestos_total,
+        total_final,
+        estado_actual: 'PENDIENTE',
+      });
+
+      const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
+
+      // Guardar ubicación si se resolvió
+      if (ubicacionPedido) {
+        await queryRunner.manager.query(
+          `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
+          [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
+        );
+      }
+
+      const detallesGuardados: DetallePedido[] = [];
+      for (const item of createOrderDto.items) {
+        const tieneDescuento = (item as any).precio_original && (item as any).precio_original > (item as any).precio_unitario;
+
+        // Si el frontend declara una campaña aplicada Y hay descuento real, confiar en que fue validada en el carrito
+        // Solo hacer validación estricta si NO hay descuento (indica que la promo puede haber expirado)
+        if ((item as any).campania_aplicada_id && !tieneDescuento) {
+          const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id);
+          if (!esValida) {
+            this.logger.warn('Campaña ID ' + (item as any).campania_aplicada_id + ' para producto ' + item.producto_id + ' no tiene descuento real', { precio_original: (item as any).precio_original, precio_unitario: (item as any).precio_unitario });
+            throw new ConflictException('La promoción para el producto ' + (item.nombre_producto || item.producto_id) + ' ha expirado o no es válida. Actualice el carrito.');
+          }
+        }
+
+        const detalle = queryRunner.manager.create(DetallePedido, {
+          pedido_id: pedidoGuardado.id,
+          producto_id: item.producto_id,
+          codigo_sku: item.codigo_sku || null,
+          nombre_producto: item.nombre_producto || null,
+          cantidad: item.cantidad,
+          unidad_medida: item.unidad_medida || 'UN',
+          precio_lista: (item as any).precio_original || (item as any).precio_unitario,
+          precio_final: (item as any).precio_unitario,
+          campania_aplicada_id: (item as any).campania_aplicada_id || null,
+          motivo_descuento: item.motivo_descuento || null,
+        });
+        const saved = await queryRunner.manager.save(DetallePedido, detalle);
+        detallesGuardados.push(saved);
+
+        // Guardar promoción aplicada si el frontend indicó una campaña
+        if ((item as any).campania_aplicada_id) {
+          try {
+            const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
+            const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
+            const promocion = queryRunner.manager.create(PromocionAplicada, {
+              pedido_id: pedidoGuardado.id,
+              detalle_pedido_id: saved.id,
+              campania_id: (item as any).campania_aplicada_id,
+              tipo_descuento: 'PORCENTAJE',
+              valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
+              monto_aplicado: montoAplicado,
+            });
+            await queryRunner.manager.save(PromocionAplicada, promocion);
+          } catch (promoErr) {
+            this.logger.warn('No se pudo guardar la promoción aplicada', { error: promoErr?.message, campania_id: (item as any).campania_aplicada_id });
+          }
+        }
+      }
+
+      await queryRunner.commitTransaction();
+
+      if (!skipCartClear) {
+        try {
+          // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
+          // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
+          if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
+            // Carrito del vendedor
+            await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
+          } else if (usuarioId) {
+            // Carrito del cliente
+            await this.cartService.clearCart(usuarioId);
+          }
+        } catch (cartError) {
+          this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
+        }
+      }
+      return this.findOne(pedidoGuardado.id);
+
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al crear pedido', { error: err.message, stack: err.stack, dto: createOrderDto });
+      throw new InternalServerErrorException('No se pudo procesar el pedido.');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Crea un pedido a partir del carrito del usuario `usuarioIdParam`.
+   * - Resuelve items del carrito
+   * - Construye un CreateOrderDto mínimo
+   * - Llama a `create()` para persistir
+   */
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, condicion_pago?: string, vendedorIdParam?: string | null): Promise<Pedido> {
+    // 1. Obtener carrito EXACTO del actor
+    // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
+    // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
+    const cart = await this.cartService.getOrCreateCart(usuarioIdParam, vendedorIdParam ?? undefined);
+    this.logger.log('Cart obtained', { cart_id: cart?.id, usuario_id: cart?.usuario_id, vendedor_id: cart?.vendedor_id, items_count: cart?.items?.length });
+    if (!cart || !cart.items || cart.items.length === 0) {
+      throw new BadRequestException('Carrito vacío, no hay items para crear el pedido');
+    }
+
+    // 2. Resolver cliente_id y vendedor_id según actor
+    let clienteId = cart.cliente_id ?? null;
+    let pedidoVendedorId: string | null = null;
+    
+    if (actorRole === 'vendedor') {
+      pedidoVendedorId = actorUserId ?? vendedorIdParam ?? null;
+    }
+    if (!clienteId && actorRole === 'cliente') clienteId = actorUserId || null;
+
+    if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
+
+    // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
+    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+    const fetchFn = (globalThis as any).fetch;
+    if (actorRole === 'cliente') {
+      try {
+        if (typeof fetchFn === 'function') {
+          const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+          const url = apiBase + '/internal/clients/' + clienteId;
+          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+          this.logger.log('Calling Catalog (vendedor_asignado lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+          const resp: any = await fetchFn(url, { headers: headersObj });
+          if (resp && resp.ok) {
+            const clientInfo = await resp.json();
+            pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
+            this.logger.log('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
+          }
+        }
+      } catch (err) {
+        this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
+      }
+    }
+
+    // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
+    // ADEMÁS: Resolver codigo_sku y nombre_producto desde Catalog
+    let items: any[] = cart.items.map((it: any) => ({
+      producto_id: it.producto_id,
+      cantidad: it.cantidad,
+      codigo_sku: null,
+      nombre_producto: null,
+      unidad_medida: 'UN',
+      campania_aplicada_id: it.campania_aplicada_id ?? null,
+      motivo_descuento: it.motivo_descuento ?? null,
+    }));
+
+    // Intentar enriquecer items con datos del Catalog (codigo_sku, nombre_producto)
+    try {
+      if (typeof fetchFn === 'function') {
+        const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+        const productIds = items.map(i => i.producto_id);
+        const productsUrl = apiBase + '/products/internal/batch';
+        const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+        this.logger.debug('Fetching product details from Catalog batch endpoint', { url: productsUrl, count: productIds.length });
+        const resp: any = await fetchFn(productsUrl, {
+          method: 'POST',
+          headers: { ...headersObj, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: productIds, cliente_id: clienteId })
+        });
+        if (resp && resp.ok) {
+          const products = await resp.json();
+          const productMap = Array.isArray(products) 
+            ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
+            : {};
+          items = items.map(item => ({
+            ...item,
+            codigo_sku: productMap[item.producto_id]?.codigo_sku ?? item.codigo_sku,
+            nombre_producto: productMap[item.producto_id]?.nombre ?? item.nombre_producto,
+          }));
+          this.logger.debug('Enriquecidos items con datos del Catalog', { items_count: items.length });
+        } else {
+          this.logger.debug('Catalog batch endpoint no disponible, continuando con nulls');
+        }
+      }
+    } catch (err) {
+      this.logger.warn('No se pudieron obtener detalles de productos desde Catalog', { error: err?.message || err });
+    }
+
+    const dto: any = {
+      cliente_id: clienteId,
+      vendedor_id: pedidoVendedorId,
+      sucursal_id: sucursal_id || null,
+      condicion_pago: condicion_pago,
+      items,
+      origen_pedido: 'FROM_CART',
+      ubicacion: null,
+    };
+
+    // 4. Crear pedido
+    const pedido = await this.create(dto as any, actorUserId, true);
+
+    // 5. Limpiar el carrito correcto despues de crear el pedido (usar el ID exacto del carrito usado)
+    try {
+      await this.cartService.clearCartById(cart.id);
+      this.logger.log('Cleared cart after order creation', { cart_id: cart.id, usuario_id: cart.usuario_id, vendedor_id: cart.vendedor_id });
+    } catch (cartError) {
+      this.logger.warn('No se pudo vaciar el carrito despues de crear pedido', { cart_id: cart.id, error: cartError?.message || String(cartError) });
+    }
+
+    return pedido;
+  }
+
+  async getOrderDetailProfessional(orderId: string): Promise<Pedido> {
+    const pedido = await this.pedidoRepo.createQueryBuilder('pedido')
+      // Join con estados para obtener el 'nombre_visible' (Requisito SQL)
+      .leftJoinAndSelect('pedido.detalles', 'detalle')
+      .leftJoin('estados_pedido', 'estado', 'estado.codigo = pedido.estado_actual')
+      .addSelect(['estado.nombre_visible', 'estado.descripcion'])
+      // Join con historial para el timeline del frontend
+      .leftJoinAndMapMany('pedido.historial', 'historial_estados', 'h', 'h.pedido_id = pedido.id')
+      .where('pedido.id = :id', { id: orderId })
+      .getOne();
+
+    if (!pedido) throw new NotFoundException('Pedido no encontrado');
+    return pedido;
+  }
+
+  /**
+ * Cambia el estado del pedido y registra el historial.
+ * Este método es usado por Bodega, Transporte o Admin.
+ */
+  async updateStatus(
+    pedidoId: string,
+    nuevoEstado: string,
+    usuarioId: string,
+    comentario?: string
+  ): Promise<Pedido> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+
+      const estadoAnterior = pedido.estado_actual;
+
+      // 1. Actualizar cabecera del pedido
+      pedido.estado_actual = nuevoEstado;
+      await queryRunner.manager.save(pedido);
+
+      // 2. Crear entrada en el historial (Requisito de Auditoría)
+      const historial = queryRunner.manager.create(HistorialEstado, {
+        pedido_id: pedidoId,
+        estado_anterior: estadoAnterior,
+        estado_nuevo: nuevoEstado,
+        usuario_id: usuarioId,
+        comentario: comentario || ('Cambio de estado de ' + estadoAnterior + ' a ' + nuevoEstado)
+      });
+      await queryRunner.manager.save(historial);
+
+      // Al hacer commit, se dispararán los triggers de pg_notify del SQL
+      await queryRunner.commitTransaction();
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async listPedidosPaginados(clienteId: string, page = 1, limit = 10) {
+    const [data, total] = await this.pedidoRepo.findAndCount({
+      where: { cliente_id: clienteId },
+      order: { created_at: 'DESC' },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+
+    return {
+      data,
+      meta: {
+        totalItems: total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Cancela un pedido cambiando su estado a ANULADO.
+   * Solo se puede cancelar si está en estado PENDIENTE.
+   * @param pedidoId - UUID del pedido
+   * @param usuarioId - UUID del usuario que solicita la cancelación (opcional)
+   * @param motivo - Motivo de la cancelación (opcional)
+   */
+  async cancelOrder(
+    pedidoId: string,
+    usuarioId?: string,
+    motivo?: string
+  ): Promise<Pedido> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
+      
+      if (!pedido) {
+        throw new NotFoundException('Pedido no encontrado');
+      }
+
+      // Validar que el pedido esté en estado PENDIENTE
+      const estadosPermitidos = ['PENDIENTE', 'APROBADO'];
+      if (!estadosPermitidos.includes(pedido.estado_actual)) {
+        const joinEstados = estadosPermitidos.join(', ');
+        throw new BadRequestException('No se puede cancelar un pedido en estado ' + pedido.estado_actual + '. Solo se permiten estados: ' + joinEstados);
+      }
+
+      const estadoAnterior = pedido.estado_actual;
+
+      // 1. Actualizar estado a ANULADO
+      pedido.estado_actual = 'ANULADO';
+      await queryRunner.manager.save(pedido);
+
+      // 2. Crear entrada en el historial (usuario_id es opcional en la BD)
+      const historial = queryRunner.manager.create(HistorialEstado, {
+        pedido_id: pedidoId,
+        estado_anterior: estadoAnterior,
+        estado_nuevo: 'ANULADO',
+        usuario_id: usuarioId || null,
+        comentario: motivo || 'Pedido cancelado por el cliente'
+      });
+      await queryRunner.manager.save(historial);
+
+      await queryRunner.commitTransaction();
+      
+      this.logger.log('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al cancelar pedido', { error: err.message, pedidoId });
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+}
+

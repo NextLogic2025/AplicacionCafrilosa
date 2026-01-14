@@ -1,8 +1,8 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { ClientesService } from '../clientes/clientes.service';
 
 import { PreciosService } from './precios.service';
@@ -10,7 +10,6 @@ import { CreatePrecioDto } from './dto/create-precio.dto';
 import { CreateListaPrecioDto } from './dto/create-lista-precio.dto';
 
 @Controller('precios')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class PreciosController {
   constructor(
     private readonly preciosService: PreciosService,
@@ -20,12 +19,14 @@ export class PreciosController {
   // --- GESTIÓN DE PRECIOS ---
 
   @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   asignar(@Body() dto: CreatePrecioDto) {
     return this.preciosService.asignarPrecio(dto);
   }
 
   @Get('producto/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
   async verPrecios(@Param('id') id: string, @Req() req: any) {
     // Verificar si es cliente y restringir
@@ -40,7 +41,20 @@ export class PreciosController {
     return this.preciosService.obtenerPreciosDeProducto(id);
   }
 
+  // Internal S2S endpoint: permite llamadas desde otros servicios con SERVICE_TOKEN
+  @Get('internal/producto/:id')
+  async verPreciosInternal(@Param('id') id: string, @Req() req: any) {
+    const serviceToken = process.env.SERVICE_TOKEN;
+    const auth = (req.headers?.authorization || '').toString();
+    if (serviceToken) {
+      const expected = 'Bearer ' + serviceToken;
+      if (auth !== expected) throw new BadRequestException('Unauthorized internal access');
+    }
+    return this.preciosService.obtenerPreciosDeProducto(id);
+  }
+
   @Delete('lista/:listaId/producto/:productoId')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removePrecio(
     @Param('listaId', ParseIntPipe) listaId: number, 
@@ -52,24 +66,28 @@ export class PreciosController {
   // --- GESTIÓN DE LISTAS ---
 
   @Get('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   listarListas() {
     return this.preciosService.findAllListas();
   }
 
   @Post('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   crearLista(@Body() dto: CreateListaPrecioDto) {
     return this.preciosService.createLista(dto);
   }
 
   @Patch('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   actualizarLista(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateListaPrecioDto>) {
     return this.preciosService.updateLista(id, dto);
   }
 
   @Delete('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   eliminarLista(@Param('id', ParseIntPipe) id: number) {
     return this.preciosService.deleteLista(id);
@@ -78,6 +96,7 @@ export class PreciosController {
   // --- VISTAS ESPECIALES ---
 
   @Get('lista/:id/productos')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   listarProductosConPrecio(
     @Param('id', ParseIntPipe) id: number,

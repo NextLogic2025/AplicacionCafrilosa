@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { ZonasService } from './zonas.service';
 
@@ -12,14 +12,14 @@ export class ZonasController {
 
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'transportista')
+  @Roles('admin', 'supervisor', 'transportista', 'cliente')
   findAll() {
     return this.svc.findAll();
   }
 
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'transportista')
+  @Roles('admin', 'supervisor', 'transportista', 'cliente')
   findOne(@Param('id') id: number) {
     return this.svc.findOne(Number(id));
   }

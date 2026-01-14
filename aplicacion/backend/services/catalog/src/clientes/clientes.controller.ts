@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { ClientesService } from './clientes.service';
 
@@ -31,30 +31,32 @@ export class ClientesController {
     return this.svc.unblock(id);
   }
 
-  @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
-  findOne(@Req() req: any, @Param('id') id: string) {
-    const role = String(req.user?.role || '').toLowerCase();
-    const userId = req.user?.userId;
-    
-    // Si es cliente, buscar por usuario_principal_id en lugar de id de tabla
-    if (role === 'cliente') {
-      // El id en la URL puede ser el userId, buscar por usuario_principal_id
-      return this.svc.findByUsuarioPrincipalId(userId);
-    }
-    
-    // Para otros roles, verificar ownership si es cliente el que consulta
-    if (role === 'cliente' && userId !== id) throw new ForbiddenException('No autorizado');
-    return this.svc.findOne(id);
-  }
-
   @Get('mis')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   mis(@Req() req: any) {
     const vendedorId = req.user?.userId;
     return this.svc.findForVendedor(vendedorId);
+  }
+
+  @Get(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
+  findOne(@Req() req: any, @Param('id') id: string) {
+    const rawRole = req.user?.role;
+    const roles = Array.isArray(rawRole)
+      ? rawRole.map((r: any) => String(r).toLowerCase())
+      : [String(rawRole || '').toLowerCase()];
+    const isCliente = roles.includes('cliente');
+    const userId = req.user?.userId;
+
+    // Clientes solo pueden ver su propio registro (por usuario_principal_id)
+    if (isCliente) {
+      return this.svc.findByUsuarioPrincipalId(userId);
+    }
+
+    // Otros roles (admin, supervisor, vendedor) buscan por id de cliente
+    return this.svc.findOne(id);
   }
 
   @Post()
@@ -68,10 +70,14 @@ export class ClientesController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
-    const role = String(req.user?.role || '').toLowerCase();
+    const rawRole = req.user?.role;
+    const roles = Array.isArray(rawRole)
+      ? rawRole.map((r: any) => String(r).toLowerCase())
+      : [String(rawRole || '').toLowerCase()];
+    const isCliente = roles.includes('cliente');
     const userId = req.user?.userId;
     
-    if (role === 'cliente') {
+    if (isCliente) {
       // Buscar el cliente por usuario_principal_id
       const cliente = await this.svc.findByUsuarioPrincipalId(userId);
       if (!cliente) throw new ForbiddenException('Cliente no encontrado');
@@ -86,10 +92,14 @@ export class ClientesController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   async remove(@Req() req: any, @Param('id') id: string) {
-    const role = String(req.user?.role || '').toLowerCase();
+    const rawRole = req.user?.role;
+    const roles = Array.isArray(rawRole)
+      ? rawRole.map((r: any) => String(r).toLowerCase())
+      : [String(rawRole || '').toLowerCase()];
+    const isCliente = roles.includes('cliente');
     const userId = req.user?.userId;
     
-    if (role === 'cliente') {
+    if (isCliente) {
       // Buscar el cliente por usuario_principal_id
       const cliente = await this.svc.findByUsuarioPrincipalId(userId);
       if (!cliente) throw new ForbiddenException('Cliente no encontrado');

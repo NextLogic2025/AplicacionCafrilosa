@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Query, Req, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { ClientesService } from '../clientes/clientes.service';
 import { PreciosService } from '../precios/precios.service';
 
@@ -130,6 +130,18 @@ export class ProductsController {
         if (cliente) {
           clienteListaId = (cliente as any).lista_precios_id ?? null;
           clienteId = (cliente as any).id ?? clienteId;
+        }
+      }
+    } else {
+      // Permitir a admin/supervisor/vendedor consultar precios/promos según un cliente específico
+      const queryClienteId = req.query?.cliente_id || req.query?.clienteId;
+      if (queryClienteId && roles.some((r) => ['admin', 'supervisor', 'vendedor'].includes(r))) {
+        const cliente = await this.clientesService.findOne(String(queryClienteId));
+        if (cliente) {
+          clienteListaId = (cliente as any).lista_precios_id ?? null;
+          clienteId = (cliente as any).id ?? undefined;
+          // Forzar flujo de cliente para que se apliquen lista de precios y promociones filtradas
+          if (!roles.includes('cliente')) roles.push('cliente');
         }
       }
     }

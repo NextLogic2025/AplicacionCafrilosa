@@ -8,6 +8,9 @@ export class SucursalCliente {
   @Column({ name: 'cliente_id', type: 'uuid' })
   cliente_id: string;
 
+  @Column({ name: 'zona_id', type: 'int', nullable: true })
+  zona_id: number | null;
+
   @Column({ name: 'nombre_sucursal' })
   nombre_sucursal: string;
 
@@ -31,4 +34,7 @@ export class SucursalCliente {
 
   @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
   updated_at: Date;
+
+  @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deleted_at: Date | null;
 }

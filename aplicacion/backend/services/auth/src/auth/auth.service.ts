@@ -281,4 +281,32 @@ export class AuthService {
 
     return { access_token, refresh_token };
   }
+
+  // Batch interno para otros servicios: retorna campos básicos de usuarios
+  async obtenerUsuariosPorIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+
+    const usuarios = await this.usuarioRepo
+      .createQueryBuilder('u')
+      .leftJoinAndSelect('u.rol', 'r')
+      .where('u.id IN (:...ids)', { ids })
+      .select([
+        'u.id',
+        'u.email',
+        'u.nombre',
+        'u.telefono',
+        'r.id',
+        'r.nombre',
+      ])
+      .getMany();
+
+    // Devuelve estructura simple; ajustar si necesitas más campos
+    return usuarios.map((u) => ({
+      id: u.id,
+      email: u.email,
+      nombre: u.nombre,
+      telefono: u.telefono,
+      rol: u.rol ? { id: u.rol.id, nombre: u.rol.nombre } : null,
+    }));
+  }
 }
