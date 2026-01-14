@@ -31,6 +31,8 @@ const PaginaCarrito = React.lazy(() => import('../features/cliente/pages/carrito
 const PaginaEntregas = React.lazy(() => import('../features/cliente/pages/entregas'))
 import PaginaPromociones from '../features/cliente/pages/promociones'
 import PaginaDevolucionesCliente from '../features/cliente/pages/devoluciones'
+
+const PaginaSucursal = React.lazy(() => import('../features/cliente/pages/sucursal'))
 const PaginaSoporte = React.lazy(() => import('../features/cliente/pages/soporte'))
 const PaginaNotificaciones = React.lazy(() => import('../features/cliente/pages/notificaciones'))
 const PaginaPerfilCliente = React.lazy(() => import('../features/cliente/pages/perfil'))
@@ -105,6 +107,7 @@ export default function AppRouter() {
           <Route path="mensajes" element={<PaginaMensajesCliente />} />
           <Route path="notificaciones" element={<PaginaNotificaciones />} />
           <Route path="perfil" element={<PaginaPerfilCliente />} />
+          <Route path="sucursal" element={<PaginaSucursal />} />
         </Route>
 
         <Route path="/app/cliente/*" element={<Navigate to="/cliente" replace />} />

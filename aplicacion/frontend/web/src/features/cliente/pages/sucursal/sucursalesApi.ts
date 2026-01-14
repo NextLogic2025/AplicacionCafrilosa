@@ -1,4 +1,4 @@
-import { httpCatalogo } from '../../../services/api/http'
+import { httpCatalogo } from '../../../../services/api/http'
 
 export async function fetchSucursalesByCliente(clienteId: string) {
   return httpCatalogo(`/clientes/${clienteId}/sucursales`).catch(() => [])

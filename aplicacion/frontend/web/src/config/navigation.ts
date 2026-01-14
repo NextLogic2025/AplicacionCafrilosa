@@ -21,6 +21,7 @@ export const CLIENTE_NAV_ITEMS: SidebarItem[] = [
   { id: 'mensajes', label: 'Mensajes', to: '/cliente/mensajes', icon: MessageCircle },
   { id: 'notificaciones', label: 'Notificaciones', to: '/cliente/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/cliente/perfil', icon: User },
+  { id: 'sucursal', label: 'Sucursal', to: '/cliente/sucursal', icon: Map },
 ]
 
 // ========================================

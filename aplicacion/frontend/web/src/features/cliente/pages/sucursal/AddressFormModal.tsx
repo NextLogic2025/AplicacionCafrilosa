@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal } from 'components/ui/Modal'
 import { TextField } from 'components/ui/TextField'
 import { SucursalLocationPicker } from 'components/ui/SucursalLocationPicker'
-import type { ZonaComercial } from '../../supervisor/services/zonasApi'
+import type { ZonaComercial } from '../../../supervisor/services/zonasApi'
 
 type Props = {
   isOpen: boolean
