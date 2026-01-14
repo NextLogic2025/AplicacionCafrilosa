@@ -1,9 +1,10 @@
+import { httpAuth, httpUsuarios, ApiError } from '../../../services/api/http'
+
 // Obtener todos los usuarios desde /auth/usuarios
 export async function obtenerUsuarios(): Promise<Usuario[]> {
   // Cambiado a la ruta correcta
-  return httpUsuarios<Usuario[]>('/usuarios/me');
+  return httpUsuarios<Usuario[]>('/usuarios/me')
 }
-import { httpAuth, httpUsuarios } from '../../../services/api/http'
 
 export interface CreateUsuarioDto {
   email: string
@@ -64,8 +65,13 @@ export async function obtenerEquipo(): Promise<Usuario[]> {
   return httpUsuarios<Usuario[]>('/usuarios')
 }
 
-export async function getUsuario(id: string): Promise<Usuario> {
-  return httpUsuarios<Usuario>(`/usuarios/${id}`)
+export async function getUsuario(id: string): Promise<Usuario | null> {
+  try {
+    return await httpUsuarios<Usuario>(`/usuarios/${id}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null
+    throw e
+  }
 }
 
 export async function updateUsuario(id: string, data: UpdateUsuarioDto): Promise<Usuario> {

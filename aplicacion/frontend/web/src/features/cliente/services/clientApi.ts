@@ -131,6 +131,54 @@ export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: num
   return { items, page: 1, totalPages: 1 }
 }
 
+export async function deletePedido(orderId: string): Promise<boolean> {
+  if (!orderId) return false
+  if (!orderId) return false
+
+  // Prefer explicit cancel/status endpoints on orders service (see README)
+  try {
+    console.log('[clientApi] deletePedido - request PATCH cancel', `/orders/${orderId}/cancel`)
+    await httpOrders(`/orders/${orderId}/cancel`, {
+      method: 'PATCH',
+      body: { nuevoEstado: 'CANCELADO', comentario: 'Cancelado desde portal cliente' },
+    })
+    console.log('[clientApi] deletePedido - cancel PATCH succeeded', orderId)
+    return true
+  } catch (e) {
+    console.warn('[clientApi] deletePedido - PATCH cancel failed, trying status endpoint', orderId)
+    try {
+      console.log('[clientApi] deletePedido - request PATCH status', `/orders/${orderId}/status`)
+      await httpOrders(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: { nuevoEstado: 'CANCELADO', comentario: 'Cancelado desde portal cliente' },
+      })
+      console.log('[clientApi] deletePedido - status PATCH succeeded', orderId)
+      return true
+    } catch (ee) {
+      console.warn('[clientApi] deletePedido - status PATCH failed, attempting legacy fallbacks', orderId)
+      try {
+        console.log('[clientApi] deletePedido - request DELETE', `/orders/${orderId}`)
+        await httpOrders(`/orders/${orderId}`, { method: 'DELETE' })
+        console.log('[clientApi] deletePedido - deleted', orderId)
+        return true
+      } catch {
+        try {
+          console.log('[clientApi] deletePedido - request POST cancel', `/orders/${orderId}/cancel`)
+          await httpOrders(`/orders/${orderId}/cancel`, { method: 'POST' })
+          console.log('[clientApi] deletePedido - cancel POST succeeded', orderId)
+          return true
+        } catch (eee) {
+          try {
+            if (eee instanceof Error) console.warn('[clientApi] deletePedido - error', eee.message)
+            if (eee && typeof (eee as any).payload !== 'undefined') console.warn('[clientApi] deletePedido - payload', (eee as any).payload)
+          } catch (_) {}
+          return false
+        }
+      }
+    }
+  }
+}
+
 export async function getFacturas(): Promise<Factura[]> {
   return []
 }
@@ -253,8 +301,50 @@ export async function createPedido(
 export async function createPedidoFromCart(): Promise<Pedido> {
   const ctx = await getClienteContext()
   if (!ctx?.usuarioId) throw new Error('No se encontró el usuario autenticado')
-  const backend = await httpOrders<any>(`/orders/from-cart/${ctx.usuarioId}`, { method: 'POST' }).catch(() => null)
-  if (!backend) throw new Error('No se pudo crear el pedido desde el carrito')
+
+  // Read local cart stored by CartContext
+  let cartItems: any[] = []
+  try {
+    const raw = localStorage.getItem('cafrilosa:cart')
+    cartItems = raw ? JSON.parse(raw) : []
+  } catch {
+    cartItems = []
+  }
+
+  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+    throw new Error('El carrito está vacío')
+  }
+
+  // Attempt to resolve cliente / vendedor info
+  const clienteDetalle = await fetchClienteByUsuarioId(ctx.clienteId ?? ctx.usuarioId).catch(() => null)
+  const vendedorId = clienteDetalle?.vendedor_asignado_id ? String(clienteDetalle.vendedor_asignado_id) : ctx.usuarioId
+
+  const itemsPayload = cartItems.map((it: any) => ({
+    producto_id: it.id,
+    cantidad: Number(it.quantity ?? it.cantidad ?? 0),
+    precio_unitario: Number(it.unitPrice ?? 0),
+    precio_original: Number(it.unitPrice ?? 0),
+    nombre_producto: it.name ?? undefined,
+  }))
+
+  const descuentoTotal = 0
+  const payload = {
+    cliente_id: ctx.usuarioId,
+    vendedor_id: vendedorId,
+    items: itemsPayload,
+    descuento_total: descuentoTotal,
+    origen_pedido: 'PORTAL_CLIENTE',
+  }
+
+  // The orders service expects creation from the server-side cart endpoint
+  const usuarioId = ctx.usuarioId
+  if (!usuarioId) throw new Error('No se encontró el usuario autenticado')
+
+  const backend = await httpOrders<any>(`/orders/from-cart/${usuarioId}`, { method: 'POST', body: { condicion_pago: 'CONTADO' } }).catch((err) => {
+    if (err instanceof Error) throw new Error(err.message)
+    throw new Error('Error al crear pedido en el servidor')
+  })
+  if (!backend) throw new Error('No se pudo crear el pedido')
   return mapPedidoFromBackend(backend)
 }
 

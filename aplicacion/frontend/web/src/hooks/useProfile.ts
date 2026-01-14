@@ -35,6 +35,18 @@ export function useProfile() {
     try {
       const clienteData = await fetchClienteByUsuarioId(profile.id)
       setClient(clienteData)
+      // Si el cliente trae el nombre del vendedor en la carga, usarlo como caché
+      // Si el cliente trae el nombre del vendedor en la carga, usarlo como caché
+      const cachedVendorName = (clienteData as any)?.nombre_vendedor_cache ?? (clienteData as any)?.vendedor_nombre
+      if (clienteData?.vendedor_asignado_id && cachedVendorName) {
+        setVendedorMap((prev) => ({
+          ...prev,
+          [clienteData.vendedor_asignado_id]: {
+            id: clienteData.vendedor_asignado_id,
+            nombre: cachedVendorName,
+          },
+        }))
+      }
       if (clienteData?.vendedor_asignado_id && clienteData?.nombre_vendedor_cache) {
         setVendedorMap((prev) => ({
           ...prev,
@@ -104,6 +116,7 @@ export function useProfile() {
 
   React.useEffect(() => {
     const vendorId = typeof client?.vendedor_asignado_id === 'string' ? client.vendedor_asignado_id : null
+    
     if (!vendorId) return
     if (vendedorMap[vendorId]) return
     if (fetchedVendorIds.current.has(vendorId)) return
@@ -114,8 +127,13 @@ export function useProfile() {
     ;(async () => {
       try {
         const vendor = await getUsuario(vendorId)
-        if (!cancelled && vendor?.id) {
-          setVendedorMap((prev) => ({ ...prev, [vendor.id]: { id: vendor.id, nombre: vendor.nombre } }))
+        if (!cancelled) {
+          if (vendor && vendor.id) {
+            setVendedorMap((prev) => ({ ...prev, [vendor.id]: { id: vendor.id, nombre: vendor.nombre } }))
+          } else {
+            // No existe el vendedor en el servicio de usuarios
+            setVendedorMap((prev) => ({ ...prev, [vendorId]: { id: vendorId, nombre: 'Vendedor no disponible' } }))
+          }
         }
       } catch (err) {
         if (!cancelled) {

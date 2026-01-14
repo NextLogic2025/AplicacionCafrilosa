@@ -70,6 +70,17 @@ export async function getClientesAsignados(): Promise<Cliente[]> {
   return httpCatalogo<Cliente[]>('/clientes/mis')
 }
 
+// --- Sucursales ---
+export async function getSucursales(): Promise<any[]> {
+  // Lista todas las sucursales del sistema
+  return httpCatalogo<any[]>('/api/sucursales').catch(() => [])
+}
+
+export async function getSucursalesPorCliente(clienteId: string): Promise<any[]> {
+  if (!clienteId) return []
+  return httpCatalogo<any[]>(`/api/clientes/${encodeURIComponent(clienteId)}/sucursales`).catch(() => [])
+}
+
 export async function createTicket(nuevo: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
   return await httpCatalogo<Ticket>('/vendedor/tickets', { method: 'POST', body: nuevo })
 }

@@ -33,7 +33,7 @@ export function SellerProductsScreen() {
         // In a real app, this would use a Context or Redux to add to the global "Current Order" state.
         // For now, we'll navigate to the Order screen with the product as a param or just show feedback.
         // Given the requirement "backend ready", we'll mock the action.
-        console.log('Adding to order:', product.name)
+        // debug log removed
         // Feedback could be a toast or alert, but let's keep it simple as per instructions.
     }
 

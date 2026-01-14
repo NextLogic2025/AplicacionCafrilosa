@@ -17,9 +17,10 @@ interface ClienteDetailModalProps {
   isOpen: boolean
   onClose: () => void
   cliente: Cliente | null
+  selectedSucursalId?: string | number | null
 }
 
-export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailModalProps) {
+export function ClienteDetailModal({ isOpen, onClose, cliente, selectedSucursalId }: ClienteDetailModalProps) {
   const [sucursales, setSucursales] = useState<Sucursal[]>([])
   const [isLoadingSucursales, setIsLoadingSucursales] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,8 +28,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
   const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || ''
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey, libraries: GOOGLE_MAP_LIBRARIES })
 
-  const modalTitle = getClienteDisplayName(cliente)
-  const secondaryName = cliente ? getClienteSecondaryName(cliente, modalTitle) : null
+  
 
   useEffect(() => {
     if (!isOpen || !cliente) return
@@ -100,7 +100,16 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
     }, [] as Array<{ sucursal: Sucursal; marker: google.maps.LatLngLiteral }>)
   }, [sucursales])
 
-  const mapCenter = mainLocation || markersSucursales[0]?.marker || zonaPath[0] || defaultCenter
+  const selectedSucursal = useMemo(() => {
+    if (!selectedSucursalId || sucursales.length === 0) return null
+    return sucursales.find((s) => String(s.id) === String(selectedSucursalId)) ?? null
+  }, [sucursales, selectedSucursalId])
+
+  const selectedSucursalMarker = selectedSucursal?.ubicacion_gps?.coordinates
+    ? { lat: selectedSucursal.ubicacion_gps.coordinates[1], lng: selectedSucursal.ubicacion_gps.coordinates[0] }
+    : null
+
+  const mapCenter = selectedSucursalMarker || mainLocation || markersSucursales[0]?.marker || zonaPath[0] || defaultCenter
 
   const listaNombre = cliente?.lista_precios?.nombre ?? (cliente?.lista_precios_id ? `Lista ${cliente.lista_precios_id}` : null)
   const zonaNombre = zona?.nombre ?? (cliente?.zona_comercial_id ? `Zona ${cliente.zona_comercial_id}` : null)
@@ -108,6 +117,9 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
   const creditoDisponible = cliente?.tiene_credito && cliente.limite_credito
     ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
     : '0.00'
+
+  const modalTitle = selectedSucursal ? selectedSucursal.nombre_sucursal : getClienteDisplayName(cliente)
+  const secondaryName = selectedSucursal ? getClienteDisplayName(cliente) : cliente ? getClienteSecondaryName(cliente, modalTitle) : null
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} headerGradient="red" maxWidth="2xl">
@@ -123,9 +135,26 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
               <p className="text-sm text-neutral-700">
                 {cliente.tipo_identificacion}: {cliente.identificacion}
               </p>
-              {cliente.direccion_texto && <p className="text-sm text-neutral-700">Dirección: {cliente.direccion_texto}</p>}
-              {zonaNombre && <p className="text-sm text-neutral-700">Zona: {zonaNombre}</p>}
-              {listaNombre && <p className="text-sm text-neutral-700">Lista de precios: {listaNombre}</p>}
+              {selectedSucursal ? (
+                <>
+                  {selectedSucursal.direccion_entrega && (
+                    <p className="text-sm text-neutral-700">Dirección: {selectedSucursal.direccion_entrega}</p>
+                  )}
+                  {selectedSucursal.contacto_nombre && (
+                    <p className="text-sm text-neutral-700">Contacto: {selectedSucursal.contacto_nombre}</p>
+                  )}
+                  {selectedSucursal.contacto_telefono && (
+                    <p className="text-sm text-neutral-700">Tel: {selectedSucursal.contacto_telefono}</p>
+                  )}
+                  {listaNombre && <p className="text-sm text-neutral-700">Lista de precios: {listaNombre}</p>}
+                </>
+              ) : (
+                <>
+                  {cliente.direccion_texto && <p className="text-sm text-neutral-700">Dirección: {cliente.direccion_texto}</p>}
+                  {zonaNombre && <p className="text-sm text-neutral-700">Zona: {zonaNombre}</p>}
+                  {listaNombre && <p className="text-sm text-neutral-700">Lista de precios: {listaNombre}</p>}
+                </>
+              )}
               <p className="text-xs text-neutral-500">Creado: {new Date(cliente.created_at).toLocaleDateString('es-EC')}</p>
             </div>
             <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
@@ -198,7 +227,9 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
                     <AdvancedMarker
                       key={sucursal.id}
                       position={marker}
-                      icon="http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                      icon={selectedSucursal && String(selectedSucursal.id) === String(sucursal.id)
+                        ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                        : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'}
                       title={sucursal.nombre_sucursal}
                     />
                   ))}
@@ -208,7 +239,10 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
             {mainLocation && (
               <div className="flex justify-end">
                 <a
-                  href={buildDirectionsUrl(mainLocation.lat, mainLocation.lng)}
+                  href={buildDirectionsUrl(
+                    selectedSucursalMarker ? selectedSucursalMarker.lat : mainLocation.lat,
+                    selectedSucursalMarker ? selectedSucursalMarker.lng : mainLocation.lng,
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm font-semibold text-brand-red transition hover:text-brand-red-dark"
@@ -230,11 +264,17 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
             <div className="grid gap-3 md:grid-cols-2">
               {sucursales.map((sucursal) => {
                 const coords = sucursal.ubicacion_gps?.coordinates
+                const isSelected = selectedSucursal && String(selectedSucursal.id) === String(sucursal.id)
                 return (
-                  <div key={sucursal.id} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                    <p className="font-semibold text-neutral-900">{sucursal.nombre_sucursal}</p>
+                  <div
+                    key={sucursal.id}
+                    className={`rounded-lg border p-3 ${isSelected ? 'border-brand-red bg-white shadow-sm' : 'border-neutral-200 bg-neutral-50'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-neutral-900">{sucursal.nombre_sucursal}</p>
+                      {isSelected && <span className="text-xs font-semibold text-brand-red">Seleccionada</span>}
+                    </div>
                     {sucursal.direccion_entrega && <p className="text-xs text-neutral-700">{sucursal.direccion_entrega}</p>}
-                    {sucursal.zona_nombre && <p className="text-xs text-neutral-700">Zona: {sucursal.zona_nombre}</p>}
                     {sucursal.contacto_nombre && <p className="text-xs text-neutral-700">Contacto: {sucursal.contacto_nombre}</p>}
                     {sucursal.contacto_telefono && <p className="text-xs text-neutral-700">Tel: {sucursal.contacto_telefono}</p>}
                     {coords && (

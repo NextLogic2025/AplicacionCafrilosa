@@ -10,6 +10,9 @@ export default function VendedorMapa({
   loadError,
   isLoading,
   mapContainerStyle,
+  showDetails,
+  selectedClienteId,
+  selectedSucursalId,
 }: any) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-neutral-200 bg-white shadow-sm">
@@ -24,15 +27,18 @@ export default function VendedorMapa({
             <div className="text-sm text-neutral-500">Cargando mapa...</div>
           </div>
         ) : (
-          <MapPanel
-            puntosMapa={puntosMapa}
-            rutaPolyline={rutaPolyline}
-            mapaCentro={mapaCentro}
-            selectedPosition={selectedPosition}
-            isLoaded={isLoaded}
-            loadError={loadError}
-            mapContainerStyle={mapContainerStyle}
-          />
+            <MapPanel
+              puntosMapa={puntosMapa}
+              rutaPolyline={rutaPolyline}
+              mapaCentro={mapaCentro}
+              selectedPosition={selectedPosition}
+              isLoaded={isLoaded}
+              loadError={loadError}
+              mapContainerStyle={mapContainerStyle}
+              showDetails={showDetails}
+              selectedClienteId={selectedClienteId}
+              selectedSucursalId={selectedSucursalId}
+            />
         )}
       </div>
 

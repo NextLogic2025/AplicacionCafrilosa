@@ -149,6 +149,11 @@ export async function obtenerTodasLasRutas(): Promise<RuteroPlanificado[]> {
   })) as RuteroPlanificado[]
 }
 
+// Obtener las rutas del vendedor autenticado
+export async function obtenerRuteroMio(): Promise<any[]> {
+  return httpCatalogo<any[]>(`/rutero/mio`).catch(() => [])
+}
+
 function numberToDia(num: number): DiaSemana {
   const map: Record<number, DiaSemana> = {
     2: 'LUNES',

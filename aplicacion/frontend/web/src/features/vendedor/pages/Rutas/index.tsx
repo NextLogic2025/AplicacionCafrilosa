@@ -12,14 +12,14 @@ import VendedorLista from './VendedorLista'
 import VendedorMapa from './VendedorMapa'
 import { getClienteCoords } from './helpers'
 import { getClientesAsignados } from '../../services/vendedorApi'
-import { obtenerTodasLasRutas } from '../../../supervisor/services/ruteroApi'
+import { obtenerRuteroMio } from '../../../supervisor/services/ruteroApi'
 import { DIAS_SEMANA, PRIORIDAD_COLORS, type DiaSemana, type RuteroPlanificado } from '../../../supervisor/services/types'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 import ResumenCard from './ResumenCard'
 import { DIA_LABEL, FRECUENCIA_LABEL, formatHora, titleCase, buildDirectionsUrl, diaActual } from './utils'
 
 interface RutaConCliente {
-  plan: RuteroPlanificado
+  plan: any
   cliente: Cliente
 }
 
@@ -49,15 +49,15 @@ export default function VendedorRutas() {
   const [rutas, setRutas] = useState<RutaConCliente[]>([])
   const [clienteDetalle, setClienteDetalle] = useState<Cliente | null>(null)
   const [isDetalleAbierto, setIsDetalleAbierto] = useState(false)
+  const [selectedSucursalId, setSelectedSucursalId] = useState<string | number | null>(null)
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAP_LIBRARIES })
 
   // Log de depuración para ver los datos filtrados
   useEffect(() => {
     if (rutas.length > 0) {
-      console.log('Clientes asignados mostrados en rutas:', rutas.map(r => r.cliente));
-      console.log('Rutas planificadas mostradas:', rutas.map(r => r.plan));
+      // debug logs removed
     } else {
-      console.log('No hay rutas filtradas para mostrar.');
+      // debug logs removed
     }
   }, [rutas]);
   useEffect(() => {
@@ -74,7 +74,7 @@ const cargarDatos = useCallback(async () => {
 
     const [clientesAsignados, rutasPlanificadas] = await Promise.all([
       getClientesAsignados().catch(() => []),
-      obtenerTodasLasRutas().catch(() => []),
+      obtenerRuteroMio().catch(() => []),
     ])
 
     // Indexar clientes asignados por id y por identificacion
@@ -87,7 +87,29 @@ const cargarDatos = useCallback(async () => {
     // Filtrar rutas solo de clientes asignados y activos (no bloqueados ni eliminados)
     const rutasFiltradas: RutaConCliente[] = rutasPlanificadas
       .map((plan) => {
-        const cliente = clientesIndex.get(plan.cliente_id)
+        // Intentar emparejar por varios campos: id, identificacion
+        let cliente = clientesIndex.get(plan.cliente_id)
+        if (!cliente && typeof plan.cliente_id === 'string') {
+          cliente = clientesIndex.get(plan.cliente_id.trim())
+        }
+        if (!cliente) {
+          // buscar en el arreglo por coincidencias adicionales
+          cliente = clientesAsignados.find((c: any) => {
+            if (!c) return false
+            if (String(c.id) === String(plan.cliente_id)) return true
+            if (String(c.identificacion) === String(plan.cliente_id)) return true
+            if (plan.cliente_identificacion && String(c.identificacion) === String(plan.cliente_identificacion)) return true
+            if (plan.identificacion && String(c.identificacion) === String(plan.identificacion)) return true
+            return false
+          })
+        }
+
+        if (!cliente) {
+          // Depuración: mostrar por qué no emparejó
+          // eslint-disable-next-line no-console
+          console.warn('No se pudo emparejar ruta con cliente asignado:', { plan })
+        }
+
         return cliente ? { plan, cliente } : null
       })
       .filter(Boolean)
@@ -183,7 +205,21 @@ const cargarDatos = useCallback(async () => {
       id: string
       tipo: 'PRINCIPAL' | 'SUCURSAL'
       clienteId: string
+      sucursalId?: string | number | null
     }> = []
+
+    const principalAdded = new Set<string>()
+
+    // Precalcular conteos por cliente para decidir si mostramos la matriz cuando
+    // la visita es a una sucursal. Si sólo hay una visita y es a la sucursal,
+    // evitamos añadir el pin de matriz para reducir ruido en el mapa.
+    const visitasPorCliente = new Map<string, number>()
+    const tieneVisitaPrincipal = new Map<string, boolean>()
+    rutasSeleccionadas.forEach((r) => {
+      const cid = String(r.plan.cliente_id)
+      visitasPorCliente.set(cid, (visitasPorCliente.get(cid) || 0) + 1)
+      if (!r.plan.sucursal_id) tieneVisitaPrincipal.set(cid, true)
+    })
 
     rutasSeleccionadas.forEach((item, index) => {
       const cliente = item.cliente as any
@@ -198,40 +234,79 @@ const cargarDatos = useCallback(async () => {
           : getClienteCoords(item.cliente, null)
         if (coordsPrincipal) {
           const idPrincipal = plan.id ?? `${plan.cliente_id}-main-${plan.hora_estimada_arribo ?? plan.created_at ?? index}`
-          puntos.push({
-            position: coordsPrincipal,
-            label,
-            nombre,
-            id: `principal-${idPrincipal}`,
-            tipo: 'PRINCIPAL',
-            clienteId: item.plan.cliente_id,
-          })
+          const cid = String(item.plan.cliente_id)
+          const visitas = visitasPorCliente.get(cid) || 0
+          const tienePrincipal = tieneVisitaPrincipal.get(cid) || false
+          // Mostrar la matriz solo si: no se ha añadido antes AND (existen varias visitas al cliente OR existe una visita principal)
+          if (!principalAdded.has(cid) && (visitas > 1 || tienePrincipal)) {
+            puntos.push({
+              position: coordsPrincipal,
+              label,
+              nombre,
+              id: `principal-${idPrincipal}`,
+              tipo: 'PRINCIPAL',
+              clienteId: item.plan.cliente_id,
+              sucursalId: null,
+            })
+            principalAdded.add(cid)
+          }
         }
         return
       }
 
-      // Si existe sucursal_id, añadimos únicamente el marcador de la sucursal (no la matriz),
-      // buscando coords en plan.ubicacion_gps o en cliente.sucursales
-      let coordsSucursal: { lat: number; lng: number } | undefined
-      if (plan.ubicacion_gps?.coordinates) {
-        coordsSucursal = { lat: plan.ubicacion_gps.coordinates[1], lng: plan.ubicacion_gps.coordinates[0] }
-      } else if (cliente?.sucursales && Array.isArray(cliente.sucursales)) {
-        const suc = cliente.sucursales.find((s: any) => String(s.id) === String(plan.sucursal_id))
-        if (suc) {
-          coordsSucursal = getClienteCoords({ ...item.cliente, ubicacion_gps: suc.ubicacion_gps, latitud: suc.latitud, longitud: suc.longitud } as Cliente, null)
-        }
-      }
+      // Si existe sucursal_id, añadimos el marcador de la matriz (si existe) y el de la sucursal.
+      // Esto permite dibujar la relación matriz <-> sucursal en el mapa.
+      if (plan.sucursal_id) {
+        const coordsPrincipal = getClienteCoords(item.cliente, null)
+        const almostEqual = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+          Math.abs(a.lat - b.lat) < 0.00001 && Math.abs(a.lng - b.lng) < 0.00001
 
-      if (coordsSucursal) {
-        const idSucursal = plan.id ?? `${plan.cliente_id}-${plan.sucursal_id}-${plan.hora_estimada_arribo ?? plan.created_at ?? index}`
-        puntos.push({
-          position: coordsSucursal,
-          label,
-          nombre: `${nombre} — ${plan.sucursal_nombre ?? 'Sucursal'}`,
-          id: `sucursal-${idSucursal}`,
-          tipo: 'SUCURSAL',
-          clienteId: item.plan.cliente_id,
-        })
+        if (coordsPrincipal) {
+          const idPrincipal = plan.id ?? `${plan.cliente_id}-main-${plan.hora_estimada_arribo ?? plan.created_at ?? index}`
+          const cid = String(item.plan.cliente_id)
+          const visitas = visitasPorCliente.get(cid) || 0
+          const tienePrincipal = tieneVisitaPrincipal.get(cid) || false
+          if (!principalAdded.has(cid) && (visitas > 1 || tienePrincipal)) {
+            puntos.push({
+              position: coordsPrincipal,
+              label,
+              nombre,
+              id: `principal-${idPrincipal}`,
+              tipo: 'PRINCIPAL',
+              clienteId: item.plan.cliente_id,
+              sucursalId: null,
+            })
+            principalAdded.add(cid)
+          }
+        }
+
+        // buscar coords de sucursal en plan o en cliente.sucursales
+        let coordsSucursal: { lat: number; lng: number } | null = null
+        if (plan.ubicacion_gps?.coordinates) {
+          coordsSucursal = { lat: plan.ubicacion_gps.coordinates[1], lng: plan.ubicacion_gps.coordinates[0] }
+        } else if (cliente?.sucursales && Array.isArray(cliente.sucursales)) {
+          const suc = cliente.sucursales.find((s: any) => String(s.id) === String(plan.sucursal_id))
+          if (suc) {
+            coordsSucursal = getClienteCoords({ ...item.cliente, ubicacion_gps: suc.ubicacion_gps, latitud: suc.latitud, longitud: suc.longitud } as Cliente, null)
+          }
+        }
+
+        if (coordsSucursal) {
+          // Evitar duplicar si matriz y sucursal apuntan al mismo punto
+          if (!coordsPrincipal || !almostEqual(coordsPrincipal, coordsSucursal)) {
+            const idSucursal = plan.id ?? `${plan.cliente_id}-${plan.sucursal_id}-${plan.hora_estimada_arribo ?? plan.created_at ?? index}`
+            puntos.push({
+              position: coordsSucursal,
+              label,
+              nombre: `${nombre} — ${plan.sucursal_nombre ?? 'Sucursal'}`,
+              id: `sucursal-${idSucursal}`,
+              tipo: 'SUCURSAL',
+              clienteId: item.plan.cliente_id,
+              sucursalId: plan.sucursal_id,
+            })
+          }
+        }
+        return
       }
     })
 
@@ -255,6 +330,8 @@ const cargarDatos = useCallback(async () => {
         prioritarias: number
         hora: string | null
         prioridad: number
+        hasAlta?: boolean
+        earliestHora?: string | null
       }
     >()
 
@@ -264,16 +341,19 @@ const cargarDatos = useCallback(async () => {
       const zonaLabel =
         cliente.zona_comercial?.nombre ??
         (plan.zona_id != null ? `Zona ${plan.zona_id}` : cliente.zona_comercial_id != null ? `Zona ${cliente.zona_comercial_id}` : 'Sin zona asignada')
-      const prioridadZona = PRIORIDAD_ORDEN[plan.prioridad_visita]
+      const prioridadZona = PRIORIDAD_ORDEN[(plan.prioridad_visita as 'ALTA' | 'MEDIA' | 'BAJA') ?? 'BAJA']
       const grupo =
         grupos.get(key) ?? {
           key,
           zona: zonaLabel,
           total: 0,
           prioritarias: 0,
-          hora: plan.hora_estimada ?? null,
+          // hora: preferimos hora de visitas con prioridad ALTA; inicialmente null
+          hora: null,
           prioridad: prioridadZona,
-        }
+          hasAlta: plan.prioridad_visita === 'ALTA',
+          earliestHora: (plan.hora_estimada ?? plan.hora_estimada_arribo) ?? null,
+        } as any
 
       grupo.total += 1
       if (plan.prioridad_visita === 'ALTA') {
@@ -282,8 +362,29 @@ const cargarDatos = useCallback(async () => {
       if (prioridadZona < grupo.prioridad) {
         grupo.prioridad = prioridadZona
       }
-      if (plan.hora_estimada && (!grupo.hora || plan.hora_estimada < grupo.hora)) {
-        grupo.hora = plan.hora_estimada
+      // Preferir hora de visitas de prioridad ALTA. Si existen varias ALTA, escoger la más temprana.
+      // Normalizar campo de hora (puede venir en hora_estimada o hora_estimada_arribo)
+      const horaEst = (plan.hora_estimada ?? plan.hora_estimada_arribo) ?? null
+      if (horaEst) {
+        if (!grupo.earliestHora || horaEst < grupo.earliestHora) {
+          grupo.earliestHora = horaEst
+        }
+      }
+
+      if (plan.prioridad_visita === 'ALTA') {
+        grupo.hasAlta = true
+        if (horaEst) {
+          if (!grupo.hora || horaEst < grupo.hora) {
+            grupo.hora = horaEst
+          }
+        }
+      } else {
+        // Sólo usar hora de menor prioridad si no hemos registrado aún una hora de ALTA
+        if (!grupo.hasAlta && horaEst) {
+          if (!grupo.hora || horaEst < grupo.hora) {
+            grupo.hora = horaEst
+          }
+        }
       }
       if (zonaLabel !== grupo.zona) {
         grupo.zona = zonaLabel
@@ -292,7 +393,15 @@ const cargarDatos = useCallback(async () => {
       grupos.set(key, grupo)
     })
 
-    return Array.from(grupos.values()).sort((a, b) => {
+    // Si hay ALTA pero no tiene hora, usar earliestHora como fallback
+    const gruposArray = Array.from(grupos.values()).map((g) => {
+      if (g.hasAlta && !g.hora && g.earliestHora) {
+        return { ...g, hora: g.earliestHora }
+      }
+      return g
+    })
+
+    return gruposArray.sort((a, b) => {
       if (a.prioridad !== b.prioridad) return a.prioridad - b.prioridad
       if (a.hora && b.hora) return a.hora.localeCompare(b.hora)
       if (a.hora && !b.hora) return -1
@@ -301,14 +410,16 @@ const cargarDatos = useCallback(async () => {
     })
   }, [rutasPorDia, diaActivo])
 
-  const handleVerDetalle = (cliente: Cliente) => {
+  const handleVerDetalle = (cliente: Cliente, sucursalId?: string | number | null) => {
     setClienteDetalle(cliente)
+    setSelectedSucursalId(sucursalId ?? null)
     setIsDetalleAbierto(true)
   }
 
   const cerrarDetalle = () => {
     setIsDetalleAbierto(false)
     setClienteDetalle(null)
+    setSelectedSucursalId(null)
   }
 
   return (
@@ -393,6 +504,9 @@ const cargarDatos = useCallback(async () => {
               loadError={loadError}
               isLoading={isLoading}
               mapContainerStyle={MAP_CONTAINER_STYLE}
+              showDetails={isDetalleAbierto}
+              selectedClienteId={clienteDetalle?.id}
+              selectedSucursalId={selectedSucursalId}
             />
           </div>
         </div>
@@ -431,7 +545,7 @@ const cargarDatos = useCallback(async () => {
         </div>
       </section>
 
-      <ClienteDetailModal isOpen={isDetalleAbierto} onClose={cerrarDetalle} cliente={clienteDetalle} />
+      <ClienteDetailModal isOpen={isDetalleAbierto} onClose={cerrarDetalle} cliente={clienteDetalle} selectedSucursalId={selectedSucursalId} />
     </div>
   )
 }

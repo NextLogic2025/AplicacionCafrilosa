@@ -31,6 +31,17 @@ async function httpRequest<T>(baseUrl: string, path: string, options: HttpOption
     if (token && !('Authorization' in headers)) headers.Authorization = `Bearer ${token}`
   }
 
+  // Debug: log outgoing request summary including whether auth present
+  try {
+    const tokenForLog = getToken()
+    // mask token for safety but include a small preview
+    const tokenPreview = tokenForLog ? `${tokenForLog.slice(0, 8)}...${tokenForLog.slice(-8)}` : null
+    // eslint-disable-next-line no-console
+    console.log('[http] request', { url: `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`, method: options.method ?? 'GET', authPresent: !!tokenForLog, tokenPreview })
+  } catch (_) {
+    // ignore logging errors
+  }
+
   const res = await fetch(`${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`, {
     method: options.method ?? 'GET',
     headers,
@@ -46,6 +57,13 @@ async function httpRequest<T>(baseUrl: string, path: string, options: HttpOption
       typeof (data as { message?: string } | null)?.message === 'string'
         ? (data as { message: string }).message
         : 'Error de API'
+    // Debug: log error response details
+    try {
+      // eslint-disable-next-line no-console
+      console.warn('[http] response error', { url: `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`, status: res.status, message, payload: data })
+    } catch (_) {
+      // ignore logging errors
+    }
     throw new ApiError(message, res.status, data)
   }
   if (data == null) throw new ApiError('Respuesta inválida del servidor', res.status)

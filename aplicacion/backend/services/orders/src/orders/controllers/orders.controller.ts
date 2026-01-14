@@ -1,14 +1,13 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
-import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { OrderOwnershipGuard } from '../guards/order-ownership.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { CartService } from '../services/cart.service';
-import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
+// Cart endpoints have been moved to `CartController` to avoid duplicated logic
 import { plainToInstance } from 'class-transformer';
 import { OrderResponseDto } from '../dto/responses/order-response.dto';
+import { CreateFromCartDto } from '../dto/requests/create-from-cart.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -17,10 +16,11 @@ import { DataSource, Repository } from 'typeorm';
 @Controller('orders')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class OrdersController {
+    private readonly logger = new Logger(OrdersController.name);
+    
     constructor(
         // 1. Inyección del servicio de lógica de negocio
         private readonly ordersService: OrdersService,
-        private readonly cartService: CartService,
 
         // 2. Inyección directa del Repositorio (Si se requiere acceso rápido)
         @InjectRepository(Pedido)
@@ -30,22 +30,28 @@ export class OrdersController {
         private readonly dataSource: DataSource,
     ) { }
 
+    @Get()
+    @Roles('admin', 'supervisor', 'bodeguero')
+    async getAllOrders() {
+        return this.ordersService.findAll();
+    }
+
     @Get('/client/:userId')
     @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
+    @Roles('admin', 'cliente', 'vendedor', 'supervisor')
     async getClientOrders(@Param('userId', ParseUUIDPipe) userId: string) {
         return this.ordersService.findAllByClient(userId);
     }
 
     @Get('/:id')
-    @Roles('admin', 'vendedor', 'cliente', 'bodeguero')
+    @Roles('admin', 'vendedor', 'cliente', 'bodeguero', 'supervisor')
     async getOrder(@Param('id', ParseUUIDPipe) id: string) {
         // Nota: Aquí se podría añadir un guard extra para validar que el cliente vea solo SU pedido
         return this.ordersService.findOne(id);
     }
 
     @Get('/:id/detail')
-    @Roles('admin', 'vendedor', 'cliente')
+    @Roles('admin', 'vendedor', 'cliente', 'supervisor')
     @UseInterceptors(ClassSerializerInterceptor)
     async getDetail(@Param('id', ParseUUIDPipe) id: string): Promise<OrderResponseDto> {
         const data = await this.ordersService.getOrderDetailProfessional(id);
@@ -57,7 +63,7 @@ export class OrdersController {
     }
 
     @Get('/:id/tracking')
-    @Roles('admin', 'cliente', 'vendedor')
+    @Roles('admin', 'cliente', 'vendedor', 'supervisor')
     async getTracking(@Param('id', ParseUUIDPipe) id: string) {
         // Obtenemos el pedido con su historial ordenado por fecha
         const pedido = await this.pedidoRepo.findOne({
@@ -77,7 +83,7 @@ export class OrdersController {
         return {
             orderId: pedido.id,
             currentStatus: pedido.estado_actual,
-            lastUpdate: pedido.fecha_actualizacion,
+            lastUpdate: pedido.updated_at,
             timeline: historial.map(h => ({
                 status: h.estado_nuevo,
                 time: h.fecha_cambio,
@@ -86,38 +92,70 @@ export class OrdersController {
         };
     }
 
-    @Post()
-    @UseGuards(OrderOwnershipGuard) // Valida que el cliente_id en el DTO sea el del usuario logueado
+    // NOTE: Manual `POST /orders` creation was removed in favor of `POST /orders/from-cart/:userId`.
+    // Orders must be created from cart using the `from-cart` endpoint to ensure server-side
+    // price/promotion resolution and snapshot consistency.
+
+    @Post('/from-cart/:userId')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'cliente', 'vendedor')
+    async createFromCart(
+        @Param('userId') userId: string,
+        @Body() body: CreateFromCartDto,
+        @Req() req?: any
+    ) {
+        const usuarioId = req?.user?.userId || req?.user?.sub || null;
+        const role = (req?.user?.role || '').toString().toLowerCase();
+        const condicion_pago = body.condicion_pago;
+        const sucursal_id = body.sucursal_id;
+        return this.ordersService.createFromCart(userId, usuarioId, role, sucursal_id, condicion_pago);
+    }
+
+    @Get('user/history')
     @Roles('admin', 'vendedor', 'cliente')
-    async createOrder(@Body() createOrderDto: CreateOrderDto) {
-        return this.ordersService.create(createOrderDto);
+    async findMyOrders(@Req() req: any) {
+        const userId = req.user?.userId || req.user?.sub;
+        const role = req.user?.role;
+        return this.ordersService.findAllByUser(userId, role);
     }
 
-    @Get('/cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async getCart(@Param('userId', ParseUUIDPipe) userId: string) {
-        return this.cartService.getOrCreateCart(userId);
-    }
+    // Cart endpoints moved to `CartController` to avoid duplication.
 
-    @Post('/cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
+    /**
+     * PATCH /orders/:id/cancel
+     *
+     * Cancela un pedido cambiando su estado a ANULADO.
+     * Solo se puede cancelar si el pedido está en estado PENDIENTE o APROBADO.
+     *
+     * @param id - UUID del pedido a cancelar
+     * @param req - Request con el usuario autenticado
+     * @param body.motivo - Motivo de la cancelación (opcional)
+     * @returns Pedido actualizado con estado ANULADO
+     *
+     * Validaciones:
+     * - El pedido debe existir
+     * - El pedido debe estar en estado PENDIENTE o APROBADO
+     * - El usuario debe tener permisos (cliente, vendedor, admin)
+     *
+     * Roles: admin, cliente, vendedor
+     */
+    @Patch('/:id/cancel')
     @Roles('admin', 'cliente', 'vendedor')
-    async addToCart(
-        @Param('userId', ParseUUIDPipe) userId: string,
-        @Body() dto: UpdateCartItemDto,
+    async cancelOrder(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Req() req: any,
+        @Body('motivo') motivo?: string,
     ) {
-        return this.cartService.addItem(userId, dto);
+        // Obtener el usuario del JWT
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.cancelOrder(id, usuarioId, motivo);
     }
 
-    @Delete('/cart/:userId/item/:productId')
-    @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
-    async removeFromCart(
-        @Param('userId', ParseUUIDPipe) userId: string,
-        @Param('productId', ParseUUIDPipe) productId: string,
-    ) {
-        return this.cartService.removeItem(userId, productId);
+    @Patch('/:id/status')
+    @Roles('admin', 'supervisor', 'bodeguero')
+    async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string, @Req() req: any) {
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.updateStatus(id, status, usuarioId);
     }
 
 }

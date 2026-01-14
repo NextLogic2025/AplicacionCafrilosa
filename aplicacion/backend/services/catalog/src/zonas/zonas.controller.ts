@@ -12,14 +12,14 @@ export class ZonasController {
 
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'transportista')
+  @Roles('admin', 'supervisor', 'transportista', 'cliente')
   findAll() {
     return this.svc.findAll();
   }
 
   @Get(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'transportista')
+  @Roles('admin', 'supervisor', 'transportista', 'cliente')
   findOne(@Param('id') id: number) {
     return this.svc.findOne(Number(id));
   }

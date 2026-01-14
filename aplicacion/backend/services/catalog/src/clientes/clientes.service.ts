@@ -4,8 +4,11 @@ import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-import { Cliente } from './entities/cliente.entity';
 import { ZonaComercial } from '../zonas/entities/zona.entity';
+import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
+
+import { Cliente } from './entities/cliente.entity';
+
 
 @Injectable()
 export class ClientesService {
@@ -21,6 +24,8 @@ export class ClientesService {
     private repo: Repository<Cliente>,
     @InjectRepository(ZonaComercial)
     private zonaRepo: Repository<ZonaComercial>,
+    @InjectRepository(AsignacionVendedores)
+    private asignRepo: Repository<AsignacionVendedores>,
     private httpService: HttpService,
   ) {}
 
@@ -37,7 +42,7 @@ export class ClientesService {
   }
 
   async findForVendedor(vendedorId: string) {
-    const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId } });
+    const clientes = await this.repo.find({ where: { vendedor_asignado_id: vendedorId, bloqueado: false } });
     return this.enrichClientes(clientes);
   }
 
@@ -132,8 +137,20 @@ export class ClientesService {
     });
   }
 
-  create(data: Partial<Cliente>) {
-    const ent = this.repo.create(data as any);
+  async create(data: Partial<Cliente>) {
+    let vendedorId = data.vendedor_asignado_id ?? null;
+    if (!vendedorId && data.zona_comercial_id) {
+      const asign = await this.asignRepo
+        .createQueryBuilder('a')
+        .where('a.zona_id = :zona', { zona: data.zona_comercial_id })
+        .andWhere('a.es_principal = TRUE')
+        .andWhere('a.fecha_fin IS NULL')
+        .andWhere('a.deleted_at IS NULL')
+        .orderBy('a.fecha_inicio', 'DESC')
+        .getOne();
+      vendedorId = asign?.vendedor_usuario_id ?? vendedorId;
+    }
+    const ent = this.repo.create({ ...(data as any), vendedor_asignado_id: vendedorId } as any);
     return this.repo.save(ent);
   }
 

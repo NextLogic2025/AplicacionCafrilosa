@@ -3,23 +3,23 @@ import { Pedido } from './pedido.entity';
 
 @Entity('historial_estados')
 export class HistorialEstado {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('increment')
+  id: number;
 
   @Column({ type: 'uuid' })
   pedido_id: string;
 
-  @Column({ type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   estado_anterior: string;
 
   @Column({ type: 'varchar', length: 20 })
   estado_nuevo: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, name: 'motivo_cambio' })
   comentario: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  usuario_id: string; // Quién hizo el cambio (Admin/Bodeguero)
+  @Column({ type: 'uuid', nullable: true, name: 'usuario_responsable_id' })
+  usuario_id: string;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   fecha_cambio: Date;

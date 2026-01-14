@@ -38,7 +38,7 @@ export function SellerClientsScreen() {
             <View className="px-5 py-3 bg-white border-b border-neutral-100 z-10 space-y-3">
                 <Pressable
                     className="flex-row items-center justify-center bg-brand-red rounded-xl py-2.5"
-                    onPress={() => console.log('Register Prospect')}
+                    onPress={() => { /* debug log removed */ }}
                 >
                     <Ionicons name="person-add-outline" size={18} color="white" style={{ marginRight: 8 }} />
                     <Text className="text-white font-bold text-sm">Registrar Prospecto</Text>

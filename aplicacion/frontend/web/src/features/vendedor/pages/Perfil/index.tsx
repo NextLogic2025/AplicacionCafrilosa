@@ -23,7 +23,7 @@ export default function VendedorPerfil() {
   }, [refresh])
 
   useEffect(() => {
-    setForm({ nombre: profile?.nombre ?? '', telefono: profile?.telefono ?? '' })
+    setForm({ nombre: profile?.nombre ?? (profile as any)?.nombreCompleto ?? '', telefono: profile?.telefono ?? '' })
   }, [profile])
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function VendedorPerfil() {
 
   if (loading && !profile) return <LoadingSpinner text="Cargando perfil..." />
 
-  const name = profile?.nombre || 'Usuario Cafrilosa'
+  const name = profile?.nombre || (profile as any)?.nombreCompleto || profile?.email || 'Usuario Cafrilosa'
   const email = profile?.email || 'Sin correo'
   const phone = profile?.telefono || 'Sin teléfono'
   const role = profile?.rol?.nombre || 'Sin rol'
@@ -87,6 +87,8 @@ export default function VendedorPerfil() {
       />
 
       {error && <Alert type="error" title="Error" message={error} />} 
+
+      {/* DEBUG block removed: profile fields now handled with nombreCompleto fallback */}
 
       <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-4 justify-between">
@@ -148,12 +150,17 @@ export default function VendedorPerfil() {
                       try {
                         if (import.meta.env.DEV) {
                           // eslint-disable-next-line no-console
-                          console.log('DEBUG updateProfile - profileId:', profile?.id, 'usuariosBase:', env.api.usuarios, 'body:', body)
+                          // debug log removed
                         }
                       } catch (e) {
                         // ignore logging errors
                       }
                       await updateProfile(body as any)
+                      try {
+                        await refresh()
+                      } catch (err) {
+                        // ignore refresh errors, profile was updated on server
+                      }
                       setSuccess('Perfil actualizado')
                       setEditing(false)
                     } catch (e) {
