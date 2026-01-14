@@ -9,6 +9,14 @@ export interface PerfilCliente {
   creditLimit: number
 }
 
+export interface SucursalCliente {
+  id: string
+  nombre: string
+  direccion?: string | null
+  ciudad?: string | null
+  estado?: string | null
+}
+
 export interface Producto {
   id: string
   name: string

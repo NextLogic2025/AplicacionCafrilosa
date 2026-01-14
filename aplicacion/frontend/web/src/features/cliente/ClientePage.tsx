@@ -4,7 +4,7 @@ import { Outlet, useNavigate, Link } from 'react-router-dom'
 
 import { useAuth } from '../../hooks/useAuth'
 import { RoleLayout } from 'components/layout/RoleLayout'
-import { CartProvider, useCart } from './cart/CartContext'
+import { CartProvider, useCartOptional } from './cart/CartContext'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { CLIENTE_NAV_ITEMS } from '../../config/navigation'
 
@@ -35,7 +35,7 @@ export default function ClientePage() {
 }
 
 function CartButton() {
-  const { items } = useCart()
+  const { items } = useCartOptional()
   return (
     <Link
       to="/cliente/carrito"

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Trash2, Minus, Plus, CheckCircle2, Info, ShoppingCart } from 'lucide-react'
+import { Trash2, Minus, Plus, CheckCircle2, Info, Building2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useCart } from '../../cart/CartContext'
@@ -8,25 +8,96 @@ import { Alert } from 'components/ui/Alert'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { PageHero } from 'components/ui/PageHero'
 
-export default function  	PaginaCarrito() {
+export default function PaginaCarrito() {
 	const navigate = useNavigate()
 	const { items, total, updateQuantity, removeItem, clearCart, warnings, removedItems } = useCart()
-	const { crearPedidoDesdeCarrito, perfil, fetchPerfilCliente } = useCliente()
+	const { crearPedidoDesdeCarrito, perfil, fetchPerfilCliente, sucursales, fetchSucursales } = useCliente()
+	const [selectedSucursalId, setSelectedSucursalId] = React.useState<string | null>(null)
+	const [destinoTipo, setDestinoTipo] = React.useState<'cliente' | 'sucursal'>('cliente')
+	const [invalidSucursalMessage, setInvalidSucursalMessage] = React.useState<string | null>(null)
+
+	const isUuid = React.useCallback((value: string | null | undefined) => {
+		if (!value) return false
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+	}, [])
+
+	const selectedSucursal = React.useMemo(() => sucursales.find(s => s.id === selectedSucursalId) ?? null, [sucursales, selectedSucursalId])
 
 	// Ensure perfil is loaded when opening the carrito page directly
 	React.useEffect(() => {
 		if (!perfil) fetchPerfilCliente()
 	}, [perfil, fetchPerfilCliente])
 
+	React.useEffect(() => {
+		fetchSucursales()
+	}, [fetchSucursales])
+
+	React.useEffect(() => {
+		if (destinoTipo !== 'sucursal') {
+			setInvalidSucursalMessage(null)
+			return
+		}
+		if (!selectedSucursalId) {
+			setInvalidSucursalMessage('Selecciona una sucursal disponible para enviar el pedido.')
+			return
+		}
+		const stillExists = sucursales.some(s => s.id === selectedSucursalId)
+		if (!stillExists) {
+			setSelectedSucursalId(null)
+			setInvalidSucursalMessage('La sucursal seleccionada ya no está disponible, elige otra opción.')
+			return
+		}
+		setInvalidSucursalMessage(isUuid(selectedSucursalId) ? null : 'Esta sucursal no cuenta con un identificador compatible con el servicio de pedidos. Usa la dirección principal o solicita que actualicen el catálogo.')
+	}, [selectedSucursalId, sucursales, isUuid, destinoTipo])
+
+	React.useEffect(() => {
+		if (destinoTipo === 'sucursal' && !selectedSucursalId && sucursales.length > 0) {
+			setSelectedSucursalId(sucursales[0].id)
+		}
+		if (destinoTipo === 'sucursal' && sucursales.length === 0) {
+			setDestinoTipo('cliente')
+			setSelectedSucursalId(null)
+		}
+	}, [destinoTipo, selectedSucursalId, sucursales])
+
 	const creditoDisponible = Math.max((perfil?.creditLimit || 0) - (perfil?.currentDebt || 0), 0)
 	const superaCredito = total > creditoDisponible
-  const condicionComercial = superaCredito ? 'Contado' : 'Crédito'
+	const condicionComercial = superaCredito ? 'Contado' : 'Crédito'
+	const condicionPagoApi = superaCredito ? 'CONTADO' : 'CREDITO'
+	const destinoDescripcion = destinoTipo === 'cliente'
+		? 'Cliente principal'
+		: selectedSucursal
+			? `${selectedSucursal.nombre}${selectedSucursal.ciudad ? ` · ${selectedSucursal.ciudad}` : ''}`
+			: 'Selecciona una sucursal'
+
+	const handleDestinoTipoChange = (tipo: 'cliente' | 'sucursal') => {
+		if (tipo === 'sucursal' && sucursales.length === 0) return
+		setDestinoTipo(tipo)
+		if (tipo === 'cliente') {
+			setSelectedSucursalId(null)
+		} else if (!selectedSucursalId && sucursales.length > 0) {
+			setSelectedSucursalId(sucursales[0].id)
+		}
+	}
 
 	const confirmarPedido = async () => {
 		if (items.length === 0) return
 		if (superaCredito) return
+		const wantsSucursal = destinoTipo === 'sucursal'
+		const sucursalIdForApi = wantsSucursal && selectedSucursalId && isUuid(selectedSucursalId) ? selectedSucursalId : undefined
+		if (wantsSucursal && !selectedSucursalId) {
+			setInvalidSucursalMessage('Selecciona una sucursal para poder enviar el pedido a esa ubicación.')
+			return
+		}
+		if (wantsSucursal && selectedSucursalId && !sucursalIdForApi) {
+			setInvalidSucursalMessage('La sucursal seleccionada no tiene un identificador válido. El pedido se enviará al cliente principal hasta que el catálogo tenga IDs válidos.')
+			return
+		}
 		try {
-			await crearPedidoDesdeCarrito()
+			await crearPedidoDesdeCarrito({
+				sucursalId: sucursalIdForApi,
+				condicionPago: condicionPagoApi,
+			})
 			clearCart()
 			// notify orders list to refresh and provide a success message
 			try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } })) } catch {}
@@ -153,6 +224,80 @@ export default function  	PaginaCarrito() {
 						) : (
 							<div className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800">
 								<CheckCircle2 className="mr-1 inline h-4 w-4" /> Cumple con crédito disponible.
+							</div>
+						)}
+						{sucursales.length > 0 && (
+							<div className="rounded-2xl border border-neutral-200 px-3 py-3">
+								<div className="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+									<Building2 className="h-4 w-4 text-brand-red" /> Destino del pedido
+								</div>
+								<p className="text-xs text-neutral-500">Si tu empresa tiene sucursales, puedes enviar este pedido directamente a una de ellas.</p>
+								<div className="mt-3 space-y-2">
+									<label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${destinoTipo === 'cliente' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'}`}>
+										<input
+											type="radio"
+											name="destinoPedido"
+											checked={destinoTipo === 'cliente'}
+											onChange={() => handleDestinoTipoChange('cliente')}
+											className="mt-1"
+										/>
+										<div>
+											<p className="font-semibold text-neutral-900">Cliente principal</p>
+											<p className="text-xs text-neutral-500">Usaremos la dirección registrada del cliente.</p>
+										</div>
+									</label>
+									<label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${destinoTipo === 'sucursal' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'} ${sucursales.length === 0 ? 'opacity-60' : ''}`}>
+										<input
+											type="radio"
+											name="destinoPedido"
+											checked={destinoTipo === 'sucursal'}
+											onChange={() => handleDestinoTipoChange('sucursal')}
+											disabled={sucursales.length === 0}
+											className="mt-1"
+										/>
+										<div>
+											<p className="font-semibold text-neutral-900">Sucursal</p>
+											<p className="text-xs text-neutral-500">
+												{sucursales.length > 0 ? 'Selecciona una de tus sucursales registradas.' : 'Aún no registras sucursales en tu catálogo.'}
+											</p>
+										</div>
+									</label>
+								</div>
+								{destinoTipo === 'sucursal' && sucursales.length > 0 && (
+									<div className="mt-3 space-y-2 rounded-xl border border-dashed border-brand-red/40 bg-brand-red/5 px-3 py-3">
+										<p className="text-xs font-semibold uppercase tracking-wide text-brand-red">Selecciona la sucursal</p>
+										<div className="space-y-2">
+											{sucursales.map(sucursal => (
+												<label
+													key={sucursal.id}
+													className={`flex cursor-pointer items-start gap-2 rounded-xl border bg-white px-3 py-2 text-sm ${selectedSucursalId === sucursal.id ? 'border-brand-red/60 shadow-sm' : 'border-brand-red/10 hover:border-brand-red/40'}`}
+												>
+													<input
+														type="radio"
+														name="destinoSucursal"
+														checked={selectedSucursalId === sucursal.id}
+														onChange={() => setSelectedSucursalId(sucursal.id)}
+														className="mt-1"
+													/>
+													<div>
+														<p className="font-semibold text-neutral-900">{sucursal.nombre}</p>
+														<p className="text-xs text-neutral-500">
+															{[sucursal.direccion, sucursal.ciudad, sucursal.estado].filter(Boolean).join(' · ') || 'Sin dirección registrada'}
+														</p>
+													</div>
+												</label>
+											))}
+										</div>
+									</div>
+								)}
+								<div className="mt-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+									Destino actual: {destinoDescripcion}
+								</div>
+								{invalidSucursalMessage ? (
+									<div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+										{invalidSucursalMessage}
+									</div>
+								) : null}
 							</div>
 						)}
 						<div className="grid gap-2">

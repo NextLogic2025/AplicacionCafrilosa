@@ -9,6 +9,8 @@ export class CarritoCabecera {
   @Column({ type: 'uuid' })
   usuario_id: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  vendedor_id: string;
 
   @Column({ type: 'uuid', nullable: true })
   cliente_id: string;

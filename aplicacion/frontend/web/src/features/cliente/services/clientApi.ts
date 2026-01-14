@@ -10,6 +10,7 @@ import type {
   Conversacion,
   Ticket,
   EstadoPedido,
+  SucursalCliente,
 } from '../types'
 
 type ClienteContext = {
@@ -122,10 +123,37 @@ export async function getPerfilCliente(): Promise<PerfilCliente | null> {
 
 export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: number; totalPages: number }> {
   const ctx = await getClienteContext()
-  if (!ctx?.usuarioId) return { items: [], page, totalPages: 1 }
+  console.log('[clientApi] getPedidos -> /orders/user/history')
+  let data = await httpOrders<any[]>('/orders/user/history').catch((err) => {
+    console.warn('[clientApi] /orders/user/history failed', err)
+    return null
+  })
+  const fallbackId = ctx?.clienteId ?? ctx?.usuarioId
+  const callFallback = async () => {
+    if (!fallbackId) return null
+    console.log('[clientApi] getPedidos fallback -> /orders/client/' + fallbackId)
+    return await httpOrders<any[]>(`/orders/client/${fallbackId}`).catch((err) => {
+      console.warn('[clientApi] /orders/client fallback failed', err)
+      return null
+    })
+  }
 
-  const data = await httpOrders<any[]>(`/orders/client/${ctx.usuarioId}`).catch(() => null)
-  if (!Array.isArray(data)) return { items: [], page, totalPages: 1 }
+  if (!Array.isArray(data)) {
+    data = await callFallback()
+  }
+
+  if (Array.isArray(data) && data.length === 0 && fallbackId) {
+    console.log('[clientApi] getPedidos recibió 0 pedidos, intentando fallback explícito')
+    const fallbackData = await callFallback()
+    if (Array.isArray(fallbackData) && fallbackData.length > 0) data = fallbackData
+  }
+
+  if (!Array.isArray(data)) {
+    console.warn('[clientApi] getPedidos result no es array, devolveremos lista vacía')
+    return { items: [], page, totalPages: 1 }
+  }
+
+  console.log('[clientApi] getPedidos recibió', data.length, 'pedidos')
 
   const items = data.map(mapPedidoFromBackend)
   return { items, page: 1, totalPages: 1 }
@@ -265,6 +293,32 @@ export async function getTickets(): Promise<Ticket[]> {
   return []
 }
 
+export async function getSucursalesCliente(): Promise<SucursalCliente[]> {
+  const ctx = await getClienteContext()
+  const clienteId = ctx?.clienteId ?? ctx?.usuarioId
+  if (!clienteId) return []
+  const data = await httpCatalogo<any[]>(`/clientes/${encodeURIComponent(clienteId)}/sucursales`).catch(() => [])
+  if (!Array.isArray(data)) return []
+  return data
+    .map(sucursal => {
+      const id = sucursal?.id ?? sucursal?.sucursal_id
+      if (!id) return null
+      return {
+        id: String(id),
+        nombre: String(
+          sucursal?.nombre_sucursal ??
+            sucursal?.nombre ??
+            sucursal?.alias ??
+            (sucursal?.contacto_nombre ? `Sucursal ${sucursal.contacto_nombre}` : 'Sucursal'),
+        ),
+        direccion: sucursal?.direccion_entrega ?? sucursal?.direccion ?? sucursal?.direccion_exacta ?? null,
+        ciudad: sucursal?.municipio ?? sucursal?.ciudad ?? null,
+        estado: sucursal?.departamento ?? sucursal?.estado ?? null,
+      } satisfies SucursalCliente
+    })
+    .filter((s): s is SucursalCliente => Boolean(s))
+}
+
 export async function createTicket(_: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
   throw new Error('La creación de tickets no está disponible en este entorno')
 }
@@ -298,7 +352,9 @@ export async function createPedido(
   return mapPedidoFromBackend(backend)
 }
 
-export async function createPedidoFromCart(): Promise<Pedido> {
+type CondicionPago = 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
+
+export async function createPedidoFromCart(options?: { condicionPago?: CondicionPago; sucursalId?: string | null }): Promise<Pedido> {
   const ctx = await getClienteContext()
   if (!ctx?.usuarioId) throw new Error('No se encontró el usuario autenticado')
 
@@ -315,32 +371,11 @@ export async function createPedidoFromCart(): Promise<Pedido> {
     throw new Error('El carrito está vacío')
   }
 
-  // Attempt to resolve cliente / vendedor info
-  const clienteDetalle = await fetchClienteByUsuarioId(ctx.clienteId ?? ctx.usuarioId).catch(() => null)
-  const vendedorId = clienteDetalle?.vendedor_asignado_id ? String(clienteDetalle.vendedor_asignado_id) : ctx.usuarioId
+  const condicionPago: CondicionPago = options?.condicionPago ?? 'CONTADO'
+  const payload: Record<string, unknown> = { condicion_pago: condicionPago }
+  if (options?.sucursalId) payload.sucursal_id = options.sucursalId
 
-  const itemsPayload = cartItems.map((it: any) => ({
-    producto_id: it.id,
-    cantidad: Number(it.quantity ?? it.cantidad ?? 0),
-    precio_unitario: Number(it.unitPrice ?? 0),
-    precio_original: Number(it.unitPrice ?? 0),
-    nombre_producto: it.name ?? undefined,
-  }))
-
-  const descuentoTotal = 0
-  const payload = {
-    cliente_id: ctx.usuarioId,
-    vendedor_id: vendedorId,
-    items: itemsPayload,
-    descuento_total: descuentoTotal,
-    origen_pedido: 'PORTAL_CLIENTE',
-  }
-
-  // The orders service expects creation from the server-side cart endpoint
-  const usuarioId = ctx.usuarioId
-  if (!usuarioId) throw new Error('No se encontró el usuario autenticado')
-
-  const backend = await httpOrders<any>(`/orders/from-cart/${usuarioId}`, { method: 'POST', body: { condicion_pago: 'CONTADO' } }).catch((err) => {
+  const backend = await httpOrders<any>('/orders/from-cart/me', { method: 'POST', body: payload }).catch((err) => {
     if (err instanceof Error) throw new Error(err.message)
     throw new Error('Error al crear pedido en el servidor')
   })

@@ -11,6 +11,9 @@ import { SectionHeader } from 'components/ui/SectionHeader'
 import { Pagination } from 'components/ui/Pagination'
 import { PageHero } from 'components/ui/PageHero'
 import { formatEstadoPedido, getEstadoPedidoColor } from 'utils/statusHelpers'
+import { env } from '../../../../config/env'
+
+const SHOW_DEBUG_ENDPOINTS = env.featureFlags.showDebugEndpoints
 
 export default function PaginaPedidos() {
 	const navigate = useNavigate()
@@ -194,6 +197,10 @@ export default function PaginaPedidos() {
 function ModalDetallePedido({ pedido, onClose, onCancel }: { pedido: Pedido; onClose: () => void; onCancel: () => void }) {
 	const puedeCancelar = pedido.status === EstadoPedido.PENDING || String(pedido.status).toUpperCase() === 'PENDIENTE'
 	const endpoint = `http://localhost:3004/orders/${pedido.id}/state`
+	const estadoColor = getEstadoPedidoColor(pedido.status)
+	const formattedDate = new Date(pedido.createdAt).toLocaleDateString('es-ES')
+	const totalLineas = pedido.items.reduce((acc, item) => acc + item.quantity, 0)
+	const cancelPayload = JSON.stringify({ nuevoEstado: 'CANCELADO', comentario: 'Motivo opcional' }, null, 2)
 
 	const copyEndpoint = async () => {
 		try {
@@ -207,82 +214,100 @@ function ModalDetallePedido({ pedido, onClose, onCancel }: { pedido: Pedido; onC
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-			<div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white">
-				<div className="flex items-center justify-between border-b border-gray-200 p-6">
-					<h2 className="text-xl font-bold text-gray-900">Detalles del Pedido</h2>
-					<button onClick={onClose} className="text-gray-500 transition-colors hover:text-gray-700">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+			<div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+				<div className="flex items-start justify-between border-b border-neutral-200 px-8 py-6">
+					<div>
+						<p className="text-sm font-semibold text-neutral-500">Detalles del Pedido</p>
+						<h2 className="text-2xl font-bold text-neutral-900">#{pedido.orderNumber}</h2>
+					</div>
+					<span
+						className="rounded-full px-3 py-1 text-xs font-semibold text-white"
+						style={{ backgroundColor: estadoColor }}
+					>
+						{formatEstadoPedido(pedido.status)}
+					</span>
+					<button onClick={onClose} className="text-neutral-400 transition-colors hover:text-neutral-600">
 						<X className="h-6 w-6" />
 					</button>
 				</div>
 
-				<div className="space-y-6 p-6">
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<p className="text-xs uppercase text-gray-600">Número de Pedido</p>
-							<p className="text-lg font-semibold text-gray-900">{pedido.orderNumber}</p>
+				<div className="space-y-8 px-8 py-6 overflow-y-auto">
+					<div className="grid gap-4 md:grid-cols-3">
+						<div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+							<p className="text-xs uppercase tracking-wide text-neutral-500">Fecha</p>
+							<p className="text-lg font-semibold text-neutral-900">{formattedDate}</p>
 						</div>
-						<div>
-							<p className="text-xs uppercase text-gray-600">Fecha</p>
-							<p className="text-lg font-semibold text-gray-900">{new Date(pedido.createdAt).toLocaleDateString('es-ES')}</p>
+						<div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+							<p className="text-xs uppercase tracking-wide text-neutral-500">Total líneas</p>
+							<p className="text-lg font-semibold text-neutral-900">{totalLineas} unidades</p>
+						</div>
+						<div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+							<p className="text-xs uppercase tracking-wide text-neutral-500">Monto total</p>
+							<p className="text-xl font-bold" style={{ color: COLORES_MARCA.red }}>${pedido.totalAmount.toFixed(2)}</p>
 						</div>
 					</div>
 
 					<div>
-						<h3 className="mb-4 font-semibold text-gray-900">Productos</h3>
-						<div className="space-y-2">
+						<div className="mb-3 flex items-center gap-2">
+							<h3 className="text-lg font-semibold text-neutral-900">Productos</h3>
+							<span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{pedido.items.length} líneas</span>
+						</div>
+						<div className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200">
 							{pedido.items.map(item => (
-								<div key={item.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-									<div>
-										<p className="font-medium text-gray-900">{item.productName}</p>
-										<p className="text-sm text-gray-600">
-											{item.quantity} {item.unit} x ${item.unitPrice.toFixed(2)}
+								<div key={item.id} className="grid gap-4 px-4 py-3 md:grid-cols-3">
+									<div className="md:col-span-2">
+										<p className="text-sm font-semibold text-neutral-900">{item.productName}</p>
+										<p className="text-xs text-neutral-500">
+											{item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}
 										</p>
 									</div>
-									<p className="font-semibold text-gray-900">${item.subtotal.toFixed(2)}</p>
+									<p className="text-right text-sm font-bold text-neutral-900">${item.subtotal.toFixed(2)}</p>
 								</div>
 							))}
 						</div>
 					</div>
 
-					<div className="border-t border-gray-200 pt-4">
-						<div className="flex items-center justify-between">
-							<p className="text-lg font-semibold text-gray-900">Total</p>
-							<p className="text-2xl font-bold" style={{ color: COLORES_MARCA.red }}>
-								${pedido.totalAmount.toFixed(2)}
-							</p>
-						</div>
-					</div>
-
-					{/* API info for debugging/copy */}
-					<div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-						<p className="text-xs text-gray-600">Endpoint para cancelar (cliente):</p>
-						<div className="mt-2 flex items-center justify-between gap-2">
-							<code className="truncate text-sm text-gray-800">PATCH {endpoint}</code>
+					{SHOW_DEBUG_ENDPOINTS && (
+					<div className="rounded-2xl border border-dashed border-neutral-200 bg-gradient-to-br from-neutral-50 to-white p-4">
+						<div className="flex items-center justify-between gap-3">
+							<div>
+								<p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Endpoint para cancelar</p>
+								<p className="text-sm text-neutral-400">Cliente autenticado</p>
+							</div>
 							<button
 								onClick={copyEndpoint}
-								className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-100"
+								className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100"
 								title="Copiar endpoint"
 							>
 								<ClipboardList className="h-4 w-4" />
 								Copiar
 							</button>
 						</div>
-						<pre className="mt-3 w-full overflow-auto rounded bg-white p-2 text-xs">{"{\"nuevoEstado\":\"CANCELADO\",\"comentario\":\"Motivo opcional\"}"}</pre>
+						<div className="mt-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 font-mono text-sm text-neutral-800 shadow-inner">
+							<span className="rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white">PATCH</span>
+							<span className="ml-2 align-middle">{endpoint}</span>
+						</div>
+						<div className="mt-3 rounded-2xl border border-neutral-100 bg-white/90 p-4 shadow-inner">
+							<p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Payload sugerido</p>
+							<pre className="overflow-auto text-xs text-neutral-700">{cancelPayload}</pre>
+						</div>
 					</div>
+					)}
 				</div>
 
-				<div className="flex gap-3 border-t border-gray-200 p-6">
+				<div className="flex flex-col gap-3 border-t border-neutral-200 px-8 py-6 md:flex-row">
 					<button
 						onClick={onClose}
-						className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+						className="flex-1 rounded-xl border border-neutral-300 px-4 py-3 text-center text-sm font-semibold text-neutral-900 transition-colors hover:bg-neutral-50"
 					>
 						Cerrar
 					</button>
 					{puedeCancelar && (
 						<button
 							onClick={onCancel}
-							className="flex-1 rounded-lg bg-brand-red px-4 py-2 font-semibold text-white transition-colors hover:bg-brand-red700"
+							className="flex-1 rounded-xl px-4 py-3 text-center text-sm font-semibold text-white transition-colors"
+							style={{ backgroundColor: COLORES_MARCA.red }}
 						>
 							Cancelar Pedido
 						</button>

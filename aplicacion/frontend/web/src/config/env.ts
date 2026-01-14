@@ -13,6 +13,13 @@ export const env = {
     catalogo: normalizeBaseUrl(readEnv('VITE_CATALOGO_BASE_URL')),
     orders: normalizeBaseUrl(readEnv('VITE_orders_BASE_URL')),
   },
+  // Feature flags / toggles
+  featureFlags: {
+    // Si se establece a '1', se desactiva el uso/creación de pedidos locales (fallback en localStorage)
+    disableLocalPedidos: readEnv('VITE_DISABLE_LOCAL_PEDIDOS') === '1',
+    httpDebug: readEnv('VITE_HTTP_DEBUG') === '1',
+    showDebugEndpoints: readEnv('VITE_SHOW_DEBUG_ENDPOINTS') === '1' || import.meta.env.DEV === true,
+  },
   googleMaps: {
     apiKey: readEnv('VITE_GOOGLE_MAPS_API_KEY'),
   },
