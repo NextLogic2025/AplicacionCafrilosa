@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    TouchableOpacity, 
+import {
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
     ActivityIndicator,
     Modal,
     SafeAreaView,
@@ -80,22 +80,22 @@ type RouteParams = {
 export function SupervisorRouteCreateScreenPaso2() {
     const navigation = useNavigation<any>()
     const route = useRoute<RouteProp<RouteParams, 'SupervisorRouteCreatePaso2'>>()
-    
+
     const { zone, destinations, existingRoutes } = route.params
 
     // Configuración individual por destino
-    const [destinationConfigs, setDestinationConfigs] = useState<DestinationConfig[]>(() => 
+    const [destinationConfigs, setDestinationConfigs] = useState<DestinationConfig[]>(() =>
         destinations.map((dest, index) => ({
             destino: dest,
-            hora: '',
-            prioridad: 'MEDIA' as PriorityType,
+            hora: dest.suggested_time || '', // FIX: Usar la hora sugerida si existe
+            prioridad: (dest.priority as PriorityType) || 'MEDIA', // FIX: Usar la prioridad sugerida
             frecuencia: 'SEMANAL' as FrequencyType  // Frecuencia por defecto
         }))
     )
-    
+
     // Form State (configuración global)
     const [selectedDays, setSelectedDays] = useState<number[]>([])
-    
+
     // UI State
     const [loading, setLoading] = useState(false)
     const [showFullscreenMap, setShowFullscreenMap] = useState(false)
@@ -103,7 +103,7 @@ export function SupervisorRouteCreateScreenPaso2() {
     const [editingDestIndex, setEditingDestIndex] = useState<number | null>(null)
     const [showPriorityPicker, setShowPriorityPicker] = useState(false)
     const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
-    
+
     // Feedback
     const [feedbackModal, setFeedbackModal] = useState<{
         visible: boolean
@@ -121,7 +121,7 @@ export function SupervisorRouteCreateScreenPaso2() {
             const prioA = PRIORITIES.find(p => p.id === a.prioridad)?.order || 2
             const prioB = PRIORITIES.find(p => p.id === b.prioridad)?.order || 2
             if (prioA !== prioB) return prioA - prioB
-            
+
             // 2. Si misma prioridad, ordenar por hora
             if (a.hora && b.hora) {
                 return a.hora.localeCompare(b.hora)
@@ -129,7 +129,7 @@ export function SupervisorRouteCreateScreenPaso2() {
             // Los que tienen hora van primero
             if (a.hora && !b.hora) return -1
             if (!a.hora && b.hora) return 1
-            
+
             return 0
         })
     }, [destinationConfigs])
@@ -140,7 +140,7 @@ export function SupervisorRouteCreateScreenPaso2() {
 
     const mapRegion = useMemo<Region>(() => {
         if (destinationsWithLocation.length === 0) return DEFAULT_REGION
-        
+
         if (destinationsWithLocation.length === 1) {
             return {
                 latitude: destinationsWithLocation[0].destino.location!.latitude,
@@ -171,8 +171,8 @@ export function SupervisorRouteCreateScreenPaso2() {
 
     // Verificar conflictos
     const isDestinationInRoute = useCallback((clientId: string, dayId: number) => {
-        return existingRoutes.some(r => 
-            r.cliente_id === clientId && 
+        return existingRoutes.some(r =>
+            r.cliente_id === clientId &&
             r.dia_semana === dayId &&
             r.activo
         )
@@ -185,8 +185,8 @@ export function SupervisorRouteCreateScreenPaso2() {
 
     // ============ ACTIONS ============
     const toggleDay = useCallback((dayId: number) => {
-        setSelectedDays(prev => 
-            prev.includes(dayId) 
+        setSelectedDays(prev =>
+            prev.includes(dayId)
                 ? prev.filter(d => d !== dayId)
                 : [...prev, dayId]
         )
@@ -226,8 +226,8 @@ export function SupervisorRouteCreateScreenPaso2() {
             `¿Quitar "${destinationConfigs[index].destino.name}" de la ruta?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
-                { 
-                    text: 'Eliminar', 
+                {
+                    text: 'Eliminar',
                     style: 'destructive',
                     onPress: () => {
                         setDestinationConfigs(prev => prev.filter((_, i) => i !== index))
@@ -268,7 +268,7 @@ export function SupervisorRouteCreateScreenPaso2() {
         // Validar horas duplicadas dentro de los destinos seleccionados
         const horasDuplicadas: string[] = []
         const horasUsadas = new Map<string, string[]>() // hora -> [nombres de destinos]
-        
+
         sortedConfigs.forEach(config => {
             const horaKey = config.hora
             if (!horasUsadas.has(horaKey)) {
@@ -276,13 +276,13 @@ export function SupervisorRouteCreateScreenPaso2() {
             }
             horasUsadas.get(horaKey)!.push(config.destino.name)
         })
-        
+
         horasUsadas.forEach((destinos, hora) => {
             if (destinos.length > 1) {
                 horasDuplicadas.push(`${hora}: ${destinos.join(', ')}`)
             }
         })
-        
+
         if (horasDuplicadas.length > 0) {
             setFeedbackModal({
                 visible: true,
@@ -296,7 +296,7 @@ export function SupervisorRouteCreateScreenPaso2() {
         // Verificar conflictos con rutas existentes (mismo cliente + mismo día + misma hora)
         const conflicts: string[] = []
         const duplicateRoutes: string[] = []
-        
+
         sortedConfigs.forEach(config => {
             selectedDays.forEach(day => {
                 // Verificar si ya existe una ruta EXACTA para este cliente/sucursal en este día
@@ -305,13 +305,13 @@ export function SupervisorRouteCreateScreenPaso2() {
                     const sameDay = r.dia_semana === day
                     const isActive = r.activo
                     // Si es sucursal, verificar que sea la misma sucursal
-                    const sameBranch = config.destino.type === 'branch' 
-                        ? r.sucursal_id === config.destino.id 
+                    const sameBranch = config.destino.type === 'branch'
+                        ? r.sucursal_id === config.destino.id
                         : !r.sucursal_id // Si no es sucursal, verificar que no tenga sucursal_id
-                    
+
                     return sameClient && sameDay && isActive && sameBranch
                 })
-                
+
                 if (existingRoute) {
                     const dayLabel = DAYS.find(d => d.id === day)?.label || ''
                     // Ruta duplicada exacta
@@ -333,12 +333,12 @@ export function SupervisorRouteCreateScreenPaso2() {
         setLoading(true)
         try {
             const results: { success: boolean, name: string, day: string, error?: string }[] = []
-            
+
             // Crear rutas una por una para mejor manejo de errores
             for (const config of sortedConfigs) {
                 for (const day of selectedDays) {
                     const dayLabel = DAYS.find(d => d.id === day)?.label || ''
-                    
+
                     try {
                         // Doble verificación antes de crear (por si cambió algo mientras tanto)
                         const existingCheck = await RouteService.checkDuplicate(
@@ -347,17 +347,17 @@ export function SupervisorRouteCreateScreenPaso2() {
                             undefined, // No verificar hora, solo cliente + día
                             config.destino.type === 'branch' ? config.destino.id : undefined
                         )
-                        
+
                         if (existingCheck) {
-                            results.push({ 
-                                success: false, 
-                                name: config.destino.name, 
-                                day: dayLabel, 
-                                error: 'Ya existe' 
+                            results.push({
+                                success: false,
+                                name: config.destino.name,
+                                day: dayLabel,
+                                error: 'Ya existe'
                             })
                             continue
                         }
-                        
+
                         const payload: Partial<RoutePlan> = {
                             cliente_id: config.destino.clientId,
                             sucursal_id: config.destino.type === 'branch' ? config.destino.id : undefined,
@@ -369,24 +369,24 @@ export function SupervisorRouteCreateScreenPaso2() {
                             activo: true,
                             hora_estimada_arribo: config.hora || undefined
                         }
-                        
+
                         await RouteService.create(payload)
                         results.push({ success: true, name: config.destino.name, day: dayLabel })
                     } catch (err: any) {
                         console.error(`Error creating route for ${config.destino.name}:`, err)
-                        results.push({ 
-                            success: false, 
-                            name: config.destino.name, 
-                            day: dayLabel, 
-                            error: err.message?.includes('500') ? 'Ruta ya existe' : err.message 
+                        results.push({
+                            success: false,
+                            name: config.destino.name,
+                            day: dayLabel,
+                            error: err.message?.includes('500') ? 'Ruta ya existe' : err.message
                         })
                     }
                 }
             }
-            
+
             const successCount = results.filter(r => r.success).length
             const failedCount = results.filter(r => !r.success).length
-            
+
             if (failedCount > 0 && successCount === 0) {
                 // Todas fallaron
                 const failedList = results.filter(r => !r.success).slice(0, 3)
@@ -441,18 +441,18 @@ export function SupervisorRouteCreateScreenPaso2() {
     // ============ RENDER ============
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header 
-                title="Nueva Ruta" 
-                variant="standard" 
+            <Header
+                title="Nueva Ruta"
+                variant="standard"
                 onBackPress={() => navigation.reset({
                     index: 0,
                     routes: [{ name: 'SupervisorRoutes' }]
-                })} 
+                })}
             />
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <View className="p-5">
-                    
+
                     {/* Indicador de pasos con descripción */}
                     <View className="bg-white rounded-2xl p-4 mb-6 border border-neutral-100">
                         <View className="flex-row items-center justify-center mb-3">
@@ -480,7 +480,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                         <View className="flex-row items-center justify-between mb-2">
                             <Text className="text-indigo-700 text-xs uppercase font-bold">✅ Paso 1 Completado</Text>
                             <View className="flex-row items-center gap-2">
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={handleAddMoreDestinations}
                                     className="bg-blue-500 px-3 py-1.5 rounded-full flex-row items-center"
                                 >
@@ -514,26 +514,26 @@ export function SupervisorRouteCreateScreenPaso2() {
                         <Text className="text-neutral-500 text-xs mb-3">
                             💡 Asigna hora y prioridad a cada destino. Se ordenan automáticamente.
                         </Text>
-                        
+
                         {/* Lista de destinos ordenados */}
                         {sortedConfigs.map((config, displayIndex) => {
                             // Encontrar el índice original para editar
                             const originalIndex = destinationConfigs.findIndex(c => c.destino.id === config.destino.id)
                             const priorityInfo = PRIORITIES.find(p => p.id === config.prioridad)
                             const isOtherZone = config.destino.zoneId !== zone.id
-                            
+
                             return (
-                                <View 
-                                    key={config.destino.id} 
+                                <View
+                                    key={config.destino.id}
                                     className="bg-white rounded-2xl mb-3 border overflow-hidden"
                                     style={{ borderColor: priorityInfo?.color + '40' }}
                                 >
                                     {/* Header del destino */}
-                                    <View 
+                                    <View
                                         className="px-4 py-3 flex-row items-center"
                                         style={{ backgroundColor: priorityInfo?.color + '10' }}
                                     >
-                                        <View 
+                                        <View
                                             className="w-8 h-8 rounded-full items-center justify-center mr-3"
                                             style={{ backgroundColor: priorityInfo?.color }}
                                         >
@@ -541,10 +541,10 @@ export function SupervisorRouteCreateScreenPaso2() {
                                         </View>
                                         <View className="flex-1">
                                             <View className="flex-row items-center">
-                                                <Ionicons 
-                                                    name={config.destino.type === 'branch' ? 'storefront' : 'business'} 
-                                                    size={14} 
-                                                    color="#525252" 
+                                                <Ionicons
+                                                    name={config.destino.type === 'branch' ? 'storefront' : 'business'}
+                                                    size={14}
+                                                    color="#525252"
                                                 />
                                                 <Text className="text-neutral-900 font-bold ml-1.5" numberOfLines={1}>
                                                     {config.destino.name}
@@ -561,14 +561,14 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                 <Text className="text-purple-700 text-[10px]">📍 Otra zona</Text>
                                             </View>
                                         )}
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             onPress={() => removeDestination(originalIndex)}
                                             className="p-1"
                                         >
                                             <Ionicons name="close-circle" size={22} color="#EF4444" />
                                         </TouchableOpacity>
                                     </View>
-                                    
+
                                     {/* Selectores de hora, prioridad y frecuencia */}
                                     <View className="px-4 py-3">
                                         {/* Primera fila: Hora y Prioridad */}
@@ -579,14 +579,13 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                     setEditingDestIndex(originalIndex)
                                                     setShowTimePicker(true)
                                                 }}
-                                                className={`flex-1 p-3 rounded-xl border flex-row items-center ${
-                                                    config.hora ? 'bg-green-50 border-green-200' : 'bg-neutral-50 border-neutral-200'
-                                                }`}
+                                                className={`flex-1 p-3 rounded-xl border flex-row items-center ${config.hora ? 'bg-green-50 border-green-200' : 'bg-neutral-50 border-neutral-200'
+                                                    }`}
                                             >
-                                                <Ionicons 
-                                                    name="time" 
-                                                    size={18} 
-                                                    color={config.hora ? '#22C55E' : '#9CA3AF'} 
+                                                <Ionicons
+                                                    name="time"
+                                                    size={18}
+                                                    color={config.hora ? '#22C55E' : '#9CA3AF'}
                                                 />
                                                 <View className="ml-2 flex-1">
                                                     <Text className="text-[10px] text-neutral-400">HORA</Text>
@@ -596,7 +595,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                 </View>
                                                 <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
                                             </TouchableOpacity>
-                                            
+
                                             {/* Selector de Prioridad */}
                                             <TouchableOpacity
                                                 onPress={() => {
@@ -604,12 +603,12 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                     setShowPriorityPicker(true)
                                                 }}
                                                 className="flex-1 p-3 rounded-xl border flex-row items-center"
-                                                style={{ 
+                                                style={{
                                                     backgroundColor: priorityInfo?.color + '10',
                                                     borderColor: priorityInfo?.color + '40'
                                                 }}
                                             >
-                                                <View 
+                                                <View
                                                     className="w-5 h-5 rounded-full items-center justify-center"
                                                     style={{ backgroundColor: priorityInfo?.color }}
                                                 >
@@ -624,7 +623,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                 <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
                                             </TouchableOpacity>
                                         </View>
-                                        
+
                                         {/* Segunda fila: Frecuencia */}
                                         <TouchableOpacity
                                             onPress={() => {
@@ -633,10 +632,10 @@ export function SupervisorRouteCreateScreenPaso2() {
                                             }}
                                             className="p-3 rounded-xl border bg-indigo-50 border-indigo-200 flex-row items-center"
                                         >
-                                            <Ionicons 
-                                                name="repeat" 
-                                                size={18} 
-                                                color="#6366F1" 
+                                            <Ionicons
+                                                name="repeat"
+                                                size={18}
+                                                color="#6366F1"
                                             />
                                             <View className="ml-2 flex-1">
                                                 <Text className="text-[10px] text-neutral-400">FRECUENCIA</Text>
@@ -650,7 +649,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                 </View>
                             )
                         })}
-                        
+
                         {/* Info de ordenamiento */}
                         <View className="bg-blue-50 p-3 rounded-xl flex-row items-start">
                             <Ionicons name="information-circle" size={18} color="#3B82F6" />
@@ -668,16 +667,15 @@ export function SupervisorRouteCreateScreenPaso2() {
                         <View className="flex-row justify-between">
                             {DAYS.map(day => {
                                 const isSelected = selectedDays.includes(day.id)
-                                
+
                                 return (
                                     <TouchableOpacity
                                         key={day.id}
                                         onPress={() => toggleDay(day.id)}
-                                        className={`flex-1 mx-1 py-4 rounded-2xl items-center border-2 ${
-                                            isSelected 
-                                                ? 'bg-red-500 border-red-500' 
+                                        className={`flex-1 mx-1 py-4 rounded-2xl items-center border-2 ${isSelected
+                                                ? 'bg-red-500 border-red-500'
                                                 : 'bg-white border-neutral-200'
-                                        }`}
+                                            }`}
                                     >
                                         <Text className={`text-xs font-medium ${isSelected ? 'text-red-100' : 'text-neutral-400'}`}>
                                             {day.short}
@@ -706,7 +704,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                 <Text className="text-lg font-bold text-neutral-900">
                                     <Text className="text-red-500">🗺️</Text> Vista de Ruta
                                 </Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => setShowFullscreenMap(true)}
                                     className="flex-row items-center bg-neutral-100 px-3 py-2 rounded-xl"
                                 >
@@ -714,8 +712,8 @@ export function SupervisorRouteCreateScreenPaso2() {
                                     <Text className="text-neutral-700 font-medium text-xs ml-1">Ampliar</Text>
                                 </TouchableOpacity>
                             </View>
-                            
-                            <TouchableOpacity 
+
+                            <TouchableOpacity
                                 onPress={() => setShowFullscreenMap(true)}
                                 className="h-44 rounded-2xl overflow-hidden border border-neutral-200"
                             >
@@ -740,7 +738,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                         return (
                                             <Marker key={config.destino.id} coordinate={config.destino.location!} title={config.destino.name}>
                                                 <View className="items-center">
-                                                    <View 
+                                                    <View
                                                         className="w-8 h-8 rounded-full items-center justify-center"
                                                         style={{ backgroundColor: prioColor }}
                                                     >
@@ -819,11 +817,10 @@ export function SupervisorRouteCreateScreenPaso2() {
                         <TouchableOpacity
                             onPress={handleSave}
                             disabled={loading || selectedDays.length === 0}
-                            className={`flex-2 py-5 rounded-2xl items-center shadow-lg px-8 ${
-                                selectedDays.length > 0 && !loading
-                                    ? 'bg-red-500' 
+                            className={`flex-2 py-5 rounded-2xl items-center shadow-lg px-8 ${selectedDays.length > 0 && !loading
+                                    ? 'bg-red-500'
                                     : 'bg-neutral-300'
-                            }`}
+                                }`}
                         >
                             {loading ? (
                                 <ActivityIndicator color="white" />
@@ -872,14 +869,14 @@ export function SupervisorRouteCreateScreenPaso2() {
                         {destinationsWithLocation.map((config, index) => {
                             const prioColor = getPriorityColor(config.prioridad)
                             return (
-                                <Marker 
-                                    key={config.destino.id} 
-                                    coordinate={config.destino.location!} 
-                                    title={`${index + 1}. ${config.destino.name}`} 
+                                <Marker
+                                    key={config.destino.id}
+                                    coordinate={config.destino.location!}
+                                    title={`${index + 1}. ${config.destino.name}`}
                                     description={`${config.hora || 'Sin hora'} - ${config.prioridad}`}
                                 >
                                     <View className="items-center">
-                                        <View 
+                                        <View
                                             className="w-12 h-12 rounded-full items-center justify-center border-2 border-white"
                                             style={{ backgroundColor: prioColor }}
                                         >
@@ -903,7 +900,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                 const freqLabel = FREQUENCIES.find(f => f.id === config.frecuencia)?.label || config.frecuencia
                                 return (
                                     <View key={config.destino.id} className="flex-row items-center py-3 border-b border-neutral-100">
-                                        <View 
+                                        <View
                                             className="w-8 h-8 rounded-full items-center justify-center mr-3"
                                             style={{ backgroundColor: prioColor }}
                                         >
@@ -919,10 +916,10 @@ export function SupervisorRouteCreateScreenPaso2() {
                                                 <Text className="text-indigo-600 text-xs">{freqLabel}</Text>
                                             </View>
                                         </View>
-                                        <Ionicons 
-                                            name={config.destino.type === 'branch' ? 'storefront' : 'business'} 
-                                            size={20} 
-                                            color="#9CA3AF" 
+                                        <Ionicons
+                                            name={config.destino.type === 'branch' ? 'storefront' : 'business'}
+                                            size={20}
+                                            color="#9CA3AF"
                                         />
                                     </View>
                                 )
@@ -948,7 +945,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                             Hora de arribo para este destino
                         </Text>
                     </View>
-                    
+
                     <ScrollView className="max-h-80" showsVerticalScrollIndicator={false}>
                         <View className="flex-row flex-wrap justify-center">
                             {AVAILABLE_HOURS.map(hour => {
@@ -957,7 +954,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                                 const hourNum = parseInt(hour.split(':')[0])
                                 const isMorning = hourNum < 12
                                 const isAfternoon = hourNum >= 12 && hourNum < 18
-                                
+
                                 return (
                                     <TouchableOpacity
                                         key={hour}
@@ -968,11 +965,10 @@ export function SupervisorRouteCreateScreenPaso2() {
                                             setShowTimePicker(false)
                                             setEditingDestIndex(null)
                                         }}
-                                        className={`w-20 m-1 p-3 rounded-xl items-center justify-center border ${
-                                            isSelected 
-                                                ? 'bg-green-500 border-green-600' 
+                                        className={`w-20 m-1 p-3 rounded-xl items-center justify-center border ${isSelected
+                                                ? 'bg-green-500 border-green-600'
                                                 : 'bg-white border-neutral-200'
-                                        }`}
+                                            }`}
                                     >
                                         <Text className={`font-bold text-base ${isSelected ? 'text-white' : 'text-neutral-900'}`}>
                                             {hour}
@@ -985,7 +981,7 @@ export function SupervisorRouteCreateScreenPaso2() {
                             })}
                         </View>
                     </ScrollView>
-                    
+
                     {editingDestIndex !== null && destinationConfigs[editingDestIndex]?.hora && (
                         <TouchableOpacity
                             onPress={() => {
@@ -1019,12 +1015,12 @@ export function SupervisorRouteCreateScreenPaso2() {
                             Los destinos se ordenan automáticamente por prioridad
                         </Text>
                     </View>
-                    
+
                     <View className="gap-3">
                         {PRIORITIES.map(prio => {
                             const currentPrio = editingDestIndex !== null ? destinationConfigs[editingDestIndex]?.prioridad : ''
                             const isSelected = currentPrio === prio.id
-                            
+
                             return (
                                 <TouchableOpacity
                                     key={prio.id}
@@ -1035,16 +1031,15 @@ export function SupervisorRouteCreateScreenPaso2() {
                                         setShowPriorityPicker(false)
                                         setEditingDestIndex(null)
                                     }}
-                                    className={`p-4 rounded-2xl border-2 flex-row items-center ${
-                                        isSelected ? '' : 'bg-white border-neutral-200'
-                                    }`}
-                                    style={isSelected ? { 
-                                        borderColor: prio.color, 
-                                        backgroundColor: prio.color + '15' 
+                                    className={`p-4 rounded-2xl border-2 flex-row items-center ${isSelected ? '' : 'bg-white border-neutral-200'
+                                        }`}
+                                    style={isSelected ? {
+                                        borderColor: prio.color,
+                                        backgroundColor: prio.color + '15'
                                     } : {}}
                                 >
-                                    <View 
-                                        className="w-10 h-10 rounded-full items-center justify-center mr-4" 
+                                    <View
+                                        className="w-10 h-10 rounded-full items-center justify-center mr-4"
                                         style={{ backgroundColor: prio.color }}
                                     >
                                         <Ionicons name={prio.icon} size={20} color="white" />
@@ -1085,12 +1080,12 @@ export function SupervisorRouteCreateScreenPaso2() {
                             ¿Cada cuánto tiempo se visitará este cliente?
                         </Text>
                     </View>
-                    
+
                     <View className="gap-3">
                         {FREQUENCIES.map(freq => {
                             const currentFreq = editingDestIndex !== null ? destinationConfigs[editingDestIndex]?.frecuencia : ''
                             const isSelected = currentFreq === freq.id
-                            
+
                             return (
                                 <TouchableOpacity
                                     key={freq.id}
@@ -1101,14 +1096,12 @@ export function SupervisorRouteCreateScreenPaso2() {
                                         setShowFrequencyPicker(false)
                                         setEditingDestIndex(null)
                                     }}
-                                    className={`p-4 rounded-2xl border-2 flex-row items-center ${
-                                        isSelected ? 'bg-indigo-50 border-indigo-400' : 'bg-white border-neutral-200'
-                                    }`}
-                                >
-                                    <View 
-                                        className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${
-                                            isSelected ? 'bg-indigo-500' : 'bg-neutral-200'
+                                    className={`p-4 rounded-2xl border-2 flex-row items-center ${isSelected ? 'bg-indigo-50 border-indigo-400' : 'bg-white border-neutral-200'
                                         }`}
+                                >
+                                    <View
+                                        className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${isSelected ? 'bg-indigo-500' : 'bg-neutral-200'
+                                            }`}
                                     >
                                         <Ionicons name={freq.icon} size={20} color={isSelected ? 'white' : '#6B7280'} />
                                     </View>

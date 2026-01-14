@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    TouchableOpacity, 
-    TextInput, 
+import {
+    View,
+    Text,
+    ScrollView,
+    TouchableOpacity,
+    TextInput,
     ActivityIndicator,
     Modal,
     SafeAreaView
@@ -19,6 +19,8 @@ import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ZoneService, Zone, ZoneHelpers, LatLng } from '../../../../services/api/ZoneService'
 import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'
+import { ClientMultiSelector } from '../../components/ClientMultiSelector'
+import { optimizeRouteOrder, OptimizableLocation, OptimizationConfig } from '../../utils/routeOptimizer'
 import { RouteService, RoutePlan } from '../../../../services/api/RouteService'
 
 // ============ TIPOS ============
@@ -32,6 +34,8 @@ export interface RouteDestination {
     clientName: string
     zoneId: number
     zoneName?: string  // Nombre de la zona para mostrar en UI
+    suggested_time?: string
+    priority?: string
 }
 
 const DEFAULT_REGION: Region = {
@@ -52,17 +56,17 @@ const parseLocation = (ubicacionGps: { coordinates: number[] } | null | undefine
 // ============ PASO 1: SELECCIÓN DE ZONA Y DESTINOS ============
 export function SupervisorRouteCreateScreen() {
     const navigation = useNavigation<any>()
-    
+
     // Data State
     const [zones, setZones] = useState<Zone[]>([])
     const [allClients, setAllClients] = useState<Client[]>([])
     const [existingRoutes, setExistingRoutes] = useState<RoutePlan[]>([])
     const [zonePolygon, setZonePolygon] = useState<LatLng[]>([])
-    
+
     // Selection State
     const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
     const [selectedDestinations, setSelectedDestinations] = useState<RouteDestination[]>([])
-    
+
     // UI State
     const [initializing, setInitializing] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -72,8 +76,11 @@ export function SupervisorRouteCreateScreen() {
     const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
     const [clientBranches, setClientBranches] = useState<Map<string, ClientBranch[]>>(new Map())
     const [loadingBranches, setLoadingBranches] = useState<string | null>(null)
+    const [isListExpanded, setIsListExpanded] = useState(false) // Nuevo estado para colapsar la lista
     const [allBranchesLoaded, setAllBranchesLoaded] = useState(false)
-    
+    const [isMultiSelectVisible, setMultiSelectVisible] = useState(false)
+    const [isBulkOptimized, setIsBulkOptimized] = useState(false) // Nuevo estado para saber si viene de optimización
+
     // Feedback
     const [feedbackModal, setFeedbackModal] = useState<{
         visible: boolean
@@ -111,7 +118,7 @@ export function SupervisorRouteCreateScreen() {
             setZones(zonesData)
             setAllClients(clientsData)
             setExistingRoutes(routesData)
-            
+
             // Precargar sucursales de todos los clientes para filtrar por zona
             const branchesMap = new Map<string, ClientBranch[]>()
             await Promise.all(
@@ -158,19 +165,19 @@ export function SupervisorRouteCreateScreen() {
     const filteredClients = useMemo(() => {
         if (!selectedZone) return []
         const selectedZoneId = Number(selectedZone.id)
-        
+
         return allClients.filter(client => {
             if (client.bloqueado) return false
-            
+
             // 1. ¿La matriz está en esta zona?
             const isMatrizInZone = Number(client.zona_comercial_id) === selectedZoneId
-            
+
             // 2. ¿Tiene alguna sucursal en esta zona?
             const branches = clientBranches.get(client.id) || []
             const hasBranchInZone = branches.some(
                 branch => Number(branch.zona_id) === selectedZoneId
             )
-            
+
             // Mostrar cliente si la matriz O alguna sucursal está en la zona
             return isMatrizInZone || hasBranchInZone
         })
@@ -179,7 +186,7 @@ export function SupervisorRouteCreateScreen() {
     const searchedClients = useMemo(() => {
         if (!searchQuery.trim()) return filteredClients
         const query = searchQuery.toLowerCase()
-        return filteredClients.filter(c => 
+        return filteredClients.filter(c =>
             c.razon_social.toLowerCase().includes(query) ||
             (c.nombre_comercial?.toLowerCase() || '').includes(query) ||
             c.identificacion.includes(query)
@@ -192,7 +199,7 @@ export function SupervisorRouteCreateScreen() {
 
     const mapRegion = useMemo<Region>(() => {
         if (destinationsWithLocation.length === 0) return DEFAULT_REGION
-        
+
         if (destinationsWithLocation.length === 1) {
             return {
                 latitude: destinationsWithLocation[0].location!.latitude,
@@ -217,6 +224,57 @@ export function SupervisorRouteCreateScreen() {
         }
     }, [destinationsWithLocation])
 
+
+
+    const availableForBulk: OptimizableLocation[] = useMemo(() => {
+        if (!selectedZone) return []
+        const selectedZoneId = Number(selectedZone.id)
+
+        // 1. Matriz Clientes
+        const clientItems: OptimizableLocation[] = allClients
+            .filter(c => !c.bloqueado && Number(c.zona_comercial_id) === selectedZoneId)
+            .map(c => ({
+                id: c.id,
+                name: c.nombre_comercial || c.razon_social,
+                type: 'MATRIZ' as const,
+                location: c.ubicacion_gps ? {
+                    latitude: c.ubicacion_gps.coordinates[1],
+                    longitude: c.ubicacion_gps.coordinates[0]
+                } : { latitude: 0, longitude: 0 },
+                // priority: c.prioridad // Si existiera en el tipo Client
+                address: c.direccion_texto || '',
+                zoneName: selectedZone.nombre,
+                originalObj: c
+            }))
+            .filter(i => i.location.latitude !== 0)
+
+        // 2. Sucursales
+        const branchItems: OptimizableLocation[] = []
+        clientBranches.forEach((branches, clientId) => {
+            const client = allClients.find(c => c.id === clientId)
+            if (!client || client.bloqueado) return
+
+            branches.forEach(b => {
+                if (Number(b.zona_id) === selectedZoneId && b.activo && b.ubicacion_gps) {
+                    branchItems.push({
+                        id: b.id,
+                        name: b.nombre_sucursal,
+                        type: 'SUCURSAL' as const,
+                        location: {
+                            latitude: b.ubicacion_gps.coordinates[1],
+                            longitude: b.ubicacion_gps.coordinates[0]
+                        },
+                        address: b.direccion_entrega,
+                        zoneName: selectedZone.nombre,
+                        originalObj: { ...b, clientName: client.nombre_comercial || client.razon_social }
+                    })
+                }
+            })
+        })
+
+        return [...clientItems, ...branchItems]
+    }, [allClients, clientBranches, selectedZone])
+
     // ============ ACTIONS ============
     const handleExpandClient = useCallback(async (clientId: string) => {
         if (expandedClientId === clientId) {
@@ -238,6 +296,71 @@ export function SupervisorRouteCreateScreen() {
         setSelectedDestinations(prev => prev.filter(d => d.id !== destinationId))
     }, [])
 
+    const handleBulkImport = (
+        selected: OptimizableLocation[],
+        config: OptimizationConfig,
+        constraints: Map<string, string>
+    ) => {
+        // 1. Ejecutar el algoritmo de optimización
+        const optimizedList = optimizeRouteOrder(selected, config, constraints)
+
+        console.log("Ruta Optimizada:", optimizedList.length, "paradas")
+
+        // 2. Convertir optimizedList al formato RouteDestination
+        const newDestinations: RouteDestination[] = optimizedList.map((optItem) => {
+            let item: RouteDestination;
+
+            if (optItem.type === 'MATRIZ') {
+                const client = optItem.originalObj
+                item = {
+                    type: 'client',
+                    id: client.id,
+                    name: optItem.name,
+                    address: optItem.address,
+                    location: optItem.location,
+                    clientId: client.id,
+                    clientName: optItem.name,
+                    zoneId: Number(client.zona_comercial_id),
+                    zoneName: optItem.zoneName,
+                    suggested_time: optItem.suggested_time,
+                    hora_estimada_arribo: optItem.suggested_time, // Mapeo explicito para tarjeta
+                    priority: optItem.priority
+                }
+            } else {
+                // SUCURSAL
+                const branch = optItem.originalObj
+                item = {
+                    type: 'branch',
+                    id: branch.id,
+                    name: optItem.name,
+                    address: optItem.address,
+                    location: optItem.location,
+                    clientId: branch.cliente_id,
+                    clientName: branch.clientName,
+                    zoneId: Number(branch.zona_id),
+                    zoneName: optItem.zoneName,
+                    suggested_time: optItem.suggested_time,
+                    hora_estimada_arribo: optItem.suggested_time, // Mapeo explicito para tarjeta
+                    priority: optItem.priority
+                }
+            }
+            return item
+        })
+
+        setSelectedDestinations(newDestinations)
+        setIsBulkOptimized(true) // Marcar como optimizado
+
+        // Contar no agendados
+        const unscheduledCount = optimizedList.filter(i => i.is_unscheduled).length;
+
+        setFeedbackModal({
+            visible: true,
+            type: unscheduledCount > 0 ? 'warning' : 'success',
+            title: 'Ruta Inteligente Generada',
+            message: `Optimización completada. ${newDestinations.length} destinos agendados.${unscheduledCount > 0 ? `\n⚠️ ${unscheduledCount} destinos marcados como "NO AGENDADO" por falta de tiempo.` : ''}`
+        })
+    }
+
     const handleContinue = () => {
         if (!selectedZone || selectedDestinations.length === 0) {
             setFeedbackModal({
@@ -248,7 +371,7 @@ export function SupervisorRouteCreateScreen() {
             })
             return
         }
-        
+
         // Navegar al paso 2 con los datos seleccionados
         navigation.navigate('SupervisorRouteCreatePaso2', {
             zone: selectedZone,
@@ -269,18 +392,18 @@ export function SupervisorRouteCreateScreen() {
 
     return (
         <View className="flex-1 bg-neutral-50">
-            <Header 
-                title="Nueva Ruta" 
-                variant="standard" 
+            <Header
+                title="Nueva Ruta"
+                variant="standard"
                 onBackPress={() => navigation.reset({
                     index: 0,
                     routes: [{ name: 'SupervisorRoutes' }]
-                })} 
+                })}
             />
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <View className="p-5">
-                    
+
                     {/* Indicador de pasos con descripción */}
                     <View className="bg-white rounded-2xl p-4 mb-6 border border-neutral-100">
                         <View className="flex-row items-center justify-center mb-3">
@@ -346,41 +469,106 @@ export function SupervisorRouteCreateScreen() {
                                 </View>
                             )}
                         </View>
-                        
-                        {/* Chips de destinos seleccionados */}
+
+                        {/* LISTA DE DESTINOS (Vertical + Colapsable) O UPDATE: SUMMARY CARD */}
                         {selectedDestinations.length > 0 && (
-                            <View className="flex-row flex-wrap mb-3">
-                                {selectedDestinations.map(dest => {
-                                    const isOtherZone = dest.zoneId !== selectedZone?.id
-                                    return (
-                                        <View 
-                                            key={dest.id} 
-                                            className={`flex-row items-center rounded-full px-3 py-2 mr-2 mb-2 ${
-                                                isOtherZone ? 'bg-purple-100' : 'bg-blue-100'
-                                            }`}
-                                        >
-                                            <Ionicons 
-                                                name={dest.type === 'branch' ? 'storefront' : 'business'} 
-                                                size={14} 
-                                                color={isOtherZone ? '#7C3AED' : '#3B82F6'}
-                                            />
-                                            <View className="ml-2">
-                                                <Text 
-                                                    className={`font-medium text-xs max-w-28 ${isOtherZone ? 'text-purple-700' : 'text-blue-700'}`} 
-                                                    numberOfLines={1}
-                                                >
-                                                    {dest.name}
+                            <View className="mb-3">
+                                {isBulkOptimized ? (
+                                    // === SUMMARY CARD PARA OPTIMIZACIÓN MASIVA ===
+                                    <View className="bg-green-50 border border-green-200 rounded-xl p-4 flex-row items-center justify-between">
+                                        <View className="flex-row items-center flex-1">
+                                            <View className="w-10 h-10 rounded-full bg-green-100 items-center justify-center mr-3">
+                                                <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
+                                            </View>
+                                            <View>
+                                                <Text className="text-green-800 font-bold text-base">
+                                                    {selectedDestinations.length} Destinos Optimizados
                                                 </Text>
-                                                {isOtherZone && dest.zoneName && (
-                                                    <Text className="text-purple-500 text-[10px]">📍 {dest.zoneName}</Text>
+                                                {selectedDestinations.length > 0 && (
+                                                    <Text className="text-green-600 text-xs mt-0.5">
+                                                        Horario: {selectedDestinations[0]?.suggested_time || '??'} - {selectedDestinations[selectedDestinations.length - 1]?.suggested_time || '??'}
+                                                    </Text>
                                                 )}
                                             </View>
-                                            <TouchableOpacity onPress={() => handleRemoveDestination(dest.id)} className="ml-2">
-                                                <Ionicons name="close-circle" size={18} color={isOtherZone ? '#7C3AED' : '#3B82F6'} />
-                                            </TouchableOpacity>
                                         </View>
-                                    )
-                                })}
+
+                                        <TouchableOpacity
+                                            onPress={() => setMultiSelectVisible(true)}
+                                            className="bg-white border border-green-200 px-3 py-1.5 rounded-lg shadow-sm"
+                                        >
+                                            <Text className="text-green-700 text-xs font-bold">Ver / Editar</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    // === LISTA NORMAL (Para selección manual) ===
+                                    <View>
+                                        {selectedDestinations
+                                            .slice(0, isListExpanded ? undefined : 5)
+                                            .map((dest, index) => {
+                                                const isOtherZone = dest.zoneId !== selectedZone?.id
+                                                return (
+                                                    <View
+                                                        key={dest.id}
+                                                        className="flex-row items-center bg-white p-3 rounded-xl border border-neutral-100 mb-2 shadow-sm"
+                                                    >
+                                                        {/* Secuencia */}
+                                                        <View className="w-6 h-6 rounded-full bg-neutral-100 items-center justify-center mr-3">
+                                                            <Text className="text-neutral-500 font-bold text-xs">{index + 1}</Text>
+                                                        </View>
+
+                                                        {/* Icono Tipo */}
+                                                        <View className={`p-2 rounded-full mr-3 ${dest.type === 'branch' ? 'bg-orange-100' : 'bg-blue-100'}`}>
+                                                            <Ionicons
+                                                                name={dest.type === 'branch' ? 'storefront' : 'business'}
+                                                                size={16}
+                                                                color={dest.type === 'branch' ? '#EA580C' : '#2563EB'}
+                                                            />
+                                                        </View>
+
+                                                        {/* Info Principal */}
+                                                        <View className="flex-1 mr-2">
+                                                            <View className="flex-row items-center">
+                                                                <Text className="font-bold text-neutral-800 text-sm flex-1" numberOfLines={1}>
+                                                                    {dest.name}
+                                                                </Text>
+                                                                {dest.priority === 'ALTA' && <Ionicons name="flag" size={14} color="#EF4444" style={{ marginLeft: 4 }} />}
+                                                                {dest.priority === 'BAJA' && <Ionicons name="flag" size={14} color="#10B981" style={{ marginLeft: 4 }} />}
+                                                            </View>
+
+                                                            <Text className="text-neutral-400 text-xs" numberOfLines={1}>
+                                                                {dest.address || 'Sin dirección'}
+                                                            </Text>
+
+                                                            {isOtherZone && (
+                                                                <Text className="text-purple-500 text-[10px] mt-0.5">⚠️ Zona: {dest.zoneName}</Text>
+                                                            )}
+                                                        </View>
+
+                                                        {/* Hora / Acción */}
+                                                        <View className="items-end">
+                                                            <TouchableOpacity onPress={() => handleRemoveDestination(dest.id)} className="mt-2 text-red-500">
+                                                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    </View>
+                                                )
+                                            })}
+
+                                        {/* Botón Ver Más / Ver Menos */}
+                                        {selectedDestinations.length > 5 && (
+                                            <TouchableOpacity
+                                                onPress={() => setIsListExpanded(!isListExpanded)}
+                                                className="py-2 items-center bg-neutral-100 rounded-xl mt-1 border border-neutral-200 border-dashed"
+                                            >
+                                                <Text className="text-neutral-500 font-medium text-xs">
+                                                    {isListExpanded
+                                                        ? 'Ver menos destinos'
+                                                        : `Ver ${selectedDestinations.length - 5} destinos más...`}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                )}
                             </View>
                         )}
 
@@ -397,9 +585,8 @@ export function SupervisorRouteCreateScreen() {
                                 }
                                 setShowDestinationModal(true)
                             }}
-                            className={`bg-white p-4 rounded-2xl border flex-row items-center shadow-sm ${
-                                selectedZone ? 'border-neutral-200' : 'border-dashed border-neutral-300 opacity-60'
-                            }`}
+                            className={`bg-white p-4 rounded-2xl border flex-row items-center shadow-sm ${selectedZone ? 'border-neutral-200' : 'border-dashed border-neutral-300 opacity-60'
+                                }`}
                         >
                             <View className="w-12 h-12 rounded-xl bg-blue-100 items-center justify-center mr-4">
                                 <Ionicons name="add-circle" size={24} color="#3B82F6" />
@@ -411,6 +598,37 @@ export function SupervisorRouteCreateScreen() {
                                 </Text>
                             </View>
                             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                        </TouchableOpacity>
+
+                        {/* Botón de Carga Masiva Inteligente */}
+                        <TouchableOpacity
+                            onPress={() => {
+                                if (!selectedZone) {
+                                    setFeedbackModal({
+                                        visible: true,
+                                        type: 'warning',
+                                        title: 'Zona Requerida',
+                                        message: 'Primero selecciona una zona comercial'
+                                    })
+                                    return
+                                }
+                                setMultiSelectVisible(true)
+                            }}
+                            className={`flex-row items-center bg-[#FFF5D9] border border-[#F0412D] p-4 rounded-xl mt-3 ${selectedZone ? '' : 'opacity-60'
+                                }`}
+                        >
+                            <View className="bg-[#F0412D] p-2 rounded-full mr-3">
+                                <Ionicons name="flash" size={20} color="white" />
+                            </View>
+                            <View className="flex-1">
+                                <Text className="text-[#F0412D] font-bold text-base">
+                                    Optimización Masiva
+                                </Text>
+                                <Text className="text-xs text-neutral-600 mt-1">
+                                    Selecciona múltiples locales y crea la ruta más rápida automáticamente.
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#F0412D" />
                         </TouchableOpacity>
 
                         {selectedZone && (
@@ -427,7 +645,7 @@ export function SupervisorRouteCreateScreen() {
                                 <Text className="text-lg font-bold text-neutral-900">
                                     <Text className="text-red-500">🗺️</Text> Ubicaciones
                                 </Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     onPress={() => setShowFullscreenMap(true)}
                                     className="flex-row items-center bg-neutral-100 px-3 py-2 rounded-xl"
                                 >
@@ -435,8 +653,8 @@ export function SupervisorRouteCreateScreen() {
                                     <Text className="text-neutral-700 font-medium text-xs ml-1">Ampliar</Text>
                                 </TouchableOpacity>
                             </View>
-                            
-                            <TouchableOpacity 
+
+                            <TouchableOpacity
                                 onPress={() => setShowFullscreenMap(true)}
                                 className="h-48 rounded-2xl overflow-hidden border border-neutral-200"
                             >
@@ -456,7 +674,7 @@ export function SupervisorRouteCreateScreen() {
                                             strokeWidth={2}
                                         />
                                     )}
-                                    
+
                                     {/* Marcadores de destinos */}
                                     {destinationsWithLocation.map((dest, index) => (
                                         <Marker
@@ -472,7 +690,7 @@ export function SupervisorRouteCreateScreen() {
                                         </Marker>
                                     ))}
                                 </MapView>
-                                
+
                                 {/* Indicadores del mapa */}
                                 <View className="absolute top-2 left-2 right-2 flex-row justify-between">
                                     {selectedZone && (
@@ -487,7 +705,7 @@ export function SupervisorRouteCreateScreen() {
                                         </Text>
                                     </View>
                                 </View>
-                                
+
                                 <View className="absolute bottom-3 left-3 bg-white/95 px-3 py-2 rounded-lg shadow">
                                     <Text className="text-neutral-700 text-xs font-medium">
                                         📍 {destinationsWithLocation.length} ubicación(es)
@@ -501,11 +719,10 @@ export function SupervisorRouteCreateScreen() {
                     <TouchableOpacity
                         onPress={handleContinue}
                         disabled={!selectedZone || selectedDestinations.length === 0}
-                        className={`py-5 rounded-2xl items-center shadow-lg flex-row justify-center ${
-                            selectedZone && selectedDestinations.length > 0
-                                ? 'bg-red-500' 
-                                : 'bg-neutral-300'
-                        }`}
+                        className={`py-5 rounded-2xl items-center shadow-lg flex-row justify-center ${selectedZone && selectedDestinations.length > 0
+                            ? 'bg-red-500'
+                            : 'bg-neutral-300'
+                            }`}
                     >
                         <Text className="text-white font-bold text-lg mr-2">Continuar</Text>
                         <Ionicons name="arrow-forward" size={20} color="white" />
@@ -530,9 +747,8 @@ export function SupervisorRouteCreateScreen() {
                                 setSelectedDestinations([])
                                 setShowZoneModal(false)
                             }}
-                            className={`p-4 border-b border-neutral-100 flex-row items-center justify-between ${
-                                selectedZone?.id === zone.id ? 'bg-indigo-50' : ''
-                            }`}
+                            className={`p-4 border-b border-neutral-100 flex-row items-center justify-between ${selectedZone?.id === zone.id ? 'bg-indigo-50' : ''
+                                }`}
                         >
                             <View className="flex-row items-center flex-1">
                                 <View className="w-10 h-10 rounded-full bg-indigo-100 items-center justify-center mr-3">
@@ -550,6 +766,14 @@ export function SupervisorRouteCreateScreen() {
                     ))}
                 </ScrollView>
             </GenericModal>
+
+            {/* ============ MODAL: IMPORTACIÓN MASIVA ============ */}
+            <ClientMultiSelector
+                visible={isMultiSelectVisible}
+                onClose={() => setMultiSelectVisible(false)}
+                onConfirm={handleBulkImport}
+                availableItems={availableForBulk}
+            />
 
             {/* ============ MODAL: DESTINOS ============ */}
             <GenericModal
@@ -585,7 +809,7 @@ export function SupervisorRouteCreateScreen() {
                             <Text className="text-indigo-900 font-bold text-sm ml-2">Regla de Zonas</Text>
                         </View>
                         <Text className="text-indigo-800 text-xs leading-5">
-                            El vendedor viaja a la <Text className="font-bold">zona</Text>, no al cliente. 
+                            El vendedor viaja a la <Text className="font-bold">zona</Text>, no al cliente.
                             Solo puedes agregar destinos que estén en <Text className="font-bold">{selectedZone?.nombre || 'la zona seleccionada'}</Text>.
                         </Text>
                         <View className="flex-row items-center mt-3 space-x-3">
@@ -639,11 +863,11 @@ export function SupervisorRouteCreateScreen() {
                                 const clientLocation = parseLocation(client.ubicacion_gps)
                                 const clientZoneId = Number(client.zona_comercial_id)
                                 const isClientSelected = selectedDestinations.some(d => d.id === client.id)
-                                
+
                                 // ¿La matriz está en la zona seleccionada?
                                 const isMatrizInSelectedZone = clientZoneId === Number(selectedZone?.id)
                                 const matrizZone = zones.find(z => z.id === clientZoneId)
-                                
+
                                 // Sucursales que están EN la zona seleccionada
                                 const branchesInZone = branches.filter(b => Number(b.zona_id) === Number(selectedZone?.id))
                                 // Sucursales que están FUERA de la zona seleccionada
@@ -684,7 +908,7 @@ export function SupervisorRouteCreateScreen() {
                                         {/* Opciones Expandidas */}
                                         {isExpanded && (
                                             <View className="mt-2 bg-neutral-50 rounded-xl p-3 border border-neutral-100">
-                                                
+
                                                 {/* ============ SECCIÓN 1: MATRIZ ============ */}
                                                 <View className="mb-3">
                                                     <Text className="text-xs font-bold text-neutral-500 uppercase mb-2">🏢 Dirección Principal (Matriz)</Text>
@@ -704,21 +928,19 @@ export function SupervisorRouteCreateScreen() {
                                                             })
                                                         }}
                                                         disabled={!isMatrizInSelectedZone || isClientSelected}
-                                                        className={`p-3 rounded-xl border flex-row items-center ${
-                                                            isClientSelected 
-                                                                ? 'bg-green-50 border-green-400' 
-                                                                : isMatrizInSelectedZone 
-                                                                    ? 'bg-white border-green-200' 
-                                                                    : 'bg-neutral-100 border-neutral-200 opacity-60'
-                                                        }`}
+                                                        className={`p-3 rounded-xl border flex-row items-center ${isClientSelected
+                                                            ? 'bg-green-50 border-green-400'
+                                                            : isMatrizInSelectedZone
+                                                                ? 'bg-white border-green-200'
+                                                                : 'bg-neutral-100 border-neutral-200 opacity-60'
+                                                            }`}
                                                     >
-                                                        <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                                                            isClientSelected ? 'bg-green-500' : isMatrizInSelectedZone ? 'bg-green-100' : 'bg-neutral-200'
-                                                        }`}>
-                                                            <Ionicons 
-                                                                name={isClientSelected ? 'checkmark' : 'business'} 
-                                                                size={16} 
-                                                                color={isClientSelected ? 'white' : isMatrizInSelectedZone ? '#22C55E' : '#9CA3AF'} 
+                                                        <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isClientSelected ? 'bg-green-500' : isMatrizInSelectedZone ? 'bg-green-100' : 'bg-neutral-200'
+                                                            }`}>
+                                                            <Ionicons
+                                                                name={isClientSelected ? 'checkmark' : 'business'}
+                                                                size={16}
+                                                                color={isClientSelected ? 'white' : isMatrizInSelectedZone ? '#22C55E' : '#9CA3AF'}
                                                             />
                                                         </View>
                                                         <View className="flex-1">
@@ -759,7 +981,7 @@ export function SupervisorRouteCreateScreen() {
                                                 ) : branches.length > 0 ? (
                                                     <View>
                                                         <Text className="text-xs font-bold text-neutral-500 uppercase mb-2">🏪 Sucursales</Text>
-                                                        
+
                                                         {/* Sucursales EN la zona seleccionada (habilitadas) */}
                                                         {branchesInZone.length > 0 && (
                                                             <View className="mb-2">
@@ -767,7 +989,7 @@ export function SupervisorRouteCreateScreen() {
                                                                     const branchLocation = parseLocation(branch.ubicacion_gps)
                                                                     const isBranchSelected = selectedDestinations.some(d => d.id === branch.id)
                                                                     const branchZoneId = Number(branch.zona_id)
-                                                                    
+
                                                                     return (
                                                                         <TouchableOpacity
                                                                             key={branch.id}
@@ -786,17 +1008,15 @@ export function SupervisorRouteCreateScreen() {
                                                                                 })
                                                                             }}
                                                                             disabled={isBranchSelected}
-                                                                            className={`p-3 rounded-xl border mb-2 flex-row items-center ${
-                                                                                isBranchSelected ? 'bg-orange-50 border-orange-400' : 'bg-white border-orange-200'
-                                                                            }`}
+                                                                            className={`p-3 rounded-xl border mb-2 flex-row items-center ${isBranchSelected ? 'bg-orange-50 border-orange-400' : 'bg-white border-orange-200'
+                                                                                }`}
                                                                         >
-                                                                            <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                                                                                isBranchSelected ? 'bg-orange-500' : 'bg-orange-100'
-                                                                            }`}>
-                                                                                <Ionicons 
-                                                                                    name={isBranchSelected ? 'checkmark' : 'storefront'} 
-                                                                                    size={16} 
-                                                                                    color={isBranchSelected ? 'white' : '#F59E0B'} 
+                                                                            <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isBranchSelected ? 'bg-orange-500' : 'bg-orange-100'
+                                                                                }`}>
+                                                                                <Ionicons
+                                                                                    name={isBranchSelected ? 'checkmark' : 'storefront'}
+                                                                                    size={16}
+                                                                                    color={isBranchSelected ? 'white' : '#F59E0B'}
                                                                                 />
                                                                             </View>
                                                                             <View className="flex-1">
@@ -818,7 +1038,7 @@ export function SupervisorRouteCreateScreen() {
                                                                 })}
                                                             </View>
                                                         )}
-                                                        
+
                                                         {/* Sucursales FUERA de la zona seleccionada (deshabilitadas) */}
                                                         {branchesOutOfZone.length > 0 && (
                                                             <View className="opacity-50">
@@ -826,7 +1046,7 @@ export function SupervisorRouteCreateScreen() {
                                                                 {branchesOutOfZone.map(branch => {
                                                                     const branchZone = zones.find(z => z.id === Number(branch.zona_id))
                                                                     return (
-                                                                        <View 
+                                                                        <View
                                                                             key={branch.id}
                                                                             className="p-2 rounded-lg bg-neutral-100 border border-neutral-200 mb-1 flex-row items-center"
                                                                         >
@@ -898,7 +1118,7 @@ export function SupervisorRouteCreateScreen() {
                                 strokeWidth={3}
                             />
                         )}
-                        
+
                         {/* Marcadores */}
                         {destinationsWithLocation.map((dest, index) => (
                             <Marker key={dest.id} coordinate={dest.location!} title={`${index + 1}. ${dest.name}`} description={dest.address}>
@@ -910,7 +1130,7 @@ export function SupervisorRouteCreateScreen() {
                             </Marker>
                         ))}
                     </MapView>
-                    
+
                     {/* Leyenda del mapa */}
                     {zonePolygon.length >= 3 && (
                         <View className="absolute top-20 left-4 bg-indigo-600/90 px-3 py-2 rounded-xl flex-row items-center">

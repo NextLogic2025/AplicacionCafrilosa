@@ -116,14 +116,22 @@ export function ClientSucursalesScreen() {
             <Header title="Mis Sucursales" variant="standard" onBackPress={() => navigation.goBack()} />
 
             <View className="bg-white pb-2 border-b border-neutral-100 z-10">
-                {/* # Barra de Búsqueda */}
-                <View className="px-4 py-2">
-                    <SearchBar
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        onClear={() => setSearchQuery('')}
-                        placeholder="Buscar sucursal..."
-                    />
+                {/* # Barra de Búsqueda y Botón de Crear */}
+                <View className="px-4 py-2 flex-row items-center gap-3">
+                    <View className="flex-1">
+                        <SearchBar
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            onClear={() => setSearchQuery('')}
+                            placeholder="Buscar sucursal..."
+                        />
+                    </View>
+                    <TouchableOpacity
+                        className="w-12 h-12 bg-red-600 rounded-xl items-center justify-center shadow-sm active:bg-red-700 mt-1"
+                        onPress={() => navigation.navigate('CrearClienteSucursales' as never)}
+                    >
+                        <Ionicons name="add" size={28} color="white" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* # Filtro de Categorías (Activas / Inactivas) */}
@@ -158,13 +166,6 @@ export function ClientSucursalesScreen() {
                 />
             )}
 
-            {/* Solo mostrar botón de crear si estamos viendo activas (o siempre, según preferencia) */}
-            <TouchableOpacity
-                className="absolute bottom-6 right-6 w-14 h-14 bg-red-600 rounded-full items-center justify-center shadow-lg elevation-5"
-                onPress={() => navigation.navigate('CrearClienteSucursales' as never)}
-            >
-                <Ionicons name="add" size={30} color="white" />
-            </TouchableOpacity>
         </View>
     )
 }

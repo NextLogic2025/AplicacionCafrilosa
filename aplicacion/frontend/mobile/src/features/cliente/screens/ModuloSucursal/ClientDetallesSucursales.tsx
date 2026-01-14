@@ -151,7 +151,7 @@ export function ClientDetallesSucursalesScreen() {
                             latitudeDelta: 0.008,
                             longitudeDelta: 0.008,
                         }}
-                        scrollEnabled={false}  // Desactivar movimiento del mapa por solicitud
+                        scrollEnabled={true}  // Habilitar movimiento del mapa por solicitud
                         zoomEnabled={true}    // Permitir zoom
                     >
                         {/* Marcador de la sucursal */}
@@ -255,8 +255,17 @@ export function ClientDetallesSucursalesScreen() {
                             </View>
                         </View>
 
-                        {/* # Botón de Acción (Desactivar/Activar) */}
+                        {/* # Botón de Acción (Editar y Desactivar/Activar) */}
                         <View className="mt-8 pt-6 border-t border-neutral-100">
+                            {branch.activo && (
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('CrearClienteSucursales' as never, { branchId: branch.id } as any)}
+                                    className="flex-row items-center justify-center bg-red-600 p-4 rounded-xl shadow-md active:bg-red-700 mb-6"
+                                >
+                                    <Ionicons name="pencil" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text className="text-white font-bold">Editar Sucursal</Text>
+                                </TouchableOpacity>
+                            )}
                             {branch.activo ? (
                                 <TouchableOpacity
                                     onPress={handleDeactivate}
