@@ -13,6 +13,7 @@ import { PromocionAplicada } from './entities/promocion-aplicada.entity';
 import { OrdersController } from './controllers/orders.controller';
 import { CartController } from './controllers/cart.controller';
 import { EstadosController } from './controllers/estados.controller';
+import { InternalAdminController } from './controllers/internal-admin.controller';
 import { OrdersService } from './services/orders.service';
 import { CartService } from './services/cart.service';
 import { OrderListenerService } from './services/order-listener.service';
@@ -30,7 +31,7 @@ import { OrderListenerService } from './services/order-listener.service';
       PromocionAplicada,
     ]),
   ],
-  controllers: [OrdersController, CartController, EstadosController],
+  controllers: [OrdersController, CartController, EstadosController, InternalAdminController],
   providers: [OrdersService, CartService, OrderListenerService],
   exports: [OrdersService, CartService],
 })

@@ -29,6 +29,15 @@ export class OrderDetailDto {
   @IsOptional()
   @IsInt()
   campania_aplicada_id?: number;
+
+  // Campos de precios: se ignoran si vienen del cliente, se rellenan en el servidor
+  @IsOptional()
+  @IsNumber()
+  precio_original?: number;
+
+  @IsOptional()
+  @IsNumber()
+  precio_unitario?: number;
 }
 
 export class UbicacionDto {
