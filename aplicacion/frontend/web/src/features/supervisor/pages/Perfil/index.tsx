@@ -17,7 +17,7 @@ export default function PerfilPage() {
 
   if (loading && !profile) return <LoadingSpinner text="Cargando perfil..." />
 
-  const name = profile?.nombre || 'Usuario Cafrilosa'
+  const name = profile?.nombreCompleto || profile?.nombre_completo || 'Usuario Cafrilosa'
   const email = profile?.email || 'Sin correo'
   const phone = profile?.telefono || 'Sin teléfono'
   const role = profile?.rol?.nombre || 'Sin rol'

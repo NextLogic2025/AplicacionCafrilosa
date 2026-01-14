@@ -89,13 +89,13 @@ export async function guardarRutero(datos: RuteroPlanificado[], eliminados?: str
   // Enviamos cada registro individualmente, adaptando nombres.
   const diaToNumber = (d: DiaSemana): number => {
     const map: Record<DiaSemana, number> = {
-      LUNES: 2,
-      MARTES: 3,
-      MIERCOLES: 4,
-      JUEVES: 5,
-      VIERNES: 6,
+      LUNES: 1,
+      MARTES: 2,
+      MIERCOLES: 3,
+      JUEVES: 4,
+      VIERNES: 5,
     }
-    return map[d] ?? 2
+    return map[d] ?? 1
   }
 
   for (const item of datos) {
@@ -174,11 +174,11 @@ export async function obtenerTodasLasRutas(): Promise<RuteroPlanificado[]> {
 
 function numberToDia(num: number): DiaSemana {
   const map: Record<number, DiaSemana> = {
-    2: 'LUNES',
-    3: 'MARTES',
-    4: 'MIERCOLES',
-    5: 'JUEVES',
-    6: 'VIERNES',
+    1: 'LUNES',
+    2: 'MARTES',
+    3: 'MIERCOLES',
+    4: 'JUEVES',
+    5: 'VIERNES',
   }
   return map[num] ?? 'LUNES'
 }
@@ -187,13 +187,13 @@ export async function eliminarRutaPorZonaYDia(zonaId: number, diaSemana: DiaSema
   // Como no hay endpoint específico, obtenemos las rutas y eliminamos una por una
   const diaToNumber = (d: DiaSemana): number => {
     const map: Record<DiaSemana, number> = {
-      LUNES: 2,
-      MARTES: 3,
-      MIERCOLES: 4,
-      JUEVES: 5,
-      VIERNES: 6,
+      LUNES: 1,
+      MARTES: 2,
+      MIERCOLES: 3,
+      JUEVES: 4,
+      VIERNES: 5,
     }
-    return map[d] ?? 2
+    return map[d] ?? 1
   }
   const rutas = await obtenerRuteroPorZonaYDia(zonaId, diaToNumber(diaSemana))
 

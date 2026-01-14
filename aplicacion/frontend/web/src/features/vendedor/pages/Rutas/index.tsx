@@ -113,34 +113,42 @@ export default function VendedorRutas() {
   // Corregido para coincidir con la base de datos
   const DIA_MAP: Record<DiaSemana, number> = {
     LUNES: 1,
-    MARTES: 3,
-    MIERCOLES: 4,
-    JUEVES: 5,
-    VIERNES: 6,
+    MARTES: 2,
+    MIERCOLES: 3,
+    JUEVES: 4,
+    VIERNES: 5,
   }
   const DIA_MAP_INV: Record<number, DiaSemana> = {
     1: 'LUNES',
-    3: 'MARTES',
-    4: 'MIERCOLES',
-    5: 'JUEVES',
-    6: 'VIERNES',
+    2: 'MARTES',
+    3: 'MIERCOLES',
+    4: 'JUEVES',
+    5: 'VIERNES',
   }
 
   // Normaliza rutas para que siempre tengan dia_semana como número
   const rutasNormalizadas = useMemo(() => {
     return rutas.map((item) => {
-      let diaNum = typeof item.plan.dia_semana === 'number'
-        ? item.plan.dia_semana
-        : DIA_MAP[item.plan.dia_semana as DiaSemana] || item.plan.dia_semana;
+      let diaNum: number
+
+      // Si dia_semana ya es un número, usarlo directamente
+      if (typeof item.plan.dia_semana === 'number') {
+        diaNum = item.plan.dia_semana
+      }
+      // Si es un string (DiaSemana), convertirlo a número usando DIA_MAP
+      else {
+        diaNum = DIA_MAP[item.plan.dia_semana as DiaSemana]
+      }
+
       return {
         ...item,
         plan: {
           ...item.plan,
-          dia_semana: diaNum,
+          dia_semana: diaNum as any, // Type assertion: la interfaz espera DiaSemana (string) pero usamos number internamente
         },
-      };
-    });
-  }, [rutas]);
+      }
+    })
+  }, [rutas])
 
   const rutasPorDia = useMemo(() => {
     return DIAS_SEMANA.reduce<Record<DiaSemana, RutaConCliente[]>>((acc, dia) => {
@@ -351,8 +359,8 @@ export default function VendedorRutas() {
                 type="button"
                 onClick={() => setDiaActivo(dia)}
                 className={`flex flex-col rounded-xl border px-4 py-2 text-left transition ${activo
-                    ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm'
-                    : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-brand-red hover:text-brand-red'
+                  ? 'border-brand-red bg-brand-red/10 text-brand-red shadow-sm'
+                  : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-brand-red hover:text-brand-red'
                   }`}
               >
                 <span className="text-xs font-semibold uppercase tracking-[0.08em]">{label.corto}</span>

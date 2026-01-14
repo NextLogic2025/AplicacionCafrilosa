@@ -15,6 +15,8 @@ export type UserProfile = {
   id: string
   email: string
   nombre: string
+  nombre_completo?: string
+  nombreCompleto?: string
   telefono: string | null
   avatarUrl?: string | null
   emailVerificado: boolean
