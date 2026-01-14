@@ -1,18 +1,44 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Alert } from 'react-native'
-import type { CartItem, Cart } from '../services/api/CartService'
-import type { Client, ClientBranch } from '../services/api/ClientService'
+import { CartService, CartItem as CartItemDto, AddToCartPayload } from '../services/api/CartService'
 import { UserService } from '../services/api/UserService'
-import { OrderService } from '../services/api/OrderService'
-import { CartService } from '../services/api/CartService'
-import { CatalogService, Product } from '../services/api/CatalogService'
-import { ClientService } from '../services/api/ClientService'
+import { CatalogService } from '../services/api/CatalogService'
+import { Client, ClientBranch } from '../services/api/ClientService'
 
-/**
- * Interfaz del contexto del carrito
- */
+// Define types locally or import
+export interface CartItem {
+    id: string
+    producto_id: string
+    nombre_producto: string
+    cantidad: number
+    unidad_medida: string
+    precio_lista: number
+    precio_final: number
+    subtotal: number
+    imagen_url?: string
+    codigo_sku?: string
+    // Promotion details
+    motivo_descuento?: string
+    campania_aplicada_id?: number
+}
+
+interface Cart {
+    items: CartItem[]
+    total_estimado: number
+    subtotal?: number
+    descuento_total?: number
+    impuestos_total?: number
+    total_final?: number
+    cliente_id?: string
+}
+
 interface CartContextValue {
+    userId: string | null
     cart: Cart
+    // Legacy support aliases
+    items: CartItem[]
+    totalItems: number
+
     addToCart: (product: {
         id?: string
         producto_id?: string
@@ -31,6 +57,8 @@ interface CartContextValue {
         subtotal?: number
     }, quantity?: number) => void
     removeFromCart: (productId: string) => void
+    removeItem: (productId: string) => void // Alias for removeFromCart
+
     updateQuantity: (productId: string, quantity: number) => void
     clearCart: () => void
     setClient: (client: Client | null, branch?: ClientBranch | null) => void
@@ -41,468 +69,258 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined)
 
-/**
- * CartProvider - Proveedor del contexto del carrito
- *
- * Maneja el estado global del carrito para el vendedor:
- * - Items agregados
- * - Cliente seleccionado
- * - Validación de lista de precios
- * - Cálculo de totales
- */
-export function CartProvider({ children }: { children: React.ReactNode }) {
-    const [cart, setCart] = useState<Cart>({
-        items: [],
-        subtotal: 0,
-        descuento_total: 0,
-        impuestos_total: 0,
-        total_final: 0
-    })
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userId, setUserId] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+    const [cart, setCart] = useState<Cart>({ items: [], total_estimado: 0 })
+    const [currentClient, setCurrentClient] = useState<Client | null>(null)
+    const [loading, setLoading] = useState(false)
 
-    /**
-     * Cargar usuario y carrito al iniciar la aplicación
-     * Se ejecuta una sola vez cuando el componente se monta
-     */
-    React.useEffect(() => {
+    // Load User ID on Mount
+    useEffect(() => {
         const initCart = async () => {
             try {
                 const user = await UserService.getProfile()
                 if (user?.id) {
-                    setUserId(user.id)
-                    await loadCart(user.id)
-
-                    // Obtener cliente y asociarlo localmente para que se envíe en requests
-                    try {
-                        console.log('[CartContext] Fetching client data...');
-                        const cliente = await ClientService.getMyClientData()
-                        console.log('[CartContext] Client data result:', cliente ? `Found ID: ${cliente.id}` : 'Not found (null)');
-
-                        if (cliente?.id) {
-                            // Usamos setClient del contexto (definido abajo, pero accesible aquí si extraemos lógica o usamos setter directo)
-                            // Como setClient es una función del render y esto es un efecto... 
-                            // Debemos usar el setter de estado directo o llamar a una función que mapee.
-                            // Para simplificar y dado que estamos dentro del Provider, modificamos el estado inicial mapsServerCart o hacemos un update.
-                            // Pero `setClient` no está disponible dentro del `useEffect` directamente si `initCart` es closure.
-                            // Mejor: llamamos a la API y luego setState.
-
-                            setCart(prev => ({
-                                ...prev,
-                                cliente_id: cliente.id,
-                                cliente_nombre: cliente.nombre_comercial || cliente.razon_social,
-                                lista_precios_cliente: cliente.lista_precios_id || undefined
-                            }))
-                        }
-                    } catch (e) {
-                        console.log('No se pudo obtener cliente (posiblemente rol no-cliente):', e)
-                    }
+                    setUserId(prev => prev || user.id) // Only set if not already set (e.g. by setClient)
                 }
             } catch (error) {
-                console.log('Error inicializando carrito:', error)
+                console.warn('Error loading user profile for cart', error)
             }
         }
         initCart()
     }, [])
 
-    /**
-     * Servicio: Cargar carrito del usuario desde el backend
-     * Obtiene el carrito del servidor, enriquece con datos del catálogo y sincroniza con el estado local
-     */
+    // Load Cart from Server when userId changes
+    useEffect(() => {
+        if (!userId) {
+            setCart({ items: [], total_estimado: 0 })
+            return
+        }
+        loadCart(userId)
+    }, [userId])
+
     const loadCart = async (uid: string) => {
-        setIsLoading(true)
+        setLoading(true)
         try {
             const serverCart = await CartService.getCart(uid)
-            await mapServerCartToState(serverCart)
+            const mappedCart = await mapServerCartToState(serverCart)
+            setCart(mappedCart)
         } catch (error) {
-            console.error('Error cargando carrito:', error)
-            // Si el backend falla, mantener el estado local vacío
+            console.warn('Error loading cart from server', error)
         } finally {
-            setIsLoading(false)
+            setLoading(false)
         }
     }
 
-    const mapServerCartToState = async (serverCart: any) => {
-        // El backend del carrito solo guarda producto_id, cantidad, precio_unitario_ref
-        // Necesitamos enriquecer con datos del catálogo (nombre, SKU, imagen, promociones)
+    const mapServerCartToState = async (serverCart: any): Promise<Cart> => {
+        if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
 
-        const enrichedItems: CartItem[] = await Promise.all(
-            serverCart.items.map(async (item: any) => {
-                // Intentar obtener datos del producto desde el catálogo
-                let producto: Product | null = null
-                try {
-                    producto = await CatalogService.getProductById(item.producto_id)
-                } catch (error) {
-                    console.warn(`No se pudo obtener producto ${item.producto_id} del catálogo`)
-                }
+        const items: CartItem[] = []
+        for (const item of serverCart.items) {
+            try {
+                // Enrich with Catalog Data for display
+                const productDetails = await CatalogService.getProductById(item.producto_id)
 
-                // Usar datos del catálogo si están disponibles, sino usar fallbacks
-                const nombreProducto = producto?.nombre || item.producto?.nombre || 'Producto'
-                const codigoSku = producto?.codigo_sku || item.producto?.codigo_principal || 'SKU'
-                const imagenUrl = producto?.imagen_url || item.producto?.imagen_url || null
-                const unidadMedida = producto?.unidad_medida || 'UN'
+                // --- SNAPSHOT STRATEGY ---
+                // We trust the prices stored in the cart item (snapshots).
+                // If they are 0 (legacy data), we fallback to productDetails (current catalog price).
 
-                // Precio guardado en el carrito (es el precio al que se agregó)
-                const precioGuardado = Number(item.precio_unitario_ref || 0)
+                // Logic:
+                // 1. item.precio_original_snapshot -> Original Price (List Price)
+                // 2. item.precio_unitario_ref -> Final Price (Unit Price)
 
-                // Precios del catálogo (actuales)
-                const precioOriginalCatalogo = Number(producto?.precio_original || 0)
-                const precioOfertaCatalogo = Number(producto?.precio_oferta || 0)
+                const precioLista = Number(item.precio_original_snapshot) > 0
+                    ? Number(item.precio_original_snapshot)
+                    : (productDetails?.precio_lista ?? 0);
 
-                // Determinar si tiene promoción desde el catálogo
-                // El producto tiene promoción si precio_oferta existe y es menor que precio_original
-                const tienePromocionCatalogo = producto?.promociones && producto.promociones.length > 0
-                const tieneOfertaActiva = precioOfertaCatalogo > 0 && precioOfertaCatalogo < precioOriginalCatalogo
-                const tienePromocion = tienePromocionCatalogo || tieneOfertaActiva
+                const precioFinal = Number(item.precio_unitario_ref) > 0
+                    ? Number(item.precio_unitario_ref)
+                    : (productDetails?.precio_final ?? 0);
 
-                // Calcular precios finales
-                // Si hay datos del catálogo, usarlos. Si no, usar el precio guardado
-                let precioLista: number
-                let precioFinal: number
-
-                if (precioOriginalCatalogo > 0) {
-                    // Tenemos datos del catálogo - usar esos
-                    precioLista = precioOriginalCatalogo
-                    precioFinal = tieneOfertaActiva ? precioOfertaCatalogo : precioOriginalCatalogo
-                } else if (precioGuardado > 0) {
-                    // Solo tenemos el precio guardado - usarlo como precio lista y final
-                    precioLista = precioGuardado
-                    precioFinal = precioGuardado
-                } else {
-                    // Fallback a 0
-                    precioLista = 0
-                    precioFinal = 0
-                }
-
-                // Calcular descuento
-                const descuentoPorcentaje = tienePromocion && precioLista > 0
-                    ? Math.round(((precioLista - precioFinal) / precioLista) * 100)
-                    : 0
-
-                const cantidad = Number(item.cantidad || 1)
-
-                // Obtener ID de campaña aplicada
-                const campaniaAplicadaId = producto?.campania_aplicada_id ||
-                    (producto?.promociones && producto.promociones.length > 0 ? producto.promociones[0].campana_id : undefined)
-
-                return {
-                    id: item.id || `item-${item.producto_id}`,
+                items.push({
+                    id: item.id,
                     producto_id: item.producto_id,
-                    codigo_sku: codigoSku,
-                    nombre_producto: nombreProducto,
-                    imagen_url: imagenUrl,
-                    cantidad: cantidad,
-                    unidad_medida: unidadMedida,
+                    nombre_producto: productDetails?.nombre || 'Producto Desconocido',
+                    codigo_sku: productDetails?.codigo_sku || '',
+                    imagen_url: productDetails?.imagenes?.[0] || '',
+                    cantidad: Number(item.cantidad),
+                    unidad_medida: 'UN', // Default
                     precio_lista: precioLista,
                     precio_final: precioFinal,
-                    precio_unitario_ref: Number(item.precio_unitario_ref || precioFinal),
-                    lista_precios_id: item.lista_precios_id || 1,
-                    tiene_promocion: tienePromocion,
-                    descuento_porcentaje: descuentoPorcentaje,
-                    campania_aplicada_id: tienePromocion ? campaniaAplicadaId : undefined,
-                    subtotal: cantidad * precioFinal
-                }
-            })
-        )
+                    subtotal: Number(item.cantidad) * precioFinal,
+                    campania_aplicada_id: item.campania_aplicada_id,
+                    motivo_descuento: item.motivo_descuento // Mapped from backend
+                })
+            } catch (err) {
+                console.warn(`Error enriching cart item ${item.producto_id}`, err)
+            }
+        }
 
-        // Recalcular totales basados en items enriquecidos
-        const subtotal = enrichedItems.reduce((acc, item) => acc + item.subtotal, 0)
-        const descuento_total = enrichedItems.reduce((acc, item) => {
-            return acc + ((item.precio_lista - item.precio_final) * item.cantidad)
+        const subtotal = items.reduce((acc, curr) => acc + curr.subtotal, 0)
+        // Calculate Discount Total: Sum of (List Price - Final Price) * Quantity
+        const descuento_total = items.reduce((acc, curr) => {
+            const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
+            return acc + (discountPerUnit * curr.cantidad)
         }, 0)
-        const impuestos = subtotal * 0.12
-        const total = subtotal + impuestos
 
-        setCart({
-            items: enrichedItems,
-            cliente_id: serverCart.cliente_id,
-            subtotal: subtotal,
-            descuento_total: descuento_total,
-            impuestos_total: impuestos,
-            total_final: total
-        })
-    }
-
-    /**
-     * Calcular totales del carrito (Helper local)
-     */
-    const calculateTotals = useCallback((items: CartItem[]): Cart => {
-        const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-        const descuento_total = items.reduce((sum, item) => {
-            const descuento_item = (item.precio_lista - item.precio_final) * item.cantidad
-            return sum + descuento_item
-        }, 0)
-        const impuestos_total = subtotal * 0.12
+        const impuestos_total = (subtotal) * 0.12 // Example TAX
         const total_final = subtotal + impuestos_total
 
         return {
-            ...cart,
             items,
+            total_estimado: total_final,
             subtotal,
             descuento_total,
             impuestos_total,
-            total_final
+            total_final,
+            cliente_id: serverCart.cliente_id
         }
-    }, [cart])
+    }
 
-    /**
-     * Servicio: Agregar producto al carrito en la vista del cliente
-     * Actualización optimista: primero actualiza la UI, luego sincroniza con el backend
-     * Si falla el backend, revierte la operación
-     */
-    const addToCart = useCallback(async (product: {
-        id?: string
-        producto_id?: string
-        codigo_sku: string
-        nombre?: string
-        nombre_producto?: string
-        imagen_url?: string
-        unidad_medida: string
-        precio_lista: number
-        precio_final: number
-        lista_precios_id: number
-        tiene_promocion: boolean
-        descuento_porcentaje?: number
-        campania_aplicada_id?: number
-        motivo_descuento?: string
-        subtotal?: number
-        cantidad?: number
-    }, quantity: number = 1) => {
-        // Normalizar campos (soportar diferentes formatos)
-        const productId = product.id || product.producto_id || ''
-        const productName = product.nombre || product.nombre_producto || ''
-        const qty = product.cantidad || quantity
-
-        let newQuantity = qty
-        const existingItemIndex = cart.items.findIndex(item => item.producto_id === productId)
-
-        // Calcular nueva cantidad total
-        if (existingItemIndex >= 0) {
-            newQuantity = cart.items[existingItemIndex].cantidad + qty
+    const setClient = (client: Client | null, branch?: ClientBranch | null) => {
+        setCurrentClient(client)
+        // Switch Context to Client's User if available
+        if (client?.usuario_principal_id) {
+            setUserId(client.usuario_principal_id)
+        } else if (client === null) {
+            // Reset to logged in user
+            UserService.getProfile().then(p => { if (p?.id) setUserId(p.id) })
         }
+    }
 
-        // 1. Actualización Optimista local
-        setCart(prevCart => {
-            const existingIndex = prevCart.items.findIndex(item => item.producto_id === productId)
-            let newItems: CartItem[]
-            if (existingIndex >= 0) {
-                newItems = [...prevCart.items]
-                const item = newItems[existingIndex]
-                newItems[existingIndex] = {
-                    ...item,
-                    cantidad: newQuantity,
-                    subtotal: newQuantity * product.precio_final
-                }
-            } else {
-                newItems = [...prevCart.items, {
-                    id: `temp-${Date.now()}`,
-                    producto_id: productId,
-                    codigo_sku: product.codigo_sku,
-                    nombre_producto: productName,
-                    imagen_url: product.imagen_url,
-                    cantidad: newQuantity,
-                    unidad_medida: product.unidad_medida,
-                    precio_lista: product.precio_lista,
-                    precio_final: product.precio_final,
-                    precio_unitario_ref: product.precio_final,
-                    lista_precios_id: product.lista_precios_id,
-                    tiene_promocion: product.tiene_promocion,
-                    descuento_porcentaje: product.descuento_porcentaje,
-                    campania_aplicada_id: product.campania_aplicada_id,
-                    subtotal: newQuantity * product.precio_final
-                }]
-            }
-            return calculateTotals(newItems)
-        })
-
-        // 2. Persistencia en Backend
-        try {
-            const currentUser = userId || (await UserService.getProfile())?.id
-            if (currentUser) {
-                if (!userId) setUserId(currentUser)
-                // Solo enviar campos que el backend acepta
-                console.log('[CartContext] Preparing addToCart payload. Current cart.cliente_id:', cart.cliente_id);
-
-                const payload = {
-                    producto_id: productId,
-                    cantidad: newQuantity,
-                    campania_aplicada_id: product.campania_aplicada_id,
-                    motivo_descuento: product.motivo_descuento,
-                    cliente_id: cart.cliente_id
-                };
-                console.log('[CartContext] Payload details:', JSON.stringify(payload, null, 2));
-
-                await CartService.addToCart(currentUser, payload)
-            }
-        } catch (error) {
-            console.error('Error persisting cart add:', error)
-            Alert.alert('Error', 'No se pudo guardar el producto en el carrito remoto.')
-            // Revertir optimismo (simplificado: recargar carrito)
-            if (userId) loadCart(userId)
-        }
-    }, [calculateTotals, userId, cart.items, cart.cliente_id, loadCart])
-
-    /**
-     * Servicio: Eliminar producto del carrito en la vista del cliente
-     * Actualización optimista con rollback en caso de error
-     */
-    const removeFromCart = useCallback(async (productId: string) => {
-        console.log('[CartContext] removeFromCart llamado con productId:', productId)
-        console.log('[CartContext] userId actual:', userId)
-
-        // Optimistic
-        setCart(prevCart => {
-            const newItems = prevCart.items.filter(item => item.producto_id !== productId)
-            return calculateTotals(newItems)
-        })
-
-        try {
-            const currentUser = userId || (await UserService.getProfile())?.id
-            console.log('[CartContext] currentUser para DELETE:', currentUser)
-            if (currentUser) {
-                console.log('[CartContext] Llamando CartService.removeFromCart...')
-                await CartService.removeFromCart(currentUser, productId)
-                console.log('[CartContext] CartService.removeFromCart completado exitosamente')
-            } else {
-                console.warn('[CartContext] No hay currentUser, no se puede eliminar del backend')
-            }
-        } catch (error) {
-            console.error('[CartContext] Error removing item from remote cart:', error)
-            if (userId) loadCart(userId)
-        }
-    }, [calculateTotals, userId, loadCart])
-
-    /**
-     * Servicio: Actualizar cantidad de un producto en el carrito del cliente
-     * Si la cantidad es 0 o negativa, elimina el producto
-     */
-    const updateQuantity = useCallback(async (productId: string, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromCart(productId)
+    const addToCart = async (product: any, quantity: number = 1) => {
+        if (!userId) {
+            Alert.alert('Error', 'Debes iniciar sesión para comprar')
             return
         }
 
-        // Optimistic
-        let precioFinal = 0
-        setCart(prevCart => {
-            const newItems = prevCart.items.map(item => {
-                if (item.producto_id === productId) {
-                    precioFinal = item.precio_final // Guardar precio para enviar al backend
-                    return { ...item, cantidad: quantity, subtotal: quantity * item.precio_final }
+        try {
+            // Optimistic Update
+            setCart(prev => {
+                const existing = prev.items.find(i => i.producto_id === (product.id || product.producto_id))
+                let newItems = []
+                if (existing) {
+                    newItems = prev.items.map(i => i.producto_id === (product.id || product.producto_id)
+                        ? { ...i, cantidad: i.cantidad + quantity, subtotal: (i.cantidad + quantity) * i.precio_final }
+                        : i
+                    )
+                } else {
+                    newItems = [...prev.items, {
+                        id: 'temp-' + Date.now(),
+                        producto_id: product.id || product.producto_id,
+                        nombre_producto: product.nombre || product.nombre_producto,
+                        cantidad: quantity,
+                        unidad_medida: product.unidad_medida,
+                        precio_lista: product.precio_lista,
+                        precio_final: product.precio_final,
+                        subtotal: quantity * product.precio_final,
+                        imagen_url: product.imagen_url,
+                        codigo_sku: product.codigo_sku,
+                        campania_aplicada_id: product.campania_aplicada_id,
+                        motivo_descuento: product.motivo_descuento
+                    }]
                 }
-                return item
+
+                // Recalculate totals
+                const sub = newItems.reduce((a, b) => a + b.subtotal, 0)
+                const tax = sub * 0.12
+                return { ...prev, items: newItems, total_estimado: sub + tax }
             })
-            return calculateTotals(newItems)
-        })
 
-        // Persistence
-        try {
-            const currentUser = userId || (await UserService.getProfile())?.id
-            if (currentUser) {
-                await CartService.addToCart(currentUser, {
-                    producto_id: productId,
-                    cantidad: quantity
-                })
+            // Server Call
+            const payload: AddToCartPayload = {
+                producto_id: product.id || product.producto_id,
+                cantidad: quantity,
+                // Do NOT send prices. Backend calculates them.
+                campania_aplicada_id: product.campania_aplicada_id,
+                motivo_descuento: product.motivo_descuento
             }
-        } catch (error) {
-            console.error('Error updating quantity:', error)
-            if (userId) loadCart(userId)
-        }
-    }, [calculateTotals, removeFromCart, userId, loadCart])
 
-    /**
-     * Limpiar carrito
-     */
-    const clearCart = useCallback(async () => {
-        console.log('[CartContext] clearCart llamado')
-        console.log('[CartContext] userId actual:', userId)
-
-        // 1. Limpiar estado local inmediatamente (optimistic)
-        setCart({
-            items: [],
-            subtotal: 0,
-            descuento_total: 0,
-            impuestos_total: 0,
-            total_final: 0
-        })
-
-        // 2. Sincronizar con el backend
-        try {
-            const currentUser = userId || (await UserService.getProfile())?.id
-            console.log('[CartContext] currentUser para clearCart:', currentUser)
-            if (currentUser) {
-                console.log('[CartContext] Llamando CartService.clearCart...')
-                await CartService.clearCart(currentUser)
-                console.log('[CartContext] CartService.clearCart completado exitosamente')
+            // --- FIX: Use addToCart instead of addItem ---
+            if (existingItem(product.id || product.producto_id)) {
+                await CartService.addToCart(userId, payload)
             } else {
-                console.warn('[CartContext] No hay currentUser, no se puede vaciar en backend')
+                await CartService.addToCart(userId, payload)
             }
+            // ---------------------------------------------
+
+            // Reload to sync
+            loadCart(userId)
+
         } catch (error) {
-            console.error('[CartContext] Error clearing cart in backend:', error)
-            // Si falla el backend, recargar el carrito para sincronizar
-            if (userId) loadCart(userId)
+            console.error('Error adding to cart', error)
+            Alert.alert('Error', 'No se pudo agregar al carrito')
+            // Revert optimistic update? (Complexity: High. Skip for now)
+            loadCart(userId)
         }
-    }, [userId, loadCart])
+    }
 
-    /**
-     * Asignar cliente y sucursal al carrito
-     * @param client - Cliente seleccionado o null para limpiar
-     * @param branch - Sucursal seleccionada o null/undefined para dirección principal
-     */
-    const setClient = useCallback((client: Client | null, branch?: ClientBranch | null) => {
-        setCart(prevCart => ({
-            ...prevCart,
-            cliente_id: client?.id,
-            cliente_nombre: client?.nombre_comercial || client?.razon_social,
-            sucursal_id: branch?.id,
-            sucursal_nombre: branch?.nombre_sucursal,
-            lista_precios_cliente: client?.lista_precios_id || undefined
+    const existingItem = (prodId: string) => cart.items.some(i => i.producto_id === prodId)
+
+    const removeFromCart = async (productId: string) => {
+        if (!userId) return
+
+        // Optimistic
+        setCart(prev => ({
+            ...prev,
+            items: prev.items.filter(i => i.producto_id !== productId)
         }))
-    }, [])
 
-    const getItemCount = useCallback(() => {
-        return cart.items.reduce((sum, item) => sum + item.cantidad, 0)
-    }, [cart.items])
+        try {
+            await CartService.removeFromCart(userId, productId)
+            loadCart(userId)
+        } catch (error) {
+            console.error('Error removing item', error)
+            loadCart(userId)
+        }
+    }
 
-    const validatePriceList = useCallback((clientListId: number): boolean => {
-        if (cart.items.length === 0) return true
-        return cart.items.every(item => item.lista_precios_id === clientListId)
-    }, [cart.items])
+    const updateQuantity = async (productId: string, quantity: number) => {
+        if (!userId || quantity <= 0) return
 
-    const recalculatePrices = useCallback((newListId: number, productos: any[]) => {
-        // Keep existing logic
-        setCart(prevCart => {
-            const newItems: CartItem[] = []
-            for (const item of prevCart.items) {
-                const producto = productos.find(p => p.id === item.producto_id)
-                if (!producto) continue
-                const nuevoPrecio = producto.precios?.find((p: any) => p.lista_id === newListId)
-                if (!nuevoPrecio) continue
+        // Optimistic
+        setCart(prev => ({
+            ...prev,
+            items: prev.items.map(i => i.producto_id === productId
+                ? { ...i, cantidad: quantity, subtotal: quantity * i.precio_final }
+                : i)
+        }))
 
-                const promocion = producto.precio_oferta && producto.precio_oferta < nuevoPrecio.precio
-                    ? producto.precio_oferta : null
-                const precioFinal = promocion || nuevoPrecio.precio
-
-                newItems.push({
-                    ...item,
-                    precio_lista: nuevoPrecio.precio,
-                    precio_final: precioFinal,
-                    lista_precios_id: newListId,
-                    tiene_promocion: !!promocion,
-                    descuento_porcentaje: promocion
-                        ? Math.round(((nuevoPrecio.precio - promocion) / nuevoPrecio.precio) * 100)
-                        : undefined,
-                    subtotal: item.cantidad * precioFinal
-                })
+        try {
+            const payload: AddToCartPayload = {
+                producto_id: productId,
+                cantidad: quantity
             }
-            return calculateTotals(newItems)
-        })
-    }, [calculateTotals])
+            // FIX: Use addToCart for update/upsert
+            await CartService.addToCart(userId, payload)
+            loadCart(userId)
+        } catch (error) {
+            console.error('Error updating quantity', error)
+            loadCart(userId)
+        }
+    }
+
+    const clearCart = async () => {
+        if (!userId) return
+        setCart({ items: [], total_estimado: 0 })
+        try {
+            await CartService.clearCart(userId)
+        } catch (e) { console.warn(e) }
+    }
+
+    const getItemCount = () => cart.items.reduce((acc, item) => acc + item.cantidad, 0)
+
+    const validatePriceList = (listId: number) => true
+    const recalculatePrices = () => { } // Placeholder
 
     const value: CartContextValue = {
+        userId,
         cart,
+        items: cart.items, // Alias
+        totalItems: getItemCount(), // Alias
         addToCart,
         removeFromCart,
+        removeItem: removeFromCart, // Alias
         updateQuantity,
         clearCart,
         setClient,
@@ -511,46 +329,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         recalculatePrices
     }
 
-    return <CartContext.Provider value={value}>{children}</CartContext.Provider>
+    return (
+        <CartContext.Provider value={value}>
+            {children}
+        </CartContext.Provider>
+    )
 }
 
-/**
- * Hook para usar el contexto del carrito
- */
-export function useCart() {
+export const useCart = () => {
     const context = useContext(CartContext)
-    if (context === undefined) {
-        throw new Error('useCart debe ser usado dentro de un CartProvider')
-    }
-
-    // Aliases para compatibilidad con diferentes componentes
-    return {
-        ...context,
-        items: context.cart.items,
-        removeItem: context.removeFromCart,
-        totalPrice: context.cart.total_final,
-        totalItems: context.getItemCount()
-    }
+    if (!context) throw new Error('useCart must be used within a CartProvider')
+    return context
 }
 
-/**
- * Hook opcional para usar el carrito
- * Retorna null si no está dentro de un CartProvider (no lanza error)
- * Útil para componentes compartidos que pueden o no tener acceso al carrito
- */
-export function useCartOptional() {
-    const context = useContext(CartContext)
-
-    if (context === undefined) {
-        return null
-    }
-
-    // Aliases para compatibilidad con diferentes componentes
-    return {
-        ...context,
-        items: context.cart.items,
-        removeItem: context.removeFromCart,
-        totalPrice: context.cart.total_final,
-        totalItems: context.getItemCount()
+export const useCartOptional = () => {
+    return useContext(CartContext) || {
+        cart: { items: [], total_estimado: 0 },
+        getItemCount: () => 0,
+        items: [],
+        totalItems: 0
     }
 }

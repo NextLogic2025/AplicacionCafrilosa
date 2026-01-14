@@ -4,12 +4,16 @@ import { apiRequest } from './client'
 /**
  * Interfaz para items de carrito (entrada/salida backend)
  */
+/**
+ * Interfaz para items de carrito (entrada/salida backend)
+ */
 export interface CartItemDto {
     producto_id: string
     cantidad: number
-    precio_unitario_ref?: number
-    precio_original_snapshot?: number
+    precio_unitario_ref?: number // Precio final (snapshot)
+    precio_original_snapshot?: number // Precio lista (snapshot)
     campania_aplicada_id?: number
+    motivo_descuento?: string
     // Campos opcionales para la UI (enriquecimiento)
     codigo_sku?: string
     nombre_producto?: string
@@ -27,7 +31,6 @@ export interface AddToCartPayload {
     campania_aplicada_id?: number
     motivo_descuento?: string
     referido_id?: string
-    cliente_id?: string
 }
 
 /**

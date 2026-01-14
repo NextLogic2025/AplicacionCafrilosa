@@ -104,7 +104,9 @@ export function ClientProductDetailScreen() {
             tiene_promocion: hasPromotion,
             descuento_porcentaje: descuentoPorcentaje,
             campania_aplicada_id: product.campania_aplicada_id,
-            motivo_descuento: hasPromotion ? 'Promoción Aplicada' : undefined
+            motivo_descuento: hasPromotion
+                ? (product.promociones && product.promociones.length > 0 ? product.promociones[0].tipo_descuento : 'Oferta Especial')
+                : undefined
         }, quantity)
 
         Alert.alert(
