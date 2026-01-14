@@ -12,6 +12,7 @@ import { useCart } from '../../../../context/CartContext'
 import { OrderService } from '../../../../services/api/OrderService'
 import { CartService } from '../../../../services/api/CartService'
 import { UserService } from '../../../../services/api/UserService'
+// # Servicios de Cliente y Tipos
 import { ClientService, ClientBranch, Client } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
@@ -212,9 +213,7 @@ export function ClientCheckoutScreen() {
         setUbicacion({ lat: latitude, lng: longitude })
     }
 
-    /**
-     * Obtener la dirección seleccionada para mostrar
-     */
+    // # Obtener la dirección seleccionada para mostrar
     const getSelectedDeliveryAddress = (): string => {
         if (selectedDeliveryOption === 'MATRIZ') {
             return clienteData?.direccion_texto || 'Dirección principal'
@@ -223,9 +222,7 @@ export function ClientCheckoutScreen() {
         return sucursal?.direccion_entrega || sucursal?.nombre_sucursal || 'Sucursal'
     }
 
-    /**
-     * Obtener el nombre del lugar de entrega
-     */
+    // # Obtener el nombre del lugar de entrega
     const getSelectedDeliveryName = (): string => {
         if (selectedDeliveryOption === 'MATRIZ') {
             return 'Local Principal (Matriz)'
@@ -234,6 +231,7 @@ export function ClientCheckoutScreen() {
         return sucursal?.nombre_sucursal || 'Sucursal'
     }
 
+    // # Confirmar y enviar el pedido
     const handleConfirmOrder = async () => {
         if (cart.items.length === 0) {
             Alert.alert('Carrito vacío', 'Agrega productos antes de realizar un pedido')
@@ -282,13 +280,15 @@ export function ClientCheckoutScreen() {
         }
     }
 
+    // # Manejador al cerrar el modal de éxito
     const handleSuccessModalClose = () => {
-        setShowSuccessModal(false)
-            // Navegar a Mis Pedidos y limpiar el stack para que no vuelva al checkout vacío
-            (navigation as any).reset({
-                index: 0,
-                routes: [{ name: 'MainTabs' }],
-            })
+        setShowSuccessModal(false); // # IMPORTANTE: Punto y coma necesario aquí para evitar error de interpretacion con el paréntesis siguiente
+
+        // Navegar a Mis Pedidos y limpiar el stack para que no vuelva al checkout vacío
+        (navigation as any).reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+        })
         // Navegar a Pedidos después de resetear
         setTimeout(() => {
             (navigation as any).navigate('Pedidos')

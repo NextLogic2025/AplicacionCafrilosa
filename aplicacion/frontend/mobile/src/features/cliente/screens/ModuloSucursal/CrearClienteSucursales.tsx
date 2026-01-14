@@ -8,6 +8,7 @@ import { ClientService, type CommercialZone } from '../../../../services/api/Cli
 import { ZoneHelpers } from '../../../../services/api/ZoneService'
 import { Header } from '../../../../components/ui/Header'
 import { GenericModal } from '../../../../components/ui/GenericModal'
+import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 
 // Loja, Ecuador Default Coordinates
 const DEFAULT_LAT = -3.99313
@@ -54,6 +55,22 @@ export function CrearClienteSucursalesScreen() {
         contacto_telefono: '',
         latitud: DEFAULT_LAT,
         longitud: DEFAULT_LNG
+    })
+
+    // Modal State
+    const [modalVisible, setModalVisible] = useState(false)
+    const [modalConfig, setModalConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        showCancel?: boolean
+        onConfirm?: () => void
+        confirmText?: string
+        cancelText?: string
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
     })
 
     useEffect(() => {
@@ -144,11 +161,12 @@ export function CrearClienteSucursalesScreen() {
         }
     }
 
+    // # Manejador de selección de zona
     const handleSelectZone = (selectedZone: CommercialZone) => {
         setZone(selectedZone)
         setShowZonePicker(false)
 
-        // Update Map to Zone
+        // Actualizar mapa a la zona seleccionada
         const poly = ZoneHelpers.parsePolygon(selectedZone.poligono_geografico)
         if (poly.length > 0) {
             setRegion(prev => ({
@@ -158,7 +176,7 @@ export function CrearClienteSucursalesScreen() {
                 latitudeDelta: DEFAULT_DELTA,
                 longitudeDelta: DEFAULT_DELTA
             }))
-            // Reset marker to center of new zone (if creating)
+            // Resetear marcador al centro si es creación nueva
             if (!isEditing) {
                 setForm(prev => ({
                     ...prev,
@@ -169,7 +187,7 @@ export function CrearClienteSucursalesScreen() {
         }
     }
 
-    // Utility: point in polygon (Ray casting)
+    // # Utilidad: Verificar si punto está en polígono (Ray Casting)
     const isPointInPolygon = (point: { latitude: number, longitude: number }, polygon: { latitude: number, longitude: number }[]) => {
         let inside = false
         for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -182,25 +200,45 @@ export function CrearClienteSucursalesScreen() {
         return inside
     }
 
+    // # Manejo del envío del formulario (Crear/Editar)
     const handleSubmit = async () => {
-        // Validation
+        // Validación de campos obligatorios
         if (!form.nombre_sucursal.trim()) {
-            Alert.alert('Error', 'El nombre de la sucursal es obligatorio')
+            setModalConfig({
+                type: 'warning',
+                title: 'Campo Incompleto',
+                message: 'El nombre de la sucursal es obligatorio. Por favor, ingrésalo.',
+                showCancel: false,
+                onConfirm: () => setModalVisible(false)
+            })
+            setModalVisible(true)
             return
         }
         if (!form.direccion_entrega.trim()) {
-            Alert.alert('Error', 'La dirección de entrega es obligatoria')
+            setModalConfig({
+                type: 'warning',
+                title: 'Campo Incompleto',
+                message: 'La dirección de entrega es obligatoria. Por favor, ingrésala.',
+                showCancel: false,
+                onConfirm: () => setModalVisible(false)
+            })
+            setModalVisible(true)
             return
         }
 
-        // Validation: Point in Polygon (Only if we successfully fetched the zone)
+        // Validación: Punto dentro de Polígono
+        // Solo si tenemos zona y el polígono es válido
         if (zone && zonePolygon.length > 2) {
             const inside = isPointInPolygon({ latitude: form.latitud, longitude: form.longitud }, zonePolygon)
             if (!inside) {
-                Alert.alert(
-                    'Ubicación Fuera de Zona',
-                    `La ubicación seleccionada debe estar dentro de la zona comercial "${zone.nombre}".`
-                )
+                setModalConfig({
+                    type: 'error',
+                    title: 'Ubicación Fuera de Zona',
+                    message: `La ubicación seleccionada debe estar dentro de la zona comercial "${zone.nombre}". Intenta mover el marcador.`,
+                    showCancel: false,
+                    onConfirm: () => setModalVisible(false)
+                })
+                setModalVisible(true)
                 return
             }
         }
@@ -217,7 +255,14 @@ export function CrearClienteSucursalesScreen() {
             const zonaIdToSave = zone?.id || clientData.zona_comercial_id
 
             if (!zonaIdToSave) {
-                Alert.alert('Error', 'No se ha podido determinar la zona comercial.')
+                setModalConfig({
+                    type: 'error',
+                    title: 'Error de Zona',
+                    message: 'No se ha podido determinar la zona comercial. Por favor contacta a soporte.',
+                    showCancel: false,
+                    onConfirm: () => setModalVisible(false)
+                })
+                setModalVisible(true)
                 setLoading(false)
                 return
             }
@@ -232,9 +277,19 @@ export function CrearClienteSucursalesScreen() {
                     zona_id: zonaIdToSave,
                     ubicacion_gps: ubicacion_gps as any
                 })
-                Alert.alert('Éxito', 'Sucursal actualizada correctamente', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ])
+
+                setModalConfig({
+                    type: 'success',
+                    title: 'Sucursal Actualizada',
+                    message: 'Los datos de la sucursal se han guardado correctamente.',
+                    showCancel: false,
+                    confirmText: 'Entendido',
+                    onConfirm: () => {
+                        setModalVisible(false)
+                        navigation.goBack()
+                    }
+                })
+                setModalVisible(true)
             } else {
                 // CREATE
                 await ClientService.createClientBranch(clientData.id, {
@@ -247,13 +302,30 @@ export function CrearClienteSucursalesScreen() {
                     activo: true,
                     ubicacion_gps: ubicacion_gps as any
                 })
-                Alert.alert('Éxito', 'Sucursal creada correctamente', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ])
+
+                setModalConfig({
+                    type: 'success',
+                    title: 'Sucursal Creada',
+                    message: 'La nueva sucursal ha sido registrada exitosamente.',
+                    showCancel: false,
+                    confirmText: 'Entendido',
+                    onConfirm: () => {
+                        setModalVisible(false)
+                        navigation.goBack()
+                    }
+                })
+                setModalVisible(true)
             }
         } catch (error) {
             console.error(error)
-            Alert.alert('Error', `No se pudo ${isEditing ? 'actualizar' : 'crear'} la sucursal. Inténtalo de nuevo.`)
+            setModalConfig({
+                type: 'error',
+                title: 'Error',
+                message: `No se pudo ${isEditing ? 'actualizar' : 'crear'} la sucursal. Por favor inténtalo de nuevo.`,
+                showCancel: false,
+                onConfirm: () => setModalVisible(false)
+            })
+            setModalVisible(true)
         } finally {
             setLoading(false)
         }
@@ -448,14 +520,27 @@ export function CrearClienteSucursalesScreen() {
                     ) : (
                         <View className="py-8 items-center">
                             <Ionicons name="alert-circle-outline" size={40} color="#9CA3AF" />
-                            <Text className="text-neutral-500 mt-2 text-center">No se encontraron zonas disponibles.</Text>
+                            <Text className="text-neutral-500 mt-2">No se encontraron zonas comerciales</Text>
                         </View>
                     )}
                 </ScrollView>
             </GenericModal>
+
+            <FeedbackModal
+                visible={modalVisible}
+                type={modalConfig.type}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                onClose={() => setModalVisible(false)}
+                showCancel={modalConfig.showCancel}
+                onConfirm={modalConfig.onConfirm}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+            />
         </View>
     )
 }
+
 
 interface InputFieldProps {
     label: string;

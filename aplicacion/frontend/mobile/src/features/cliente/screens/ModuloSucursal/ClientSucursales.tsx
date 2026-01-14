@@ -23,7 +23,7 @@ export function ClientSucursalesScreen() {
     const [selectedFilter, setSelectedFilter] = useState<string | number>('actives')
     const [searchQuery, setSearchQuery] = useState('')
 
-    // # Carga de sucursales según filtro
+    // # Función para cargar las sucursales según filtro
     const loadBranches = async () => {
         setLoading(true)
         try {
@@ -48,18 +48,20 @@ export function ClientSucursalesScreen() {
         }
     }
 
+    // # Efecto para cargar sucursales al montar el componente
     useFocusEffect(
         useCallback(() => {
             loadBranches()
         }, [selectedFilter]) // # Recargar cuando cambia el filtro
     )
 
+    // # Función para refrescar la lista manualmente
     const handleRefresh = () => {
         setRefreshing(true)
         loadBranches()
     }
 
-    // # Filtrado local por búsqueda
+    // # Filtrado local de sucursales por búsqueda
     const filteredBranches = useMemo(() => {
         if (!searchQuery) return branches
         return branches.filter(b =>
@@ -69,6 +71,7 @@ export function ClientSucursalesScreen() {
         )
     }, [branches, searchQuery])
 
+    // # Renderizar cada item de la lista de sucursales
     const renderItem = ({ item }: { item: ClientBranch }) => (
         <TouchableOpacity
             className={`p-4 rounded-2xl mb-3 border shadow-sm flex-row items-center justify-between ${item.activo ? 'bg-white border-neutral-100' : 'bg-neutral-50 border-neutral-200'
@@ -77,6 +80,7 @@ export function ClientSucursalesScreen() {
         >
             <View className="flex-1">
                 <View className="flex-row items-center mb-1.5">
+                    {/* # Icono de estado (activo/inactivo) */}
                     <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${item.activo ? 'bg-red-50' : 'bg-neutral-200'
                         }`}>
                         <Ionicons

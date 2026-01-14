@@ -1,12 +1,12 @@
 import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
-import { FlatList, Text, View, Image, TouchableOpacity, Alert } from 'react-native'
+import { FlatList, Text, View, Image, TouchableOpacity } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { Header } from '../../../../components/ui/Header'
-import { SuccessModal } from '../../../../components/ui/SuccessModal'
+import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal' // # Importar FeedbackModal
 import { useCart } from '../../../../context/CartContext'
 
 export function ClientCartScreen() {
@@ -14,23 +14,63 @@ export function ClientCartScreen() {
   const { cart, items, updateQuantity, removeItem, totalItems, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [showPriceDetails, setShowPriceDetails] = React.useState(true)
-  const [showClearModal, setShowClearModal] = React.useState(false)
 
-  const handleClearCart = async () => {
-    await clearCart()
-    setShowClearModal(true)
+  // # Estado para el modal de Feedback
+  const [modalVisible, setModalVisible] = React.useState(false)
+  const [modalConfig, setModalConfig] = React.useState<{
+    type: FeedbackType
+    title: string
+    message: string
+    showCancel?: boolean
+    onConfirm?: () => void
+    confirmText?: string
+    cancelText?: string
+  }>({
+    type: 'info',
+    title: '',
+    message: ''
+  })
+
+  // # Función para manejar el vaciado del carrito con confirmación
+  const handleClearCartPress = () => {
+    setModalConfig({
+      type: 'warning',
+      title: 'Vaciar Carrito',
+      message: '¿Estás seguro de que deseas eliminar todos los productos del carrito?',
+      showCancel: true,
+      confirmText: 'Vaciar',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        setModalVisible(false) // Cerrar modal de confirmación
+        await clearCart() // Acción real de vaciar
+        // Mostrar modal de éxito
+        setTimeout(() => {
+          setModalConfig({
+            type: 'success',
+            title: 'Carrito Vaciado',
+            message: 'Todos los productos han sido eliminados correctamente.',
+            showCancel: false,
+            confirmText: 'Entendido',
+            onConfirm: () => setModalVisible(false)
+          })
+          setModalVisible(true)
+        }, 300)
+      }
+    })
+    setModalVisible(true)
   }
 
+  // # Manejador para iniciar el proceso de checkout
   const handleCheckout = React.useCallback(() => {
     if (items.length === 0) return
     // @ts-ignore
     navigation.navigate('ClientCheckout')
   }, [items, navigation])
 
-  // Renderizar cada item del carrito
+  // # Renderizar cada item del carrito
   const renderCartItem = ({ item }: { item: typeof items[0] }) => (
     <View className="bg-white rounded-2xl p-4 mb-3 border border-neutral-100 shadow-sm">
-      {/* Header del item: imagen, info y botón eliminar */}
+      {/* # Header del item: imagen, info y botón eliminar */}
       <View className="flex-row mb-3">
         {item.imagen_url ? (
           <Image
@@ -70,7 +110,7 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Footer del item: cantidad y precio */}
+      {/* # Footer del item: cantidad y precio */}
       <View className="flex-row justify-between items-center">
         <View className="flex-row items-center bg-neutral-50 rounded-xl border border-neutral-200 px-2">
           <TouchableOpacity
@@ -106,7 +146,7 @@ export function ClientCartScreen() {
     </View>
   )
 
-  // Estado vacío
+  // # Estado vacío: Mostrar mensaje si no hay items
   if (items.length === 0) {
     return (
       <View className="flex-1 bg-neutral-50">
@@ -119,6 +159,18 @@ export function ClientCartScreen() {
           onAction={() => (navigation as any).navigate('Productos')}
           style={{ marginTop: 60 }}
         />
+        {/* Modal necesario aunque esté vacío por si acaso */}
+        <FeedbackModal
+          visible={modalVisible}
+          type={modalConfig.type}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          onClose={() => setModalVisible(false)}
+          showCancel={modalConfig.showCancel}
+          onConfirm={modalConfig.onConfirm}
+          confirmText={modalConfig.confirmText}
+          cancelText={modalConfig.cancelText}
+        />
       </View>
     )
   }
@@ -127,7 +179,7 @@ export function ClientCartScreen() {
     <View className="flex-1 bg-neutral-50">
       <Header userName="Usuario" variant="standard" title="Mi Carrito" />
 
-      {/* Header con contador y botón vaciar */}
+      {/* # Header con contador y botón vaciar */}
       <View className="bg-white px-5 py-4 border-b border-neutral-100 flex-row justify-between items-center">
         <View className="flex-row items-center">
           <Ionicons name="bag-check-outline" size={24} color={BRAND_COLORS.red} />
@@ -142,16 +194,7 @@ export function ClientCartScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => {
-            Alert.alert(
-              'Vaciar Carrito',
-              '¿Estás seguro de que deseas vaciar el carrito?',
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Vaciar', style: 'destructive', onPress: handleClearCart }
-              ]
-            )
-          }}
+          onPress={handleClearCartPress} // Usar la nueva función con modal
           className="flex-row items-center px-3 py-1.5 rounded-lg bg-red-50"
         >
           <Ionicons name="trash-outline" size={16} color={BRAND_COLORS.red} />
@@ -159,7 +202,7 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Lista de items del carrito */}
+      {/* # Lista de items del carrito */}
       <FlatList
         data={items}
         keyExtractor={item => item.id}
@@ -168,7 +211,7 @@ export function ClientCartScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Resumen y totales - Panel flotante inferior */}
+      {/* # Resumen y totales - Panel flotante inferior */}
       <View className="absolute bottom-20 left-0 right-0 bg-white p-5 pb-6 border-t border-neutral-200 shadow-lg rounded-t-3xl">
         {/* Toggle para mostrar/ocultar detalles */}
         <TouchableOpacity
@@ -193,7 +236,7 @@ export function ClientCartScreen() {
           />
         </TouchableOpacity>
 
-        {/* Desglose de precios (colapsable) */}
+        {/* # Desglose de precios (colapsable) */}
         {showPriceDetails && (
           <>
             <View className="flex-row justify-between mb-2.5">
@@ -223,7 +266,7 @@ export function ClientCartScreen() {
           </>
         )}
 
-        {/* Total */}
+        {/* # Total Final */}
         <View className="flex-row justify-between mb-4">
           <Text className="text-lg font-bold text-neutral-900">Total</Text>
           <Text className="text-[22px] font-extrabold text-brand-red">
@@ -231,11 +274,10 @@ export function ClientCartScreen() {
           </Text>
         </View>
 
-        {/* Botón de checkout */}
+        {/* # Botón de checkout (Enviar Pedido) */}
         <TouchableOpacity
-          className={`flex-row items-center justify-center py-4 rounded-xl shadow-md ${
-            isProcessing ? 'bg-neutral-300' : 'bg-brand-red'
-          }`}
+          className={`flex-row items-center justify-center py-4 rounded-xl shadow-md ${isProcessing ? 'bg-neutral-300' : 'bg-brand-red'
+            }`}
           onPress={handleCheckout}
           disabled={isProcessing}
           activeOpacity={0.9}
@@ -255,12 +297,17 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      <SuccessModal
-        visible={showClearModal}
-        onClose={() => setShowClearModal(false)}
-        title="Carrito Vaciado"
-        message="Todos los productos han sido eliminados del carrito."
-        primaryButtonText="Entendido"
+      {/* # Modal Genérico de Feedback */}
+      <FeedbackModal
+        visible={modalVisible}
+        type={modalConfig.type}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onClose={() => setModalVisible(false)}
+        showCancel={modalConfig.showCancel}
+        onConfirm={modalConfig.onConfirm}
+        confirmText={modalConfig.confirmText}
+        cancelText={modalConfig.cancelText}
       />
     </View>
   )

@@ -8,6 +8,7 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, type ClientBranch, type CommercialZone } from '../../../../services/api/ClientService'
 import { ZoneHelpers } from '../../../../services/api/ZoneService'
 import { Header } from '../../../../components/ui/Header'
+import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 
 // # Definición de tipos de navegación
 type RouteParams = {
@@ -25,6 +26,22 @@ export function ClientDetallesSucursalesScreen() {
     const [zone, setZone] = useState<CommercialZone | null>(null)
     const [loading, setLoading] = useState(true)
     const [isProcessing, setIsProcessing] = useState(false)
+
+    // Modal State
+    const [modalVisible, setModalVisible] = useState(false)
+    const [modalConfig, setModalConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        showCancel?: boolean
+        onConfirm?: () => void
+        confirmText?: string
+        cancelText?: string
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     // # Cargar detalles de la sucursal y su zona
     useEffect(() => {
@@ -60,35 +77,57 @@ export function ClientDetallesSucursalesScreen() {
     const zonePolygon = useMemo(() => zone ? ZoneHelpers.parsePolygon(zone.poligono_geografico) : [], [zone])
 
     // # Acción de Desactivar Sucursal
-    const handleDeactivate = async () => {
+    const handleDeactivate = () => {
         if (!branch) return
 
-        Alert.alert(
-            'Desactivar Sucursal',
-            '¿Estás seguro de que deseas desactivar esta sucursal? Dejará de aparecer en tus opciones de entrega.',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Desactivar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setIsProcessing(true)
-                        try {
-                            const updated = await ClientService.updateClientBranch(branch.id, { activo: false })
-                            setBranch(updated) // Actualizar estado local
-                            Alert.alert('Éxito', 'La sucursal ha sido desactivada.')
-                        } catch (error) {
-                            Alert.alert('Error', 'No se pudo desactivar la sucursal.')
-                        } finally {
-                            setIsProcessing(false)
-                        }
-                    }
+        // Configuración del modal para confirmar desactivación
+        setModalConfig({
+            type: 'warning',
+            title: 'Desactivar Sucursal',
+            message: '¿Estás seguro de que deseas desactivar esta sucursal? Dejará de aparecer en tus opciones de entrega.',
+            showCancel: true,
+            confirmText: 'Desactivar',
+            cancelText: 'Cancelar',
+            onConfirm: async () => {
+                setModalVisible(false) // Cerrar modal de confirmación
+                setIsProcessing(true)
+                try {
+                    // Llamada al servicio para desactivar
+                    const updated = await ClientService.updateClientBranch(branch.id, { activo: false })
+                    setBranch(updated)
+
+                    // Mostrar modal de éxito
+                    setTimeout(() => {
+                        setModalConfig({
+                            type: 'success',
+                            title: 'Éxito',
+                            message: 'La sucursal ha sido desactivada correctamente.',
+                            showCancel: false,
+                            onConfirm: () => setModalVisible(false)
+                        })
+                        setModalVisible(true)
+                    }, 300)
+                } catch (error) {
+                    // Mostrar modal de error
+                    setTimeout(() => {
+                        setModalConfig({
+                            type: 'error',
+                            title: 'Error',
+                            message: 'No se pudo desactivar la sucursal. Inténtalo de nuevo.',
+                            showCancel: false,
+                            onConfirm: () => setModalVisible(false)
+                        })
+                        setModalVisible(true)
+                    }, 300)
+                } finally {
+                    setIsProcessing(false)
                 }
-            ]
-        )
+            }
+        })
+        setModalVisible(true)
     }
 
-    // # Acción de Activar Sucursal (por si acaso se desea revertir desde el detalle)
+    // # Acción de Activar Sucursal
     const handleActivate = async () => {
         if (!branch) return
 
@@ -96,9 +135,23 @@ export function ClientDetallesSucursalesScreen() {
         try {
             const updated = await ClientService.updateClientBranch(branch.id, { activo: true })
             setBranch(updated)
-            Alert.alert('Éxito', 'La sucursal ha sido reactivada.')
+            setModalConfig({
+                type: 'success',
+                title: 'Éxito',
+                message: 'La sucursal ha sido reactivada.',
+                showCancel: false,
+                onConfirm: () => setModalVisible(false)
+            })
+            setModalVisible(true)
         } catch (error) {
-            Alert.alert('Error', 'No se pudo activar la sucursal.')
+            setModalConfig({
+                type: 'error',
+                title: 'Error',
+                message: 'No se pudo activar la sucursal.',
+                showCancel: false,
+                onConfirm: () => setModalVisible(false)
+            })
+            setModalVisible(true)
         } finally {
             setIsProcessing(false)
         }
@@ -259,7 +312,7 @@ export function ClientDetallesSucursalesScreen() {
                         <View className="mt-8 pt-6 border-t border-neutral-100">
                             {branch.activo && (
                                 <TouchableOpacity
-                                    onPress={() => navigation.navigate('CrearClienteSucursales' as never, { branchId: branch.id } as any)}
+                                    onPress={() => (navigation as any).navigate('CrearClienteSucursales', { branchId: branch.id })}
                                     className="flex-row items-center justify-center bg-red-600 p-4 rounded-xl shadow-md active:bg-red-700 mb-6"
                                 >
                                     <Ionicons name="pencil" size={20} color="white" style={{ marginRight: 8 }} />
@@ -309,6 +362,17 @@ export function ClientDetallesSucursalesScreen() {
                     </View>
                 </View>
             </ScrollView>
+            <FeedbackModal
+                visible={modalVisible}
+                type={modalConfig.type}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                onClose={() => setModalVisible(false)}
+                showCancel={modalConfig.showCancel}
+                onConfirm={modalConfig.onConfirm}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+            />
         </View>
     )
 }

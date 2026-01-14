@@ -10,24 +10,13 @@ import { CatalogService, type Product, type Category } from '../../../../service
 import { useCart } from '../../../../context/CartContext'
 import { useToast } from '../../../../context/ToastContext'
 
-/**
- * ClientProductListScreen - Catálogo de Productos para Clientes
- *
- * Pantalla principal del catálogo con:
- * - Búsqueda en tiempo real
- * - Filtro por categorías
- * - Filtro de solo promociones
- * - Grid de 2 columnas con tarjetas de producto
- * - Paginación con pull-to-refresh
- * - Navegación a detalle de producto
- *
- * Usa NativeWind (TailwindCSS) para estilos consistentes
- */
+
 export function ClientProductListScreen() {
     const navigation = useNavigation()
     const { addToCart } = useCart()
     const { showToast } = useToast()
 
+    // # Estado local del componente
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -38,18 +27,19 @@ export function ClientProductListScreen() {
     const [hasMore, setHasMore] = useState(true)
     const [showOnlyPromotions, setShowOnlyPromotions] = useState(false)
 
-    // Cargar categorías al montar
+    // # Cargar categorías al montar
     useEffect(() => {
         loadCategories()
     }, [])
 
-    // Cargar productos cuando cambia categoría o búsqueda
+    // # Efecto: Recargar productos cuando filtrado cambia
     useFocusEffect(
         useCallback(() => {
             loadProducts(true)
         }, [selectedCategory, searchQuery])
     )
 
+    // # Función para obtener categorías del backend
     const loadCategories = async () => {
         try {
             const data = await CatalogService.getCategories()
@@ -59,6 +49,7 @@ export function ClientProductListScreen() {
         }
     }
 
+    // # Función principal de carga de productos (con paginación)
     const loadProducts = async (reset: boolean = false) => {
         if (loading) return
 
@@ -71,6 +62,7 @@ export function ClientProductListScreen() {
             }
 
             let response
+            // Determinar si filtrar por categoría o traer todo
             if (selectedCategory) {
                 response = await CatalogService.getProductsByCategory(
                     selectedCategory,
@@ -86,6 +78,7 @@ export function ClientProductListScreen() {
                 )
             }
 
+            // Actualizar lista de productos
             if (reset) {
                 setProducts(response.items)
             } else {
@@ -102,28 +95,34 @@ export function ClientProductListScreen() {
         }
     }
 
+    // # Manejador de Pull-to-Refresh
     const handleRefresh = () => {
         setRefreshing(true)
         loadProducts(true)
     }
 
+    // # Cargar más productos al llegar al final (Infinite Scroll)
     const handleLoadMore = () => {
         if (!loading && hasMore) {
             loadProducts(false)
         }
     }
 
+    // # Navegar al detalle del producto
     const handleProductPress = (product: Product) => {
         // @ts-ignore - navigation typing
         navigation.navigate('ClientProductDetail', { productId: product.id })
     }
 
+    // # Seleccionar categoría
     const handleCategoryPress = (categoryId: number | null) => {
         setSelectedCategory(categoryId)
         setPage(1)
     }
 
+    // # Agregar producto al carrito directamente
     const handleAddToCart = (product: Product) => {
+        // Calcular precio final considerando ofertas
         const precioFinal = product.precio_oferta && product.precio_oferta < (product.precio_original ?? 0)
             ? product.precio_oferta
             : product.precio_original ?? 0
@@ -152,7 +151,7 @@ export function ClientProductListScreen() {
         showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
     }
 
-    // Filtrar productos si está activo el filtro de promociones
+    // # Filtrado local para mostrar solo productos con promoción
     const displayedProducts = showOnlyPromotions
         ? products.filter(product =>
             product.precio_oferta &&
