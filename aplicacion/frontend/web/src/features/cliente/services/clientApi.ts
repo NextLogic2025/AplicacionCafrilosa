@@ -159,6 +159,16 @@ export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: num
   return { items, page: 1, totalPages: 1 }
 }
 
+export async function getPedidoDetalle(pedidoId: string): Promise<Pedido> {
+  if (!pedidoId) throw new Error('Pedido inválido')
+  const detalle = await httpOrders<any>(`/orders/${pedidoId}`).catch((err) => {
+    console.warn('[clientApi] getPedidoDetalle failed', err)
+    return null
+  })
+  if (!detalle) throw new Error('No se pudo obtener el detalle del pedido')
+  return mapPedidoFromBackend(detalle)
+}
+
 export async function deletePedido(orderId: string): Promise<boolean> {
   if (!orderId) return false
   if (!orderId) return false

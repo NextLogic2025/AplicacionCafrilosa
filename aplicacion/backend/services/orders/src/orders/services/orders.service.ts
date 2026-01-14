@@ -105,7 +105,7 @@ export class OrdersService {
   }
 
   async findAllByUser(userId: string, role: string): Promise<Pedido[]> {
-    const qb = this.pedidoRepo.createQueryBuilder('o');
+    const qb = this.pedidoRepo.createQueryBuilder('o').leftJoinAndSelect('o.detalles', 'detalles');
     const normalizedRole = (role || '').toString().toLowerCase();
 
     if (normalizedRole === 'cliente') {

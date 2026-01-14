@@ -53,6 +53,11 @@ export function useCliente() {
     }
   }, [])
 
+  const obtenerPedidoPorId = useCallback(async (id: string) => {
+    if (!id) throw new Error('Pedido inválido')
+    return api.getPedidoDetalle(id)
+  }, [])
+
   const fetchSucursales = useCallback(async () => {
     setCargando(true)
     try {
@@ -218,5 +223,6 @@ export function useCliente() {
     marcarTodasComoLeidas,
     limpiarError,
     crearPedidoDesdeCarrito,
+    obtenerPedidoPorId,
   }
 }
