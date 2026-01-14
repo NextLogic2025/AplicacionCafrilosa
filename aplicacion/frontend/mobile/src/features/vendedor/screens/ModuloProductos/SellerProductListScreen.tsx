@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TextInput, TouchableOpacity, Modal, Pressable, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'

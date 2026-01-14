@@ -1,4 +1,4 @@
-import { BRAND_COLORS, credentialsSchema, type Credentials } from '@cafrilosa/shared-types'
+import { BRAND_COLORS, credentialsSchema, type Credentials } from '../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { StatusBar } from 'expo-status-bar'

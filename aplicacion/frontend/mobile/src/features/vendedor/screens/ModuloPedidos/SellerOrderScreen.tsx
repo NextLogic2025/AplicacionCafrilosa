@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Pressable, TextInput, Alert, Modal } from 'react-native'
 import { Header } from '../../../../components/ui/Header'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { useRoute } from '@react-navigation/native'
 import { type Client } from '../../../../services/api/ClientService'
 

@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import { Header } from '../../../components/ui/Header'
-import { UserService, type UserProfile } from '../../../services/api/UserService'
-import { signOut } from '../../../services/auth/authClient'
-import { useToast } from '../../../context/ToastContext'
-import { UserProfileTemplate } from '../../../components/profile/UserProfileTemplate'
+import { Header } from '../../../../components/ui/Header'
+import { UserService, type UserProfile } from '../../../../services/api/UserService'
+import { signOut } from '../../../../services/auth/authClient'
+import { useToast } from '../../../../context/ToastContext'
+import { UserProfileTemplate } from '../../../../components/profile/UserProfileTemplate'
 
 export function WarehouseProfileScreen() {
     const navigation = useNavigation()

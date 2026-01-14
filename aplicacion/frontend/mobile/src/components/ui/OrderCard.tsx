@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { Order, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../services/api/OrderService'
 
 interface OrderCardProps {

@@ -3,7 +3,7 @@ import { View, Text, FlatList, RefreshControl, TouchableOpacity, TextInput } fro
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { LoadingScreen } from '../../../../components/ui/LoadingScreen'

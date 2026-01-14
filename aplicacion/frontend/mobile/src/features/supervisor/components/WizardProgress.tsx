@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { View, Text } from 'react-native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
 interface Props {

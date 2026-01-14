@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Header } from '../../../components/ui/Header'
-import { EmptyState } from '../../../components/ui/EmptyState'
-import { OrderService, type Order } from '../../../services/api/OrderService'
+import { BRAND_COLORS } from '../../../../shared/types'
+import { Header } from '../../../../components/ui/Header'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { OrderService, type Order } from '../../../../services/api/OrderService'
 
 export function WarehousePreparationScreen() {
     const navigation = useNavigation()

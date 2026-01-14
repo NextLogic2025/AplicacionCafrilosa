@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
 import { ZoneService, Zone, ZoneHelpers, LatLng, ZoneEditState } from '../../../../services/api/ZoneService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'

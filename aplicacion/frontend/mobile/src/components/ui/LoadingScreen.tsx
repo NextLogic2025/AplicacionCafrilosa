@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import React from 'react'
 import { View, ActivityIndicator } from 'react-native'
 

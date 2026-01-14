@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, ActivityIndicator, Pressable, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Header } from '../../../../components/ui/Header'
 import { InvoiceService, Invoice } from '../../../../services/api/InvoiceService'
 

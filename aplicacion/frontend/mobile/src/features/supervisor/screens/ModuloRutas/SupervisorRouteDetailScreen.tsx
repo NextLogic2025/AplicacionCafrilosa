@@ -16,7 +16,7 @@ import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Region } from 'react-native-
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { ZoneService, Zone, ZoneHelpers, LatLng } from '../../../../services/api/ZoneService'
 import { RouteService, RoutePlan } from '../../../../services/api/RouteService'
 import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'

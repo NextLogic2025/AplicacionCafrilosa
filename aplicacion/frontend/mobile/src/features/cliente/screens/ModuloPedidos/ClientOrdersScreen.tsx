@@ -8,7 +8,7 @@ import { EmptyState } from '../../../../components/ui/EmptyState'
 import { SearchBar } from '../../../../components/ui/SearchBar'
 import { OrderService, Order } from '../../../../services/api/OrderService'
 import { UserService } from '../../../../services/api/UserService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 // Filtros de estado para "Chips"
 const STATUS_FILTERS = [

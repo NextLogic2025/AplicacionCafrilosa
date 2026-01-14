@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, TextInput, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { FeedbackModal, FeedbackType } from '../ui/FeedbackModal'
 
 // Interfaces

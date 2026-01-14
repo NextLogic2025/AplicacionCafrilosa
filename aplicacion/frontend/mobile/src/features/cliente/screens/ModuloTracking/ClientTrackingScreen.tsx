@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Timeline, TimelineStep } from '../../../../components/ui/Timeline'
 import { OrderService } from '../../../../services/api/OrderService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
 export function ClientTrackingScreen() {

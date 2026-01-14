@@ -15,7 +15,7 @@ import { UserService } from '../../../../services/api/UserService'
 import { ClientService, ClientBranch, Client } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 /**
  * Tipo para las opciones de entrega (matriz o sucursal)

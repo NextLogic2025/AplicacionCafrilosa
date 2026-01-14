@@ -4,7 +4,7 @@
 -- MOTOR: PostgreSQL 14+
 -- ==================================================================================
 
-\c orders_db; -- Descomentar si ejecutas desde consola
+\c orders_db; 
 
 -- =========================================
 -- 1. EXTENSIONES

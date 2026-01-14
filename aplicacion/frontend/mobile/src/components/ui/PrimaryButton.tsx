@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as React from 'react'
 import { ActivityIndicator, Pressable, Text, ViewStyle } from 'react-native'

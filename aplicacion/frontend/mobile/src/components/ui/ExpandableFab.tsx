@@ -1,4 +1,4 @@
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import {

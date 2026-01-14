@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { OrderService, Order, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../../../services/api/OrderService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 /**
  * ClientOrderDetailScreen

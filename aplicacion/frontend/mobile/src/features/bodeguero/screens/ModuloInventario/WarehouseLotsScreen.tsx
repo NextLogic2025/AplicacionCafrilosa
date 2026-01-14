@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Header } from '../../../components/ui/Header'
-import { EmptyState } from '../../../components/ui/EmptyState'
-import { ProductService, type Lot } from '../../../services/api/ProductService'
+import { BRAND_COLORS } from '../../../../shared/types'
+import { Header } from '../../../../components/ui/Header'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { ProductService, type Lot } from '../../../../services/api/ProductService'
 
 export function WarehouseLotsScreen() {
     const navigation = useNavigation()

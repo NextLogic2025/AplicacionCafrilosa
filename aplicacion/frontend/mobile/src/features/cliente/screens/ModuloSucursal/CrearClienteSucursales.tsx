@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, ActivityInd
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, type CommercialZone } from '../../../../services/api/ClientService'
 import { ZoneHelpers } from '../../../../services/api/ZoneService'
 import { Header } from '../../../../components/ui/Header'
@@ -27,7 +27,7 @@ export function CrearClienteSucursalesScreen() {
     const [zone, setZone] = useState<CommercialZone | null>(null)
 
     // Memoized Polygon using Shared Helper (Supervisor Pattern)
-    const zonePolygon = useMemo(() => zone ? ZoneHelpers.parsePolygon(zone.poligono) : [], [zone])
+    const zonePolygon = useMemo(() => zone ? ZoneHelpers.parsePolygon(zone.poligono_geografico) : [], [zone])
 
     // Initial Region
     const [region, setRegion] = useState({
@@ -111,7 +111,7 @@ export function CrearClienteSucursalesScreen() {
         setShowZonePicker(false)
 
         // Update Map to Zone
-        const poly = ZoneHelpers.parsePolygon(selectedZone.poligono)
+        const poly = ZoneHelpers.parsePolygon(selectedZone.poligono_geografico)
         if (poly.length > 0) {
             // Calculate center or use first point
             setRegion(prev => ({
@@ -184,6 +184,7 @@ export function CrearClienteSucursalesScreen() {
             }
 
             await ClientService.createClientBranch(clientData.id, {
+                cliente_id: clientData.id, // Required by ValidationPipe
                 nombre_sucursal: form.nombre_sucursal,
                 direccion_entrega: form.direccion_entrega,
                 contacto_nombre: form.contacto_nombre,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal, View, Text, TouchableOpacity, FlatList, TextInput, ActivityIndicator, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { ClientService, type Client } from '../../../../../services/api/ClientService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../../shared/types'
 
 type ClientSelection = {
     cliente: Client

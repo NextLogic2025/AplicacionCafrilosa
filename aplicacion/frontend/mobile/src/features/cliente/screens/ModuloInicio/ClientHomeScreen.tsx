@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, ScrollView, RefreshControl } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 import { Header } from '../../../../components/ui/Header'
 import { AccountOverview, QuickStats, RecentActivity } from '../../components/DashboardComponents'

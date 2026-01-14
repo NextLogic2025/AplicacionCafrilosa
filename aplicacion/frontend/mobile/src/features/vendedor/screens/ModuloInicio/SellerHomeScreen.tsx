@@ -7,7 +7,7 @@ import { SellerService, type SellerKPIs, type ScheduledVisit, type SellerAlert }
 import { CatalogService, type Product } from '../../../../services/api/CatalogService'
 import { useCart } from '../../../../context/CartContext'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 import { getUserName } from '../../../../storage/authStorage'
 

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Alert, Linking, ActivityIndicator } 
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, type Client, type ClientBranch } from '../../../../services/api/ClientService'
 import { OrderService, type Order } from '../../../../services/api/OrderService'
 

@@ -1,4 +1,4 @@
-import type { SignInResponse } from '@cafrilosa/shared-types'
+import type { SignInResponse } from '../../shared/types'
 import { jwtDecode } from 'jwt-decode'
 import { getToken, setToken, getRefreshToken, setRefreshToken, clearTokens, setUserName } from '../../storage/authStorage'
 

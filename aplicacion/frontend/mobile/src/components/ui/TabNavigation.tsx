@@ -2,7 +2,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Text, View, Pressable, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 import { useCartOptional } from '../../context/CartContext'
 
 // Mapeo de rutas a iconos

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { PromotionService, type PromotionCampaign } from '../../../../services/api/PromotionService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
 export function SellerPromotionsScreen() {

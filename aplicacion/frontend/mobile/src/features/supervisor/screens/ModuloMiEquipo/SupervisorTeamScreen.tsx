@@ -6,7 +6,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { SearchBar } from '../../../../components/ui/SearchBar'
 import { CategoryFilter } from '../../../../components/ui/CategoryFilter'
 import { UserService, UserProfile } from '../../../../services/api/UserService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
 export function SupervisorTeamScreen() {

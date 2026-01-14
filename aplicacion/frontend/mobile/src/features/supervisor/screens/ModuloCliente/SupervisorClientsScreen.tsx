@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert, FlatList, ActivityIndicator, Refre
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { SearchBar } from '../../../../components/ui/SearchBar'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, Client } from '../../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { ZoneService } from '../../../../services/api/ZoneService'

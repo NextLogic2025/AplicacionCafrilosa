@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, Dimensions } from 'react-native'
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { Zone, ZoneHelpers } from '../../../services/api/ZoneService'
 
 interface Props {

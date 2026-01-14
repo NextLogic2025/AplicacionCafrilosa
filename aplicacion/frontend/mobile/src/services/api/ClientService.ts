@@ -44,7 +44,7 @@ export interface CommercialZone {
     ciudad?: string
     macrorregion?: string
     activo: boolean
-    poligono?: {
+    poligono_geografico?: {
         type: 'Polygon' | 'MultiPolygon'
         coordinates: any[]
     }
@@ -196,5 +196,42 @@ export const ClientService = {
             method: 'POST',
             body: JSON.stringify(branch)
         })
+    },
+
+    /**
+     * Obtiene las sucursales desactivadas (soft-deleted) de un cliente
+     * Endpoint: GET /api/clientes/:clienteId/sucursales/desactivadas
+     */
+    getDeactivatedClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
+        try {
+            return await apiRequest<ClientBranch[]>(`${env.api.catalogUrl}/api/clientes/${clientId}/sucursales/desactivadas`)
+        } catch (error) {
+            console.error('Error fetching deactivated branches:', error)
+            return []
+        }
+    },
+
+    /**
+     * Actualiza una sucursal existente (permitiendo desactivarla con envio de { activo: false })
+     * Endpoint: PUT /api/sucursales/:id
+     */
+    updateClientBranch: async (branchId: string, updates: Partial<ClientBranch>): Promise<ClientBranch> => {
+        return apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/sucursales/${branchId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updates)
+        })
+    },
+
+    /**
+     * Obtiene una sucursal específica por ID (Activa o Inactiva)
+     * Endpoint: GET /api/sucursales/:id
+     */
+    getClientBranchById: async (branchId: string): Promise<ClientBranch | null> => {
+        try {
+            return await apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/sucursales/${branchId}`)
+        } catch (error) {
+            console.error('Error fetching branch details:', error)
+            return null
+        }
     }
 }

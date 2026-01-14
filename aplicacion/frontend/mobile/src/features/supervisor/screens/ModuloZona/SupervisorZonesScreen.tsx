@@ -10,7 +10,7 @@ import { ZoneService, Zone } from '../../../../services/api/ZoneService'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 export function SupervisorZonesScreen() {
     const navigation = useNavigation<any>()

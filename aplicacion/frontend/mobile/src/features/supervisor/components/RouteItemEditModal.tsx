@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Modal, TouchableOpacity, ScrollView, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { RoutePlan } from '../../../services/api/RouteService'
 
 import DateTimePicker from '@react-native-community/datetimepicker'

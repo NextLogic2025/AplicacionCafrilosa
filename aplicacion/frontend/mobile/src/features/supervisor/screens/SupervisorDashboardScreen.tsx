@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { View, Text, ScrollView, RefreshControl } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 
 import { Header } from '../../../components/ui/Header'
 import { getUserName } from '../../../storage/authStorage'

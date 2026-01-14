@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { RouteService, RoutePlan } from '../../../../services/api/RouteService'
 import { ClientService, Client } from '../../../../services/api/ClientService'
 

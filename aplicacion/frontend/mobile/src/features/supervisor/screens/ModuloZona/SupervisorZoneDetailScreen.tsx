@@ -12,7 +12,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { Ionicons } from '@expo/vector-icons'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 export function SupervisorZoneDetailScreen() {
     const navigation = useNavigation()

@@ -6,7 +6,7 @@ import { Header } from '../../../../components/ui/Header'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { SearchBar } from '../../../../components/ui/SearchBar'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 

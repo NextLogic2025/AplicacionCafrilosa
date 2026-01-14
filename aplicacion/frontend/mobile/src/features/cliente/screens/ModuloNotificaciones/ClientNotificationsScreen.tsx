@@ -3,7 +3,7 @@ import { View, Text, FlatList, ActivityIndicator, Pressable, Animated } from 're
 import { useNavigation } from '@react-navigation/native'
 import { Swipeable } from 'react-native-gesture-handler'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { NotificationService, Notification } from '../../../../services/api/NotificationService'

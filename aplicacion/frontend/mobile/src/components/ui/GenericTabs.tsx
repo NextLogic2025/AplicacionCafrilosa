@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 
 interface TabItem {
     key: string

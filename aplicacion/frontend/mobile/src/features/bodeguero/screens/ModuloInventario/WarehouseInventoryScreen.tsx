@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Header } from '../../../components/ui/Header'
-import { EmptyState } from '../../../components/ui/EmptyState'
-import { ProductService, type Product } from '../../../services/api/ProductService'
+import { BRAND_COLORS } from '../../../../shared/types'
+import { Header } from '../../../../components/ui/Header'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { ProductService, type Product } from '../../../../services/api/ProductService'
 
 export function WarehouseInventoryScreen() {
     const [search, setSearch] = useState('')

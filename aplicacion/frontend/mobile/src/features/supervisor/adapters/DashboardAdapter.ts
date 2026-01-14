@@ -1,6 +1,6 @@
 import { UserService } from '../../../services/api/UserService'
 import { SupervisorService, type KPI, type Alert } from '../../../services/api/SupervisorService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 
 // Adapter to aggregate real and mock data for the dashboard
 export const DashboardAdapter = {

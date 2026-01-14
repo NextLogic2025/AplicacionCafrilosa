@@ -1,7 +1,7 @@
 import React from 'react'
 import { Modal, View, Text, TouchableOpacity, Dimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 
 interface SuccessModalProps {
     visible: boolean

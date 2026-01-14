@@ -28,7 +28,7 @@ import { Header } from '../../../../components/ui/Header'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { SectionHeader } from '../../../../components/ui/SectionHeader'
 
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'
 
 const { width } = Dimensions.get('window')

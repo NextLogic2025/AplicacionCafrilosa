@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { View, Text } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 import { Header } from '../../../../components/ui/Header'
 import { GenericList } from '../../../../components/ui/GenericList'

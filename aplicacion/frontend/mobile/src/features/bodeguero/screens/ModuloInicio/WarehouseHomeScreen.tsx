@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from 'react'
 import { View, ScrollView, RefreshControl } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Header } from '../../../components/ui/Header'
-import { ExpandableFab, type FabAction } from '../../../components/ui/ExpandableFab'
-import { WarehouseKPIs, CriticalAlerts, WarehouseRecentActivity } from '../components/WarehouseDashboardComponents'
-import { WarehouseService, type WarehouseStats, type RecentActivity } from '../../../services/api/WarehouseService'
+import { BRAND_COLORS } from '../../../../shared/types'
+import { Header } from '../../../../components/ui/Header'
+import { ExpandableFab, type FabAction } from '../../../../components/ui/ExpandableFab'
+import { WarehouseKPIs, CriticalAlerts, WarehouseRecentActivity } from '../../components/WarehouseDashboardComponents'
+import { WarehouseService, type WarehouseStats, type RecentActivity } from '../../../../services/api/WarehouseService'
 
-import { getUserName } from '../../../storage/authStorage'
+import { getUserName } from '../../../../storage/authStorage'
 
 export function WarehouseHomeScreen() {
     const navigation = useNavigation()

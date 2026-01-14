@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { View, StyleSheet, Text, Dimensions } from 'react-native'
 import MapView, { Marker, Polyline, Polygon, PROVIDER_GOOGLE } from 'react-native-maps'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { RoutePlan } from '../../../services/api/RouteService'
 
 interface Props {

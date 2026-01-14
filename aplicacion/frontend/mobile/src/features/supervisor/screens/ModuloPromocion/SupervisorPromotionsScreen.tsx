@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { SearchBar } from '../../../../components/ui/SearchBar'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { PromotionService, PromotionCampaign } from '../../../../services/api/PromotionService'
 
 import { CategoryFilter } from '../../../../components/ui/CategoryFilter'

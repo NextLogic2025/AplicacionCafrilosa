@@ -7,7 +7,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { CatalogService, Category } from '../../../../services/api/CatalogService'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { SearchBar } from '../../../../components/ui/SearchBar'
 
 export function SupervisorCategoriesScreen() {

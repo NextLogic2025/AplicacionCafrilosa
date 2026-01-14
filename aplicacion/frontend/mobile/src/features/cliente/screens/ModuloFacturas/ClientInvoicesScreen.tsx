@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { View, FlatList, ActivityIndicator, Text } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'

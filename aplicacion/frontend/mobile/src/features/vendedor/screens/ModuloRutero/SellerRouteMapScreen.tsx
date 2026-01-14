@@ -4,7 +4,7 @@ import MapView, { Marker, PROVIDER_GOOGLE, Callout } from 'react-native-maps'
 import { useNavigation } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../../shared/types'
 import { RouteService, type RoutePlan } from '../../../../services/api/RouteService'
 import { ClientService, type Client } from '../../../../services/api/ClientService'
 

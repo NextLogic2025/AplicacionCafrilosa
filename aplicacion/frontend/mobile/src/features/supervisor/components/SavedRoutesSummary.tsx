@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../../shared/types'
 import { RouteService, RoutePlan } from '../../../services/api/RouteService'
 import { ZoneService, Zone } from '../../../services/api/ZoneService'
 import { StatusBadge } from '../../../components/ui/StatusBadge'

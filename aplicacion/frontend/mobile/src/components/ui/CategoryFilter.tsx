@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { ScrollView, Text, Pressable, View } from 'react-native'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../../shared/types'
 
 type Category = {
     id: number | string

@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, FlatList, ActivityIndicator, TextInput } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
-import { Header } from '../../../components/ui/Header'
-import { EmptyState } from '../../../components/ui/EmptyState'
-import { WarehouseOrderCard } from '../components/WarehouseOrderCard'
-import { OrderService, type Order } from '../../../services/api/OrderService'
+import { BRAND_COLORS } from '../../../../shared/types'
+import { Header } from '../../../../components/ui/Header'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { WarehouseOrderCard } from '../../components/WarehouseOrderCard'
+import { OrderService, type Order } from '../../../../services/api/OrderService'
 
 export function WarehouseOrdersScreen() {
     const navigation = useNavigation()
@@ -31,7 +31,7 @@ export function WarehouseOrdersScreen() {
     }
 
     const filteredOrders = orders.filter(o =>
-        filter === 'Pendientes' ? o.status === 'pending' : o.status === 'processing'
+        filter === 'Pendientes' ? o.estado_actual === 'PENDIENTE' : o.estado_actual === 'EN_PREPARACION'
     )
 
     return (
@@ -51,8 +51,8 @@ export function WarehouseOrdersScreen() {
 
                 {/* Tabs Filtro */}
                 <View className="flex-row gap-3">
-                    <FilterTab label="Pendientes" active={filter === 'Pendientes'} onPress={() => setFilter('Pendientes')} count={orders.filter(o => o.status === 'pending').length} />
-                    <FilterTab label="En Preparación" active={filter === 'Preparación'} onPress={() => setFilter('Preparación')} count={orders.filter(o => o.status === 'processing').length} />
+                    <FilterTab label="Pendientes" active={filter === 'Pendientes'} onPress={() => setFilter('Pendientes')} count={orders.filter(o => o.estado_actual === 'PENDIENTE').length} />
+                    <FilterTab label="En Preparación" active={filter === 'Preparación'} onPress={() => setFilter('Preparación')} count={orders.filter(o => o.estado_actual === 'EN_PREPARACION').length} />
                 </View>
             </View>
 

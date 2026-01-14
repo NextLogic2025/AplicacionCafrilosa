@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import * as React from 'react'
 import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { BRAND_COLORS } from '@cafrilosa/shared-types'
+import { BRAND_COLORS } from '../shared/types'
 import { useNavigation } from '@react-navigation/native'
 
 import { TabNavigation } from '../components/ui/TabNavigation'
