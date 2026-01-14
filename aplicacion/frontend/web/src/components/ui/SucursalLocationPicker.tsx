@@ -12,9 +12,10 @@ interface SucursalLocationPickerProps {
   zonas: ZonaOption[]
   ubicacionMatriz: google.maps.LatLngLiteral | null
   onChange: (position: google.maps.LatLngLiteral) => void
+  mode?: 'matriz' | 'sucursal'
 }
 
-export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatriz, onChange }: SucursalLocationPickerProps) {
+export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatriz, onChange, mode }: SucursalLocationPickerProps) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey,
@@ -107,15 +108,24 @@ export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatri
             />
           )}
 
-          {ubicacionMatriz && (
+          {/* En modo matriz, el punto rojo es movible y corresponde a tempMarker */}
+          {mode === 'matriz' && tempMarker && (
+            <Marker
+              position={tempMarker}
+              icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+              animation={google.maps.Animation.DROP}
+              title="Ubicación Matriz"
+            />
+          )}
+          {/* En modo sucursal, mostrar matriz rojo fijo y sucursal azul movible */}
+          {mode !== 'matriz' && ubicacionMatriz && (
             <Marker
               position={ubicacionMatriz}
               icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
               title="Ubicación Matriz"
             />
           )}
-
-          {tempMarker && (
+          {mode !== 'matriz' && tempMarker && (
             <Marker
               position={tempMarker}
               icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
@@ -127,13 +137,21 @@ export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatri
       </div>
 
       <div className="flex flex-col gap-1 text-xs">
-        {ubicacionMatriz && (
+        {/* En modo matriz, mostrar solo el punto rojo editable */}
+        {mode === 'matriz' && tempMarker && (
+          <p className="text-red-700 flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
+            Matriz: {tempMarker.lat.toFixed(6)}, {tempMarker.lng.toFixed(6)}
+          </p>
+        )}
+        {/* En modo sucursal, mostrar ambos textos si existen */}
+        {mode !== 'matriz' && ubicacionMatriz && (
           <p className="text-red-700 flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
             Matriz: {ubicacionMatriz.lat.toFixed(6)}, {ubicacionMatriz.lng.toFixed(6)}
           </p>
         )}
-        {tempMarker && (
+        {mode !== 'matriz' && tempMarker && (
           <p className="text-blue-700 font-medium flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
             Sucursal: {tempMarker.lat.toFixed(6)}, {tempMarker.lng.toFixed(6)}

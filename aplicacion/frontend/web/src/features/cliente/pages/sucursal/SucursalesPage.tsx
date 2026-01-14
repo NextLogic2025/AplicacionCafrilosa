@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { fetchClienteByUsuarioId, getPerfilCliente } from '../../services/clientApi'
 import { Edit3, Trash2 } from 'lucide-react'
-import { fetchSucursalesByCliente, createSucursal } from './sucursalesApi'
+import { obtenerSucursales as obtenerSucursalesCliente, crearSucursal as crearSucursalSupervisor, actualizarSucursal as actualizarSucursalSupervisor, eliminarSucursal as eliminarSucursalSupervisor, type Sucursal as SucursalSupervisor } from '../../../supervisor/services/sucursalesApi'
 import { actualizarCliente } from '../../../supervisor/services/clientesApi'
 import AddressFormModal from './AddressFormModal'
 import { getAllZonas, type ZonaComercial } from '../../../supervisor/services/zonasApi'
@@ -10,77 +10,83 @@ import { PageHero } from 'components/ui/PageHero'
 
 export default function SucursalesPage() {
   const [clienteId, setClienteId] = useState<string | null>(null)
-  const [sucursales, setSucursales] = useState<any[]>([])
+  const [sucursales, setSucursales] = useState<SucursalSupervisor[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [zonas, setZonas] = useState<ZonaComercial[]>([])
   const [clienteFull, setClienteFull] = useState<any | null>(null)
-  const [editingSucursal, setEditingSucursal] = useState<any | null>(null)
+  const [editingSucursal, setEditingSucursal] = useState<SucursalSupervisor | null>(null)
   const [editingAddress, setEditingAddress] = useState(false)
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const perfil = await getPerfilCliente().catch(() => null);
-        const id = perfil ? String(perfil.id) : null;
-        setClienteId(id);
-        if (!id) {
-          setError('No se encontró el ID del cliente. ¿Estás autenticado?');
-          setLoading(false);
-          return;
-        }
-        const [sucs, zonasResp, clienteResp] = await Promise.all([
-          fetchSucursalesByCliente(id),
-          getAllZonas().catch(() => []),
-          fetchClienteByUsuarioId(id).catch(() => null),
-        ]);
-        setSucursales(Array.isArray(sucs) ? sucs : []);
-        setZonas(zonasResp || []);
-        setClienteFull(clienteResp || null);
-        if (!Array.isArray(sucs)) {
-          setError('Error: la respuesta de sucursales no es un array.');
-        } else if (Array.isArray(sucs) && sucs.length === 0) {
-          setError('No hay sucursales registradas para este cliente.');
-        }
-      } catch (e: any) {
-        setError('Error cargando sucursales: ' + (e?.message || e?.toString() || 'desconocido'));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    ;(async () => {
+      const perfil = await getPerfilCliente().catch(() => null)
+      setClienteId(perfil ? String(perfil.id) : null)
+    })()
+  }, [])
+
+  useEffect(() => {
+    if (!clienteId) return
+    setLoading(true)
+    Promise.all([
+      obtenerSucursalesCliente(clienteId).catch(() => []),
+      getAllZonas().catch(() => []),
+      fetchClienteByUsuarioId(clienteId).catch(() => null),
+    ])
+      .then(([sucs, zonasResp, clienteResp]) => {
+        setSucursales(sucs || [])
+        setZonas(zonasResp || [])
+        setClienteFull(clienteResp || null)
+      })
+      .finally(() => setLoading(false))
+  }, [clienteId])
 
   const handleCreateSucursal = async (values: any) => {
-    if (!clienteId) return;
-    setLoading(true);
+    if (!clienteId) return
+    setLoading(true)
     try {
-      const payload: any = {
-        nombre_sucursal: values.nombre_sucursal,
-        direccion_entrega: values.direccion_entrega,
-        contacto_nombre: values.contacto_nombre,
-        contacto_telefono: values.contacto_telefono,
-        zona_id: values.zona_id !== undefined && values.zona_id !== null ? Number(values.zona_id) : undefined,
-        ubicacion_gps: values.posicion ? { type: 'Point', coordinates: [values.posicion.lng, values.posicion.lat] } : undefined,
-      };
-      const created = await createSucursal(clienteId, payload).catch(() => null);
+      const payload: any = { nombre_sucursal: values.nombre_sucursal, cliente_id: clienteId }
+      if (values.direccion_entrega) payload.direccion_entrega = values.direccion_entrega
+      if (values.contacto_nombre) payload.contacto_nombre = values.contacto_nombre
+      if (values.contacto_telefono) payload.contacto_telefono = values.contacto_telefono
+      if (values.zona_id !== undefined && values.zona_id !== null) payload.zona_id = Number(values.zona_id)
+      if (values.posicion) payload.ubicacion_gps = { type: 'Point', coordinates: [values.posicion.lng, values.posicion.lat] }
+
+      const created = await crearSucursalSupervisor(clienteId, payload as any).catch(() => null)
       if (created) {
-        setSucursales((s) => [created, ...s]);
-        setShowForm(false);
+        setSucursales((s) => [created, ...s])
+        setShowForm(false)
       } else {
-        alert('Error creando sucursal');
+        alert('Error creando sucursal')
       }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  // Edición de sucursal pendiente de implementación según API cliente
   const handleEditSucursal = async (values: any, sucursalId: string) => {
-    alert('Funcionalidad de edición de sucursal aún no implementada para clientes.');
-  };
+    if (!clienteId) return
+    setLoading(true)
+    try {
+      const payload: any = {}
+      if (values.nombre_sucursal !== undefined) payload.nombre_sucursal = values.nombre_sucursal
+      if (values.direccion_entrega) payload.direccion_entrega = values.direccion_entrega
+      if (values.contacto_nombre) payload.contacto_nombre = values.contacto_nombre
+      if (values.contacto_telefono) payload.contacto_telefono = values.contacto_telefono
+      if (values.zona_id !== undefined && values.zona_id !== null) payload.zona_id = Number(values.zona_id)
+      if (values.posicion) payload.ubicacion_gps = { type: 'Point', coordinates: [values.posicion.lng, values.posicion.lat] }
+
+      const updated = await actualizarSucursalSupervisor(clienteId, sucursalId, payload as any).catch(() => null)
+      if (updated) {
+        setSucursales((s) => s.map((it) => (it.id === updated.id ? updated : it)))
+        setEditingSucursal(null)
+      } else {
+        alert('Error actualizando sucursal')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleEditAddress = async (values: any) => {
     if (!clienteId) return
@@ -104,10 +110,22 @@ export default function SucursalesPage() {
     }
   }
 
-  // Eliminación de sucursal pendiente de implementación según API cliente
   const handleDeleteSucursal = async (sucursalId: string) => {
-    alert('Funcionalidad de eliminación de sucursal aún no implementada para clientes.');
-  };
+    if (!clienteId) return
+    const ok = window.confirm('¿Eliminar esta sucursal? Esta acción no se puede deshacer.')
+    if (!ok) return
+    setLoading(true)
+    try {
+      const res = await eliminarSucursalSupervisor(clienteId, sucursalId).catch(() => null)
+      if (res && (res as any).deleted) {
+        setSucursales((s) => s.filter((it) => it.id !== sucursalId))
+      } else {
+        alert('Error eliminando sucursal')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -164,47 +182,49 @@ export default function SucursalesPage() {
 
       {loading ? (
         <div className="py-12 text-center text-gray-600">Cargando sucursales...</div>
-      ) : error ? (
-        <div className="py-12 text-center text-red-500">{error}</div>
       ) : sucursales.length === 0 ? (
         <div className="py-12 text-center text-gray-500">No hay sucursales registradas.</div>
-      ) : Array.isArray(sucursales) ? (
+      ) : (
         <div className="grid gap-4 px-6">
           {sucursales.map((s) => (
-            <article key={s.id || s._id} className="flex items-center justify-between gap-4 p-4 border border-neutral-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow bg-white">
+            <article key={s.id} className="flex items-center justify-between gap-4 p-4 border border-neutral-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow bg-white">
               <div className="flex-1">
                 <div className="flex items-start gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 h-12 w-12 rounded-xl grid place-items-center bg-brand-red/10 text-brand-red font-semibold">{String((s.nombre_sucursal ?? s.nombre ?? '').charAt(0)).toUpperCase()}</div>
+                    <div className="flex-shrink-0 h-12 w-12 rounded-xl grid place-items-center bg-brand-red/10 text-brand-red font-semibold">{String((((s as any).nombre_sucursal ?? (s as any).nombre) || '').charAt(0)).toUpperCase()}</div>
                     <div className="flex-1">
-                      <div className="text-lg font-semibold text-neutral-900">{s.nombre_sucursal ?? s.nombre}</div>
-                      <div className="text-sm text-neutral-600 mt-1">{s.direccion_entrega ?? s.direccion ?? ''}</div>
+                      <div className="text-lg font-semibold text-neutral-900">{(s as any).nombre_sucursal ?? (s as any).nombre}</div>
+                    <div className="text-sm text-neutral-600 mt-1">{(s as any).direccion_entrega ?? (s as any).direccion ?? ''}</div>
                       <div className="mt-2 flex items-center gap-4 text-sm text-neutral-500">
-                        {(s.contacto_nombre || s.contacto_telefono) ? (
+                        {((s as any).contacto_nombre || (s as any).contacto_telefono) ? (
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-neutral-400">Contacto</span>
-                            <span className="text-sm text-neutral-700">{s.contacto_nombre ?? ''}</span>
-                            {s.contacto_telefono ? (<a className="ml-2 text-brand-red text-sm font-medium" href={`tel:${s.contacto_telefono}`}>{s.contacto_telefono}</a>) : null}
+                            <span className="text-sm text-neutral-700">{(s as any).contacto_nombre ?? ''}</span>
+                            { (s as any).contacto_telefono ? (<a className="ml-2 text-brand-red text-sm font-medium" href={`tel:${(s as any).contacto_telefono}`}>{(s as any).contacto_telefono}</a>) : null }
                           </div>
                         ) : null}
-                        {s.zona_nombre && (
-                          <span className="inline-block rounded-full px-3 py-1 text-xs bg-neutral-100 text-neutral-700">{s.zona_nombre}</span>
-                        )}
+                        { (s as any).zona_nombre && (
+                          <span className="inline-block rounded-full px-3 py-1 text-xs bg-neutral-100 text-neutral-700">{(s as any).zona_nombre}</span>
+                        ) }
                       </div>
-                    </div>
+                  </div>
                   </div>
                 </div>
               </div>
+
               <div className="flex-shrink-0 flex flex-col items-end gap-2">
                 <div className="flex gap-2">
-                  {/* Botones de editar/eliminar pueden ser implementados si el endpoint lo permite */}
+                  <button aria-label="Eliminar sucursal" title="Eliminar sucursal" className="flex items-center justify-center h-10 w-10 rounded-lg border border-neutral-200 bg-white hover:bg-red-50" onClick={() => handleDeleteSucursal(String(s.id))}>
+                    <Trash2 className="h-4 w-4 text-brand-red" />
+                  </button>
+                  <button aria-label="Editar sucursal" title="Editar sucursal" className="flex items-center justify-center h-10 w-10 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50" onClick={() => setEditingSucursal(s as any)}>
+                    <Edit3 className="h-4 w-4 text-neutral-700" />
+                  </button>
                 </div>
               </div>
             </article>
           ))}
         </div>
-      ) : (
-        <div className="py-12 text-center text-red-500">Error cargando sucursales.</div>
       )}
     </div>
   )
