@@ -12,7 +12,7 @@ export class Pedido {
   @Column({ type: 'uuid' })
   cliente_id: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: true })
   vendedor_id: string;
 
   @Column({ type: 'uuid', nullable: true })

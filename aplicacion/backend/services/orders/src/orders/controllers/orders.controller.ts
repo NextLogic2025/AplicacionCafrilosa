@@ -92,15 +92,17 @@ export class OrdersController {
         };
     }
 
-    // NOTE: Manual `POST /orders` creation was removed in favor of `POST /orders/from-cart/:userId`.
+    // NOTE: Manual `POST /orders` creation was removed in favor of `POST /orders/from-cart/me` or `POST /orders/from-cart/client/:clienteId`.
     // Orders must be created from cart using the `from-cart` endpoint to ensure server-side
     // price/promotion resolution and snapshot consistency.
 
-    @Post('/from-cart/:userId')
-    @UseGuards(OrderOwnershipGuard)
+    /**
+     * POST /orders/from-cart/me
+     * Cliente crea pedido desde su propio carrito (usuario_id del JWT, vendedor_id=null)
+     */
+    @Post('/from-cart/me')
     @Roles('admin', 'cliente', 'vendedor')
-    async createFromCart(
-        @Param('userId') userId: string,
+    async createFromMyCart(
         @Body() body: CreateFromCartDto,
         @Req() req?: any
     ) {
@@ -108,7 +110,28 @@ export class OrdersController {
         const role = (req?.user?.role || '').toString().toLowerCase();
         const condicion_pago = body.condicion_pago;
         const sucursal_id = body.sucursal_id;
-        return this.ordersService.createFromCart(userId, usuarioId, role, sucursal_id, condicion_pago);
+        // Para carrito propio: usuario_id=<JWT>, vendedor_id=null
+        return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, condicion_pago, null);
+    }
+
+    /**
+     * POST /orders/from-cart/client/:clienteId
+     * Vendedor crea pedido desde carrito del cliente (resuelve usuario_id desde cliente_id, vendedor_id del JWT)
+     */
+    @Post('/from-cart/client/:clienteId')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('admin', 'vendedor')
+    async createFromClientCart(
+        @Param('clienteId') clienteId: string,
+        @Body() body: CreateFromCartDto,
+        @Req() req?: any
+    ) {
+        const vendedorId = req?.user?.userId || req?.user?.sub || null;
+        const role = (req?.user?.role || '').toString().toLowerCase();
+        const condicion_pago = body.condicion_pago;
+        const sucursal_id = body.sucursal_id;
+        // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
+        return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, condicion_pago, vendedorId);
     }
 
     @Get('user/history')

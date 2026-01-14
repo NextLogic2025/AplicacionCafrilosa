@@ -47,9 +47,18 @@ CREATE TABLE carritos_cabecera (
     deleted_at TIMESTAMPTZ              -- SOFT DELETE
 );
 
--- Índice para búsquedas rápidas por usuario + vendedor
-CREATE INDEX idx_carrito_usuario_vendedor 
-ON carritos_cabecera(usuario_id, COALESCE(vendedor_id, '00000000-0000-0000-0000-000000000000'::uuid));
+-- Índices para búsquedas rápidas por usuario + vendedor
+-- Índice 1: Carritos de cliente (vendedor_id IS NULL)
+CREATE INDEX idx_carrito_cliente 
+ON carritos_cabecera(usuario_id, vendedor_id) WHERE vendedor_id IS NULL AND deleted_at IS NULL;
+
+-- Índice 2: Carritos de vendedor (vendedor_id IS NOT NULL)
+CREATE INDEX idx_carrito_vendedor 
+ON carritos_cabecera(usuario_id, vendedor_id) WHERE vendedor_id IS NOT NULL AND deleted_at IS NULL;
+
+-- Índice 3: Para resolver cliente_id
+CREATE INDEX idx_carrito_cliente_id 
+ON carritos_cabecera(cliente_id) WHERE deleted_at IS NULL;
 
 CREATE TABLE carritos_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,7 +93,7 @@ CREATE TABLE pedidos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo_visual SERIAL UNIQUE,
     cliente_id UUID NOT NULL,
-    vendedor_id UUID NOT NULL,
+    vendedor_id UUID,  -- Nullable: puede no tener vendedor asignado
     sucursal_id UUID,
     estado_actual VARCHAR(20) NOT NULL REFERENCES estados_pedido(codigo) DEFAULT 'PENDIENTE',
     
