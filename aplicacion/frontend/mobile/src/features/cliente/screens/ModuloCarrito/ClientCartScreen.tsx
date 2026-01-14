@@ -135,11 +135,11 @@ export function ClientCartScreen() {
         <View className="items-end">
           {item.tiene_promocion && (
             <Text className="text-[13px] font-semibold text-neutral-400 line-through mb-0.5">
-              ${(item.precio_lista * item.cantidad).toFixed(2)}
+              ${((item.precio_lista || 0) * (item.cantidad || 0)).toFixed(2)}
             </Text>
           )}
           <Text className="text-lg font-extrabold text-neutral-900">
-            ${item.subtotal.toFixed(2)}
+            ${(item.subtotal || 0).toFixed(2)}
           </Text>
         </View>
       </View>
@@ -242,15 +242,15 @@ export function ClientCartScreen() {
             <View className="flex-row justify-between mb-2.5">
               <Text className="text-sm font-semibold text-neutral-500">Subtotal</Text>
               <Text className="text-sm font-bold text-neutral-900">
-                ${cart.subtotal.toFixed(2)}
+                ${(cart.subtotal || 0).toFixed(2)}
               </Text>
             </View>
 
-            {cart.descuento_total > 0 && (
+            {(cart.descuento_total || 0) > 0 && (
               <View className="flex-row justify-between mb-2.5">
                 <Text className="text-sm font-semibold text-green-600">Descuentos</Text>
                 <Text className="text-sm font-bold text-green-600">
-                  -${cart.descuento_total.toFixed(2)}
+                  -${(cart.descuento_total || 0).toFixed(2)}
                 </Text>
               </View>
             )}
@@ -258,7 +258,7 @@ export function ClientCartScreen() {
             <View className="flex-row justify-between mb-2.5">
               <Text className="text-sm font-semibold text-neutral-500">IVA (12%)</Text>
               <Text className="text-sm font-bold text-neutral-900">
-                ${cart.impuestos_total.toFixed(2)}
+                ${(cart.impuestos_total || 0).toFixed(2)}
               </Text>
             </View>
 
@@ -270,7 +270,7 @@ export function ClientCartScreen() {
         <View className="flex-row justify-between mb-4">
           <Text className="text-lg font-bold text-neutral-900">Total</Text>
           <Text className="text-[22px] font-extrabold text-brand-red">
-            ${cart.total_final.toFixed(2)}
+            ${(cart.total_final || 0).toFixed(2)}
           </Text>
         </View>
 
@@ -290,7 +290,7 @@ export function ClientCartScreen() {
             <>
               <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
               <Text className="text-base font-bold text-white tracking-wide ml-2">
-                Enviar Pedido • ${cart.total_final.toFixed(2)}
+                Enviar Pedido • ${(cart.total_final || 0).toFixed(2)}
               </Text>
             </>
           )}

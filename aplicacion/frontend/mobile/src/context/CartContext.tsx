@@ -20,6 +20,8 @@ export interface CartItem {
     // Promotion details
     motivo_descuento?: string
     campania_aplicada_id?: number
+    tiene_promocion?: boolean
+    descuento_porcentaje?: number
 }
 
 interface Cart {
@@ -35,6 +37,7 @@ interface Cart {
 interface CartContextValue {
     userId: string | null
     cart: Cart
+    currentClient: Client | null
     // Legacy support aliases
     items: CartItem[]
     totalItems: number
@@ -102,7 +105,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadCart = async (uid: string) => {
         setLoading(true)
         try {
-            const serverCart = await CartService.getCart(uid)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
+            // Note: uid param is kept for compatibility but service uses target
+            const serverCart = await CartService.getCart(target)
             const mappedCart = await mapServerCartToState(serverCart)
             setCart(mappedCart)
         } catch (error) {
@@ -131,32 +139,41 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 const precioLista = Number(item.precio_original_snapshot) > 0
                     ? Number(item.precio_original_snapshot)
-                    : (productDetails?.precio_lista ?? 0);
+                    : (productDetails?.precio_original ?? 0);
 
                 const precioFinal = Number(item.precio_unitario_ref) > 0
                     ? Number(item.precio_unitario_ref)
-                    : (productDetails?.precio_final ?? 0);
+                    : (productDetails?.precio_oferta ?? productDetails?.precio_original ?? 0);
+
+                // Calculate Promotion Status
+                const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id;
+                let descuentoPorcentaje = 0;
+                if (tienePromocion && precioLista > 0) {
+                    descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100);
+                }
 
                 items.push({
                     id: item.id,
                     producto_id: item.producto_id,
                     nombre_producto: productDetails?.nombre || 'Producto Desconocido',
                     codigo_sku: productDetails?.codigo_sku || '',
-                    imagen_url: productDetails?.imagenes?.[0] || '',
+                    imagen_url: productDetails?.imagen_url || '',
                     cantidad: Number(item.cantidad),
                     unidad_medida: 'UN', // Default
                     precio_lista: precioLista,
                     precio_final: precioFinal,
                     subtotal: Number(item.cantidad) * precioFinal,
                     campania_aplicada_id: item.campania_aplicada_id,
-                    motivo_descuento: item.motivo_descuento // Mapped from backend
+                    motivo_descuento: item.motivo_descuento, // Mapped from backend
+                    tiene_promocion: tienePromocion,
+                    descuento_porcentaje: descuentoPorcentaje
                 })
             } catch (err) {
                 console.warn(`Error enriching cart item ${item.producto_id}`, err)
             }
         }
 
-        const subtotal = items.reduce((acc, curr) => acc + curr.subtotal, 0)
+        const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
         // Calculate Discount Total: Sum of (List Price - Final Price) * Quantity
         const descuento_total = items.reduce((acc, curr) => {
             const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
@@ -189,45 +206,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const addToCart = async (product: any, quantity: number = 1) => {
-        if (!userId) {
+        let currentUserId = userId
+
+        // Lazy load user if not present (fixes "Debes iniciar sesión" bug when context is stale)
+        if (!currentUserId) {
+            try {
+                console.log('CartContext: userId missing in addToCart, attempting to fetch profile...')
+                const user = await UserService.getProfile()
+                if (user?.id) {
+                    console.log('CartContext: Profile recovered', user.id)
+                    currentUserId = user.id
+                    setUserId(user.id)
+                }
+            } catch (error) {
+                console.warn('CartContext: Failed to recover user profile', error)
+            }
+        }
+
+        if (!currentUserId) {
             Alert.alert('Error', 'Debes iniciar sesión para comprar')
             return
         }
 
         try {
-            // Optimistic Update
-            setCart(prev => {
-                const existing = prev.items.find(i => i.producto_id === (product.id || product.producto_id))
-                let newItems = []
-                if (existing) {
-                    newItems = prev.items.map(i => i.producto_id === (product.id || product.producto_id)
-                        ? { ...i, cantidad: i.cantidad + quantity, subtotal: (i.cantidad + quantity) * i.precio_final }
-                        : i
-                    )
-                } else {
-                    newItems = [...prev.items, {
-                        id: 'temp-' + Date.now(),
-                        producto_id: product.id || product.producto_id,
-                        nombre_producto: product.nombre || product.nombre_producto,
-                        cantidad: quantity,
-                        unidad_medida: product.unidad_medida,
-                        precio_lista: product.precio_lista,
-                        precio_final: product.precio_final,
-                        subtotal: quantity * product.precio_final,
-                        imagen_url: product.imagen_url,
-                        codigo_sku: product.codigo_sku,
-                        campania_aplicada_id: product.campania_aplicada_id,
-                        motivo_descuento: product.motivo_descuento
-                    }]
-                }
+            // Server Call First
+            // The optimistic update is tricky because we need the snapshot prices from backend response
+            // to show correct promotion tag instantly if we rely on backend calc.
 
-                // Recalculate totals
-                const sub = newItems.reduce((a, b) => a + b.subtotal, 0)
-                const tax = sub * 0.12
-                return { ...prev, items: newItems, total_estimado: sub + tax }
-            })
-
-            // Server Call
             const payload: AddToCartPayload = {
                 producto_id: product.id || product.producto_id,
                 cantidad: quantity,
@@ -237,21 +242,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             // --- FIX: Use addToCart instead of addItem ---
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
             if (existingItem(product.id || product.producto_id)) {
-                await CartService.addToCart(userId, payload)
+                await CartService.addToCart(target, payload)
             } else {
-                await CartService.addToCart(userId, payload)
+                await CartService.addToCart(target, payload)
             }
             // ---------------------------------------------
 
-            // Reload to sync
-            loadCart(userId)
+            // Reload to sync - this will fetch the cart with the calculated prices and promotions
+            loadCart(currentUserId)
 
         } catch (error) {
             console.error('Error adding to cart', error)
             Alert.alert('Error', 'No se pudo agregar al carrito')
-            // Revert optimistic update? (Complexity: High. Skip for now)
-            loadCart(userId)
+            loadCart(currentUserId)
         }
     }
 
@@ -267,7 +275,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }))
 
         try {
-            await CartService.removeFromCart(userId, productId)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
+            await CartService.removeFromCart(target, productId)
             loadCart(userId)
         } catch (error) {
             console.error('Error removing item', error)
@@ -292,7 +304,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cantidad: quantity
             }
             // FIX: Use addToCart for update/upsert
-            await CartService.addToCart(userId, payload)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
+            await CartService.addToCart(target, payload)
             loadCart(userId)
         } catch (error) {
             console.error('Error updating quantity', error)
@@ -304,7 +320,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!userId) return
         setCart({ items: [], total_estimado: 0 })
         try {
-            await CartService.clearCart(userId)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+            await CartService.clearCart(target)
         } catch (e) { console.warn(e) }
     }
 
@@ -316,6 +335,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const value: CartContextValue = {
         userId,
         cart,
+        currentClient, // Expose this
         items: cart.items, // Alias
         totalItems: getItemCount(), // Alias
         addToCart,

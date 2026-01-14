@@ -19,6 +19,7 @@ export class ClientsInternalController {
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
     return {
       id: cliente.id,
+      usuario_principal_id: (cliente as any).usuario_principal_id ?? null,
       lista_precios_id: (cliente as any).lista_precios_id ?? null,
       vendedor_asignado_id: (cliente as any).vendedor_asignado_id ?? null,
     };

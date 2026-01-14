@@ -1,4 +1,4 @@
-import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min, IsString, IsDateString, IsInt } from 'class-validator';
+import { IsUUID, IsArray, ValidateNested, IsOptional, IsNumber, Min, IsString, IsDateString, IsInt, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderDetailDto {
@@ -68,9 +68,9 @@ export class CreateOrderDto {
   @IsString()
   observaciones_entrega?: string;
 
-  @IsOptional()
-  @IsString()
-  condicion_pago?: string;
+  @IsString({ message: 'condicion_pago es requerido' })
+  @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], { message: 'condicion_pago debe ser: CONTADO, CREDITO, TRANSFERENCIA o CHEQUE' })
+  condicion_pago: string;
 
   @IsOptional()
   @IsDateString({}, { message: 'Fecha de entrega debe ser formato YYYY-MM-DD' })

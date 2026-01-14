@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-    View, Text, ScrollView, TextInput, TouchableOpacity,
+    View, Text, ScrollView, TouchableOpacity,
     ActivityIndicator, Alert, Platform
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
-import DateTimePicker from '@react-native-community/datetimepicker'
 
 import { useCart } from '../../../../context/CartContext'
 import { OrderService } from '../../../../services/api/OrderService'
@@ -27,19 +25,15 @@ const diasPlazoToCondicion = (dias: number): string => {
 
 export function ClientCheckoutScreen() {
     const navigation = useNavigation()
-    const { cart, clearCart, userId } = useCart()
+    const { cart, clearCart, userId, currentClient } = useCart()
 
     // Data State
     const [clienteData, setClienteData] = useState<Client | null>(null)
     const [sucursales, setSucursales] = useState<ClientBranch[]>([])
 
     // Form State
-    const [observaciones, setObservaciones] = useState('')
     const [condicionPago, setCondicionPago] = useState('CONTADO')
-    const [fechaEntrega, setFechaEntrega] = useState<Date | null>(null)
-    const [showDatePicker, setShowDatePicker] = useState(false)
     const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<DeliveryOption>('MATRIZ')
-    const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null)
 
     // UI State
     const [loading, setLoading] = useState(false)
@@ -73,14 +67,6 @@ export function ClientCheckoutScreen() {
                         setCondicionPago('CONTADO')
                     }
 
-                    // Set Initial Location (Matriz)
-                    if (cliente.ubicacion_gps?.coordinates) {
-                        setUbicacion({
-                            lng: cliente.ubicacion_gps.coordinates[0],
-                            lat: cliente.ubicacion_gps.coordinates[1]
-                        })
-                    }
-
                     // Load Branches
                     try {
                         const branches = await ClientService.getClientBranches(cliente.id)
@@ -102,50 +88,8 @@ export function ClientCheckoutScreen() {
     // Handle Delivery Selection
     const handleDeliveryOptionChange = useCallback((option: DeliveryOption) => {
         setSelectedDeliveryOption(option)
-
-        let newLocation = null
-        if (option === 'MATRIZ') {
-            if (clienteData?.ubicacion_gps?.coordinates) {
-                newLocation = {
-                    lng: clienteData.ubicacion_gps.coordinates[0],
-                    lat: clienteData.ubicacion_gps.coordinates[1]
-                }
-            }
-        } else {
-            const branch = sucursales.find(s => s.id === option)
-            if (branch?.ubicacion_gps?.coordinates) {
-                newLocation = {
-                    lng: branch.ubicacion_gps.coordinates[0],
-                    lat: branch.ubicacion_gps.coordinates[1]
-                }
-            }
-        }
-        setUbicacion(newLocation)
         if (option !== 'MATRIZ') setShowSucursalesAccordion(false)
-    }, [sucursales, clienteData])
-
-    // Handle Date Change
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        if (Platform.OS === 'android') {
-            setShowDatePicker(false)
-        }
-        if (selectedDate) {
-            setFechaEntrega(selectedDate)
-        }
-    }
-
-    // Get Info for UI
-    const getDeliveryName = () => {
-        if (selectedDeliveryOption === 'MATRIZ') return 'Local Principal (Matriz)'
-        const branch = sucursales.find(s => s.id === selectedDeliveryOption)
-        return branch?.nombre_sucursal || 'Sucursal'
-    }
-
-    const getDeliveryAddress = () => {
-        if (selectedDeliveryOption === 'MATRIZ') return clienteData?.direccion_texto || 'Dirección principal'
-        const branch = sucursales.find(s => s.id === selectedDeliveryOption)
-        return branch?.direccion_entrega || ''
-    }
+    }, [])
 
     // Confirm Order
     const handleConfirmOrder = async () => {
@@ -166,7 +110,11 @@ export function ClientCheckoutScreen() {
             // because strict backend DTO ignores them.
 
             // Use context userId to ensure we are ordering for the same user who owns the cart
-            const newOrder = await OrderService.createOrderFromCart(userId, payload)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
+            const newOrder = await OrderService.createOrderFromCart(target, payload)
 
             setOrderNumber(newOrder.codigo_visual?.toString() || 'N/A')
 
@@ -284,40 +232,6 @@ export function ClientCheckoutScreen() {
                             ))}
                         </View>
                     )}
-
-                    {/* Map View (Read Only) */}
-                    <View className="mt-4 h-40 rounded-xl overflow-hidden border border-neutral-200 relative">
-                        {ubicacion ? (
-                            <MapView
-                                provider={PROVIDER_GOOGLE}
-                                style={{ flex: 1 }}
-                                region={{
-                                    latitude: ubicacion.lat,
-                                    longitude: ubicacion.lng,
-                                    latitudeDelta: 0.005,
-                                    longitudeDelta: 0.005,
-                                }}
-                                scrollEnabled={false}
-                                zoomEnabled={false}
-                                pitchEnabled={false}
-                                rotateEnabled={false}
-                                cacheEnabled={true}
-                            >
-                                <Marker
-                                    coordinate={{ latitude: ubicacion.lat, longitude: ubicacion.lng }}
-                                    title={getDeliveryName()}
-                                />
-                            </MapView>
-                        ) : (
-                            <View className="flex-1 items-center justify-center bg-neutral-100">
-                                <Ionicons name="map-outline" size={30} color="#9CA3AF" />
-                                <Text className="text-neutral-400 text-xs mt-2">Sin ubicación GPS</Text>
-                            </View>
-                        )}
-                        <View className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs">
-                            <Text className="text-[10px] font-bold text-neutral-500">VISTA PREVIA</Text>
-                        </View>
-                    </View>
                 </View>
 
                 {/* 3. Detalles de Facturación */}
@@ -352,43 +266,6 @@ export function ClientCheckoutScreen() {
                             <Text className="ml-2 text-orange-800 text-sm font-medium">Solo pago de Contado</Text>
                         </View>
                     )}
-                </View>
-
-                {/* 4. Fecha (Visual Only) */}
-                <View className="bg-white mt-4 mx-4 p-4 rounded-2xl shadow-sm border border-neutral-100">
-                    <Text className="text-lg font-bold text-neutral-800 mb-3">📅 Fecha de Entrega</Text>
-                    <TouchableOpacity
-                        onPress={() => setShowDatePicker(true)}
-                        className="flex-row items-center justify-between bg-neutral-50 border border-neutral-200 rounded-xl p-3"
-                    >
-                        <Text className="text-neutral-700 font-medium">
-                            {fechaEntrega ? fechaEntrega.toLocaleDateString() : 'Seleccionar fecha (Opcional)'}
-                        </Text>
-                        <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                    </TouchableOpacity>
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={fechaEntrega || new Date()}
-                            mode="date"
-                            display="default"
-                            onChange={handleDateChange}
-                        />
-                    )}
-                    <Text className="text-[10px] text-neutral-400 mt-1 text-right">* No se guarda en esta versión</Text>
-                </View>
-
-                {/* 5. Observaciones (Visual Only) */}
-                <View className="bg-white mt-4 mx-4 p-4 rounded-2xl shadow-sm border border-neutral-100">
-                    <Text className="text-lg font-bold text-neutral-800 mb-3">📝 Observaciones</Text>
-                    <TextInput
-                        className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-700 h-24"
-                        placeholder="Instrucciones de entrega (Opcional - No se guarda en esta versión)"
-                        multiline
-                        textAlignVertical="top"
-                        value={observaciones}
-                        onChangeText={setObservaciones}
-                    />
-                    <Text className="text-[10px] text-neutral-400 mt-1 text-right">* Información no persistente por ahora</Text>
                 </View>
 
                 {/* 6. Totales Finales */}

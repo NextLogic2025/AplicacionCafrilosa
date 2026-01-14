@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
 import { CarritoItem } from '../entities/carrito-item.entity';
 import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
@@ -19,45 +19,141 @@ export class CartService {
     /**
      * Obtiene el carrito del usuario. Si no existe, lo crea (Lazy Creation).
      * Solo obtiene carritos activos (deleted_at IS NULL)
+     * @param usuario_id - UUID del usuario propietario del carrito
+     * @param vendedor_id - UUID del vendedor (opcional). Si se proporciona, busca carrito del vendedor. Si no, carrito del cliente.
      */
-    async getOrCreateCart(usuario_id: string): Promise<any> {
-        let cart = await this.cartRepo.findOne({
-            where: { 
-                usuario_id,
-                deleted_at: null  // Solo carritos activos (no soft-deleted)
-            },
-            relations: ['items'],
-        });
+    async getOrCreateCart(usuario_id: string, vendedor_id?: string): Promise<any> {
+        const originalParamId = usuario_id; // Puede venir como usuario_id (cliente) o como cliente_id si lo envía un vendedor
+        let resolvedUsuarioId = usuario_id;
+        let resolvedClienteId: string | null = null;
 
-        if (!cart) {
-            cart = this.cartRepo.create({ 
-                usuario_id,
-                total_estimado: 0
-            });
-            cart = await this.cartRepo.save(cart);
-            cart.items = [];
-            // Intentar resolver cliente_id desde Catalog para usuarios que sean clientes
+        // Si es vendedor, intentar resolver cliente desde Catalog usando el id del path (que puede ser cliente_id)
+        if (vendedor_id) {
             try {
                 const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
                 const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
                 const fetchFn = (globalThis as any).fetch;
                 if (typeof fetchFn === 'function') {
                     const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-                    const url = apiBase + '/internal/clients/by-user/' + usuario_id;
+                    const url = apiBase + '/internal/clients/' + originalParamId;
                     const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
                     if (resp && resp.ok) {
                         const body = await resp.json();
-                        if (body && body.id) {
-                            cart.cliente_id = body.id;
-                            await this.cartRepo.save(cart);
-                            this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id);
-                        }
+                        resolvedClienteId = body?.id ?? null;
+                        resolvedUsuarioId = body?.usuario_principal_id ?? resolvedUsuarioId;
+                        this.logger.debug('Resolved client for vendor cart', { originalParamId, cliente_id: resolvedClienteId, usuario_principal_id: resolvedUsuarioId, vendedor_id });
                     }
                 }
             } catch (err) {
-                this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id, err: err?.message || String(err) });
+                this.logger.debug('No se pudo resolver cliente desde Catalog (vendor path)', { originalParamId, vendedor_id, err: err?.message || String(err) });
+            }
+        }
+
+        this.logger.debug('Cart lookup input', { originalParamId, resolvedUsuarioId, resolvedClienteId, vendedor_id });
+
+        // Build where condition to handle null vendedor_id correctly with TypeORM IsNull()
+        const whereCondition: any = {
+            usuario_id: resolvedUsuarioId,
+            deleted_at: IsNull()  // Solo carritos activos (no soft-deleted)
+        };
+        
+        if (vendedor_id) {
+            // Vendor cart: search for specific vendedor_id
+            whereCondition['vendedor_id'] = vendedor_id;
+        } else {
+            // Client cart: search for IS NULL vendedor_id
+            whereCondition['vendedor_id'] = IsNull();
+        }
+
+        let cart = await this.cartRepo.findOne({
+            where: whereCondition,
+            relations: ['items'],
+        });
+
+        if (!cart) {
+            cart = this.cartRepo.create({ 
+                usuario_id: resolvedUsuarioId,
+                vendedor_id: vendedor_id || null,
+                total_estimado: 0,
+                cliente_id: resolvedClienteId,
+            });
+            cart = await this.cartRepo.save(cart);
+            cart.items = [];
+            this.logger.log('Created cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: resolvedClienteId || null, source: 'create' });
+
+            const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+            const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+            const fetchFn = (globalThis as any).fetch;
+
+            // Resolver cliente_id
+            if (typeof fetchFn === 'function') {
+                try {
+                    const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                    // 1) Intentar por usuario (cubre flujo cliente y vendedor si ya teníamos usuario_id resuelto)
+                    const urlByUser = apiBase + '/internal/clients/by-user/' + resolvedUsuarioId;
+                    const respUser: any = await fetchFn(urlByUser, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
+                    if (respUser && respUser.ok) {
+                        const body = await respUser.json();
+                        if (body && body.id) {
+                            cart.cliente_id = body.id;
+                            await this.cartRepo.save(cart);
+                            this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user)');
+                        }
+                    }
+
+                    // 2) Si sigue null y es flujo vendedor, usar el id del path (cliente_id) como fallback
+                    if (!cart.cliente_id && vendedor_id) {
+                        cart.cliente_id = originalParamId;
+                        await this.cartRepo.save(cart);
+                        this.logger.log('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id);
+                    }
+                } catch (err) {
+                    this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id: resolvedUsuarioId, err: err?.message || String(err) });
+                    // Fallback: si es carrito de vendedor y no tenemos cliente_id, usar el path
+                    if (vendedor_id && !cart.cliente_id) {
+                        cart.cliente_id = originalParamId;
+                        await this.cartRepo.save(cart);
+                    }
+                }
+            } else {
+                // Fallback: si no hay fetch, asignar path como cliente_id en carrito de vendedor
+                if (vendedor_id) {
+                    cart.cliente_id = originalParamId;
+                    await this.cartRepo.save(cart);
+                }
             }
         } else {
+            this.logger.debug('Found existing cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: cart.cliente_id });
+            // Si es carrito de vendedor y no tiene cliente_id, intentar resolverlo y luego fallback al path
+            if (vendedor_id && !cart.cliente_id) {
+                try {
+                    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+                    const fetchFn = (globalThis as any).fetch;
+                    if (typeof fetchFn === 'function') {
+                        const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                        const urlByUser = apiBase + '/internal/clients/by-user/' + resolvedUsuarioId;
+                        const respUser: any = await fetchFn(urlByUser, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
+                        if (respUser && respUser.ok) {
+                            const body = await respUser.json();
+                            if (body && body.id) {
+                                cart.cliente_id = body.id;
+                                await this.cartRepo.save(cart);
+                                this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user, existing)');
+                            }
+                        }
+                    }
+                } catch (err) {
+                    this.logger.debug('No se pudo resolver cliente_id en carrito vendedor existente', { usuario_id, err: err?.message || String(err) });
+                }
+
+                if (!cart.cliente_id) {
+                    cart.cliente_id = originalParamId;
+                    await this.cartRepo.save(cart);
+                    this.logger.log('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id + ' (existing)');
+                }
+            }
+
             // Recalcular totales al cargar el carrito para asegurar consistencia
             await this.recalculateTotals(cart.id);
             // Recargar el carrito con el total actualizado
@@ -131,11 +227,11 @@ export class CartService {
      * - BadRequestException: Si hay datos inválidos
      * - Error genérico: Para otros errores inesperados
      */
-    async addItem(usuario_id: string, dto: UpdateCartItemDto): Promise<CarritoItem> {
+    async addItem(usuario_id: string, dto: UpdateCartItemDto, vendedor_id?: string): Promise<CarritoItem> {
         try {
-            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id}`);
+            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id} (vendedor_id=${vendedor_id || 'null'})`);
 
-            const cart = await this.getOrCreateCart(usuario_id);
+            const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
             let item = await this.itemRepo.findOne({
                 where: { carrito_id: cart.id, producto_id: dto.producto_id },
@@ -277,14 +373,22 @@ export class CartService {
         }
     }
 
-    async removeItem(usuario_id: string, producto_id: string): Promise<{ success: boolean }> {
-        this.logger.log(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id}`);
+    async removeItem(usuario_id: string, producto_id: string, vendedor_id?: string): Promise<{ success: boolean }> {
+        this.logger.log(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
+        
+        const whereCondition: any = {
+            usuario_id,
+            deleted_at: IsNull()
+        };
+        
+        if (vendedor_id) {
+            whereCondition['vendedor_id'] = vendedor_id;
+        } else {
+            whereCondition['vendedor_id'] = IsNull();
+        }
         
         const cart = await this.cartRepo.findOne({
-            where: { 
-                usuario_id,
-                deleted_at: null
-            },
+            where: whereCondition,
         });
         
         if (!cart) {
@@ -303,18 +407,26 @@ export class CartService {
         return { success: true };
     }
 
-    async clearCart(usuario_id: string): Promise<void> {
-        this.logger.log(`Vaciando carrito del usuario ${usuario_id}`);
+    async clearCart(usuario_id: string, vendedor_id?: string): Promise<void> {
+        this.logger.log(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
+        
+        const whereCondition: any = {
+            usuario_id,
+            deleted_at: IsNull()
+        };
+        
+        if (vendedor_id) {
+            whereCondition['vendedor_id'] = vendedor_id;
+        } else {
+            whereCondition['vendedor_id'] = IsNull();
+        }
         
         const cart = await this.cartRepo.findOne({
-            where: { 
-                usuario_id,
-                deleted_at: null
-            },
+            where: whereCondition,
         });
         
         if (!cart) {
-            this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
+            this.logger.warn(`No se encontró carrito para usuario ${usuario_id} vendedor ${vendedor_id || 'cliente'}`);
             return; // No hay carrito que vaciar
         }
         
@@ -326,13 +438,33 @@ export class CartService {
         await this.cartRepo.save(cart);
     }
 
+    async clearCartById(carrito_id: string): Promise<void> {
+        this.logger.log(`Vaciando carrito por ID: ${carrito_id}`);
+        
+        const cart = await this.cartRepo.findOne({
+            where: { id: carrito_id, deleted_at: IsNull() },
+        });
+        
+        if (!cart) {
+            this.logger.warn(`No se encontró carrito con ID ${carrito_id}`);
+            return;
+        }
+        
+        const deleteResult = await this.itemRepo.delete({ carrito_id: cart.id });
+        this.logger.log(`Carrito ${carrito_id} vaciado: ${deleteResult.affected} items eliminados`);
+        
+        // Resetear total a 0
+        cart.total_estimado = 0;
+        await this.cartRepo.save(cart);
+    }
+
     /**
      * Actualiza el cliente_id asociado al carrito
      * Útil cuando un vendedor selecciona un cliente
      */
-    async setClienteId(usuario_id: string, cliente_id: string): Promise<CarritoCabecera> {
-        this.logger.log(`Actualizando cliente_id=${cliente_id} para usuario=${usuario_id}`);
-        const cart = await this.getOrCreateCart(usuario_id);
+    async setClienteId(usuario_id: string, cliente_id: string, vendedor_id?: string): Promise<CarritoCabecera> {
+        this.logger.log(`Actualizando cliente_id=${cliente_id} para usuario=${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
+        const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
         cart.cliente_id = cliente_id;
         const saved = await this.cartRepo.save(cart);
         this.logger.log(`Cliente guardado en carrito ${cart.id}`);

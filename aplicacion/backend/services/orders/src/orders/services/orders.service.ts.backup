@@ -90,7 +90,7 @@ export class OrdersService {
     return qb.orderBy('o.created_at', 'DESC').getMany();
   }
 
-  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false): Promise<Pedido> {
+  async create(createOrderDto: CreateOrderDto, usuarioId?: string): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -277,20 +277,18 @@ export class OrdersService {
 
       await queryRunner.commitTransaction();
 
-      if (!skipCartClear) {
-        try {
-          // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
-          // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
-          if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
-            // Carrito del vendedor
-            await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
-          } else if (usuarioId) {
-            // Carrito del cliente
-            await this.cartService.clearCart(usuarioId);
-          }
-        } catch (cartError) {
-          this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
+      try {
+        // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
+        // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
+        if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
+          // Carrito del vendedor
+          await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
+        } else if (usuarioId) {
+          // Carrito del cliente
+          await this.cartService.clearCart(usuarioId);
         }
+      } catch (cartError) {
+        this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
       }
       return this.findOne(pedidoGuardado.id);
 
@@ -314,17 +312,16 @@ export class OrdersService {
     // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
     // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
     const cart = await this.cartService.getOrCreateCart(usuarioIdParam, vendedorIdParam ?? undefined);
-    this.logger.log('Cart obtained', { cart_id: cart?.id, usuario_id: cart?.usuario_id, vendedor_id: cart?.vendedor_id, items_count: cart?.items?.length });
     if (!cart || !cart.items || cart.items.length === 0) {
       throw new BadRequestException('Carrito vacío, no hay items para crear el pedido');
     }
 
     // 2. Resolver cliente_id y vendedor_id según actor
     let clienteId = cart.cliente_id ?? null;
-    let pedidoVendedorId: string | null = null;
+    let vendedorId: string | null = vendedorIdParam ?? null;
     
     if (actorRole === 'vendedor') {
-      pedidoVendedorId = actorUserId ?? vendedorIdParam ?? null;
+      vendedorId = actorUserId ?? vendedorIdParam ?? null;
     }
     if (!clienteId && actorRole === 'cliente') clienteId = actorUserId || null;
 
@@ -337,15 +334,13 @@ export class OrdersService {
     if (actorRole === 'cliente') {
       try {
         if (typeof fetchFn === 'function') {
-          const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-          const url = apiBase + '/internal/clients/' + clienteId;
+          const url = base.replace(/\/+$/, '') + '/internal/clients/' + clienteId;
           const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-          this.logger.log('Calling Catalog (vendedor_asignado lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+          this.logger.log('Calling Catalog (client lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
           const resp: any = await fetchFn(url, { headers: headersObj });
           if (resp && resp.ok) {
             const clientInfo = await resp.json();
-            pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
-            this.logger.log('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
+            if (!vendedorId) vendedorId = clientInfo?.vendedor_asignado_id ?? null;
           }
         }
       } catch (err) {
@@ -399,7 +394,7 @@ export class OrdersService {
 
     const dto: any = {
       cliente_id: clienteId,
-      vendedor_id: pedidoVendedorId,
+      vendedor_id: vendedorId,
       sucursal_id: sucursal_id || null,
       condicion_pago: condicion_pago,
       items,
@@ -407,18 +402,8 @@ export class OrdersService {
       ubicacion: null,
     };
 
-    // 4. Crear pedido
-    const pedido = await this.create(dto as any, actorUserId, true);
-
-    // 5. Limpiar el carrito correcto despues de crear el pedido (usar el ID exacto del carrito usado)
-    try {
-      await this.cartService.clearCartById(cart.id);
-      this.logger.log('Cleared cart after order creation', { cart_id: cart.id, usuario_id: cart.usuario_id, vendedor_id: cart.vendedor_id });
-    } catch (cartError) {
-      this.logger.warn('No se pudo vaciar el carrito despues de crear pedido', { cart_id: cart.id, error: cartError?.message || String(cartError) });
-    }
-
-    return pedido;
+    // Delegar a create() pasándole el actorUserId para limpiar carrito correctamente
+    return this.create(dto as any, actorUserId);
   }
 
   async getOrderDetailProfessional(orderId: string): Promise<Pedido> {
@@ -558,4 +543,3 @@ export class OrdersService {
     }
   }
 }
-

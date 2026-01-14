@@ -18,8 +18,11 @@ const STATUS_FILTERS = [
     { id: 'ANULADO', label: 'Cancelados' },
 ]
 
+import { useCart } from '../../../../context/CartContext'
+
 export function ClientOrdersScreen() {
     const navigation = useNavigation()
+    const { currentClient } = useCart() // Use context to know if masquerading
     const [orders, setOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
@@ -28,14 +31,28 @@ export function ClientOrdersScreen() {
     const fetchOrders = async () => {
         setLoading(true)
         try {
-            // Obtener ID del usuario actual
-            const user = await UserService.getProfile()
-            if (user?.id) {
-                const data = await OrderService.getClientOrders(user.id)
+            let targetId: string | undefined
+
+            if (currentClient) {
+                targetId = currentClient.id
+            } else {
+                try {
+                    // Modo Cliente Personal (o Vendedor viendo sus propias ventas/compras)
+                    const user = await UserService.getProfile()
+                    targetId = user?.id
+                } catch (e) { console.warn(e) }
+            }
+
+            if (targetId) {
+                // Usamos siempre getClientOrders que consulta por cliente_id O vendedor_id
+                const data = await OrderService.getClientOrders(targetId)
                 setOrders(data)
+            } else {
+                setOrders([])
             }
         } catch (error) {
             console.error('Error fetching orders:', error)
+            setOrders([])
         } finally {
             setLoading(false)
         }

@@ -161,16 +161,37 @@ export const OrderService = {
 
     /**
      * Servicio: Crear pedido desde el carrito (Server-side cart)
-     * Endpoint: POST /orders/from-cart/:userId
+     * Endpoint: POST /orders/from-cart/me o /orders/from-cart/client/:id
      */
-    createOrderFromCart: async (userId: string, data?: Partial<CreateOrderPayload>): Promise<Order> => {
+    createOrderFromCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, data?: Partial<CreateOrderPayload>): Promise<Order> => {
         try {
-            return await apiRequest<Order>(`${env.api.ordersUrl}/orders/from-cart/${userId}`, {
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/from-cart/client/${target.clientId}`
+                : `${env.api.ordersUrl}/orders/from-cart/me`
+
+            return await apiRequest<Order>(endpoint, {
                 method: 'POST',
                 body: data ? JSON.stringify(data) : undefined
             })
         } catch (error) {
             console.error('Error creating order from cart:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Servicio: Obtener historial de pedidos del usuario autenticado (Personal)
+     * Endpoint: GET /orders/user/history
+     */
+    getOrderHistory: async (): Promise<Order[]> => {
+        try {
+            const orders = await apiRequest<Order[]>(`${env.api.ordersUrl}/orders/user/history`)
+            // Ordenar por fecha (más reciente primero)
+            return orders.sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+        } catch (error) {
+            console.error('Error fetching order history:', error)
             throw error
         }
     },
