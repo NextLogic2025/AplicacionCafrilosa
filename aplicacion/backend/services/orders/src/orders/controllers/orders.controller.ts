@@ -30,22 +30,28 @@ export class OrdersController {
         private readonly dataSource: DataSource,
     ) { }
 
+    @Get()
+    @Roles('admin', 'supervisor', 'bodeguero')
+    async getAllOrders() {
+        return this.ordersService.findAll();
+    }
+
     @Get('/client/:userId')
     @UseGuards(OrderOwnershipGuard)
-    @Roles('admin', 'cliente', 'vendedor')
+    @Roles('admin', 'cliente', 'vendedor', 'supervisor')
     async getClientOrders(@Param('userId', ParseUUIDPipe) userId: string) {
         return this.ordersService.findAllByClient(userId);
     }
 
     @Get('/:id')
-    @Roles('admin', 'vendedor', 'cliente', 'bodeguero')
+    @Roles('admin', 'vendedor', 'cliente', 'bodeguero', 'supervisor')
     async getOrder(@Param('id', ParseUUIDPipe) id: string) {
         // Nota: Aquí se podría añadir un guard extra para validar que el cliente vea solo SU pedido
         return this.ordersService.findOne(id);
     }
 
     @Get('/:id/detail')
-    @Roles('admin', 'vendedor', 'cliente')
+    @Roles('admin', 'vendedor', 'cliente', 'supervisor')
     @UseInterceptors(ClassSerializerInterceptor)
     async getDetail(@Param('id', ParseUUIDPipe) id: string): Promise<OrderResponseDto> {
         const data = await this.ordersService.getOrderDetailProfessional(id);
@@ -57,7 +63,7 @@ export class OrdersController {
     }
 
     @Get('/:id/tracking')
-    @Roles('admin', 'cliente', 'vendedor')
+    @Roles('admin', 'cliente', 'vendedor', 'supervisor')
     async getTracking(@Param('id', ParseUUIDPipe) id: string) {
         // Obtenemos el pedido con su historial ordenado por fecha
         const pedido = await this.pedidoRepo.findOne({
@@ -146,7 +152,7 @@ export class OrdersController {
     }
 
     @Patch('/:id/status')
-    @Roles('admin', 'bodeguero')
+    @Roles('admin', 'supervisor', 'bodeguero')
     async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string, @Req() req: any) {
         const usuarioId = req.user?.sub || req.user?.id;
         return this.ordersService.updateStatus(id, status, usuarioId);

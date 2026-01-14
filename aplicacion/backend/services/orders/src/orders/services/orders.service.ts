@@ -64,6 +64,13 @@ export class OrdersService {
     });
   }
 
+  async findAll(): Promise<Pedido[]> {
+    return this.pedidoRepo.find({
+      relations: ['detalles'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async findOne(id: string): Promise<Pedido> {
     const pedido = await this.pedidoRepo.findOne({
       where: { id },
@@ -271,13 +278,18 @@ export class OrdersService {
       await queryRunner.commitTransaction();
 
       try {
-        // Limpiar carrito del usuario que originó el pedido si se proporcionó
-        if (usuarioId) await this.cartService.clearCart(usuarioId);
-        else await this.cartService.clearCart(createOrderDto.vendedor_id);
+        // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
+        // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
+        if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
+          // Carrito del vendedor
+          await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
+        } else if (usuarioId) {
+          // Carrito del cliente
+          await this.cartService.clearCart(usuarioId);
+        }
       } catch (cartError) {
         this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
       }
-
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
@@ -297,7 +309,10 @@ export class OrdersService {
    */
   async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, condicion_pago?: string): Promise<Pedido> {
     // 1. Obtener carrito
-    const cart = await this.cartService.getOrCreateCart(usuarioIdParam);
+    // Si el actor es vendedor, usa su carrito (vendedor_id = actorUserId)
+    // Si es cliente, usa carrito del cliente (vendedor_id = null)
+    const carroVendedorId = actorRole === 'vendedor' ? actorUserId : undefined;
+    const cart = await this.cartService.getOrCreateCart(usuarioIdParam, carroVendedorId);
     if (!cart || !cart.items || cart.items.length === 0) {
       throw new BadRequestException('Carrito vacío, no hay items para crear el pedido');
     }

@@ -19,11 +19,14 @@ export class CartService {
     /**
      * Obtiene el carrito del usuario. Si no existe, lo crea (Lazy Creation).
      * Solo obtiene carritos activos (deleted_at IS NULL)
+     * @param usuario_id - UUID del usuario propietario del carrito
+     * @param vendedor_id - UUID del vendedor (opcional). Si se proporciona, busca carrito del vendedor. Si no, carrito del cliente.
      */
-    async getOrCreateCart(usuario_id: string): Promise<any> {
+    async getOrCreateCart(usuario_id: string, vendedor_id?: string): Promise<any> {
         let cart = await this.cartRepo.findOne({
             where: { 
                 usuario_id,
+                vendedor_id: vendedor_id || null,
                 deleted_at: null  // Solo carritos activos (no soft-deleted)
             },
             relations: ['items'],
@@ -32,30 +35,33 @@ export class CartService {
         if (!cart) {
             cart = this.cartRepo.create({ 
                 usuario_id,
+                vendedor_id: vendedor_id || null,
                 total_estimado: 0
             });
             cart = await this.cartRepo.save(cart);
             cart.items = [];
-            // Intentar resolver cliente_id desde Catalog para usuarios que sean clientes
-            try {
-                const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-                const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-                const fetchFn = (globalThis as any).fetch;
-                if (typeof fetchFn === 'function') {
-                    const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-                    const url = apiBase + '/internal/clients/by-user/' + usuario_id;
-                    const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
-                    if (resp && resp.ok) {
-                        const body = await resp.json();
-                        if (body && body.id) {
-                            cart.cliente_id = body.id;
-                            await this.cartRepo.save(cart);
-                            this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id);
+            // Intentar resolver cliente_id desde Catalog para usuarios que sean clientes (solo si no es vendedor)
+            if (!vendedor_id) {
+                try {
+                    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+                    const fetchFn = (globalThis as any).fetch;
+                    if (typeof fetchFn === 'function') {
+                        const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                        const url = apiBase + '/internal/clients/by-user/' + usuario_id;
+                        const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : {} });
+                        if (resp && resp.ok) {
+                            const body = await resp.json();
+                            if (body && body.id) {
+                                cart.cliente_id = body.id;
+                                await this.cartRepo.save(cart);
+                                this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id);
+                            }
                         }
                     }
+                } catch (err) {
+                    this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id, err: err?.message || String(err) });
                 }
-            } catch (err) {
-                this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id, err: err?.message || String(err) });
             }
         } else {
             // Recalcular totales al cargar el carrito para asegurar consistencia
@@ -303,18 +309,19 @@ export class CartService {
         return { success: true };
     }
 
-    async clearCart(usuario_id: string): Promise<void> {
-        this.logger.log(`Vaciando carrito del usuario ${usuario_id}`);
+    async clearCart(usuario_id: string, vendedor_id?: string): Promise<void> {
+        this.logger.log(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
         
         const cart = await this.cartRepo.findOne({
             where: { 
                 usuario_id,
+                vendedor_id: vendedor_id || null,
                 deleted_at: null
             },
         });
         
         if (!cart) {
-            this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
+            this.logger.warn(`No se encontró carrito para usuario ${usuario_id} vendedor ${vendedor_id || 'cliente'}`);
             return; // No hay carrito que vaciar
         }
         

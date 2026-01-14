@@ -39,12 +39,17 @@ INSERT INTO estados_pedido (codigo, nombre_visible, descripcion, es_estado_final
 CREATE TABLE carritos_cabecera (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL,           -- referencia lógica a auth_db.usuarios
+    vendedor_id UUID,                   -- referencia lógica a auth_db.usuarios (vendedor que crea el carrito). NULL si es cliente
     cliente_id UUID,                    -- referencia lógica a catalog_db.clientes
     total_estimado DECIMAL(12,2),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ              -- SOFT DELETE
 );
+
+-- Índice para búsquedas rápidas por usuario + vendedor
+CREATE INDEX idx_carrito_usuario_vendedor 
+ON carritos_cabecera(usuario_id, COALESCE(vendedor_id, '00000000-0000-0000-0000-000000000000'::uuid));
 
 CREATE TABLE carritos_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
