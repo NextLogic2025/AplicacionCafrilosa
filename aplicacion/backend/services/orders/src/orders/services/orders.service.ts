@@ -147,9 +147,52 @@ export class OrdersService {
       }
 
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
-      const descuento_total = createOrderDto.descuento_total ?? 0;
+      
+      // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
+      // descuento por item = (precio_original - precio_unitario) * cantidad
+      const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
+        const precioOriginal = Number((item as any).precio_original) || 0;
+        const precioFinal = Number((item as any).precio_unitario) || 0;
+        const descuentoLinea = precioOriginal > precioFinal ? (precioOriginal - precioFinal) * Number(item.cantidad) : 0;
+        return acc + descuentoLinea;
+      }, 0);
+      
+      // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
+      const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
       const total_final = subtotal - descuento_total + impuestos_total;
+
+      // RESOLVER UBICACIÓN: Si hay sucursal_id → ubicación de sucursal, si no → ubicación del cliente
+      let ubicacionPedido: { lng: number; lat: number } | null = null;
+      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
+        // Si viene ubicación explícita en el DTO, usarla
+        ubicacionPedido = { lng: createOrderDto.ubicacion.lng, lat: createOrderDto.ubicacion.lat };
+      } else if (typeof fetchFn === 'function') {
+        try {
+          // Intentar obtener ubicación desde Catalog (cliente o sucursal)
+          let urlUbicacion = '';
+          if (createOrderDto.sucursal_id) {
+            urlUbicacion = base.replace(/\/+$/, '') + '/internal/sucursales/' + createOrderDto.sucursal_id;
+          } else {
+            urlUbicacion = base.replace(/\/+$/, '') + '/internal/clients/' + createOrderDto.cliente_id;
+          }
+          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+          this.logger.debug('Fetching ubicación desde Catalog', { url: urlUbicacion });
+          const resp: any = await fetchFn(urlUbicacion, { headers: headersObj });
+          if (resp && resp.ok) {
+            const data = await resp.json();
+            const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
+            if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
+              // GeoJSON format: [lng, lat]
+              ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
+            } else if (data?.lat && data?.lng) {
+              ubicacionPedido = { lng: data.lng, lat: data.lat };
+            }
+          }
+        } catch (err) {
+          this.logger.debug('No se pudo obtener ubicación desde Catalog', { error: err?.message || err });
+        }
+      }
 
       const nuevoPedido = queryRunner.manager.create(Pedido, {
         cliente_id: createOrderDto.cliente_id,
@@ -168,10 +211,11 @@ export class OrdersService {
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
 
-      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
+      // Guardar ubicación si se resolvió
+      if (ubicacionPedido) {
         await queryRunner.manager.query(
           `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
-          [createOrderDto.ubicacion.lng, createOrderDto.ubicacion.lat, pedidoGuardado.id]
+          [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
         );
       }
 
@@ -251,7 +295,7 @@ export class OrdersService {
    * - Construye un CreateOrderDto mínimo
    * - Llama a `create()` para persistir
    */
-  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string): Promise<Pedido> {
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, condicion_pago?: string): Promise<Pedido> {
     // 1. Obtener carrito
     const cart = await this.cartService.getOrCreateCart(usuarioIdParam);
     if (!cart || !cart.items || cart.items.length === 0) {
@@ -339,6 +383,8 @@ export class OrdersService {
     const dto: any = {
       cliente_id: clienteId,
       vendedor_id: vendedorId,
+      sucursal_id: sucursal_id || null,
+      condicion_pago: condicion_pago,
       items,
       origen_pedido: 'FROM_CART',
       ubicacion: null,

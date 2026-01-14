@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -7,6 +7,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
 // Cart endpoints have been moved to `CartController` to avoid duplicated logic
 import { plainToInstance } from 'class-transformer';
 import { OrderResponseDto } from '../dto/responses/order-response.dto';
+import { CreateFromCartDto } from '../dto/requests/create-from-cart.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -92,10 +93,16 @@ export class OrdersController {
     @Post('/from-cart/:userId')
     @UseGuards(OrderOwnershipGuard)
     @Roles('admin', 'cliente', 'vendedor')
-    async createFromCart(@Param('userId') userId: string, @Req() req: any) {
-        const usuarioId = req.user?.userId || req.user?.sub || null;
-        const role = (req.user?.role || '').toString().toLowerCase();
-        return this.ordersService.createFromCart(userId, usuarioId, role);
+    async createFromCart(
+        @Param('userId') userId: string,
+        @Body() body: CreateFromCartDto,
+        @Req() req?: any
+    ) {
+        const usuarioId = req?.user?.userId || req?.user?.sub || null;
+        const role = (req?.user?.role || '').toString().toLowerCase();
+        const condicion_pago = body.condicion_pago;
+        const sucursal_id = body.sucursal_id;
+        return this.ordersService.createFromCart(userId, usuarioId, role, sucursal_id, condicion_pago);
     }
 
     @Get('user/history')
