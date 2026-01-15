@@ -1,8 +1,59 @@
+
+import { useEffect, useState } from 'react'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
+import { ProductCard } from '../../../../components/ui/ProductCard'
 import { Percent } from 'lucide-react'
+import { getAllProducts, Product } from '../../../supervisor/services/productosApi'
+import type { Producto } from '../../../cliente/types'
 
 export default function VendedorPromociones() {
+  const [loading, setLoading] = useState(true)
+  const [promos, setPromos] = useState<Producto[]>([])
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      setLoading(true)
+      const resp = await getAllProducts().catch(() => [])
+      if (!mounted) return
+      // Mapear Product (backend) a Producto (frontend)
+      const productos: Producto[] = (resp || [])
+        .map((p: Product) => {
+          const anyP = p as any
+          const rawBase = anyP.precio_base ?? anyP.precio ?? null
+          const rawOferta = anyP.precio_oferta ?? null
+          const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
+          const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta
+          const priceMaybe = precioOferta ?? precioBase ?? null
+          if (priceMaybe == null) return null
+          const price = Number(priceMaybe)
+          if (!Number.isFinite(price) || price <= 0) return null
+          return {
+            id: p.id,
+            name: p.nombre,
+            description: p.descripcion || '',
+            price,
+            precio_original: typeof precioBase === 'number' && precioOferta != null ? precioBase : (typeof anyP.precio_original === 'number' ? anyP.precio_original : undefined),
+            precio_oferta: typeof precioOferta === 'number' ? precioOferta : undefined,
+            promociones: anyP.promociones || undefined,
+            image: p.imagen_url || '',
+            category: p.categoria?.nombre || '',
+            inStock: p.activo,
+            rating: 0,
+            reviews: 0,
+          } as Producto
+        })
+        .filter((x): x is Producto => Boolean(x))
+      // Filtrar productos con promociones activas (y precio válido)
+      const filtered = productos.filter(p => (p.precio_oferta != null || (Array.isArray(p.promociones) && p.promociones.length > 0)))
+      setPromos(filtered)
+      setLoading(false)
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
+
   return (
     <div className="space-y-6">
       <PageHero
@@ -17,11 +68,23 @@ export default function VendedorPromociones() {
       {/* Promociones Activas */}
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
         <h3 className="text-lg font-bold text-neutral-950 mb-4">Promociones Vigentes</h3>
-        <EmptyContent
-          icon={<Percent className="h-16 w-16" />}
-          title="No hay promociones activas"
-          description="Las promociones vigentes se mostrarán aquí"
-        />
+        {loading ? (
+          <div className="flex justify-center items-center h-32">Cargando promociones...</div>
+        ) : promos.length === 0 ? (
+          <EmptyContent
+            icon={<Percent className="h-16 w-16" />}
+            title="No hay promociones activas"
+            description="Las promociones vigentes se mostrarán aquí"
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-fr">
+            {promos.map((p) => (
+              <div key={p.id} className="h-full">
+                <ProductCard producto={p} onAddToCart={() => {}} fetchPromos />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Información */}

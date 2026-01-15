@@ -9,11 +9,26 @@ export interface PerfilCliente {
   creditLimit: number
 }
 
+export interface SucursalCliente {
+  id: string
+  nombre: string
+  direccion?: string | null
+  ciudad?: string | null
+  estado?: string | null
+}
+
 export interface Producto {
   id: string
   name: string
   description: string
+  // `price` represents the effective unit price the customer will pay
   price: number
+  // Optional fields provided by the catalog service when there are promotions
+  precio_original?: number | null
+  precio_oferta?: number | null
+  ahorro?: number | null
+  promociones?: any[]
+  campania_aplicada_id?: number | null
   image?: string
   category: string
   inStock: boolean

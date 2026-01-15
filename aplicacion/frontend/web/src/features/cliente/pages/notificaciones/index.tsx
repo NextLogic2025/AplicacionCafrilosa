@@ -33,7 +33,7 @@ export default function PaginaNotificaciones() {
     [TipoNotificacion.INVOICE]: { label: 'Facturas', icon: '📄', color: 'bg-green-50 border-green-200' },
     [TipoNotificacion.DELIVERY]: { label: 'Entregas', icon: '🚚', color: 'bg-yellow-50 border-yellow-200' },
     [TipoNotificacion.PROMOTIONAL]: { label: 'Promociones', icon: '🎉', color: 'bg-purple-50 border-purple-200' },
-    [TipoNotificacion.SYSTEM]: { label: 'Sistema', icon: '⚙️', color: 'bg-gray-50 border-gray-200' },
+    [TipoNotificacion.SYSTEM]: { label: '', icon: '⚙️', color: 'bg-gray-50 border-gray-200' },
     [TipoNotificacion.SUPPORT]: { label: 'Soporte', icon: '💬', color: 'bg-red-50 border-red-200' },
   }
 
