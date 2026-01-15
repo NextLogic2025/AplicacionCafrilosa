@@ -1,4 +1,9 @@
 # ============================================================
+# DATA SOURCE: Para obtener el Project Number dinámicamente
+# ============================================================
+data "google_project" "project" {}
+
+# ============================================================
 # ARTIFACT REGISTRY: Repositorio privado de imágenes Docker
 # ============================================================
 
@@ -11,7 +16,7 @@ resource "google_artifact_registry_repository" "cafrisales" {
 
   # Vulnerabilidad scanning automático
   docker_config {
-    immutable_tags = false
+    immutable_tags = false # Permite sobrescribir tags como 'latest' o 'v1'
   }
 }
 
@@ -23,7 +28,9 @@ resource "google_artifact_registry_repository_iam_member" "cloud_build_push" {
   location   = google_artifact_registry_repository.cafrisales.location
   repository = google_artifact_registry_repository.cafrisales.name
   role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${var.project_id}@cloudbuild.gserviceaccount.com"
+  
+  # CORRECCIÓN IMPORTANTE: Usamos el Project Number, no el ID
+  member     = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
 
 # ============================================================
@@ -32,15 +39,16 @@ resource "google_artifact_registry_repository_iam_member" "cloud_build_push" {
 
 output "repository_name" {
   value       = google_artifact_registry_repository.cafrisales.name
-  description = "Nombre del repositorio de Artifact Registry"
+  description = "Nombre completo del recurso (projects/.../locations/...)"
 }
 
 output "repository_url" {
-  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.cafrisales.name}"
+  # CORRECCIÓN IMPORTANTE: Usamos repository_id para armar la URL limpia
+  value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.cafrisales.repository_id}"
   description = "URL del repositorio para construir y pushear imágenes"
 }
 
 output "repository_id" {
-  value       = google_artifact_registry_repository.cafrisales.id
-  description = "ID del repositorio"
+  value       = google_artifact_registry_repository.cafrisales.repository_id
+  description = "ID corto del repositorio"
 }
