@@ -17,10 +17,11 @@ describe('PromocionesController', () => {
   };
 
   const mockPrecios = { obtenerPreciosDeProducto: jest.fn() };
+  const mockClientes = { findByUsuarioPrincipalId: jest.fn(), findOne: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new PromocionesController(mockSvc as any, mockPrecios as any);
+    controller = new PromocionesController(mockSvc as any, mockPrecios as any, mockClientes as any);
   });
 
   it('should list campanias', async () => {

@@ -271,7 +271,7 @@ export default function PedidosPage() {
                         </button>
                         <button
                           onClick={() => handleCambiarEstado(pedido.id, 'APROBADO')}
-                          disabled={pedido.estado_actual === 'APROBADO' || pedido.estado_actual === 'ANULADO'}
+                          disabled={pedido.estado_actual === 'APROBADO' || pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION'}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Aprobar pedido"
                         >
@@ -280,7 +280,7 @@ export default function PedidosPage() {
                         </button>
                         <button
                           onClick={() => handleCambiarEstado(pedido.id, 'ANULADO')}
-                          disabled={pedido.estado_actual === 'ANULADO'}
+                          disabled={pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION'}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Anular pedido"
                         >

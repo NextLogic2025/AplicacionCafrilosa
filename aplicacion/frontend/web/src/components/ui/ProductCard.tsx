@@ -7,40 +7,41 @@ type ProductCardProps = {
   producto: Producto
   onAddToCart: (item: { id: string; name: string; unitPrice: number; quantity: number }) => void
   fetchPromos?: boolean
+  onView?: (producto: Producto) => void
 }
 
-export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardProps) {
+export function ProductCard({ producto, onAddToCart, fetchPromos, onView }: ProductCardProps) {
   const [remoteOffer, setRemoteOffer] = useState<number | null>(null)
 
   useEffect(() => {
     if (!fetchPromos) return
     if (producto.precio_oferta || (Array.isArray(producto.promociones) && producto.promociones.length > 0)) return
     let mounted = true
-    ;(async () => {
-      try {
-        const campanias = await getAllCampanias().catch(() => [])
-        await Promise.all(
-          campanias.map(async (c) => {
-            if (!mounted) return
-            try {
-              const items = await getProductosByCampania(c.id)
-              const found = items.find((it: any) => (it.producto_id || it.id) === producto.id)
-              if (found && mounted) {
-                const precio = (found.precio_oferta_fijo ?? (found as any).precio_oferta ?? null) as any
-                if (typeof precio === 'string') {
-                  const parsed = Number(precio)
-                  if (!Number.isNaN(parsed)) setRemoteOffer(parsed)
-                } else if (typeof precio === 'number') setRemoteOffer(precio)
+      ; (async () => {
+        try {
+          const campanias = await getAllCampanias().catch(() => [])
+          await Promise.all(
+            campanias.map(async (c) => {
+              if (!mounted) return
+              try {
+                const items = await getProductosByCampania(c.id)
+                const found = items.find((it: any) => (it.producto_id || it.id) === producto.id)
+                if (found && mounted) {
+                  const precio = (found.precio_oferta_fijo ?? (found as any).precio_oferta ?? null) as any
+                  if (typeof precio === 'string') {
+                    const parsed = Number(precio)
+                    if (!Number.isNaN(parsed)) setRemoteOffer(parsed)
+                  } else if (typeof precio === 'number') setRemoteOffer(precio)
+                }
+              } catch (err) {
+                // ignore
               }
-            } catch (err) {
-              // ignore
-            }
-          })
-        )
-      } catch (err) {
-        // ignore
-      }
-    })()
+            })
+          )
+        } catch (err) {
+          // ignore
+        }
+      })()
     return () => {
       mounted = false
     }
@@ -52,7 +53,8 @@ export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardP
           <img
             src={producto.image}
             alt={producto.name}
-            className="h-full w-full object-cover transition hover:scale-105"
+            className={`h-full w-full object-cover transition hover:scale-105 ${onView ? 'cursor-pointer' : ''}`}
+            onClick={() => onView && onView(producto)}
           />
         ) : null}
 
@@ -164,11 +166,10 @@ export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardP
                 quantity: 1,
               })
             }
-            className={`rounded-lg p-2 transition ${
-              producto.inStock
+            className={`rounded-lg p-2 transition ${producto.inStock
                 ? 'bg-brand-red text-white hover:bg-brand-red700'
                 : 'cursor-not-allowed bg-gray-200 text-gray-400'
-            }`}
+              }`}
           >
             <ShoppingCart size={18} />
           </button>

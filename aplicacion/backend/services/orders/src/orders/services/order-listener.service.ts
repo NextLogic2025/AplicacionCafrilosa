@@ -31,7 +31,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
                 this.handleNotification(notification);
             });
 
-            this.logger.log('🚀 Escuchando eventos asíncronos de la base de datos (PostgreSQL Notify)');
+            this.logger.debug('🚀 Escuchando eventos asíncronos de la base de datos (PostgreSQL Notify)');
         } catch (error) {
             this.logger.error('Error al conectar el listener de eventos:', error);
             // Lógica de reconexión profesional
@@ -61,17 +61,17 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
 
     private onOrderCreated(id: string) {
         // Ejemplo: Notificar a microservicio de Inventario o enviar Correo
-        this.logger.log(`Lógica de post-creación para pedido: ${id}`);
+        this.logger.debug(`Lógica de post-creación para pedido: ${id}`);
     }
 
     private onOrderApproved(id: string) {
         // Ejemplo: Notificar a Bodega para que inicie el picking
-        this.logger.log(`Pedido aprobado, notificando a logística: ${id}`);
+        this.logger.debug(`Pedido aprobado, notificando a logística: ${id}`);
     }
 
     private onOrderDelivered(id: string) {
         // Ejemplo: Generar encuesta de satisfacción o cerrar facturación
-        this.logger.log(`Pedido entregado con éxito: ${id}`);
+        this.logger.debug(`Pedido entregado con éxito: ${id}`);
     }
 
     async onModuleDestroy() {

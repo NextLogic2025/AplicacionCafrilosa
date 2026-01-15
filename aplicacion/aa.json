@@ -50,7 +50,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"denis@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}",
+							"raw": "{\r\n  \"email\": \"luis@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -602,7 +602,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5NDc1MCwiZXhwIjoxNzY4MjM3OTUwfQ.4QASBBeUyujWbHfCHtZ9kGrwCHymksx_nW0SGop3IWY",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQ0NjkxNCwiZXhwIjoxNzY4NDkwMTE0fQ.e6Q-jNe20UL93xUC4MSn1OwYJR7fV-0w_HHLfS7T6as",
 										"type": "text"
 									},
 									{
@@ -1203,6 +1203,50 @@
 										"precios",
 										"lista",
 										"2",
+										"productos"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar Productos Del Cliente",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQ0NjkxNCwiZXhwIjoxNzY4NDkwMTE0fQ.e6Q-jNe20UL93xUC4MSn1OwYJR7fV-0w_HHLfS7T6as",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseURL}}/api/precios/cliente/productos?page=1&per_page=20",
+									"host": [
+										"{{baseURL}}"
+									],
+									"path": [
+										"api",
+										"precios",
+										"cliente",
 										"productos"
 									],
 									"query": [
@@ -2251,7 +2295,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMjhhYmJlYy0wMTU4LTRhYjYtODExNC04ZjYzYWQ5YTk5YTgiLCJlbWFpbCI6ImpqQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoidmVuZGVkb3IiLCJpYXQiOjE3NjgxODU1ODQsImV4cCI6MTc2ODIyODc4NH0.qK3SRa_O7MnXTZYNgQQAv5X5y1FvSQCIYB6VaxlPSMY",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyOTAxZjBhNS0wMjc0LTQxMjYtOGY4Zi0wZGI5M2U3ZWUwZGEiLCJlbWFpbCI6Imx1aXNAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJ2ZW5kZWRvciIsImlhdCI6MTc2ODQ0ODA2NiwiZXhwIjoxNzY4NDkxMjY2fQ.i_RF-50cOCbbycEk45pFuKz4EtXueKIwJdIQWhYUGpk",
 										"type": "text"
 									},
 									{
@@ -2290,7 +2334,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGY1Y2M3Ni03ZTVlLTRlZmEtOTg2My0zZDgzMmZmNjQ4NzgiLCJlbWFpbCI6ImxlbmluQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODQzNzY2NSwiZXhwIjoxNzY4NDgwODY1fQ.ea41b2_hUjPFKa2gV1ldVaJrcUpzGG3ndIn7BHrmXHo",
 										"type": "text"
 									},
 									{
@@ -2560,7 +2604,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGY1Y2M3Ni03ZTVlLTRlZmEtOTg2My0zZDgzMmZmNjQ4NzgiLCJlbWFpbCI6ImxlbmluQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODQzNzY2NSwiZXhwIjoxNzY4NDgwODY1fQ.ea41b2_hUjPFKa2gV1ldVaJrcUpzGG3ndIn7BHrmXHo",
 										"type": "text"
 									},
 									{
@@ -2571,7 +2615,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "\r\n{\r\n  \"producto_id\": \"b75a8338-f747-4536-9ed0-4fa88ae4adba\"\r\n}",
+									"raw": "\r\n{\r\n  \"producto_id\": \"0be28234-b274-4f59-b37a-116df5fdb747\"\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2603,7 +2647,7 @@
 								"header": [
 									{
 										"key": "Authorization",
-										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMmNmMDM4YS0wYWIyLTRiYzktYjhmYS0zMDNjODNkZDgxMjQiLCJlbWFpbCI6InN1cGVydmlzb3JAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJzdXBlcnZpc29yIiwiaWF0IjoxNzY3NzM3MTkxLCJleHAiOjE3Njc3ODAzOTF9.LjN75mJtxsybatMrdzVxCWcpXa4UitezAWoopKKkZbg",
+										"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGY1Y2M3Ni03ZTVlLTRlZmEtOTg2My0zZDgzMmZmNjQ4NzgiLCJlbWFpbCI6ImxlbmluQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODQzNzY2NSwiZXhwIjoxNzY4NDgwODY1fQ.ea41b2_hUjPFKa2gV1ldVaJrcUpzGG3ndIn7BHrmXHo",
 										"type": "text"
 									},
 									{
@@ -3043,7 +3087,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"juana@cafrilosa.com\",\r\n  \"password\": \"mipass123\"\r\n}"
+							"raw": "{\r\n  \"email\": \"pablo@cafrilosa.com\",\r\n  \"password\": \"123456\"\r\n}"
 						},
 						"url": {
 							"raw": "{{auth}}/auth/login",
@@ -3131,7 +3175,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI3NTMzNywiZXhwIjoxNzY4MzE4NTM3fQ.QAwdqGkuSrWK73_PONyRK--Yhca-WT9dDc-2bfKlEC8",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQzMjU4NSwiZXhwIjoxNzY4NDc1Nzg1fQ.6uWVsnao3R-A0P-aF2qslfWSSvA1pmXBkv_2XhjOxck",
 								"type": "text"
 							},
 							{
@@ -3231,6 +3275,45 @@
 						"header": []
 					},
 					"response": []
+				},
+				{
+					"name": "Listar Productos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjZDJkY2QyNi04YTFlLTQ3ZjktYjFiZi0wMWEwZTQ5ZTdkYzIiLCJlbWFpbCI6ImxlYW5kcm9AY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY4MzU2MDI2LCJleHAiOjE3NjgzOTkyMjZ9.5RPG0Tt8YqfE5L8RGhbQl3jJ17FOzPr0NVrw6bZrgnU",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/api/products?page=1&per_page=20",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								}
+							]
+						}
+					},
+					"response": []
 				}
 			],
 			"event": [
@@ -3268,7 +3351,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI5MjE4MiwiZXhwIjoxNzY4MzM1MzgyfQ.Wv9nQXaFHn6drk76wJLr44oug_VVavwlwYpM4i8mpv8",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQ0NjkxNCwiZXhwIjoxNzY4NDkwMTE0fQ.e6Q-jNe20UL93xUC4MSn1OwYJR7fV-0w_HHLfS7T6as",
 								"type": "text"
 							},
 							{
@@ -3279,7 +3362,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"producto_id\": \"a7add99b-ed16-4d6e-ba2e-b785239470eb\",\r\n  \"cantidad\": 2,\r\n  \"precio_unitario_ref\": 20\r\n}",
+							"raw": "{\r\n  \"producto_id\": \"0be28234-b274-4f59-b37a-116df5fdb747\",\r\n  \"cantidad\": 2\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -3287,14 +3370,54 @@
 							}
 						},
 						"url": {
-							"raw": "{{orders}}/orders/cart/d6e5c313-5083-4557-bc33-1958252ecb9d",
+							"raw": "{{orders}}/orders/cart/me",
 							"host": [
 								"{{orders}}"
 							],
 							"path": [
 								"orders",
 								"cart",
-								"d6e5c313-5083-4557-bc33-1958252ecb9d"
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Carrito Vendedor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyOTAxZjBhNS0wMjc0LTQxMjYtOGY4Zi0wZGI5M2U3ZWUwZGEiLCJlbWFpbCI6Imx1aXNAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJ2ZW5kZWRvciIsImlhdCI6MTc2ODQ0ODA2NiwiZXhwIjoxNzY4NDkxMjY2fQ.i_RF-50cOCbbycEk45pFuKz4EtXueKIwJdIQWhYUGpk",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"producto_id\": \"0be28234-b274-4f59-b37a-116df5fdb747\",\r\n  \"cantidad\": 2\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{orders}}/orders/cart/client/2a4fdb11-227d-4aea-b55c-467c316977d3",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"cart",
+								"client",
+								"2a4fdb11-227d-4aea-b55c-467c316977d3"
 							]
 						}
 					},
@@ -3310,7 +3433,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODI3NTMzNywiZXhwIjoxNzY4MzE4NTM3fQ.QAwdqGkuSrWK73_PONyRK--Yhca-WT9dDc-2bfKlEC8",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjZDJkY2QyNi04YTFlLTQ3ZjktYjFiZi0wMWEwZTQ5ZTdkYzIiLCJlbWFpbCI6ImxlYW5kcm9AY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJjbGllbnRlIiwiaWF0IjoxNzY4MzcyNDgyLCJleHAiOjE3Njg0MTU2ODJ9.YlmVj_8-FUxe1Po18H32xw2nDU2bet9VohE8yo5MQvA",
 								"type": "text"
 							},
 							{
@@ -3329,14 +3452,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{orders}}/orders/cart/d6e5c313-5083-4557-bc33-1958252ecb9d",
+							"raw": "{{orders}}/orders/cart/cd2dcd26-8a1e-47f9-b1bf-01a0e49e7dc2",
 							"host": [
 								"{{orders}}"
 							],
 							"path": [
 								"orders",
 								"cart",
-								"d6e5c313-5083-4557-bc33-1958252ecb9d"
+								"cd2dcd26-8a1e-47f9-b1bf-01a0e49e7dc2"
 							]
 						}
 					},
@@ -3349,7 +3472,7 @@
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNmU1YzMxMy01MDgzLTQ1NTctYmMzMy0xOTU4MjUyZWNiOWQiLCJlbWFpbCI6Imp1YW5hQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODE5NDc1MCwiZXhwIjoxNzY4MjM3OTUwfQ.4QASBBeUyujWbHfCHtZ9kGrwCHymksx_nW0SGop3IWY",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQ0NjkxNCwiZXhwIjoxNzY4NDkwMTE0fQ.e6Q-jNe20UL93xUC4MSn1OwYJR7fV-0w_HHLfS7T6as",
 								"type": "text"
 							},
 							{
@@ -3360,8 +3483,73 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"cliente_id\": \"33333333-3333-4333-8333-333333333333\",\r\n  \"vendedor_id\": \"11111111-1111-4111-8111-111111111111\",\r\n  \"sucursal_id\": null,\r\n  \"items\": [\r\n    {\r\n      \"producto_id\": \"22222222-2222-4222-8222-222222222222\",\r\n      \"cantidad\": 2,\r\n      \"precio_unitario\": 12.5,\r\n      \"precio_original\": 15.0,\r\n      \"codigo_sku\": \"SKU-001\",\r\n      \"nombre_producto\": \"Producto A\",\r\n      \"unidad_medida\": \"UN\",\r\n      \"motivo_descuento\": \"Promoción X\",\r\n      \"campania_aplicada_id\": 123\r\n    }\r\n  ],\r\n  \"observaciones_entrega\": \"Dejar en portería\",\r\n  \"condicion_pago\": \"CONTADO\",\r\n  \"fecha_entrega_solicitada\": \"2026-01-20\",\r\n  \"origen_pedido\": \"APP_MOVIL\",\r\n  \"ubicacion\": { \"lat\": -0.12345, \"lng\": -78.12345 },\r\n  \"descuento_total\": 5.0\r\n}"
+							"raw": "{\r\n    \"condicion_pago\": \"CONTADO\"\r\n}"
 						},
+						"url": {
+							"raw": "{{orders}}/orders/from-cart/me",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"from-cart",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Pedido Vendedor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyOTAxZjBhNS0wMjc0LTQxMjYtOGY4Zi0wZGI5M2U3ZWUwZGEiLCJlbWFpbCI6Imx1aXNAY2Fmcmlsb3NhLmNvbSIsInJvbGUiOiJ2ZW5kZWRvciIsImlhdCI6MTc2ODQ0ODA2NiwiZXhwIjoxNzY4NDkxMjY2fQ.i_RF-50cOCbbycEk45pFuKz4EtXueKIwJdIQWhYUGpk",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"condicion_pago\": \"CONTADO\"\r\n}"
+						},
+						"url": {
+							"raw": "{{orders}}/orders/from-cart/client/2a4fdb11-227d-4aea-b55c-467c316977d3",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"from-cart",
+								"client",
+								"2a4fdb11-227d-4aea-b55c-467c316977d3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Pedidos Supervisor",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOGY1Y2M3Ni03ZTVlLTRlZmEtOTg2My0zZDgzMmZmNjQ4NzgiLCJlbWFpbCI6ImxlbmluQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoic3VwZXJ2aXNvciIsImlhdCI6MTc2ODQ0NzM5NywiZXhwIjoxNzY4NDkwNTk3fQ.M4WSyfQX1b2KzRnGoDVn04l1-YmAWtk72huBLbhl-fc",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
 						"url": {
 							"raw": "{{orders}}/orders",
 							"host": [
@@ -3369,6 +3557,36 @@
 							],
 							"path": [
 								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Pedidos Cliente",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMTFhOTdiNy00NGExLTRiMjEtOWJlYi00MjY4ZWMwMzEzMTkiLCJlbWFpbCI6InBhYmxvQGNhZnJpbG9zYS5jb20iLCJyb2xlIjoiY2xpZW50ZSIsImlhdCI6MTc2ODQ0NjkxNCwiZXhwIjoxNzY4NDkwMTE0fQ.e6Q-jNe20UL93xUC4MSn1OwYJR7fV-0w_HHLfS7T6as",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{orders}}/orders/user/history",
+							"host": [
+								"{{orders}}"
+							],
+							"path": [
+								"orders",
+								"user",
+								"history"
 							]
 						}
 					},

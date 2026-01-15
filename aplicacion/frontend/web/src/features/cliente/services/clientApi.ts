@@ -123,19 +123,11 @@ export async function getPerfilCliente(): Promise<PerfilCliente | null> {
 
 export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: number; totalPages: number }> {
   const ctx = await getClienteContext()
-  console.log('[clientApi] getPedidos -> /orders/user/history')
-  let data = await httpOrders<any[]>('/orders/user/history').catch((err) => {
-    console.warn('[clientApi] /orders/user/history failed', err)
-    return null
-  })
+  let data = await httpOrders<any[]>('/orders/user/history').catch(() => null)
   const fallbackId = ctx?.clienteId ?? ctx?.usuarioId
   const callFallback = async () => {
     if (!fallbackId) return null
-    console.log('[clientApi] getPedidos fallback -> /orders/client/' + fallbackId)
-    return await httpOrders<any[]>(`/orders/client/${fallbackId}`).catch((err) => {
-      console.warn('[clientApi] /orders/client fallback failed', err)
-      return null
-    })
+    return await httpOrders<any[]>(`/orders/client/${fallbackId}`).catch(() => null)
   }
 
   if (!Array.isArray(data)) {
@@ -143,17 +135,13 @@ export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: num
   }
 
   if (Array.isArray(data) && data.length === 0 && fallbackId) {
-    console.log('[clientApi] getPedidos recibió 0 pedidos, intentando fallback explícito')
     const fallbackData = await callFallback()
     if (Array.isArray(fallbackData) && fallbackData.length > 0) data = fallbackData
   }
 
   if (!Array.isArray(data)) {
-    console.warn('[clientApi] getPedidos result no es array, devolveremos lista vacía')
     return { items: [], page, totalPages: 1 }
   }
-
-  console.log('[clientApi] getPedidos recibió', data.length, 'pedidos')
 
   const items = data.map(mapPedidoFromBackend)
   return { items, page: 1, totalPages: 1 }
@@ -161,10 +149,7 @@ export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: num
 
 export async function getPedidoDetalle(pedidoId: string): Promise<Pedido> {
   if (!pedidoId) throw new Error('Pedido inválido')
-  const detalle = await httpOrders<any>(`/orders/${pedidoId}`).catch((err) => {
-    console.warn('[clientApi] getPedidoDetalle failed', err)
-    return null
-  })
+  const detalle = await httpOrders<any>(`/orders/${pedidoId}`).catch(() => null)
   if (!detalle) throw new Error('No se pudo obtener el detalle del pedido')
   return mapPedidoFromBackend(detalle)
 }
@@ -175,41 +160,30 @@ export async function deletePedido(orderId: string): Promise<boolean> {
 
   // Prefer explicit cancel/status endpoints on orders service (see README)
   try {
-    console.log('[clientApi] deletePedido - request PATCH cancel', `/orders/${orderId}/cancel`)
     await httpOrders(`/orders/${orderId}/cancel`, {
       method: 'PATCH',
       body: { nuevoEstado: 'CANCELADO', comentario: 'Cancelado desde portal cliente' },
     })
-    console.log('[clientApi] deletePedido - cancel PATCH succeeded', orderId)
     return true
   } catch (e) {
-    console.warn('[clientApi] deletePedido - PATCH cancel failed, trying status endpoint', orderId)
     try {
-      console.log('[clientApi] deletePedido - request PATCH status', `/orders/${orderId}/status`)
       await httpOrders(`/orders/${orderId}/status`, {
         method: 'PATCH',
         body: { nuevoEstado: 'CANCELADO', comentario: 'Cancelado desde portal cliente' },
       })
-      console.log('[clientApi] deletePedido - status PATCH succeeded', orderId)
       return true
     } catch (ee) {
-      console.warn('[clientApi] deletePedido - status PATCH failed, attempting legacy fallbacks', orderId)
       try {
-        console.log('[clientApi] deletePedido - request DELETE', `/orders/${orderId}`)
         await httpOrders(`/orders/${orderId}`, { method: 'DELETE' })
-        console.log('[clientApi] deletePedido - deleted', orderId)
         return true
       } catch {
         try {
-          console.log('[clientApi] deletePedido - request POST cancel', `/orders/${orderId}/cancel`)
           await httpOrders(`/orders/${orderId}/cancel`, { method: 'POST' })
-          console.log('[clientApi] deletePedido - cancel POST succeeded', orderId)
           return true
         } catch (eee) {
           try {
-            if (eee instanceof Error) console.warn('[clientApi] deletePedido - error', eee.message)
             if (eee && typeof (eee as any).payload !== 'undefined') console.warn('[clientApi] deletePedido - payload', (eee as any).payload)
-          } catch (_) {}
+          } catch (_) { }
           return false
         }
       }
@@ -226,61 +200,52 @@ export async function getEntregas(): Promise<Entrega[]> {
 }
 
 export async function getProductos(options?: { page?: number; per_page?: number; category?: string; categoryId?: number }): Promise<Producto[]> {
-  // Solo usar el endpoint de catálogo
-  if (options?.categoryId != null) {
-    const resp = await httpCatalogo<{ metadata?: any; items?: Producto[] }>(`/api/products/categoria/${options.categoryId}?page=${options.page ?? 1}&per_page=${options.per_page ?? 20}`).catch(() => null)
-    if (resp && Array.isArray(resp.items)) {
-      const mapped = resp.items.map((p: any) => {
-        const precioOriginal = typeof p.precio_original === 'number' ? p.precio_original : null
-        const precioOferta = typeof p.precio_oferta === 'number' ? p.precio_oferta : null
-        const fallbackOriginal = Array.isArray(p.precios) && p.precios.length > 0 ? (typeof p.precios[0].precio === 'number' ? p.precios[0].precio : Number(p.precios[0].precio ?? 0)) : null
-        const effectiveOriginal = precioOriginal != null ? precioOriginal : fallbackOriginal
-        const effectivePrice = precioOferta != null ? precioOferta : (effectiveOriginal != null ? effectiveOriginal : 0)
+  // Usar el endpoint correcto de precios para clientes
+  const page = options?.page ?? 1
+  const perPage = options?.per_page ?? 20
 
-        return ({
-          id: p.id,
-          name: (p.nombre ?? p.codigo_sku ?? '').toString(),
-          description: (p.descripcion ?? '') as string,
-          price: effectivePrice,
-          precio_original: effectiveOriginal,
-          precio_oferta: precioOferta,
-          ahorro: typeof p.ahorro === 'number' ? p.ahorro : (effectiveOriginal != null && precioOferta != null ? Math.round((effectiveOriginal - precioOferta) * 100) / 100 : null),
-          promociones: Array.isArray(p.promociones) ? p.promociones : [],
-          campania_aplicada_id: p.campania_aplicada_id ?? null,
-          image: p.imagen_url ?? null,
-          category: (p.categoria && (p.categoria.nombre ?? p.categoria)) ?? '',
-          inStock: Boolean(p.activo),
-          unidad_medida: p.unidad_medida ?? undefined,
-          peso_unitario_kg: p.peso_unitario_kg ?? undefined,
-        }) as Producto
-      })
-      return mapped
-    }
+  let url = `/api/precios/cliente/productos?page=${page}&per_page=${perPage}`
+
+  // Si hay categoryId, agregarlo como parámetro
+  if (options?.categoryId != null) {
+    url += `&categoria_id=${options.categoryId}`
+  } else if (options?.category && options.category !== 'all') {
+    url += `&category=${encodeURIComponent(options.category)}`
   }
 
-  // Fallback: catalog service returns { metadata, items }
-  const catalogResp = await httpCatalogo<{ metadata?: any; items?: Producto[] }>(`/api/products?page=${options?.page ?? 1}&per_page=${options?.per_page ?? 20}${options?.category ? `&category=${encodeURIComponent(options.category)}` : ''}`).catch(() => null)
+  const catalogResp = await httpCatalogo<{ metadata?: any; items?: any[] }>(url).catch(() => null)
+
   if (catalogResp && Array.isArray(catalogResp.items)) {
     const mapped = catalogResp.items.map((p: any) => {
-      const precioOriginal = typeof p.precio_original === 'number' ? p.precio_original : null
-      const precioOferta = typeof p.precio_oferta === 'number' ? p.precio_oferta : null
-      const fallbackOriginal = Array.isArray(p.precios) && p.precios.length > 0 ? (typeof p.precios[0].precio === 'number' ? p.precios[0].precio : Number(p.precios[0].precio ?? 0)) : null
-      const effectiveOriginal = precioOriginal != null ? precioOriginal : fallbackOriginal
-      const effectivePrice = precioOferta != null ? precioOferta : (effectiveOriginal != null ? effectiveOriginal : 0)
+      // El backend devuelve precio_lista y promociones
+      const precioLista = typeof p.precio_lista === 'number' ? p.precio_lista : 0
+
+      // Calcular precio de oferta desde promociones
+      let precioOferta: number | null = null
+      if (Array.isArray(p.promociones) && p.promociones.length > 0) {
+        // Tomar la primera promoción (o la mejor oferta)
+        const promo = p.promociones[0]
+        if (typeof promo.precio_oferta === 'number') {
+          precioOferta = promo.precio_oferta
+        }
+      }
+
+      const effectivePrice = precioOferta != null ? precioOferta : precioLista
+      const ahorro = precioOferta != null && precioLista > 0 ? Math.round((precioLista - precioOferta) * 100) / 100 : null
 
       return ({
         id: p.id,
         name: (p.nombre ?? p.codigo_sku ?? '').toString(),
         description: (p.descripcion ?? '') as string,
         price: effectivePrice,
-        precio_original: effectiveOriginal,
+        precio_original: precioLista,
         precio_oferta: precioOferta,
-        ahorro: typeof p.ahorro === 'number' ? p.ahorro : (effectiveOriginal != null && precioOferta != null ? Math.round((effectiveOriginal - precioOferta) * 100) / 100 : null),
+        ahorro: ahorro,
         promociones: Array.isArray(p.promociones) ? p.promociones : [],
-        campania_aplicada_id: p.campania_aplicada_id ?? null,
+        campania_aplicada_id: p.promociones?.[0]?.campana_id ?? null,
         image: p.imagen_url ?? null,
         category: (p.categoria && (p.categoria.nombre ?? p.categoria)) ?? '',
-        inStock: Boolean(p.activo),
+        inStock: Boolean(p.activo ?? true),
         unidad_medida: p.unidad_medida ?? undefined,
         peso_unitario_kg: p.peso_unitario_kg ?? undefined,
       }) as Producto
@@ -310,23 +275,23 @@ export async function getSucursalesCliente(): Promise<SucursalCliente[]> {
   const data = await httpCatalogo<any[]>(`/clientes/${encodeURIComponent(clienteId)}/sucursales`).catch(() => [])
   if (!Array.isArray(data)) return []
   return data
-    .map(sucursal => {
+    .map((sucursal): SucursalCliente | null => {
       const id = sucursal?.id ?? sucursal?.sucursal_id
       if (!id) return null
       return {
         id: String(id),
         nombre: String(
           sucursal?.nombre_sucursal ??
-            sucursal?.nombre ??
-            sucursal?.alias ??
-            (sucursal?.contacto_nombre ? `Sucursal ${sucursal.contacto_nombre}` : 'Sucursal'),
+          sucursal?.nombre ??
+          sucursal?.alias ??
+          (sucursal?.contacto_nombre ? `Sucursal ${sucursal.contacto_nombre}` : 'Sucursal'),
         ),
         direccion: sucursal?.direccion_entrega ?? sucursal?.direccion ?? sucursal?.direccion_exacta ?? null,
         ciudad: sucursal?.municipio ?? sucursal?.ciudad ?? null,
         estado: sucursal?.departamento ?? sucursal?.estado ?? null,
-      } satisfies SucursalCliente
+      }
     })
-    .filter((s): s is SucursalCliente => Boolean(s))
+    .filter((s): s is SucursalCliente => s !== null)
 }
 
 export async function createTicket(_: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {

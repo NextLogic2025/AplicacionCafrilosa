@@ -1,34 +1,41 @@
-import { useState } from 'react'
-import { Eye, ClipboardCheck } from 'lucide-react'
 import { SectionHeader } from 'components/ui/SectionHeader'
+import { FilterGroup } from 'components/ui/FilterButton'
 import { EmptyContent } from 'components/ui/EmptyContent'
-import { Badge } from 'components/ui/Badge'
+import { ClipboardList, AlertCircle } from 'lucide-react'
+import React, { useState } from 'react'
 import { PageHero } from 'components/ui/PageHero'
 
-export default function PedidosPage() {
-  const [pedidos] = useState([])
+export default function PedidosPendientesPage() {
+  const [filtro, setFiltro] = useState<'all' | 'cliente' | 'vendedor'>('all')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHero
-        title="Pedidos en Bodega"
-        subtitle="Consulta y prepara los pedidos aprobados para despacho"
+        title="Pedidos Pendientes"
+        subtitle="Visualiza los pedidos en espera de validación y aprobación"
         chips={[
-          'Estado de preparación',
-          'Picking y packing',
-          'Control de calidad',
+          'Pendientes de validación',
+          'Sin stock disponible',
+          'Alertas críticas',
         ]}
       />
 
-      <SectionHeader
-        title="Pedidos a Preparar"
-        subtitle="Pedidos aprobados listos para preparación (FEFO)"
+      <SectionHeader title="Pedidos Pendientes" subtitle="Pedidos en espera de validación de stock" />
+
+      <FilterGroup
+        filters={[
+          { value: 'all', label: 'Todos' },
+          { value: 'cliente', label: 'Origen: Cliente' },
+          { value: 'vendedor', label: 'Origen: Vendedor' },
+        ]}
+        activeFilter={filtro}
+        onChange={(v) => setFiltro(v as any)}
       />
 
       <EmptyContent
-        icon={ClipboardCheck}
+        icon={ClipboardList}
         title="No hay pedidos pendientes"
-        subtitle="Los pedidos aprobados aparecerán aquí para su preparación"
+        subtitle="Cuando existan pedidos en espera, se listarán aquí para validación."
       />
     </div>
   )

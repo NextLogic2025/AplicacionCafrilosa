@@ -1,4 +1,3 @@
-
 import { httpAuth, httpCatalogo } from '../../../services/api/http'
 import type { Cliente } from '../../supervisor/services/clientesApi'
 import type {
@@ -11,6 +10,8 @@ import type {
   Conversacion,
   Ticket,
 } from '../../cliente/types'
+
+export type { Producto }
 
 // --- Adaptar endpoints a los de vendedor ---
 

@@ -27,8 +27,8 @@ export default function PaginaProductos() {
     const [filtros, setFiltros] = useState<FiltrosProductos>({
         category: 'all',
         minPrice: 0,
-        maxPrice: 10000,
-        inStock: true,
+        maxPrice: 100000,
+        inStock: false,
     })
     const [mostrarFiltros, setMostrarFiltros] = useState(false)
     const [categoryId, setCategoryId] = useState('')
@@ -69,11 +69,12 @@ export default function PaginaProductos() {
     const productosFiltrados = useMemo(() => {
         return productos.filter(producto => {
             const coincideBusqueda =
-                producto.name.toLowerCase().includes(busqueda.toLowerCase()) ||
-                producto.description.toLowerCase().includes(busqueda.toLowerCase())
+                producto.name?.toLowerCase().includes(busqueda.toLowerCase()) ||
+                (producto.description || '').toLowerCase().includes(busqueda.toLowerCase())
             const coincideCategoria = filtros.category === 'all' || producto.category === filtros.category
             const coincidePrecio = producto.price >= filtros.minPrice && producto.price <= filtros.maxPrice
             const coincideStock = !filtros.inStock || producto.inStock
+
             return coincideBusqueda && coincideCategoria && coincidePrecio && coincideStock
         })
     }, [busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos])
