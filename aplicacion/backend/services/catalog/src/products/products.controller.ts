@@ -21,7 +21,7 @@ export class ProductsController {
   ) {}
 
   @Get()
-  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor')
   async findAll(
     @Query('page') page: string, 
     @Query('per_page') perPage: string, 
@@ -47,7 +47,7 @@ export class ProductsController {
   }
 
   @Get('categoria/:categoriaId')
-  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor')
   async productosPorCategoria(
     @Param('categoriaId') categoriaId: string,
     @Query('page') page: string,
@@ -67,7 +67,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor', 'cliente')
+  @Roles('admin', 'supervisor', 'bodeguero', 'vendedor')
   async findOne(@Param('id') id: string, @Req() req: any) {
     const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req);
     return this.svc.findOne(id, { roles, clienteListaId, clienteId });

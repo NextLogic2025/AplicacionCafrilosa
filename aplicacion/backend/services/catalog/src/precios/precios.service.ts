@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
 import { Product } from '../products/entities/product.entity';
 import { Category } from '../categories/entities/category.entity';
 import { ProductoPromocion } from '../promociones/entities/producto-promocion.entity';
+import { PromocionesService } from '../promociones/promociones.service';
 
 import { PrecioItem } from './entities/precio.entity';
 import { ListaPrecio } from './entities/lista-precio.entity';
@@ -26,6 +27,8 @@ export class PreciosService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(ProductoPromocion) // Inyectar directamente
     private readonly promoRepo: Repository<ProductoPromocion>,
+    @Inject(forwardRef(() => PromocionesService))
+    private readonly promocionesService: PromocionesService,
   ) {}
 
   // --- GESTIÓN DE PRECIOS INDIVIDUALES ---
@@ -126,7 +129,8 @@ export class PreciosService {
 
     const [categorias, promos] = await Promise.all([
       categoryIds.length ? this.categoryRepo.findBy({ id: In(categoryIds) }) : [] as Category[],
-      this.promoRepo.find({ where: { producto_id: In(productIds) } }) as Promise<ProductoPromocion[]>
+      // Usar PromocionesService para aplicar reglas de alcance y cargar campania
+      this.promocionesService.findPromosForCliente(productIds, undefined, listaId) as Promise<ProductoPromocion[]>
     ]);
 
     // Mapas para acceso rápido O(1)
@@ -145,16 +149,42 @@ export class PreciosService {
       const cat = p.categoriaId ? catMap.get(p.categoriaId) : null;
       const productoPromos = promoMap.get(p.id) || [];
 
+      // calcular promociones aplicables usando el precio de lista como base
+      const precioListaNum = Number(row.precio);
+      const promocionesCalc = productoPromos.map(pr => {
+        const camp: any = (pr as any).campania || null;
+        let precioOferta: number | null = null;
+        if (precioListaNum != null) {
+          if (pr.precio_oferta_fijo != null) precioOferta = Number(pr.precio_oferta_fijo);
+          else if (camp) {
+            const tipo = (camp.tipo_descuento || '').toString().toUpperCase();
+            const valor = Number(camp.valor_descuento || 0);
+            if (tipo === 'PORCENTAJE') precioOferta = +(precioListaNum * (1 - valor / 100));
+            else if (tipo === 'MONTO_FIJO') precioOferta = +(precioListaNum - valor);
+          }
+          if (precioOferta != null) {
+            if (precioOferta < 0) precioOferta = 0;
+            precioOferta = Math.round(precioOferta * 100) / 100;
+          }
+        }
+
+        return {
+          campana_id: pr.campania_id,
+          campana_nombre: camp?.nombre ?? null,
+          precio_oferta: precioOferta,
+          tipo_descuento: camp?.tipo_descuento ?? null,
+          valor_descuento: camp?.valor_descuento ?? null,
+        };
+      });
+
       return {
         id: p.id,
         codigo_sku: p.codigoSku,
         nombre: p.nombre,
         categoria: cat ? { id: cat.id, nombre: cat.nombre } : null,
         unidad_medida: p.unidadMedida,
-        precio_lista: Number(row.precio), // El precio viene de la tabla intermedia
-        promociones: productoPromos
-            .filter(pr => pr.precio_oferta_fijo != null)
-            .map(pr => ({ campana_id: pr.campania_id, precio_oferta: Number(pr.precio_oferta_fijo) }))
+        precio_lista: precioListaNum, // El precio viene de la tabla intermedia
+        promociones: promocionesCalc.filter(pr => pr.precio_oferta != null),
       };
     });
 

@@ -17,8 +17,6 @@ import { SearchBar } from '../../../../components/ui/SearchBar'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { OrderService, Order, OrderStatus, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../../../services/api/OrderService'
 import { ClientService, Client } from '../../../../services/api/ClientService'
-import { getToken } from '../../../../storage/authStorage'
-import { jwtDecode } from 'jwt-decode'
 import { SellerStackParamList } from '../../../../navigation/SellerNavigator'
 
 /**
@@ -29,7 +27,6 @@ import { SellerStackParamList } from '../../../../navigation/SellerNavigator'
 export function SellerOrderHistoryScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<SellerStackParamList>>()
 
-    const [userId, setUserId] = useState<string>('')
     const [loading, setLoading] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
     const [orders, setOrders] = useState<Order[]>([])
@@ -41,27 +38,10 @@ export function SellerOrderHistoryScreen() {
     const [showClientModal, setShowClientModal] = useState(false)
     const [clients, setClients] = useState<Client[]>([])
 
-    useEffect(() => {
-        const getUserId = async () => {
-            try {
-                const token = await getToken()
-                if (token) {
-                    const decoded: any = jwtDecode(token)
-                    setUserId(decoded.userId || decoded.sub || '')
-                }
-            } catch (error) {
-                console.error('Error decoding token:', error)
-            }
-        }
-        getUserId()
-    }, [])
-
     useFocusEffect(
         useCallback(() => {
-            if (userId) {
-                loadOrders()
-            }
-        }, [userId])
+            loadOrders()
+        }, [])
     )
 
     useEffect(() => {
@@ -78,14 +58,11 @@ export function SellerOrderHistoryScreen() {
     }
 
     const loadOrders = async () => {
-        if (!userId) return
-
         setLoading(true)
         try {
-            const data = await OrderService.getMyOrders(userId, {
-                cliente_id: selectedClient?.id,
-                estado_actual: selectedStatus !== 'ALL' ? selectedStatus : undefined
-            })
+            // Use getOrderHistory() which uses JWT token automatically
+            // Backend resolves vendedor_id from token
+            const data = await OrderService.getOrderHistory()
             setOrders(data)
             setFilteredOrders(data)
         } catch (error) {
@@ -183,7 +160,7 @@ export function SellerOrderHistoryScreen() {
                 <View style={styles.orderFooter}>
                     <View style={styles.totalContainer}>
                         <Text style={styles.totalLabel}>Total</Text>
-                        <Text style={styles.totalValue}>${item.total_final.toFixed(2)}</Text>
+                        <Text style={styles.totalValue}>${Number(item.total_final || 0).toFixed(2)}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
                 </View>

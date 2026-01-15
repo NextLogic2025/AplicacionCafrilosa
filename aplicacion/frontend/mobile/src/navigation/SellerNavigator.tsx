@@ -18,7 +18,7 @@ import { SellerProductsScreen } from '../features/vendedor/screens/ModuloProduct
 
 // ModuloCarrito
 import { SellerCartScreen } from '../features/vendedor/screens/ModuloCarrito/SellerCartScreen'
-import { SellerCheckoutScreen } from '../features/vendedor/screens/ModuloCarrito/SellerCheckoutScreen'
+import SellerCheckoutScreen from '../features/vendedor/screens/ModuloCarrito/SellerCheckoutScreen'
 
 // ModuloPedidos
 import { SellerOrderScreen } from '../features/vendedor/screens/ModuloPedidos/SellerOrderScreen'

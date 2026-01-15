@@ -78,6 +78,7 @@ const CartContext = createContext<CartContextValue | undefined>(undefined)
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userId, setUserId] = useState<string | null>(null)
+    const [userRole, setUserRole] = useState<string | null>(null)
     const [cart, setCart] = useState<Cart>({
         items: [],
         total_estimado: 0,
@@ -90,13 +91,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentBranch, setCurrentBranch] = useState<ClientBranch | null>(null)
     const [loading, setLoading] = useState(false)
 
-    // Load User ID on Mount
+    // Load User ID and Role on Mount
     useEffect(() => {
         const initCart = async () => {
             try {
                 const user = await UserService.getProfile()
                 if (user?.id) {
                     setUserId(prev => prev || user.id) // Only set if not already set (e.g. by setClient)
+                    setUserRole(user.role)
                 }
             } catch (error) {
                 console.warn('Error loading user profile for cart', error)
@@ -117,7 +119,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const loadCart = async (uid: string) => {
         setLoading(true)
         try {
-            const target = currentClient
+            // CRITICAL: Only vendors can use 'client' endpoint
+            // If user is a client (not vendor), always use 'me' endpoint
+            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
+            const target = (currentClient && isVendor)
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
 
@@ -148,25 +153,35 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
 
         const items: CartItem[] = []
+
+        // STRATEGY: Enrich cart items with product details
+        // CLIENTES: Use getClientProducts (filtered by client's price list)
+        // VENDEDORES: Use getProductsPaginated (general catalog)
+        let productsMap = new Map<string, any>()
+        try {
+            if (userRole?.toLowerCase() === 'cliente') {
+                // Client-specific endpoint with their price list
+                const productsResponse = await CatalogService.getClientProducts(1, 1000)
+                productsResponse.items.forEach(p => productsMap.set(p.id, p))
+            } else {
+                // General catalog for vendedores/otros roles
+                const productsResponse = await CatalogService.getProductsPaginated(1, 1000)
+                productsResponse.items.forEach(p => productsMap.set(p.id, p))
+            }
+        } catch (err) {
+            console.warn('Could not fetch products for cart enrichment', err)
+        }
+
         for (const item of serverCart.items) {
             try {
-                // Enrich with Catalog Data for display
-                let productDetails = null
-                try {
-                    productDetails = await CatalogService.getProductById(item.producto_id)
-                } catch (err) {
-                    console.warn(`Failed to fetch product details for ${item.producto_id}`, err)
-                }
+                // Get product details from the map
+                const productDetails = productsMap.get(item.producto_id)
 
                 // --- SNAPSHOT STRATEGY ---
-                // Usar precios del snapshot del carrito o fallback a valores seguros
-                const precioLista = Number(item.precio_original_snapshot || 0) > 0
-                    ? Number(item.precio_original_snapshot)
-                    : Number(productDetails?.precio_original || 0)
+                // Usar precios del snapshot del carrito (backend ya incluye toda la info necesaria)
+                const precioLista = Number(item.precio_original_snapshot || 0)
 
-                const precioFinal = Number(item.precio_unitario_ref || 0) > 0
-                    ? Number(item.precio_unitario_ref)
-                    : Number(productDetails?.precio_oferta || productDetails?.precio_original || 0)
+                const precioFinal = Number(item.precio_unitario_ref || 0)
 
                 // Calculate Promotion Status
                 const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id
@@ -185,7 +200,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     codigo_sku: productDetails?.codigo_sku || item.codigo_sku || 'N/A',
                     imagen_url: productDetails?.imagen_url || item.imagen_url,
                     cantidad,
-                    unidad_medida: productDetails?.unidad_medida || 'UN',
+                    unidad_medida: productDetails?.unidad_medida || item.unidad_medida || 'UN',
                     precio_lista: precioLista,
                     precio_final: precioFinal,
                     subtotal,
@@ -272,7 +287,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Restaurar el userId al usuario logueado (vendedor)
             UserService.getProfile().then(p => {
                 if (p?.id) setUserId(p.id)
-            }).catch(() => {})
+            }).catch(() => { })
         }
     }
 
@@ -308,7 +323,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 motivo_descuento: product.motivo_descuento
             }
 
-            const target = currentClient
+            // CRITICAL: Only vendors can use 'client' endpoint
+            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
+            const target = (currentClient && isVendor)
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
 
@@ -329,15 +346,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const removeFromCart = async (productId: string) => {
         if (!userId) return
 
-        // Optimistic
+        // Optimistic UI update
         setCart(prev => ({
             ...prev,
             items: prev.items.filter(i => i.producto_id !== productId)
         }))
 
         try {
-            const target = currentClient
-                ? { type: 'client' as const, clientId: currentClient.id }
+            // CRITICAL: Only vendors can use 'client' endpoint
+            // When vendor is working with client cart, userId is already set to the client's usuario_principal_id
+            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
+            const target = (currentClient && isVendor)
+                ? { type: 'client' as const, clientId: userId }  // Use userId (usuario_principal_id)
                 : { type: 'me' as const }
 
             await CartService.removeFromCart(target, productId)
@@ -364,8 +384,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 producto_id: productId,
                 cantidad: quantity
             }
-            // FIX: Use addToCart for update/upsert
-            const target = currentClient
+            // CRITICAL: Only vendors can use 'client' endpoint
+            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
+            const target = (currentClient && isVendor)
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
 
@@ -381,7 +402,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!userId) return
         setCart({ items: [], total_estimado: 0 })
         try {
-            const target = currentClient
+            // CRITICAL: Only vendors can use 'client' endpoint
+            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
+            const target = (currentClient && isVendor)
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
             await CartService.clearCart(target)

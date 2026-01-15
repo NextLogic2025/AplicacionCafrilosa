@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PreciosModule } from '../precios/precios.module';
@@ -13,7 +13,7 @@ import { PromocionClientePermitido } from './entities/promocion-cliente-permitid
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CampaniaPromocional, ProductoPromocion, PromocionClientePermitido]), PreciosModule, ClientesModule],
+  imports: [TypeOrmModule.forFeature([CampaniaPromocional, ProductoPromocion, PromocionClientePermitido]), forwardRef(() => PreciosModule), ClientesModule],
   providers: [PromocionesService],
   controllers: [PromocionesController],
   exports: [PromocionesService],

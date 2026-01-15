@@ -13,18 +13,9 @@ import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
 import { BRAND_COLORS } from '../../../../shared/types'
 
-type DeliveryOption = 'MATRIZ' | string // MATRIZ or Branch ID
+type DeliveryOption = 'MATRIZ' | string 
 
-/**
- * SellerCheckoutScreen - Pantalla de confirmación de pedido para vendedores
- *
- * Similar a ClientCheckoutScreen pero adaptado para el flujo del vendedor:
- * - Muestra información del cliente seleccionado
- * - Permite seleccionar lugar de entrega (matriz o sucursales del cliente)
- * - Permite seleccionar condición de pago según crédito del cliente
- * - Crea el pedido usando el endpoint de vendedor
- */
-export function SellerCheckoutScreen() {
+export default function SellerCheckoutScreen() {
     const navigation = useNavigation()
     const { cart, clearCart, currentClient } = useCart()
 

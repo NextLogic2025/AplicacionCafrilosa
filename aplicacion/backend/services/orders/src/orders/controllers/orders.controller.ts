@@ -138,7 +138,32 @@ export class OrdersController {
     @Roles('admin', 'vendedor', 'cliente')
     async findMyOrders(@Req() req: any) {
         const userId = req.user?.userId || req.user?.sub;
-        const role = req.user?.role;
+        const roleRaw = req.user?.role;
+        const role = Array.isArray(roleRaw) ? roleRaw[0] : roleRaw;
+
+        // If caller is a cliente, resolve the catalog client id from usuario_principal_id
+        if (String(role).toLowerCase() === 'cliente') {
+            try {
+                const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+                const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
+                const url = apiBase + '/internal/clients/by-user/' + userId;
+                const serviceToken = process.env.SERVICE_TOKEN;
+                const fetchFn = (globalThis as any).fetch;
+                if (typeof fetchFn === 'function') {
+                    const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
+                    if (resp && resp.ok) {
+                        const data = await resp.json();
+                        const clienteId = data?.id;
+                        if (clienteId) return this.ordersService.findAllByClient(clienteId);
+                    }
+                }
+            } catch (err) {
+                this.logger.warn('Could not resolve cliente id from Catalog', { err: err?.message || err });
+            }
+            // Fallback: return empty array if we couldn't resolve client
+            return [];
+        }
+
         return this.ordersService.findAllByUser(userId, role);
     }
 

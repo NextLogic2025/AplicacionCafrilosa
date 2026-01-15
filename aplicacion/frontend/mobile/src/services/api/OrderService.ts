@@ -327,6 +327,24 @@ export const OrderService = {
     },
 
     /**
+     * Cambiar estado de un pedido (supervisor, bodeguero, admin)
+     * Endpoint: PATCH /orders/:id/status
+     * Roles: admin, supervisor, bodeguero
+     */
+    changeOrderStatus: async (orderId: string, newStatus: OrderStatus): Promise<Order> => {
+        try {
+            const updatedOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: newStatus })
+            })
+            return updatedOrder
+        } catch (error) {
+            console.error('Error updating order:', error)
+            throw error
+        }
+    },
+
+    /**
      * Actualizar un pedido
      */
     updateOrder: async (orderId: string, data: Partial<Order>): Promise<Order> => {
@@ -338,21 +356,6 @@ export const OrderService = {
             return updatedOrder
         } catch (error) {
             console.error('Error updating order:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Cambiar estado de un pedido
-     */
-    changeOrderStatus: async (orderId: string, newStatus: OrderStatus, _motivo?: string): Promise<Order> => {
-        try {
-            // Por ahora usar PATCH /orders/:id
-            return OrderService.updateOrder(orderId, {
-                estado_actual: newStatus
-            })
-        } catch (error) {
-            console.error('Error changing order status:', error)
             throw error
         }
     },

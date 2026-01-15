@@ -10,12 +10,17 @@ import { OrderService, Order } from '../../../../services/api/OrderService'
 import { UserService } from '../../../../services/api/UserService'
 import { BRAND_COLORS } from '../../../../shared/types'
 
-// Filtros de estado para "Chips"
+// Filtros de estado para "Chips" - Todos los estados de la base de datos
 const STATUS_FILTERS = [
     { id: 'all', label: 'Todos' },
-    { id: 'PENDIENTE', label: 'Pendientes' },
-    { id: 'ENTREGADO', label: 'Entregados' },
-    { id: 'ANULADO', label: 'Cancelados' },
+    { id: 'PENDIENTE', label: 'Pendiente' },
+    { id: 'APROBADO', label: 'Aprobado' },
+    { id: 'EN_PREPARACION', label: 'En Preparación' },
+    { id: 'FACTURADO', label: 'Facturado' },
+    { id: 'EN_RUTA', label: 'En Ruta' },
+    { id: 'ENTREGADO', label: 'Entregado' },
+    { id: 'ANULADO', label: 'Anulado' },
+    { id: 'RECHAZADO', label: 'Rechazado' },
 ]
 
 import { useCart } from '../../../../context/CartContext'
@@ -31,25 +36,11 @@ export function ClientOrdersScreen() {
     const fetchOrders = async () => {
         setLoading(true)
         try {
-            let targetId: string | undefined
-
-            if (currentClient) {
-                targetId = currentClient.id
-            } else {
-                try {
-                    // Modo Cliente Personal (o Vendedor viendo sus propias ventas/compras)
-                    const user = await UserService.getProfile()
-                    targetId = user?.id
-                } catch (e) { console.warn(e) }
-            }
-
-            if (targetId) {
-                // Usamos siempre getClientOrders que consulta por cliente_id O vendedor_id
-                const data = await OrderService.getClientOrders(targetId)
-                setOrders(data)
-            } else {
-                setOrders([])
-            }
+            // UPDATED: Use getOrderHistory which automatically uses JWT token
+            // Backend resolves cliente_id from usuario_principal_id for clients
+            // No need to manually fetch userId
+            const data = await OrderService.getOrderHistory()
+            setOrders(data)
         } catch (error) {
             console.error('Error fetching orders:', error)
             setOrders([])
@@ -62,7 +53,7 @@ export function ClientOrdersScreen() {
         useCallback(() => {
             fetchOrders()
             return () => { }
-        }, [])
+        }, [currentClient]) // Add currentClient as dependency to refetch when switching
     )
 
     const handleCancelOrder = async (orderId: string) => {

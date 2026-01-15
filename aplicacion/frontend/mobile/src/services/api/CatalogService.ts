@@ -100,14 +100,14 @@ export interface AuditLog {
 
 export const CatalogService = {
     // --- Categorías ---
-    
+
     /** Obtiene todas las categorías de productos */
     getCategories: async (): Promise<Category[]> => {
         return apiRequest<Category[]>('/api/categories', {
             useIdInsteadOfNumber: false
         })
     },
-    
+
     /** Crea una nueva categoría */
     createCategory: async (data: Partial<Category>): Promise<Category> => {
         return apiRequest<Category>('/api/categories', {
@@ -115,7 +115,7 @@ export const CatalogService = {
             body: JSON.stringify(data)
         })
     },
-    
+
     /** Actualiza una categoría existente */
     updateCategory: async (id: number, data: Partial<Category>): Promise<Category> => {
         return apiRequest<Category>(`/api/categories/${id}`, {
@@ -123,7 +123,7 @@ export const CatalogService = {
             body: JSON.stringify(data)
         })
     },
-    
+
     /** Elimina una categoría por ID */
     deleteCategory: async (id: number): Promise<void> => {
         return apiRequest<void>(`/api/categories/${id}`, {
@@ -132,7 +132,7 @@ export const CatalogService = {
     },
 
     // --- Productos ---
-    
+
     /**
      * Obtiene todos los productos (para pantallas de supervisor)
      * Retorna página grande para filtrado del lado del cliente
@@ -176,6 +176,76 @@ export const CatalogService = {
             return await apiRequest<ProductsResponse>(`/api/products?${params.toString()}`)
         } catch (error) {
             console.error('Error fetching paginated products:', error)
+            return {
+                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
+                items: []
+            }
+        }
+    },
+
+    /**
+     * Obtiene productos con precios específicos del cliente autenticado
+     * Usa el token JWT del cliente para determinar automáticamente su lista de precios
+     * Este endpoint es específico para clientes - el backend resuelve la lista de precios desde el token
+     * 
+     * @param page - Número de página
+     * @param perPage - Items por página
+     * @param searchQuery - Búsqueda por nombre/SKU
+     */
+    getClientProducts: async (
+        page: number = 1,
+        perPage: number = 20,
+        searchQuery?: string
+    ): Promise<ProductsResponse> => {
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                per_page: perPage.toString()
+            })
+
+            if (searchQuery) {
+                params.append('q', searchQuery)
+            }
+
+            // Llama al endpoint de precios que usa el token JWT del cliente
+            const response: any = await apiRequest(`/api/precios/cliente/productos?${params.toString()}`)
+
+            // CRITICAL: Transformar respuesta del backend al formato que espera el frontend
+            // Backend devuelve: { precio_lista, promociones[] }
+            // Frontend espera: { precio_original, precio_oferta, ahorro, campania_aplicada_id }
+            const transformedItems = response.items.map((item: any) => {
+                const precioLista = Number(item.precio_lista || 0)
+                let precioOferta: number | undefined
+                let ahorro: number | undefined
+                let campaniaAplicadaId: number | undefined
+
+                // Si hay promociones, tomar la mejor (primera en el array)
+                if (item.promociones && Array.isArray(item.promociones) && item.promociones.length > 0) {
+                    const mejorPromo = item.promociones[0]
+                    precioOferta = Number(mejorPromo.precio_oferta || 0)
+                    ahorro = precioLista - precioOferta
+                    campaniaAplicadaId = mejorPromo.campana_id
+                }
+
+                return {
+                    ...item,
+                    // Mapear campos del backend al formato frontend
+                    codigo_sku: item.codigo_sku,
+                    precio_original: precioLista,
+                    precio_oferta: precioOferta,
+                    ahorro: ahorro,
+                    campania_aplicada_id: campaniaAplicadaId,
+                    // Mantener promociones para detalles
+                    promociones: item.promociones || []
+                }
+            })
+
+            return {
+                metadata: response.metadata,
+                items: transformedItems
+            }
+        } catch (error) {
+            console.error('Error fetching client products:', error)
             return {
                 metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
                 items: []
@@ -238,7 +308,62 @@ export const CatalogService = {
             return null
         }
     },
-    
+
+    /**
+     * Obtiene información detallada de un producto para CLIENTES
+     * 
+     * NOTA TÉCNICA: No existe un endpoint dedicado /api/precios/cliente/producto/:id
+     * Por lo tanto, usamos el endpoint de listado y buscamos el producto específico
+     * 
+     * Esta es una solución temporal hasta que el backend agregue un endpoint dedicado
+     */
+    getClientProductDetail: async (productId: string): Promise<Product | null> => {
+        try {
+            // Estrategia: Buscar el producto en el listado completo
+            // Usar per_page grande para asegurar que está en la primera página
+            const response: any = await apiRequest(`/api/precios/cliente/productos?per_page=1000`)
+
+            if (!response || !response.items || !Array.isArray(response.items)) {
+                console.error('Invalid response from client products endpoint')
+                return null
+            }
+
+            // Buscar el producto específico en la lista
+            const productInList = response.items.find((item: any) => item.id === productId)
+
+            if (!productInList) {
+                console.warn(`Product ${productId} not found in client products list`)
+                return null
+            }
+
+            // Aplicar la misma transformación que en getClientProducts
+            const precioLista = Number(productInList.precio_lista || 0)
+            let precioOferta: number | undefined
+            let ahorro: number | undefined
+            let campaniaAplicadaId: number | undefined
+
+            if (productInList.promociones && Array.isArray(productInList.promociones) && productInList.promociones.length > 0) {
+                const mejorPromo = productInList.promociones[0]
+                precioOferta = Number(mejorPromo.precio_oferta || 0)
+                ahorro = precioLista - precioOferta
+                campaniaAplicadaId = mejorPromo.campana_id
+            }
+
+            return {
+                ...productInList,
+                codigo_sku: productInList.codigo_sku,
+                precio_original: precioLista,
+                precio_oferta: precioOferta,
+                ahorro: ahorro,
+                campania_aplicada_id: campaniaAplicadaId,
+                promociones: productInList.promociones || []
+            }
+        } catch (error) {
+            console.error('Error fetching client product details:', error)
+            return null
+        }
+    },
+
     /** Crea un nuevo producto en el catálogo */
     createProduct: async (product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>('/api/products', {
@@ -246,7 +371,7 @@ export const CatalogService = {
             body: JSON.stringify(product)
         })
     },
-    
+
     /** Actualiza un producto existente */
     updateProduct: async (id: string, product: Partial<Product>): Promise<Product> => {
         return apiRequest<Product>(`/api/products/${id}`, {
@@ -254,7 +379,7 @@ export const CatalogService = {
             body: JSON.stringify(product)
         })
     },
-    
+
     /** Elimina un producto del catálogo */
     deleteProduct: async (id: string): Promise<void> => {
         return apiRequest<void>(`/api/products/${id}`, {
@@ -263,12 +388,12 @@ export const CatalogService = {
     },
 
     // --- Promociones ---
-    
+
     /** Obtiene todas las promociones activas */
     getPromotions: async (): Promise<Promotion[]> => {
         return apiRequest<Promotion[]>('/api/promotions')
     },
-    
+
     /** Crea una nueva promoción */
     createPromotion: async (promo: Partial<Promotion>): Promise<Promotion> => {
         return apiRequest<Promotion>('/api/promotions', {
@@ -278,12 +403,12 @@ export const CatalogService = {
     },
 
     // --- Zonas Comerciales ---
-    
+
     /** Obtiene todas las zonas comerciales */
     getZones: async (): Promise<CommercialZone[]> => {
         return apiRequest<CommercialZone[]>('/api/zones')
     },
-    
+
     /** Crea una nueva zona comercial */
     createZone: async (zone: Partial<CommercialZone>): Promise<CommercialZone> => {
         return apiRequest<CommercialZone>('/api/zones', {
@@ -293,7 +418,7 @@ export const CatalogService = {
     },
 
     // --- Auditoría ---
-    
+
     /** Obtiene los registros de auditoría del sistema */
     getAuditLogs: async (): Promise<AuditLog[]> => {
         return apiRequest<AuditLog[]>('/api/audit')
