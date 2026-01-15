@@ -35,6 +35,16 @@ export async function updateCategory(id: number, data: Partial<CreateCategoryDto
   })
 }
 
+export async function getDeletedCategories(): Promise<Category[]> {
+  return httpCatalogo<Category[]>('/categories/deleted')
+}
+
+export async function restoreCategory(id: number): Promise<void> {
+  await httpCatalogo<void>(`/categories/${id}/restore`, {
+    method: 'POST',
+  })
+}
+
 export async function deleteCategory(id: number): Promise<void> {
   await httpCatalogo<void>(`/categories/${id}`, {
     method: 'DELETE',

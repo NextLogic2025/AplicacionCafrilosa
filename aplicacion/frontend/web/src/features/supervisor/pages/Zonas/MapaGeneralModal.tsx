@@ -82,7 +82,7 @@ export function MapaGeneralModal({ zonas, isOpen, onClose }: MapaGeneralModalPro
                 }}
                 options={{
                   fullscreenControl: true,
-                  mapTypeControl: true,
+                  mapTypeControl: false,
                   streetViewControl: false,
                   clickableIcons: false,
                 }}

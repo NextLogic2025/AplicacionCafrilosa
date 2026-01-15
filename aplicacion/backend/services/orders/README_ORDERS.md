@@ -22,77 +22,119 @@ Base path: `/orders`
 
 ## Endpoints — Cart
 
-### GET /orders/cart/:userId
-- Roles: `admin`, `cliente`, `vendedor`.
-- Qué hace: devuelve (o crea) el carrito del `userId`. Valida precios/promos vía Catalog y, si detecta líneas con campañas inválidas, las elimina y devuelve `removed_items`.
-- Respuesta (ejemplo):
-```json
-{
-  "id": "...",
-  "usuario_id": "...",
-  "cliente_id": "...",      
-  "items": [
-    {
-      "id": "...",
-      "producto_id": "...",
-      "cantidad": 2,
-      "precio_unitario_ref": 125.5,
-      "precio_original_snapshot": 150.0,
-      "campania_aplicada_id": 123,
-      "motivo_descuento": "Oferta Verano"
-    }
-  ],
-  "total_estimado": 251.0,
-  "removed_items": [{ "producto_id": "...", "campania_aplicada_id": 123 }],
-  "warnings": [{ "issue": "catalog_batch_unavailable" }]
-}
-```
+### Cliente: Carrito propio
 
-### POST /orders/cart/:userId
+#### GET /orders/cart/me
 - Roles: `admin`, `cliente`, `vendedor`.
-- Qué hace: upsert (insert o update) de una línea del carrito. El servidor consulta Catalog (batch) para obtener precio/promo y sobrescribe snapshots.
+- Qué hace: devuelve (o crea) el carrito del usuario autenticado (`usuario_id = <JWT>`, `vendedor_id = null`).
+- Valida precios/promos vía Catalog y, si detecta líneas con campañas inválidas, las elimina y devuelve `removed_items`.
+
+#### POST /orders/cart/me
+- Roles: `admin`, `cliente`, `vendedor`.
+- Qué hace: upsert de una línea en el carrito propio. El servidor consulta Catalog para obtener precio/promo.
 - Body (`UpdateCartItemDto`):
   - `producto_id` (UUID) — obligatorio
   - `cantidad` (number, ≥ 0.1) — obligatorio
-  - `campania_aplicada_id` (int) — opcional (el servidor validará su vigencia)
+  - `campania_aplicada_id` (int) — opcional
   - `motivo_descuento` (string) — opcional
   - `referido_id` (UUID) — opcional
 
-Ejemplo:
-```json
-{
-  "producto_id": "a1b2c3d4-...",
-  "cantidad": 2
-}
-```
-
-Notas:
-- El servidor guarda `precio_unitario_ref` y `precio_original_snapshot` en la línea al consultar Catalog.
-- Si Catalog no está disponible, el servidor puede dejar la línea con warnings y usar valores previos si existen.
-
-### DELETE /orders/cart/:userId
+#### DELETE /orders/cart/me
 - Roles: `admin`, `cliente`, `vendedor`.
-- Vacía el carrito (borra items y resetea `total_estimado`).
+- Vacía el carrito propio.
 
-### DELETE /orders/cart/:userId/item/:productId
+#### DELETE /orders/cart/me/item/:productId
 - Roles: `admin`, `cliente`, `vendedor`.
-- Elimina una línea específica del carrito.
+- Elimina una línea específica del carrito propio.
+
+---
+
+### Vendedor: Carrito de cliente
+
+#### GET /orders/cart/client/:clienteId
+- Roles: `admin`, `vendedor`.
+- Qué hace: devuelve (o crea) el carrito del cliente para el vendedor (`usuario_id = <cliente_resuelto>`, `vendedor_id = <JWT>`, `cliente_id = :clienteId`).
+- El `:clienteId` es el UUID del cliente (el que ves en el listado de clientes del vendedor).
+
+#### POST /orders/cart/client/:clienteId
+- Roles: `admin`, `vendedor`.
+- Qué hace: upsert de una línea en el carrito del cliente. El servidor resuelve `usuario_principal_id` desde Catalog.
+- Body (`UpdateCartItemDto`): mismo que arriba.
+
+#### DELETE /orders/cart/client/:clienteId
+- Roles: `admin`, `vendedor`.
+- Vacía el carrito del cliente.
+
+#### DELETE /orders/cart/client/:clienteId/item/:productId
+- Roles: `admin`, `vendedor`.
+- Elimina una línea específica del carrito del cliente.
+
+---
+
+### Diferenciación cliente vs vendedor
+- **Cliente**: `GET/POST/DELETE /orders/cart/me` → carrito propio (`usuario_id = <JWT>`, `vendedor_id = null`).
+- **Vendedor**: `GET/POST/DELETE /orders/cart/client/:clienteId` → carrito separado del cliente (`usuario_id = <cliente_resuelto>`, `vendedor_id = <JWT>`).
+- Esto permite dos carritos independientes para el mismo cliente: uno propio (cliente) y uno del vendedor.
 
 ---
 
 ## Endpoints — Orders
 
-### POST /orders/from-cart/:userId
+### POST /orders/from-cart/me
 - Roles: `admin`, `cliente`, `vendedor`.
-- Qué hace: crea un pedido a partir del carrito asociado a `userId`.
-  - Si el actor es `vendedor`, el servidor usa el `userId` del token como `vendedor_id` (el vendedor puede crear pedidos para clientes seleccionados en la UI al haber fijado `cliente_id` en el carrito).
-  - Si el actor es `cliente`, el servidor resuelve el `cliente_id` y —si existe— el `vendedor_asignado_id` del cliente desde Catalog (`/internal/clients/:id`) y asigna `vendedor_id` al pedido.
+- Qué hace: crea un pedido a partir del carrito propio del usuario (`usuario_id = <JWT>`, `vendedor_id = null`).
+  - El servidor resuelve el `cliente_id` y —si existe— el `vendedor_asignado_id` del cliente desde Catalog (`/internal/clients/by-user/:userId`) y asigna `vendedor_id` al pedido.
   - El servidor recalcula precios y promociones antes de persistir; guarda snapshots en `detalles_pedido`.
   - El servidor resuelve automáticamente la ubicación del pedido:
     - Si se proporciona `sucursal_id`, usa la ubicación de la sucursal.
     - Si no, usa la ubicación del cliente.
   - Calcula correctamente `descuento_total` basado en los descuentos de cada línea (precio_original - precio_final) × cantidad.
 
+**Body (CreateFromCartDto):**
+```json
+{
+  "condicion_pago": "CONTADO",
+  "sucursal_id": "opcional-uuid-de-sucursal"
+}
+```
+
+**Parámetros:**
+- `condicion_pago` (string, **REQUERIDO**) — valores válidos: `CONTADO`, `CREDITO`, `TRANSFERENCIA`, `CHEQUE`
+- `sucursal_id` (UUID, opcional) — si se proporciona, el pedido va a esta sucursal; si no, va al cliente.
+
+**Ejemplo (cliente crea su pedido):**
+```bash
+POST /orders/from-cart/me
+Authorization: Bearer <jwt-cliente>
+Content-Type: application/json
+
+{
+  "condicion_pago": "CONTADO"
+}
+```
+
+---
+
+### POST /orders/from-cart/client/:clienteId
+- Roles: `admin`, `vendedor`.
+- Qué hace: crea un pedido a partir del carrito del cliente que el vendedor gestionó (`usuario_id = <cliente_resuelto>`, `vendedor_id = <JWT>`).
+  - El `:clienteId` debe ser el UUID del cliente.
+  - El servidor toma los items del carrito separado del vendedor (no del carrito propio del cliente).
+  - Resuelve automáticamente la ubicación usando sucursal o ubicación del cliente.
+
+**Body (CreateFromCartDto):** igual que arriba.
+
+**Ejemplo (vendedor crea pedido para cliente):**
+```bash
+POST /orders/from-cart/client/30829120-4713-4a33-9cb8-4f439df20f63
+Authorization: Bearer <jwt-vendedor>
+Content-Type: application/json
+
+{
+  "condicion_pago": "CREDITO",
+  "sucursal_id": "12345678-1234-1234-1234-123456789012"
+}
+```
 **Body (CreateFromCartDto):**
 ```json
 {
@@ -198,19 +240,19 @@ Content-Type: application/json
 - La ubicación del pedido se resuelve automáticamente: sucursal si existe, cliente si no.
 
 ### GET /orders
-- Roles: `admin`, `cliente`, `vendedor`.
-- Lista pedidos; si el actor es `cliente` devuelve pedidos del cliente; si `vendedor` devuelve pedidos del vendedor.
+- Roles: `admin`, `supervisor`, `bodeguero`.
+- Lista todos los pedidos del sistema (incluye `detalles`). Para ver pedidos del actor autenticado, usa `GET /orders/user/history`.
 
 ### GET /orders/:id
-- Roles: `admin`, `cliente`, `vendedor`.
+- Roles: `admin`, `cliente`, `vendedor`, `bodeguero`, `supervisor`.
 - Devuelve cabecera y `detalles` del pedido.
 
 ### GET /orders/:id/detail
-- Roles: `admin`, `cliente`, `vendedor`.
+- Roles: `admin`, `cliente`, `vendedor`, `supervisor`.
 - Versión enriquecida para UI/profesional que incluye historial y campos calculados.
 
 ### GET /orders/:id/tracking
-- Roles: `admin`, `cliente`, `vendedor`.
+- Roles: `admin`, `cliente`, `vendedor`, `supervisor`.
 - Devuelve timeline/status del pedido.
 
 ### PATCH /orders/:id/cancel
@@ -218,7 +260,7 @@ Content-Type: application/json
 - Cancela pedido (pasa a `ANULADO`) si está en `PENDIENTE` o `APROBADO` y registra historial.
 
 ### PATCH /orders/:id/status
-- Roles: `admin`, `bodeguero`.
+- Roles: `admin`, `supervisor`, `bodeguero`.
 - Cambia estado del pedido y crea entrada en historial (para Bodega/Transporte/Admins).
 
 ---

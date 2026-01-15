@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState } from 'react'
-import { Image as ImageIcon, Package, Tag, Search, Filter, Pencil, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, Package, Tag, Search, Filter, Pencil, Trash2, RotateCcw } from 'lucide-react'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { StatusBadge } from 'components/ui/StatusBadge'
 import { CardGrid, type CardGridItem } from 'components/ui/CardGrid'
@@ -10,11 +10,13 @@ interface ProductosListProps {
   products: Product[]
   categories: Category[]
   isLoading: boolean
-  onEdit: (product: Product) => void
-  onDelete: (id: string | number) => Promise<void>
+  onEdit?: (product: Product) => void
+  onDelete?: (product: Product) => Promise<void>
+  onRestore?: (product: Product) => Promise<void>
+  isDeletedView?: boolean
 }
 
-export function ProductosList({ products, categories, isLoading, onEdit, onDelete }: ProductosListProps) {
+export function ProductosList({ products, categories, isLoading, onEdit, onDelete, onRestore, isDeletedView }: ProductosListProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
@@ -60,9 +62,17 @@ export function ProductosList({ products, categories, isLoading, onEdit, onDelet
   const handleDelete = async (product: Product) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return
     try {
-      await onDelete(product.id)
+      await onDelete?.(product)
     } catch (err: any) {
       alert(err.message || 'Error al eliminar el producto')
+    }
+  }
+
+  const handleRestore = async (product: Product) => {
+    try {
+      await onRestore?.(product)
+    } catch (err: any) {
+      alert(err.message || 'Error al restaurar el producto')
     }
   }
 
@@ -108,12 +118,14 @@ export function ProductosList({ products, categories, isLoading, onEdit, onDelet
             <Package className="h-8 w-8 text-neutral-500" />
           </div>
           <h3 className="mt-4 text-lg font-semibold text-neutral-900">
-            {products.length === 0 ? 'No hay productos' : 'No se encontraron productos'}
+            {isDeletedView ? 'No hay productos eliminados' : (products.length === 0 ? 'No hay productos' : 'No se encontraron productos')}
           </h3>
           <p className="mt-2 text-sm text-neutral-600">
-            {products.length === 0 
-              ? 'Comienza creando tu primer producto' 
-              : 'Intenta ajustar los filtros de búsqueda'}
+            {isDeletedView
+              ? 'Los productos eliminados aparecerán aquí'
+              : (products.length === 0
+                ? 'Comienza creando tu primer producto'
+                : 'Intenta ajustar los filtros de búsqueda')}
           </p>
         </div>
       ) : (
@@ -137,22 +149,35 @@ export function ProductosList({ products, categories, isLoading, onEdit, onDelet
             ),
             actions: (
               <div className="flex w-full gap-2 mt-2">
-                <button
-                  onClick={() => onEdit(product)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-red/40"
-                  title="Editar producto"
-                >
-                  <Pencil className="h-4 w-4" />
-                  <span>Editar</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(product)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-red-600 bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-400"
-                  title="Eliminar producto"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Eliminar</span>
-                </button>
+                {isDeletedView ? (
+                  <button
+                    onClick={() => handleRestore(product)}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-white px-3 py-2 text-sm font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    title="Restaurar producto"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>Restaurar</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => onEdit?.(product)}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-red/40"
+                      title="Editar producto"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product)}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-red-600 bg-white px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-600 hover:text-white hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-400"
+                      title="Eliminar producto"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Eliminar</span>
+                    </button>
+                  </>
+                )}
               </div>
             ),
           }))}

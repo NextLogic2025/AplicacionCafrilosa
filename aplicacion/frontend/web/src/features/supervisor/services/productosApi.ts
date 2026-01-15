@@ -63,6 +63,17 @@ export async function updateProduct(id: string, data: Partial<CreateProductDto>)
   })
 }
 
+export async function getDeletedProducts(): Promise<Product[]> {
+  const response = await httpCatalogo<Product[]>('/products/deleted')
+  return response || []
+}
+
+export async function restoreProduct(id: string): Promise<void> {
+  await httpCatalogo<void>(`/products/${id}/restore`, {
+    method: 'POST',
+  })
+}
+
 export async function deleteProduct(id: string): Promise<void> {
   await httpCatalogo<void>(`/products/${id}`, {
     method: 'DELETE',
