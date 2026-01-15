@@ -1,16 +1,19 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../hooks/useAuth'
+
 export function SplashPage() {
   const navigate = useNavigate()
+  const auth = useAuth()
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
-      navigate('/login', { replace: true })
+      navigate(auth.isAuthenticated ? '/app' : '/login', { replace: true })
     }, 2000)
 
     return () => window.clearTimeout(timer)
-  }, [navigate])
+  }, [auth.isAuthenticated, navigate])
 
   return (
     <div

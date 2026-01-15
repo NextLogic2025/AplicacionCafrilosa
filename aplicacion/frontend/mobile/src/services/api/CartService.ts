@@ -83,32 +83,38 @@ export interface Cart {
 /**
  * CartService - Servicio de gestión de carrito
  * 
- * Centraliza la comunicación con los endpoints /orders/cart/:userId
+ * Soporta dos flujos:
+ * 1. Cliente: usa endpoints /orders/cart/me (carrito propio)
+ * 2. Vendedor: usa endpoints /orders/cart/client/:clienteId (carrito del cliente)
  */
 export const CartService = {
-    /**
-     * Obtener el carrito actual del usuario desde el servidor
-     */
-    getCart: async (userId: string): Promise<any> => {
+    // Obtener carrito actual (personal o de cliente para vendedor)
+    getCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<any> => {
         try {
-            return await apiRequest(`${env.api.ordersUrl}/orders/cart/${userId}`)
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}`
+                : `${env.api.ordersUrl}/orders/cart/me`
+
+            return await apiRequest(endpoint)
         } catch (error) {
             console.error('Error fetching cart:', error)
             throw error
         }
     },
 
-    /**
-     * Agregar o actualizar item en el carrito
-     */
-    addToCart: async (userId: string, item: AddToCartPayload): Promise<any> => {
+    // Agregar o actualizar item en el carrito
+    addToCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, item: AddToCartPayload): Promise<any> => {
         try {
-            console.log('[CartService Frontend] Sending addToCart:', JSON.stringify(item, null, 2))
-            const response = await apiRequest(`${env.api.ordersUrl}/orders/cart/${userId}`, {
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}`
+                : `${env.api.ordersUrl}/orders/cart/me`
+
+            console.log(`[CartService] Adding to ${target.type} cart:`, JSON.stringify(item, null, 2))
+
+            const response = await apiRequest(endpoint, {
                 method: 'POST',
                 body: JSON.stringify(item)
             })
-            console.log('[CartService Frontend] Response addToCart:', JSON.stringify(response, null, 2))
             return response
         } catch (error) {
             console.error('Error adding to cart:', error)
@@ -116,12 +122,14 @@ export const CartService = {
         }
     },
 
-    /**
-     * Eliminar item del carrito
-     */
-    removeFromCart: async (userId: string, productId: string): Promise<void> => {
+    // Eliminar item del carrito
+    removeFromCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, productId: string): Promise<void> => {
         try {
-            await apiRequest(`${env.api.ordersUrl}/orders/cart/${userId}/item/${productId}`, {
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}/item/${productId}`
+                : `${env.api.ordersUrl}/orders/cart/me/item/${productId}`
+
+            await apiRequest(endpoint, {
                 method: 'DELETE'
             })
         } catch (error) {
@@ -130,12 +138,14 @@ export const CartService = {
         }
     },
 
-    /**
-     * Vaciar carrito completo
-     */
-    clearCart: async (userId: string): Promise<void> => {
+    // Vaciar carrito completo
+    clearCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<void> => {
         try {
-            await apiRequest(`${env.api.ordersUrl}/orders/cart/${userId}`, {
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}` // Assuming DELETE on root cart resource clears it
+                : `${env.api.ordersUrl}/orders/cart/me`
+
+            await apiRequest(endpoint, {
                 method: 'DELETE'
             })
         } catch (error) {

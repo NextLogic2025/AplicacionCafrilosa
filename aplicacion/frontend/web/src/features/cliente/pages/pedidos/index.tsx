@@ -24,32 +24,12 @@ export default function PaginaPedidos() {
 		limpiarError,
 	} = useCliente()
 
-	const [successMessage, setSuccessMessage] = useState<string | null>(null)
-
 	const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
 	const [paginaActual, setPaginaActual] = useState(1)
 
 	useEffect(() => {
 		fetchPedidos(paginaActual)
 	}, [fetchPedidos, paginaActual])
-
-	// Reload list when an order is created elsewhere in the app and show success message
-	useEffect(() => {
-		const handler = (ev: Event) => {
-			const detail = (ev as CustomEvent)?.detail as any
-			if (detail && typeof detail.message === 'string') setSuccessMessage(detail.message)
-			fetchPedidos(paginaActual)
-		}
-		window.addEventListener('pedidoCreado', handler as EventListener)
-		return () => window.removeEventListener('pedidoCreado', handler as EventListener)
-	}, [fetchPedidos, paginaActual])
-
-	// auto-clear success message
-	useEffect(() => {
-		if (!successMessage) return
-		const t = setTimeout(() => setSuccessMessage(null), 4000)
-		return () => clearTimeout(t)
-	}, [successMessage])
 
 	const cambiarPagina = (pagina: number) => setPaginaActual(pagina)
 
@@ -106,13 +86,8 @@ export default function PaginaPedidos() {
 					</button>
 				</div>
 			) : (
-			<>
-				{successMessage && (
-					<div className="mb-4">
-						<Alert type="success" title="Pedido creado" message={successMessage} onClose={() => setSuccessMessage(null)} />
-					</div>
-				)}
-				<div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+				<>
+					<div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b border-gray-200 bg-gray-50">
@@ -137,7 +112,7 @@ export default function PaginaPedidos() {
 												{formatEstadoPedido(pedido.status)}
 											</span>
 										</td>
-										<td className="px-4 py-3 text-right flex items-center justify-end gap-2">
+										<td className="px-4 py-3 text-right">
 											<button
 												onClick={() => setPedidoSeleccionado(pedido)}
 												className="text-blue-600 transition-colors hover:text-blue-700"
@@ -145,21 +120,6 @@ export default function PaginaPedidos() {
 											>
 												<Eye className="h-5 w-5" />
 											</button>
-											{(pedido.status === EstadoPedido.PENDING || String(pedido.status).toUpperCase() === 'PENDIENTE') && (
-												<button
-													onClick={() => {
-													if (!confirm('¿Estás seguro que deseas cancelar este pedido?')) return
-													cancelarPedido(pedido.id)
-													setPedidoSeleccionado(null)
-													// eslint-disable-next-line no-console
-													console.log('[UI] cancelarPedido invoked for', pedido.id)
-													}}
-													className="text-red-600 transition-colors hover:text-red-700"
-													title="Cancelar pedido"
-												>
-													<X className="h-5 w-5" />
-												</button>
-											)}
 										</td>
 									</tr>
 								))}
@@ -173,7 +133,7 @@ export default function PaginaPedidos() {
 						onPageChange={cambiarPagina}
 						color={COLORES_MARCA.red}
 					/>
-					</>
+				</>
 			)}
 
 			{pedidoSeleccionado && (
@@ -192,19 +152,7 @@ export default function PaginaPedidos() {
 }
 
 function ModalDetallePedido({ pedido, onClose, onCancel }: { pedido: Pedido; onClose: () => void; onCancel: () => void }) {
-	const puedeCancelar = pedido.status === EstadoPedido.PENDING || String(pedido.status).toUpperCase() === 'PENDIENTE'
-	const endpoint = `http://localhost:3004/orders/${pedido.id}/state`
-
-	const copyEndpoint = async () => {
-		try {
-			await navigator.clipboard.writeText(endpoint)
-			// eslint-disable-next-line no-alert
-			alert('Endpoint copiado al portapapeles')
-		} catch (e) {
-			// eslint-disable-next-line no-alert
-			alert('No se pudo copiar. Selecciona y copia manualmente: ' + endpoint)
-		}
-	}
+	const puedeCancelar = pedido.status === EstadoPedido.PENDING
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -252,23 +200,6 @@ function ModalDetallePedido({ pedido, onClose, onCancel }: { pedido: Pedido; onC
 								${pedido.totalAmount.toFixed(2)}
 							</p>
 						</div>
-					</div>
-
-					{/* API info for debugging/copy */}
-					<div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-						<p className="text-xs text-gray-600">Endpoint para cancelar (cliente):</p>
-						<div className="mt-2 flex items-center justify-between gap-2">
-							<code className="truncate text-sm text-gray-800">PATCH {endpoint}</code>
-							<button
-								onClick={copyEndpoint}
-								className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-100"
-								title="Copiar endpoint"
-							>
-								<ClipboardList className="h-4 w-4" />
-								Copiar
-							</button>
-						</div>
-						<pre className="mt-3 w-full overflow-auto rounded bg-white p-2 text-xs">{"{\"nuevoEstado\":\"CANCELADO\",\"comentario\":\"Motivo opcional\"}"}</pre>
 					</div>
 				</div>
 

@@ -38,7 +38,10 @@ export function ClientProductDetailScreen() {
     const loadProductDetails = async () => {
         try {
             setLoading(true)
-            const data = await CatalogService.getProductById(productId)
+            // CRITICAL FIX: Usar getClientProductDetail en lugar de getProductById
+            // getProductById usa /api/products/:id que da 403 para clientes
+            // getClientProductDetail usa /api/precios/producto/:id que es accesible para clientes
+            const data = await CatalogService.getClientProductDetail(productId)
             setProduct(data)
         } catch (error) {
             console.error('Error loading product details:', error)

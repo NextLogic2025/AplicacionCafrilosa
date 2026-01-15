@@ -12,20 +12,9 @@ Este proyecto vive en `frontend/web` y está pensado para mantener **auth**, **l
 
 Archivo: `frontend/web/.env.example`
 
-El sistema usa una arquitectura de microservicios con 3 servicios principales:
-
-- `VITE_AUTH_BASE_URL`: URL base del servicio de autenticación (puerto 3001) - maneja login, registro, logout, refresh.
-- `VITE_USUARIOS_BASE_URL`: URL base del servicio de usuarios (puerto 3002) - maneja CRUD de usuarios, equipos, vendedores.
-- `VITE_CATALOGO_BASE_URL`: URL base del servicio de catálogo (puerto 3003) - maneja productos, clientes, zonas, precios, promociones, sucursales.
-- `VITE_GOOGLE_MAPS_API_KEY`: API key de Google Maps para funcionalidad de mapas.
-
-Ejemplo de configuración local:
-```
-VITE_AUTH_BASE_URL=http://localhost:3001
-VITE_USUARIOS_BASE_URL=http://localhost:3002
-VITE_CATALOGO_BASE_URL=http://localhost:3003
-VITE_GOOGLE_MAPS_API_KEY=tu_api_key_aqui
-```
+- `VITE_AUTH_LOGIN_URL`: endpoint para login (POST).
+- `VITE_AUTH_FORGOT_PASSWORD_URL`: endpoint para recuperar contraseña (POST).
+- `VITE_API_BASE_URL`: base URL del backend para el resto de módulos (ej. ventas/inventario/etc).
 
 ## Estructura de carpetas (qué va en cada una)
 
@@ -43,8 +32,9 @@ Código TypeScript/React.
 
 Pantallas “globales” (no dependen de un rol específico).
 
-- `src/pages/SplashPage.tsx`: splash inicial, redirige a `/login` tras una breve carga.
+- `src/pages/SplashPage.tsx`: splash inicial, decide si va a `/login` o `/app` según sesión local.
 - `src/pages/auth/*`: pantallas de autenticación (Login / Forgot Password).
+- `src/pages/app/*`: layout general del panel (`AppLayout`) + pantalla inicial (`AppIndexPage`) para elegir rol en modo dev.
 
 #### `src/features/`
 
@@ -68,7 +58,7 @@ Recomendación dentro de cada feature (cuando crezcan las pantallas):
 Enrutado de la app.
 
 - `src/routes/AppRouter.tsx`: define rutas y lazy loading.
-- `src/routes/RequireAuth.tsx`: protege las rutas de rol si no hay token.
+- `src/routes/RequireAuth.tsx`: protege `/app/*` si no hay token.
 
 #### `src/context/`
 

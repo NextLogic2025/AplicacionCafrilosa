@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Conversacion, Entrega, EstadoPedido, Factura, Notificacion, Pedido, PerfilCliente, Producto, Ticket } from '../types'
-import * as api from '../services/clientApi'
+import * as api from '../../../services/cliente'
 
 export function useCliente() {
   const [perfil, setPerfil] = useState<PerfilCliente | null>(null)
@@ -37,29 +37,11 @@ export function useCliente() {
     setCargando(true)
     try {
       const res = await api.getPedidos(pagina)
-      // Load persisted local-only pedidos from localStorage
-      let localOnly: Pedido[] = []
-      try {
-        const rawLocal = localStorage.getItem('cafrilosa:localPedidos')
-        localOnly = rawLocal ? (JSON.parse(rawLocal) as Pedido[]) : []
-      } catch {
-        localOnly = []
-      }
-      const serverItems = (res.items ?? []) as Pedido[]
-      // Merge, preferring local items first and avoiding duplicates by id
-      const merged = [...localOnly, ...serverItems.filter(si => !localOnly.some(lp => lp.id === si.id))]
-      setPedidos(merged)
+      setPedidos(res.items ?? [])
       setPedidosPaginaActual(res.page ?? pagina)
       setPedidosTotalPaginas(res.totalPages ?? 1)
     } catch {
-      // keep persisted local-only pedidos if fetch fails
-      try {
-        const rawLocal = localStorage.getItem('cafrilosa:localPedidos')
-        const localOnly = rawLocal ? (JSON.parse(rawLocal) as Pedido[]) : []
-        setPedidos(localOnly)
-      } catch {
-        setPedidos([])
-      }
+      setPedidos([])
       setPedidosPaginaActual(pagina)
       setPedidosTotalPaginas(1)
     } finally {
@@ -91,10 +73,10 @@ export function useCliente() {
     }
   }, [])
 
-  const fetchProductos = useCallback(async (options?: { page?: number; per_page?: number; category?: string; categoryId?: number }) => {
+  const fetchProductos = useCallback(async () => {
     setCargando(true)
     try {
-      const res = await api.getProductos(options)
+      const res = await api.getProductos()
       setProductos(res ?? [])
     } catch {
       setProductos([])
@@ -139,19 +121,11 @@ export function useCliente() {
     }
   }, [])
 
-  const cancelarPedido = useCallback(async (id: string) => {
-    // Optimistically update UI
-    setPedidos(prev => prev.map(p => (p.id === id ? { ...p, status: EstadoPedido.CANCELLED } : p)))
-    try {
-      const ok = await api.deletePedido(id)
-      if (!ok) throw new Error('No se pudo cancelar el pedido')
-      // success: keep state as is (already marked cancelled)
-    } catch (err) {
-      // If server fails (404/500), keep optimistic cancel locally and show a non-blocking warning.
-      setError('Cancelado localmente (no confirmado por el servidor).')
-      // Do not reload list to avoid overwriting the optimistic state.
-    }
-  }, [fetchPedidos, pedidosPaginaActual])
+  const cancelarPedido = useCallback((id: string) => {
+    setPedidos(prev =>
+      prev.map(p => (p.id === id ? { ...p, status: EstadoPedido.CANCELLED } : p)),
+    )
+  }, [])
 
   const crearTicket = useCallback(async (nuevo: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>) => {
     try {
@@ -199,42 +173,15 @@ export function useCliente() {
     marcarNotificacionComoLeida,
     marcarTodasComoLeidas,
     limpiarError,
-    crearPedidoDesdeCarrito: async () => {
+    crearPedidoDesdeCarrito: async (
+      items: { id: string; name: string; unitPrice: number; quantity: number }[],
+      total: number,
+    ) => {
       try {
-        const nuevo = await api.createPedidoFromCart()
+        const nuevo = await api.createPedido(items, total)
         setPedidos(prev => [nuevo, ...prev])
-        try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } })) } catch {}
-        return
-      } catch (err) {
-        // Backend failed — create a local-only pedido so the UX continues to work
-        try {
-          const raw = localStorage.getItem('cafrilosa:cart')
-          const cart = raw ? JSON.parse(raw) : []
-          const total = Array.isArray(cart) ? cart.reduce((s: number, it: any) => s + (Number(it.unitPrice || 0) * Number(it.quantity || 0)), 0) : 0
-          const fakeId = `local-${Date.now()}`
-          const localPedido = {
-            id: fakeId,
-            orderNumber: `L-${String(Date.now()).slice(-6)}`,
-            createdAt: new Date().toISOString(),
-            totalAmount: total,
-            status: 'PENDIENTE',
-            items: Array.isArray(cart)
-              ? cart.map((it: any) => ({ id: String(it.id), productName: it.name ?? '', quantity: Number(it.quantity || 0), unit: 'UN', unitPrice: Number(it.unitPrice || 0), subtotal: Number(it.unitPrice || 0) * Number(it.quantity || 0) }))
-              : [],
-          }
-          setPedidos(prev => [localPedido as any, ...prev])
-          // persist local pedido so it survives reloads/navigation
-          try {
-            const rawLocal = localStorage.getItem('cafrilosa:localPedidos')
-            const prevLocal = rawLocal ? JSON.parse(rawLocal) as Pedido[] : []
-            localStorage.setItem('cafrilosa:localPedidos', JSON.stringify([localPedido as any, ...prevLocal]))
-          } catch {}
-          try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado localmente (no sincronizado con servidor)' } })) } catch {}
-          // clear local cart (keep behavior consistent)
-          localStorage.setItem('cafrilosa:cart', JSON.stringify([]))
-        } catch (_) {
-          // ignore fallback failures
-        }
+      } catch {
+        // si falla la API, no generamos datos locales
       }
     },
   }

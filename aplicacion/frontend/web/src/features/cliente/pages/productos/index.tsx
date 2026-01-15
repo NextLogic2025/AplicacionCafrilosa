@@ -6,10 +6,8 @@ import { LoadingSpinner, SkeletonCard } from 'components/ui/LoadingSpinner'
 import { Alert } from 'components/ui/Alert'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { ProductCard } from 'components/ui/ProductCard'
-import ProductDetailModal from '../../components/ProductDetailModal'
 import { PageHero } from 'components/ui/PageHero'
 import { Producto } from '../../types'
-import { getAllCategories } from '../../../supervisor/services/catalogApi'
 
 interface FiltrosProductos {
 	category: string
@@ -25,36 +23,15 @@ export default function PaginaProductos() {
 	const [busqueda, setBusqueda] = useState('')
 	const [filtros, setFiltros] = useState<FiltrosProductos>({ category: 'all', minPrice: 0, maxPrice: 10000, inStock: true })
 	const [mostrarFiltros, setMostrarFiltros] = useState(false)
-	const [categoryId, setCategoryId] = useState<string>('')
-	const [categories, setCategories] = useState<{ id: number; nombre: string }[]>([])
 
 	useEffect(() => {
 		const cargar = async () => {
 			setCargando(true)
-			if (categoryId && /^\d+$/.test(categoryId)) {
-				await fetchProductos({ categoryId: Number(categoryId) })
-			} else if (filtros.category && filtros.category !== 'all') {
-				await fetchProductos({ category: filtros.category })
-			} else {
-				await fetchProductos()
-			}
+			await fetchProductos()
 			setCargando(false)
 		}
 		cargar()
-	}, [fetchProductos, filtros.category, categoryId])
-
-	useEffect(() => {
-		let mounted = true
-		getAllCategories()
-			.then(list => {
-				if (!mounted) return
-				setCategories(list.map(c => ({ id: c.id, nombre: c.nombre })))
-			})
-			.catch(() => {
-				// ignore
-			})
-		return () => { mounted = false }
-	}, [])
+	}, [fetchProductos, filtros.category])
 
 	const productosFiltrados = useMemo(
 		() =>
@@ -70,20 +47,8 @@ export default function PaginaProductos() {
 		[busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos],
 	)
 
-			const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null)
-			const [isDetailOpen, setIsDetailOpen] = useState(false)
-
-			const openDetail = (p: Producto) => {
-				setSelectedProducto(p)
-				setIsDetailOpen(true)
-			}
-			const closeDetail = () => {
-				setIsDetailOpen(false)
-				setSelectedProducto(null)
-			}
-
-			return (
-				<div className="space-y-6">
+	return (
+		<div className="space-y-6">
 			<PageHero
 				title="Catálogo de Productos"
 				subtitle="Explora nuestras opciones, filtra por categoría y agrega productos a tu carrito"
@@ -122,25 +87,14 @@ export default function PaginaProductos() {
 					<div>
 						<label className="mb-2 block text-sm font-medium text-gray-700">Categoría</label>
 						<select
-							value={categoryId || 'all'}
-							onChange={e => {
-								const val = e.target.value
-								if (val === 'all') {
-									setCategoryId('')
-									setFiltros({ ...filtros, category: 'all' })
-									return
-								}
-								setCategoryId(val)
-								const idNum = Number(val)
-								const found = categories.find(c => c.id === idNum)
-								setFiltros({ ...filtros, category: found ? found.nombre : 'all' })
-							}}
+							value={filtros.category}
+							onChange={e => setFiltros({ ...filtros, category: e.target.value })}
 							className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-red-500"
 						>
 							<option value="all">Todas las categorías</option>
-							{categories.map(cat => (
-								<option key={cat.id} value={String(cat.id)}>{cat.nombre}</option>
-							))}
+							<option value="embutidos">Embutidos</option>
+							<option value="carnes">Carnes</option>
+							<option value="conservas">Conservas</option>
 						</select>
 					</div>
 
@@ -184,20 +138,17 @@ export default function PaginaProductos() {
 			</div>
 
 			{cargando ? (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 					{Array.from({ length: 8 }).map((_, i) => (
 						<SkeletonCard key={i} />
 					))}
 				</div>
 			) : productosFiltrados.length > 0 ? (
-				<>
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
-						{productosFiltrados.map(producto => (
-							<ProductCard key={producto.id} producto={producto} onAddToCart={addItem} onView={openDetail} />
-						))}
-					</div>
-					<ProductDetailModal isOpen={isDetailOpen} producto={selectedProducto} onClose={closeDetail} onAddToCart={addItem} />
-				</>
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+					{productosFiltrados.map(producto => (
+						<ProductCard key={producto.id} producto={producto} onAddToCart={addItem} />
+					))}
+				</div>
 			) : (
 				<div className="py-12 text-center">
 					<p className="text-lg text-gray-600">No se encontraron productos</p>

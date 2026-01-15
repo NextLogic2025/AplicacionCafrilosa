@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native'
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
@@ -7,6 +7,7 @@ import {
     OrderService,
     Order,
     OrderDetail,
+    OrderStatus,
     ORDER_STATUS_COLORS,
     ORDER_STATUS_LABELS
 } from '../../../../services/api/OrderService'
@@ -14,7 +15,25 @@ import { BRAND_COLORS } from '../../../../shared/types'
 
 type OrderDetailRouteProp = RouteProp<{ params: { orderId: string } }, 'params'>
 
-export function SellerOrderDetailScreen() {
+// Estados que el supervisor puede asignar (validación de pedidos)
+const SUPERVISOR_ALLOWED_STATUSES: OrderStatus[] = [
+    'APROBADO',
+    'RECHAZADO'
+]
+
+// Todos los estados solo para referencia
+const ALL_ORDER_STATUSES: OrderStatus[] = [
+    'PENDIENTE',
+    'APROBADO',
+    'EN_PREPARACION',
+    'FACTURADO',
+    'EN_RUTA',
+    'ENTREGADO',
+    'ANULADO',
+    'RECHAZADO'
+]
+
+export function SupervisorOrderDetailScreen() {
     const navigation = useNavigation()
     const route = useRoute<OrderDetailRouteProp>()
     const { orderId } = route.params
@@ -22,6 +41,7 @@ export function SellerOrderDetailScreen() {
     const [loading, setLoading] = useState(true)
     const [order, setOrder] = useState<Order | null>(null)
     const [details, setDetails] = useState<OrderDetail[]>([])
+    const [showStatusModal, setShowStatusModal] = useState(false)
 
     useEffect(() => {
         loadOrderDetails()
@@ -46,6 +66,20 @@ export function SellerOrderDetailScreen() {
             )
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleChangeStatus = async (newStatus: OrderStatus) => {
+        if (!order) return
+
+        try {
+            await OrderService.changeOrderStatus(order.id, newStatus)
+            setShowStatusModal(false)
+            Alert.alert('Éxito', `Pedido #${order.codigo_visual} actualizado a ${ORDER_STATUS_LABELS[newStatus]}`)
+            await loadOrderDetails() // Reload to get updated data
+        } catch (error) {
+            console.error('Error changing status:', error)
+            Alert.alert('Error', 'No se pudo cambiar el estado del pedido')
         }
     }
 
@@ -78,7 +112,7 @@ export function SellerOrderDetailScreen() {
 
             <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
 
-                {/* Estado Actual y Fecha */}
+                {/* Estado Actual */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5 border-2" style={{ borderColor: ORDER_STATUS_COLORS[order.estado_actual] }}>
                     <View className="flex-row justify-between items-start mb-3">
                         <View className="flex-1">
@@ -113,15 +147,14 @@ export function SellerOrderDetailScreen() {
                         </View>
                     </View>
 
-                    {/* Origen del pedido */}
-                    {order.origen_pedido && (
-                        <View className="flex-row items-center mt-3 pt-3 border-t border-neutral-100">
-                            <Ionicons name="phone-portrait-outline" size={16} color="#9CA3AF" />
-                            <Text className="text-neutral-500 text-sm ml-2">
-                                Realizado desde: {order.origen_pedido.replace('_', ' ')}
-                            </Text>
-                        </View>
-                    )}
+                    {/* Botón cambiar estado */}
+                    <TouchableOpacity
+                        onPress={() => setShowStatusModal(true)}
+                        className="mt-3 pt-3 border-t border-neutral-100 flex-row items-center justify-center"
+                    >
+                        <Ionicons name="swap-horizontal" size={20} color={BRAND_COLORS.red} />
+                        <Text className="text-brand-red font-bold ml-2">Cambiar Estado del Pedido</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Cliente */}
@@ -142,18 +175,27 @@ export function SellerOrderDetailScreen() {
                 )}
 
                 {/* Información Adicional */}
-                {order.condicion_pago && (
-                    <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
-                        <Text className="text-neutral-900 font-bold text-lg mb-3">Información</Text>
-                        <View className="flex-row items-center">
+                <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
+                    <Text className="text-neutral-900 font-bold text-lg mb-3">Información</Text>
+                    {order.condicion_pago && (
+                        <View className="flex-row items-center mb-2">
                             <Ionicons name="cash-outline" size={20} color="#6B7280" />
                             <View className="ml-2 flex-1">
                                 <Text className="text-neutral-500 text-xs">Condición de pago</Text>
                                 <Text className="text-neutral-900 font-medium">{order.condicion_pago}</Text>
                             </View>
                         </View>
-                    </View>
-                )}
+                    )}
+                    {order.origen_pedido && (
+                        <View className="flex-row items-center">
+                            <Ionicons name="phone-portrait-outline" size={20} color="#6B7280" />
+                            <View className="ml-2 flex-1">
+                                <Text className="text-neutral-500 text-xs">Origen</Text>
+                                <Text className="text-neutral-900 font-medium">{order.origen_pedido.replace('_', ' ')}</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
 
                 {/* Productos */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
@@ -253,6 +295,87 @@ export function SellerOrderDetailScreen() {
 
                 <View className="h-8" />
             </ScrollView>
+
+            {/* Modal de cambio de estado */}
+            <Modal
+                visible={showStatusModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowStatusModal(false)}
+            >
+                <View className="flex-1 bg-black/50 justify-end">
+                    <View className="bg-white rounded-t-3xl pb-8">
+                        <View className="flex-row justify-between items-center p-5 border-b border-neutral-100">
+                            <View>
+                                <Text className="text-neutral-900 font-bold text-lg">Cambiar Estado</Text>
+                                <Text className="text-neutral-500 text-sm mt-1">
+                                    Pedido #{order.codigo_visual}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowStatusModal(false)}>
+                                <Ionicons name="close" size={24} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView className="max-h-96">
+                            <View className="p-5">
+                                <View className="mb-4 p-3 bg-neutral-50 rounded-xl">
+                                    <Text className="text-neutral-600 text-sm mb-1">Estado actual:</Text>
+                                    <View
+                                        className="self-start px-3 py-1.5 rounded-full"
+                                        style={{ backgroundColor: `${ORDER_STATUS_COLORS[order.estado_actual]}20` }}
+                                    >
+                                        <Text
+                                            className="text-sm font-bold uppercase"
+                                            style={{ color: ORDER_STATUS_COLORS[order.estado_actual] }}
+                                        >
+                                            {ORDER_STATUS_LABELS[order.estado_actual]}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <Text className="text-neutral-900 font-bold mb-3">Selecciona acción:</Text>
+                                <Text className="text-neutral-500 text-sm mb-3">
+                                    Como supervisor, puedes aprobar o rechazar pedidos pendientes
+                                </Text>
+
+                                {SUPERVISOR_ALLOWED_STATUSES.map((status) => (
+                                    <TouchableOpacity
+                                        key={status}
+                                        onPress={() => handleChangeStatus(status)}
+                                        className="flex-row items-center justify-between p-4 mb-2 bg-neutral-50 rounded-xl border border-neutral-100 active:bg-neutral-100"
+                                        disabled={order.estado_actual === status}
+                                    >
+                                        <View className="flex-row items-center gap-3">
+                                            <View
+                                                className="w-10 h-10 rounded-full items-center justify-center"
+                                                style={{ backgroundColor: `${ORDER_STATUS_COLORS[status]}20` }}
+                                            >
+                                                <Ionicons
+                                                    name={status === 'APROBADO' ? 'checkmark-circle' : 'close-circle'}
+                                                    size={24}
+                                                    color={ORDER_STATUS_COLORS[status]}
+                                                />
+                                            </View>
+                                            <View>
+                                                <Text className={`font-medium ${order.estado_actual === status ? 'text-neutral-400' : 'text-neutral-900'}`}>
+                                                    {ORDER_STATUS_LABELS[status]}
+                                                </Text>
+                                                <Text className="text-neutral-500 text-xs">
+                                                    {status === 'APROBADO' ? 'Validar y aprobar pedido' : 'Rechazar pedido'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        {order.estado_actual === status && (
+                                            <Ionicons name="checkmark-circle" size={24} color={ORDER_STATUS_COLORS[status]} />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     )
 }

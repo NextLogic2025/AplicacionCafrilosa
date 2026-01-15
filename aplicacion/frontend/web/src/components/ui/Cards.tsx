@@ -69,15 +69,7 @@ export function SectionCard({
   )
 }
 
-export function QuickActionButton({
-  label,
-  icon,
-  onClick,
-}: {
-  label: string
-  icon: React.ReactNode
-  onClick: React.MouseEventHandler<HTMLButtonElement>
-}) {
+export function QuickActionButton({ label, icon, onClick }: { label: string; icon: React.ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"

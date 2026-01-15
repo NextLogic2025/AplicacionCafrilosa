@@ -19,10 +19,12 @@ import { CatalogService, type Product } from '../../../../services/api/CatalogSe
 import { ClientService, type Client } from '../../../../services/api/ClientService'
 import { PriceService } from '../../../../services/api/PriceService'
 import { useCart } from '../../../../context/CartContext'
+import { useToast } from '../../../../context/ToastContext'
 
 export function SellerProductListScreen() {
     const navigation = useNavigation()
     const { addToCart, cart, setClient: setCartClient } = useCart()
+    const { showToast } = useToast()
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null)
     const [showClientModal, setShowClientModal] = useState(false)
@@ -183,6 +185,8 @@ export function SellerProductListScreen() {
             campania_aplicada_id: product.campania_aplicada_id,
             subtotal: precio
         }, 1)
+
+        showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
     }
 
     const renderProduct = ({ item }: { item: Product }) => {

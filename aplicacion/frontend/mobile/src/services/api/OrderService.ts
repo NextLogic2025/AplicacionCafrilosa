@@ -160,17 +160,56 @@ export const OrderService = {
     },
 
     /**
-     * Servicio: Crear pedido desde el carrito (Server-side cart)
-     * Endpoint: POST /orders/from-cart/:userId
+     * Crear pedido desde el carrito (Server-side cart)
+     * 
+     * El backend crea el pedido desde el carrito almacenado en servidor.
+     * Solo requiere condicion_pago y sucursal_id opcional.
+     * El backend calcula precios, impuestos y totales automáticamente.
+     * 
+     * Endpoints:
+     * - Cliente: POST /orders/from-cart/me
+     * - Vendedor: POST /orders/from-cart/client/:clienteId
      */
-    createOrderFromCart: async (userId: string, data?: Partial<CreateOrderPayload>): Promise<Order> => {
+    createOrderFromCart: async (
+        target: { type: 'me' } | { type: 'client', clientId: string },
+        options?: {
+            condicion_pago?: 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
+            sucursal_id?: string
+        }
+    ): Promise<Order> => {
         try {
-            return await apiRequest<Order>(`${env.api.ordersUrl}/orders/from-cart/${userId}`, {
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/from-cart/client/${target.clientId}`
+                : `${env.api.ordersUrl}/orders/from-cart/me`
+
+            const payload = {
+                condicion_pago: options?.condicion_pago || 'CONTADO',
+                ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
+            }
+
+            return await apiRequest<Order>(endpoint, {
                 method: 'POST',
-                body: data ? JSON.stringify(data) : undefined
+                body: JSON.stringify(payload)
             })
         } catch (error) {
             console.error('Error creating order from cart:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Servicio: Obtener historial de pedidos del usuario autenticado (Personal)
+     * Endpoint: GET /orders/user/history
+     */
+    getOrderHistory: async (): Promise<Order[]> => {
+        try {
+            const orders = await apiRequest<Order[]>(`${env.api.ordersUrl}/orders/user/history`)
+            // Ordenar por fecha (más reciente primero)
+            return orders.sort((a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )
+        } catch (error) {
+            console.error('Error fetching order history:', error)
             throw error
         }
     },
@@ -288,6 +327,24 @@ export const OrderService = {
     },
 
     /**
+     * Cambiar estado de un pedido (supervisor, bodeguero, admin)
+     * Endpoint: PATCH /orders/:id/status
+     * Roles: admin, supervisor, bodeguero
+     */
+    changeOrderStatus: async (orderId: string, newStatus: OrderStatus): Promise<Order> => {
+        try {
+            const updatedOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: newStatus })
+            })
+            return updatedOrder
+        } catch (error) {
+            console.error('Error updating order:', error)
+            throw error
+        }
+    },
+
+    /**
      * Actualizar un pedido
      */
     updateOrder: async (orderId: string, data: Partial<Order>): Promise<Order> => {
@@ -299,21 +356,6 @@ export const OrderService = {
             return updatedOrder
         } catch (error) {
             console.error('Error updating order:', error)
-            throw error
-        }
-    },
-
-    /**
-     * Cambiar estado de un pedido
-     */
-    changeOrderStatus: async (orderId: string, newStatus: OrderStatus, _motivo?: string): Promise<Order> => {
-        try {
-            // Por ahora usar PATCH /orders/:id
-            return OrderService.updateOrder(orderId, {
-                estado_actual: newStatus
-            })
-        } catch (error) {
-            console.error('Error changing order status:', error)
             throw error
         }
     },

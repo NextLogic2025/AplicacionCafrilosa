@@ -25,7 +25,7 @@ const diasPlazoToCondicion = (dias: number): string => {
 
 export function ClientCheckoutScreen() {
     const navigation = useNavigation()
-    const { cart, clearCart, userId } = useCart()
+    const { cart, clearCart, userId, currentClient } = useCart()
 
     // Data State
     const [clienteData, setClienteData] = useState<Client | null>(null)
@@ -110,7 +110,11 @@ export function ClientCheckoutScreen() {
             // because strict backend DTO ignores them.
 
             // Use context userId to ensure we are ordering for the same user who owns the cart
-            const newOrder = await OrderService.createOrderFromCart(userId, payload)
+            const target = currentClient
+                ? { type: 'client' as const, clientId: currentClient.id }
+                : { type: 'me' as const }
+
+            const newOrder = await OrderService.createOrderFromCart(target, payload)
 
             setOrderNumber(newOrder.codigo_visual?.toString() || 'N/A')
 

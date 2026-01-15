@@ -61,22 +61,14 @@ export function ClientProductListScreen() {
                 setPage(1)
             }
 
-            let response
-            // Determinar si filtrar por categoría o traer todo
-            if (selectedCategory) {
-                response = await CatalogService.getProductsByCategory(
-                    selectedCategory,
-                    currentPage,
-                    20,
-                    searchQuery || undefined
-                )
-            } else {
-                response = await CatalogService.getProductsPaginated(
-                    currentPage,
-                    20,
-                    searchQuery || undefined
-                )
-            }
+            // ACTUALIZACIÓN: Usar nuevo endpoint específico para clientes
+            // Este endpoint usa el token JWT para filtrar productos según la lista de precios del cliente
+            // Nota: El filtro por categoría está temporalmente deshabilitado hasta que el backend lo soporte
+            const response = await CatalogService.getClientProducts(
+                currentPage,
+                20,
+                searchQuery || undefined
+            )
 
             // Actualizar lista de productos
             if (reset) {
@@ -199,8 +191,11 @@ export function ClientProductListScreen() {
                 </View>
             </View>
 
-            {/* Pills de Categorías */}
-            {categories.length > 0 && (
+            {/* Pills de Categorías - TEMPORALMENTE DESHABILITADO
+                El nuevo endpoint /api/precios/cliente/productos aún no soporta filtro por categoría
+                Se habilitará cuando el backend agregue soporte para categoria_id
+            */}
+            {/* {categories.length > 0 && (
                 <View className="bg-white py-3 border-b border-neutral-100">
                     <FlatList
                         data={[{ id: null, nombre: 'Todos' } as any, ...categories]}
@@ -226,7 +221,8 @@ export function ClientProductListScreen() {
                         }}
                     />
                 </View>
-            )}
+            )} */}
+
 
             {/* Grid de Productos */}
             {loading && page === 1 ? (
