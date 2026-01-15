@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -106,6 +106,38 @@ export class PreciosController {
     return this.preciosService.productosConPrecioParaLista(id, { 
       page: Number(page), 
       q 
+    });
+  }
+
+  // Nueva ruta: Obtener productos con precio y promociones en base al cliente
+  @Get('cliente/productos')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
+  async listarProductosParaCliente(
+    @Query('page') page: string,
+    @Query('q') q: string,
+    @Req() req: any,
+  ) {
+    // Ahora la ruta no recibe el id; siempre resolvemos el cliente desde
+    // el token (usuario_principal_id). Si no hay token/rol cliente, devolvemos error.
+    const user = req.user;
+    const roles = Array.isArray(user?.role)
+      ? user.role.map((r: any) => String(r).toLowerCase())
+      : [String(user?.role || '').toLowerCase()];
+
+    let cliente: any = null;
+    if (user && roles.includes('cliente') && user.userId) {
+      cliente = await this.clientesService.findByUsuarioPrincipalId(user.userId);
+    } else {
+      throw new BadRequestException('Cliente no proporcionado en token');
+    }
+
+    if (!cliente) throw new NotFoundException('Cliente no encontrado');
+
+    const listaId = cliente.lista_precios_id ?? 1; // fallback a lista general
+    return this.preciosService.productosConPrecioParaLista(listaId, {
+      page: Number(page),
+      q,
     });
   }
 
