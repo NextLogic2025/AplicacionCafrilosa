@@ -23,7 +23,7 @@ export class InternalAdminController {
     }
 
     const carts = await this.cartRepo.find({ where: { cliente_id: null } });
-    this.logger.log(`Found ${carts.length} carts without cliente_id. Starting backfill.`);
+    this.logger.debug(`Found ${carts.length} carts without cliente_id. Starting backfill.`);
 
     const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
     const fetchFn = (globalThis as any).fetch;
@@ -39,7 +39,7 @@ export class InternalAdminController {
           if (body && body.id) {
             c.cliente_id = body.id;
             await this.cartRepo.save(c);
-            this.logger.log(`Updated cart ${c.id} usuario=${c.usuario_id} cliente_id=${body.id}`);
+            this.logger.debug(`Updated cart ${c.id} usuario=${c.usuario_id} cliente_id=${body.id}`);
           }
         }
       } catch (err) {

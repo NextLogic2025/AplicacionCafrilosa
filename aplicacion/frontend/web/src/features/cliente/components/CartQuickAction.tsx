@@ -4,7 +4,11 @@ import { ShoppingCart, Plus, Minus, X, CheckCircle2 } from 'lucide-react'
 
 import { useCart } from '../cart/CartContext'
 
-export function CartQuickAction() {
+type CartQuickActionProps = {
+  cartPath?: string
+}
+
+export function CartQuickAction({ cartPath = '/cliente/carrito' }: CartQuickActionProps) {
   const { lastAction, dismissLastAction, items, updateQuantity } = useCart()
   const [visible, setVisible] = useState(false)
   const timerRef = useRef<number | null>(null)
@@ -61,7 +65,7 @@ export function CartQuickAction() {
 
   const goToCart = () => {
     handleClose()
-    navigate('/cliente/carrito')
+    navigate(cartPath)
   }
 
   return (

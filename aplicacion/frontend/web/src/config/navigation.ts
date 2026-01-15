@@ -68,7 +68,7 @@ export const VENDEDOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'rutas', label: 'Rutas', to: '/vendedor/rutas', icon: Route },
   { id: 'productos', label: 'Productos', to: '/vendedor/productos', icon: Boxes },
   { id: 'promociones', label: 'Promociones', to: '/vendedor/promociones', icon: Percent },
-  { id: 'crear-pedido', label: 'Crear Pedido', to: '/vendedor/crear-pedido', icon: ShoppingCart },
+  { id: 'carrito', label: 'Carrito', to: '/vendedor/carrito', icon: ShoppingCart },
   { id: 'pedidos', label: 'Pedidos', to: '/vendedor/pedidos', icon: ClipboardList },
   { id: 'facturas', label: 'Facturas', to: '/vendedor/facturas', icon: CreditCard },
   { id: 'entregas', label: 'Entregas', to: '/vendedor/entregas', icon: Truck },

@@ -53,30 +53,6 @@ export class OrdersService {
     }
   }
 
-  private async resolveClienteIdForUser(userId?: string | null): Promise<string | null> {
-    if (!userId) return null;
-    const fetchFn = (globalThis as any).fetch;
-    if (typeof fetchFn !== 'function') return null;
-    try {
-      const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-      const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-      const url = apiBase + '/internal/clients/by-user/' + userId;
-      const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-      this.logger.debug('Resolviendo cliente para historial', { userId, url });
-      const resp: any = await fetchFn(url, { headers: headersObj });
-      if (resp && resp.ok) {
-        const data = await resp.json();
-        if (data?.id) return String(data.id);
-      } else {
-        this.logger.debug('Catalog no devolvió 200 al resolver cliente', { userId, status: resp?.status });
-      }
-    } catch (err) {
-      this.logger.warn('No se pudo resolver cliente_id para usuario', { userId, error: err?.message || err });
-    }
-    return null;
-  }
-
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
       where: [
@@ -105,18 +81,12 @@ export class OrdersService {
   }
 
   async findAllByUser(userId: string, role: string): Promise<Pedido[]> {
-    const qb = this.pedidoRepo.createQueryBuilder('o').leftJoinAndSelect('o.detalles', 'detalles');
-    const normalizedRole = (role || '').toString().toLowerCase();
+    const qb = this.pedidoRepo.createQueryBuilder('o')
+      .leftJoinAndSelect('o.detalles', 'd');
 
-    if (normalizedRole === 'cliente') {
-      const resolvedClienteId = await this.resolveClienteIdForUser(userId);
-      const clienteIds = [userId, resolvedClienteId].filter((value): value is string => Boolean(value));
-      if (!clienteIds.length) {
-        this.logger.warn('Historial solicitado sin identificar usuario', { userId });
-        return [];
-      }
-      qb.where('o.cliente_id IN (:...clienteIds)', { clienteIds: Array.from(new Set(clienteIds)) });
-    } else if (normalizedRole === 'vendedor') {
+    if (String(role).toLowerCase() === 'cliente') {
+      qb.where('o.cliente_id = :userId', { userId });
+    } else if (String(role).toLowerCase() === 'vendedor') {
       qb.where('o.vendedor_id = :userId', { userId });
     }
 
@@ -142,7 +112,7 @@ export class OrdersService {
             const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
             const promoUrl = apiBase + '/promociones/internal/mejor/producto/' + item.producto_id + '?cliente_id=' + createOrderDto.cliente_id;
             const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-            this.logger.log('Calling Catalog (promo) ' + promoUrl + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+            this.logger.debug('Calling Catalog (promo) ' + promoUrl + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
             const resp: any = await fetchFn(promoUrl, { headers: headersObj });
             if (resp && resp.ok) best = await resp.json();
             else this.logger.debug('Catalog promo call not ok', { promoUrl, status: resp?.status });
@@ -159,7 +129,7 @@ export class OrdersService {
               const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
               const preciosUrl = apiBase + '/precios/internal/producto/' + item.producto_id;
               const headersObj2 = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-              this.logger.log('Calling Catalog (precios) ' + preciosUrl + ' auth=' + (headersObj2 ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+              this.logger.debug('Calling Catalog (precios) ' + preciosUrl + ' auth=' + (headersObj2 ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
               const resp2: any = await fetchFn(preciosUrl, { headers: headersObj2 });
               if (!resp2 || !resp2.ok) {
                 let bodyText: string | null = null;
@@ -347,7 +317,7 @@ export class OrdersService {
     // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
     // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
     const cart = await this.cartService.getOrCreateCart(usuarioIdParam, vendedorIdParam ?? undefined);
-    this.logger.log('Cart obtained', { cart_id: cart?.id, usuario_id: cart?.usuario_id, vendedor_id: cart?.vendedor_id, items_count: cart?.items?.length });
+    this.logger.debug('Cart obtained', { cart_id: cart?.id, usuario_id: cart?.usuario_id, vendedor_id: cart?.vendedor_id, items_count: cart?.items?.length });
     if (!cart || !cart.items || cart.items.length === 0) {
       throw new BadRequestException('Carrito vacío, no hay items para crear el pedido');
     }
@@ -373,12 +343,12 @@ export class OrdersService {
           const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
           const url = apiBase + '/internal/clients/' + clienteId;
           const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-          this.logger.log('Calling Catalog (vendedor_asignado lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
+          this.logger.debug('Calling Catalog (vendedor_asignado lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
           const resp: any = await fetchFn(url, { headers: headersObj });
           if (resp && resp.ok) {
             const clientInfo = await resp.json();
             pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
-            this.logger.log('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
+            this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
           }
         }
       } catch (err) {
@@ -446,7 +416,7 @@ export class OrdersService {
     // 5. Limpiar el carrito correcto despues de crear el pedido (usar el ID exacto del carrito usado)
     try {
       await this.cartService.clearCartById(cart.id);
-      this.logger.log('Cleared cart after order creation', { cart_id: cart.id, usuario_id: cart.usuario_id, vendedor_id: cart.vendedor_id });
+      this.logger.debug('Cleared cart after order creation', { cart_id: cart.id, usuario_id: cart.usuario_id, vendedor_id: cart.vendedor_id });
     } catch (cartError) {
       this.logger.warn('No se pudo vaciar el carrito despues de crear pedido', { cart_id: cart.id, error: cartError?.message || String(cartError) });
     }
@@ -580,7 +550,7 @@ export class OrdersService {
 
       await queryRunner.commitTransaction();
       
-      this.logger.log('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
+      this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
       return this.findOne(pedidoId);
     } catch (err) {
       await queryRunner.rollbackTransaction();

@@ -35,15 +35,43 @@ function resolveCartPath(clienteId?: string | null) {
 }
 
 export async function getCart(clienteId?: string | null): Promise<BackendCart | null> {
-  return await httpOrders<BackendCart>(resolveCartPath(clienteId)).catch(() => null)
+  try {
+    const res = await httpOrders<BackendCart>(resolveCartPath(clienteId))
+    // eslint-disable-next-line no-console
+    try {
+      console.log('[cartApi] getCart', { path: resolveCartPath(clienteId), payload: JSON.stringify(res, null, 2) })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log('[cartApi] getCart (raw)', { path: resolveCartPath(clienteId), payload: res })
+    }
+    return res
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[cartApi] getCart failed', { path: resolveCartPath(clienteId), err })
+    return null
+  }
 }
 
 export async function upsertCartItem(dto: UpdateCartItemDto): Promise<BackendCart | null> {
   const { cliente_id, ...body } = dto
-  return await httpOrders<BackendCart>(resolveCartPath(cliente_id), {
-    method: 'POST',
-    body,
-  }).catch(() => null)
+  try {
+    const res = await httpOrders<BackendCart>(resolveCartPath(cliente_id), {
+      method: 'POST',
+      body,
+    })
+    // eslint-disable-next-line no-console
+    try {
+      console.log('[cartApi] upsertCartItem', { path: resolveCartPath(cliente_id), body: JSON.stringify(body, null, 2), payload: JSON.stringify(res, null, 2) })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log('[cartApi] upsertCartItem (raw)', { path: resolveCartPath(cliente_id), body, payload: res })
+    }
+    return res
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[cartApi] upsertCartItem failed', { path: resolveCartPath(cliente_id), body, err })
+    return null
+  }
 }
 
 export async function clearCartRemote(clienteId?: string | null): Promise<void> {
@@ -52,5 +80,15 @@ export async function clearCartRemote(clienteId?: string | null): Promise<void> 
 
 export async function removeFromCart(productId: string, clienteId?: string | null) {
   const path = resolveCartPath(clienteId)
-  return await httpOrders(`${path}/item/${productId}`, { method: 'DELETE' }).catch(() => null)
+  try {
+    // Check remote cart first to avoid 404 when the item is not present
+    const remote = await httpOrders<{ items?: BackendCartItem[] }>(path).catch(() => null)
+    // eslint-disable-next-line no-console
+    console.log('[cartApi] removeFromCart remote snapshot', { path, items: Array.isArray(remote?.items) ? remote.items.length : 0 })
+    const exists = remote && Array.isArray(remote.items) && remote.items.some(i => String(i.producto_id) === String(productId))
+    if (!exists) return null
+    return await httpOrders(`${path}/item/${productId}`, { method: 'DELETE' }).catch(() => null)
+  } catch {
+    return null
+  }
 }

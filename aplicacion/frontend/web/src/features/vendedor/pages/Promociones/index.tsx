@@ -18,30 +18,35 @@ export default function VendedorPromociones() {
       const resp = await getAllProducts().catch(() => [])
       if (!mounted) return
       // Mapear Product (backend) a Producto (frontend)
-      const productos: Producto[] = (resp || []).map((p: Product) => {
-        const anyP = p as any
-        const rawBase = anyP.precio_base ?? anyP.precio ?? null
-        const rawOferta = anyP.precio_oferta ?? null
-        const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
-        const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta
-        const price = (precioOferta ?? precioBase ?? 0) as number
-        return {
-          id: p.id,
-          name: p.nombre,
-          description: p.descripcion || '',
-          price,
-          precio_original: typeof precioBase === 'number' && precioOferta != null ? precioBase : (typeof anyP.precio_original === 'number' ? anyP.precio_original : undefined),
-          precio_oferta: typeof precioOferta === 'number' ? precioOferta : undefined,
-          promociones: anyP.promociones || undefined,
-          image: p.imagen_url || '',
-          category: p.categoria?.nombre || '',
-          inStock: p.activo,
-          rating: 0,
-          reviews: 0,
-        }
-      })
-      // Filtrar productos con promociones activas
-      const filtered = productos.filter(p => p.precio_oferta != null || (Array.isArray(p.promociones) && p.promociones.length > 0))
+      const productos: Producto[] = (resp || [])
+        .map((p: Product) => {
+          const anyP = p as any
+          const rawBase = anyP.precio_base ?? anyP.precio ?? null
+          const rawOferta = anyP.precio_oferta ?? null
+          const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
+          const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta
+          const priceMaybe = precioOferta ?? precioBase ?? null
+          if (priceMaybe == null) return null
+          const price = Number(priceMaybe)
+          if (!Number.isFinite(price) || price <= 0) return null
+          return {
+            id: p.id,
+            name: p.nombre,
+            description: p.descripcion || '',
+            price,
+            precio_original: typeof precioBase === 'number' && precioOferta != null ? precioBase : (typeof anyP.precio_original === 'number' ? anyP.precio_original : undefined),
+            precio_oferta: typeof precioOferta === 'number' ? precioOferta : undefined,
+            promociones: anyP.promociones || undefined,
+            image: p.imagen_url || '',
+            category: p.categoria?.nombre || '',
+            inStock: p.activo,
+            rating: 0,
+            reviews: 0,
+          } as Producto
+        })
+        .filter((x): x is Producto => Boolean(x))
+      // Filtrar productos con promociones activas (y precio válido)
+      const filtered = productos.filter(p => (p.precio_oferta != null || (Array.isArray(p.promociones) && p.promociones.length > 0)))
       setPromos(filtered)
       setLoading(false)
     }

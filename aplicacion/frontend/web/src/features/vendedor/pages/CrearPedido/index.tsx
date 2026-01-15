@@ -1,315 +1,559 @@
-import { useEffect, useState } from 'react'
-import { PageHero } from '../../../../components/ui/PageHero'
-import { ActionButton } from '../../../../components/ui/ActionButton'
-import { EmptyContent } from '../../../../components/ui/EmptyContent'
-import { ShoppingCart, Users, Package, Percent, Send, Trash2 } from 'lucide-react'
-import { getClientesAsignados, getProductosPorCliente } from '../../services/vendedorApi'
-import type { Cliente } from '../../../supervisor/services/clientesApi'
-import type { Producto } from '../../services/vendedorApi'
-import { CardGrid } from '../../../../components/ui/CardGrid'
-import { StatusBadge } from '../../../../components/ui/StatusBadge'
-import { ProductCard } from '../../../../components/ui/ProductCard'
-import type { Producto as ProductoCliente } from '../../../cliente/types'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ShoppingCart, Users, Package, Percent, Send, Trash2, Minus, Plus, Info, Building2, CheckCircle2 } from 'lucide-react'
 
-export default function VendedorCrearPedido() {
-  const [clientes, setClientes] = useState<Cliente[]>([])
+import { PageHero } from '../../../../components/ui/PageHero'
+import { EmptyContent } from '../../../../components/ui/EmptyContent'
+import { ProductCard } from '../../../../components/ui/ProductCard'
+import { Alert } from 'components/ui/Alert'
+import { CartProvider, useCart } from '../../../cliente/cart/CartContext'
+import {
+  getClientesAsignados,
+  getProductosPorCliente,
+  getSucursalesPorCliente,
+  createPedidoFromCartCliente,
+} from '../../services/vendedorApi'
+import type { Cliente } from '../../../supervisor/services/clientesApi'
+import type { Producto as ProductoCliente, SucursalCliente } from '../../../cliente/types'
+
+type ClienteSelectOption = {
+  id: string
+  label: string
+}
+
+const PAYMENT_OPTIONS: Array<{ label: string; value: 'CONTADO' | 'CREDITO' }> = [
+  { label: 'Efectivo', value: 'CONTADO' },
+  { label: 'Crédito', value: 'CREDITO' },
+]
+
+export default function VendedorCarrito() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [clientes, setClientes] = useState<ClienteSelectOption[]>([])
+  const [clientesRaw, setClientesRaw] = useState<Cliente[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
-  const [productos, setProductos] = useState<Producto[]>([])
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [productos, setProductos] = useState<ProductoCliente[]>([])
+  const [sucursales, setSucursales] = useState<SucursalCliente[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [isLoadingClientes, setIsLoadingClientes] = useState(false)
   const [isLoadingProductos, setIsLoadingProductos] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [cart, setCart] = useState<Array<{ id: string; name: string; unitPrice: number; quantity: number }>>([])
-
-  const addToCart = (item: { id: string; name: string; unitPrice: number; quantity: number }) => {
-    setCart((s) => {
-      const idx = s.findIndex((it) => it.id === item.id)
-      if (idx >= 0) {
-        const copy = [...s]
-        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + item.quantity }
-        return copy
-      }
-      return [...s, item]
-    })
-  }
+  const [isLoadingSucursales, setIsLoadingSucursales] = useState(false)
 
   useEffect(() => {
     let mounted = true
-    const cargar = async () => {
-      setIsLoadingClientes(true)
-      try {
-        const data = await getClientesAsignados().catch(() => [])
-        if (mounted) setClientes(data)
-      } catch (e: any) {
+    setIsLoadingClientes(true)
+    getClientesAsignados()
+      .then(list => {
+        if (!mounted) return
+        setClientesRaw(list)
+        setClientes(
+          list.map(cliente => ({
+            id: cliente.id,
+            label: cliente.razon_social || cliente.nombre_comercial || cliente.identificacion,
+          })),
+        )
+      })
+      .catch(() => {
         if (mounted) setError('No se pudieron cargar tus clientes')
-      } finally {
+      })
+      .finally(() => {
         if (mounted) setIsLoadingClientes(false)
-      }
-    }
-    cargar()
+      })
     return () => {
       mounted = false
     }
   }, [])
 
   useEffect(() => {
+    const queryCliente = searchParams.get('cliente')
+    if (queryCliente && !clienteSeleccionado) {
+      setClienteSeleccionado(queryCliente)
+    }
+  }, [searchParams, clienteSeleccionado])
+
+  const handleClienteChange = (value: string) => {
+    setClienteSeleccionado(value)
+    const nextParams = new URLSearchParams(searchParams)
+    if (value) {
+      nextParams.set('cliente', value)
+    } else {
+      nextParams.delete('cliente')
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
+
+  useEffect(() => {
     if (!clienteSeleccionado) {
       setProductos([])
+      setSucursales([])
       return
     }
     let mounted = true
-    const cargarProductos = async () => {
-      setIsLoadingProductos(true)
-      try {
-        const items = await getProductosPorCliente(clienteSeleccionado).catch(() => [])
-        if (mounted) setProductos(items)
-      } catch (e: any) {
+    setIsLoadingProductos(true)
+    getProductosPorCliente(clienteSeleccionado)
+      .then(items => {
+        if (!mounted) return
+        setProductos(Array.isArray(items) ? items : [])
+      })
+      .catch(() => {
         if (mounted) setError('No se pudieron cargar los productos para este cliente')
-      } finally {
+      })
+      .finally(() => {
         if (mounted) setIsLoadingProductos(false)
-      }
-    }
-    cargarProductos()
+      })
+
+    setIsLoadingSucursales(true)
+    getSucursalesPorCliente(clienteSeleccionado)
+      .then(data => {
+        if (!mounted) return
+        const mappedRaw = (Array.isArray(data) ? data : []).map(raw => {
+          const id = raw?.id ?? raw?.sucursal_id
+          if (!id) return null
+          return {
+            id: String(id),
+            nombre: String(
+              raw?.nombre_sucursal ??
+                raw?.nombre ??
+                raw?.alias ??
+                (raw?.contacto_nombre ? `Sucursal ${raw.contacto_nombre}` : 'Sucursal'),
+            ),
+            direccion: raw?.direccion_entrega ?? raw?.direccion ?? raw?.direccion_exacta ?? null,
+            ciudad: raw?.municipio ?? raw?.ciudad ?? null,
+            estado: raw?.departamento ?? raw?.estado ?? null,
+          }
+        })
+        const mapped = mappedRaw.filter(Boolean) as SucursalCliente[]
+        setSucursales(mapped)
+      })
+      .catch(() => {
+        if (mounted) setError('No se pudieron cargar las sucursales de este cliente')
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingSucursales(false)
+      })
+
     return () => {
       mounted = false
     }
   }, [clienteSeleccionado])
+
+  const clienteActivo = useMemo(
+    () => clientesRaw.find(cliente => cliente.id === clienteSeleccionado) ?? null,
+    [clientesRaw, clienteSeleccionado],
+  )
+
   return (
     <div className="space-y-6">
       <PageHero
-        title="Crear Pedido"
-        subtitle="Módulo central para la gestión de ventas"
+        title="Carrito por cliente"
+        subtitle="Gestiona el carrito y pedidos para cada cuenta asignada"
         chips={[
-          { label: 'Módulo principal', variant: 'red' },
-          { label: 'Gestión comercial', variant: 'blue' },
+          { label: 'Carrito sincronizado', variant: 'red' },
+          { label: 'Flujo oficial Orders', variant: 'blue' },
         ]}
       />
 
-      {/* Selección de Cliente */}
+      {error ? (
+        <Alert variant="destructive">{error}</Alert>
+      ) : null}
+
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4 flex items-center gap-2">
-          <Users className="h-5 w-5 text-brand-red" />
-          1. Selecciona Cliente
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-neutral-950">
+          <Users className="h-5 w-5 text-brand-red" /> 1. Selecciona cliente
         </h3>
         <div className="flex gap-3">
           <div className="flex-1">
             <select
               value={clienteSeleccionado}
-              onChange={(e) => setClienteSeleccionado(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent"
+              onChange={event => handleClienteChange(event.target.value)}
+              className="w-full rounded-lg border border-neutral-200 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-red"
             >
               <option value="">Selecciona un cliente...</option>
               {isLoadingClientes ? <option value="">Cargando...</option> : null}
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.razon_social || c.nombre_comercial || c.identificacion}</option>
+              {clientes.map(cliente => (
+                <option key={cliente.id} value={cliente.id}>
+                  {cliente.label}
+                </option>
               ))}
             </select>
           </div>
-          <ActionButton variant="secondary" onClick={() => { /* abrir modal de detalles si se desea */ }}>
-            Ver Detalles
-          </ActionButton>
         </div>
-        <p className="text-sm text-neutral-500 mt-2">
-          Selecciona un cliente de tu cartera para iniciar el pedido
+        <p className="mt-2 text-sm text-neutral-500">
+          El carrito se sincroniza con el endpoint `/orders/cart/client/:clienteId` automáticamente.
         </p>
       </section>
 
-      {/* Agregar Productos */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4 flex items-center gap-2">
-          <Package className="h-5 w-5 text-brand-red" />
-          2. Agrega Productos
-        </h3>
-        {isLoadingProductos ? (
-          <div className="py-6 text-center text-sm text-neutral-600">Cargando productos...</div>
-        ) : productos.length === 0 ? (
-          <EmptyContent
-            icon={<ShoppingCart className="h-16 w-16" />}
-            title={clienteSeleccionado ? 'No hay productos para este cliente' : 'Carrito vacío'}
-            description={clienteSeleccionado ? 'No se encontraron productos asignados a este cliente.' : 'Selecciona un cliente para comenzar a agregar productos'}
+      {clienteSeleccionado ? (
+        <CartProvider
+          key={clienteSeleccionado}
+          clienteId={clienteSeleccionado}
+          storageKey="cafrilosa:cart:vendedor"
+        >
+          <ClienteCartExperience
+            key={clienteSeleccionado}
+            clienteId={clienteSeleccionado}
+            cliente={clienteActivo}
+            productos={productos}
+            isLoadingProductos={isLoadingProductos}
+            isLoadingSucursales={isLoadingSucursales}
+            sucursales={sucursales}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onPedidoCreado={(id) => {
+              try {
+                if (id && typeof navigator?.clipboard?.writeText === 'function') navigator.clipboard.writeText(id)
+              } catch {}
+              navigate('/vendedor/pedidos', { replace: true })
+              if (id) {
+                try {
+                  // Informal feedback: quick alert confirming copy
+                  // (kept simple for now; can be replaced with a toast)
+                  // eslint-disable-next-line no-alert
+                  alert('Pedido creado: ' + id + ' (copiado al portapapeles)')
+                } catch {}
+              }
+            }}
           />
+        </CartProvider>
+      ) : (
+        <EmptyContent
+          icon={<ShoppingCart className="h-16 w-16" />}
+          title="Selecciona un cliente"
+          description="El carrito y los productos disponibles aparecerán después de elegir una cuenta."
+        />
+      )}
+    </div>
+  )
+}
+
+type ClienteCartExperienceProps = {
+  clienteId: string
+  cliente: Cliente | null
+  productos: ProductoCliente[]
+  isLoadingProductos: boolean
+  isLoadingSucursales: boolean
+  sucursales: SucursalCliente[]
+  searchTerm: string
+  onSearchChange: (value: string) => void
+  onPedidoCreado: (id?: string) => void
+}
+
+function ClienteCartExperience({
+  clienteId,
+  cliente,
+  productos,
+  isLoadingProductos,
+  isLoadingSucursales,
+  sucursales,
+  searchTerm,
+  onSearchChange,
+  onPedidoCreado,
+}: ClienteCartExperienceProps) {
+  const { items, total, addItem, updateQuantity, removeItem, clearCart, warnings, removedItems } = useCart()
+  const [destinoTipo, setDestinoTipo] = useState<'cliente' | 'sucursal'>('cliente')
+  const [selectedSucursalId, setSelectedSucursalId] = useState<string | null>(null)
+  const [condicionPago, setCondicionPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const creditoDisponible = useMemo(() => {
+    const limite = cliente?.limite_credito ? Number(cliente.limite_credito) : 0
+    const saldo = cliente?.saldo_actual ? Number(cliente.saldo_actual) : 0
+    return Math.max(limite - saldo, 0)
+  }, [cliente])
+
+  const superaCredito = cliente?.tiene_credito ? total > creditoDisponible : false
+
+  useEffect(() => {
+    if (cliente?.tiene_credito && !superaCredito) {
+      setCondicionPago('CREDITO')
+    } else {
+      setCondicionPago('CONTADO')
+    }
+  }, [cliente, superaCredito])
+
+  useEffect(() => {
+    if (destinoTipo !== 'sucursal') {
+      setSelectedSucursalId(null)
+      return
+    }
+    if (sucursales.length === 0) {
+      setDestinoTipo('cliente')
+      setSelectedSucursalId(null)
+      return
+    }
+    if (!selectedSucursalId) {
+      setSelectedSucursalId(sucursales[0].id)
+    }
+  }, [destinoTipo, sucursales, selectedSucursalId])
+
+  const filteredProductos = useMemo(() => {
+    if (!searchTerm.trim()) return productos
+    const term = searchTerm.trim().toLowerCase()
+    return productos.filter(producto => {
+      return (
+        producto.name.toLowerCase().includes(term) ||
+        producto.description.toLowerCase().includes(term)
+      )
+    })
+  }, [productos, searchTerm])
+
+  const productosPromocion = filteredProductos.filter(
+    producto => producto.precio_oferta != null || (Array.isArray(producto.promociones) && producto.promociones.length > 0),
+  )
+  const productosCatalogo = filteredProductos.filter(producto => !productosPromocion.includes(producto))
+
+  const handleConfirmar = async () => {
+    if (items.length === 0 || isSubmitting) return
+    if (!clienteId) return
+    if (destinoTipo === 'sucursal' && !selectedSucursalId) {
+      setSubmitError('Selecciona una sucursal válida para este pedido.')
+      return
+    }
+    setSubmitError(null)
+    setIsSubmitting(true)
+    try {
+      const nuevo = await createPedidoFromCartCliente(clienteId, {
+        condicionPago,
+        sucursalId: destinoTipo === 'sucursal' ? selectedSucursalId : undefined,
+      })
+      clearCart()
+      try {
+        window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } }))
+      } catch {}
+      try {
+        const id = (nuevo as any)?.id
+        onPedidoCreado(id)
+      } catch {
+        onPedidoCreado()
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'No se pudo crear el pedido'
+      setSubmitError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const subtotalTexto = `$${total.toFixed(2)}`
+  const creditoTexto = `$${creditoDisponible.toFixed(2)}`
+
+  return (
+    <div className="space-y-6">
+      {/* Sección "2. Agrega productos" eliminada por solicitud del cliente. */}
+
+      <section className="rounded-xl border border-neutral-200 bg-white p-6">
+        <h3 className="mb-4 text-lg font-bold text-neutral-950">3. Carrito sincronizado</h3>
+        {warnings && warnings.length > 0 ? (
+          <div className="mb-4">
+            <Alert variant="warning">{warnings.map(w => w.issue).join(', ')}</Alert>
+          </div>
+        ) : null}
+        {removedItems && removedItems.length > 0 ? (
+          <div className="mb-4">
+            <Alert variant="destructive">
+              El backend depuró líneas inválidas: {removedItems.map(item => item.producto_id).join(', ')}
+            </Alert>
+          </div>
+        ) : null}
+
+        {items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-600">
+            Aún no agregas productos. Usa el catálogo para iniciar el carrito.
+          </div>
         ) : (
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <input
-                  type="text"
-                  placeholder="Buscar producto..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-200 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-brand-red"
-                />
+          <div className="space-y-4">
+            <div className="max-h-[50vh] space-y-3 overflow-auto pr-2">
+              {items.map(item => (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-neutral-900">{item.name}</p>
+                    <p className="text-xs text-neutral-500">Precio estimado: ${item.unitPrice.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label="Disminuir"
+                      onClick={() => updateQuantity(item.id, Math.max(item.quantity - 1, 0))}
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                    <button
+                      type="button"
+                      aria-label="Aumentar"
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="w-24 text-right text-sm font-bold text-neutral-900">${(item.unitPrice * item.quantity).toFixed(2)}</div>
+                  <button
+                    type="button"
+                    aria-label="Eliminar"
+                    onClick={() => removeItem(item.id)}
+                    className="rounded-lg bg-red-50 p-2 text-brand-red hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-700">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-neutral-500" />
+                Stock y promociones se recalculan en el backend al confirmar el pedido.
               </div>
             </div>
 
-            {/* Separar productos con promoción y sin promoción */}
-            {/** promoted: tiene precio de oferta o promociones **/}
-            {(() => {
-              const term = searchTerm.trim().toLowerCase()
-              const filtered = productos.filter((p) => {
-                const name = ((p as any).nombre ?? (p as any).name ?? '').toString().toLowerCase()
-                const sku = ((p as any).codigo_sku ?? '').toString().toLowerCase()
-                return term === '' || name.includes(term) || sku.includes(term)
-              })
-
-              const regular = filtered.filter((p) => {
-                const hasPromo = (p as any).precio_oferta != null || (Array.isArray((p as any).promociones) && (p as any).promociones.length > 0)
-                return !hasPromo
-              })
-
-              return (
-                <>
-                  <div>
-                    <h4 className="mb-3 text-sm font-semibold">Catálogo ({regular.length})</h4>
-                    {regular.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">No hay productos en el catálogo para este cliente.</div>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-neutral-600">Total estimado</p>
+                  <p className="text-xl font-bold text-neutral-900">{subtotalTexto}</p>
+                </div>
+                {cliente?.tiene_credito ? (
+                  <div className="mt-3 space-y-1 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-neutral-600">Crédito disponible</span>
+                      <span className={superaCredito ? 'font-semibold text-brand-red' : 'font-semibold text-emerald-700'}>
+                        {creditoTexto}
+                      </span>
+                    </div>
+                    {superaCredito ? (
+                      <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800">
+                        El total supera el crédito. Se forzará pago Contado.
+                      </div>
                     ) : (
-                      <CardGrid
-                        items={regular.map((p) => ({
-                          id: p.id,
-                          image: (p as any).imagen_url ?? (p as any).image ?? null,
-                          title: (p as any).nombre ?? (p as any).name ?? 'Producto sin nombre',
-                          subtitle: (p as any).codigo_sku ? `SKU: ${(p as any).codigo_sku}` : undefined,
-                          description: (p as any).descripcion ?? (p as any).description ?? undefined,
-                          tags: (p as any).categoria ? [(p as any).categoria.nombre ?? String((p as any).categoria)] : undefined,
-                          extra: (
-                            <StatusBadge variant={(p as any).activo ? 'success' : 'neutral'}>
-                              {(p as any).activo ? 'Activo' : 'Inactivo'}
-                            </StatusBadge>
-                          ),
-                          actions: (
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <div className="text-right">
-                                <div className="text-sm font-bold">${((p as any).precio_oferta ?? (p as any).price ?? 0).toFixed(2)}</div>
-                              </div>
-                              <button className="ml-2 rounded-lg border border-brand-red bg-white px-3 py-2 text-sm font-semibold text-brand-red shadow-sm transition hover:bg-brand-red/90 hover:text-white">Agregar</button>
-                            </div>
-                          ),
-                        }))}
-                        columns={4}
-                      />
+                      <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+                        <CheckCircle2 className="mr-1 inline h-4 w-4" /> Dentro del cupo disponible.
+                      </div>
                     )}
                   </div>
-                </>
-              )
-            })()}
+                ) : (
+                  <p className="mt-3 text-sm text-neutral-500">Este cliente no tiene crédito registrado.</p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                <p className="mb-2 text-sm font-semibold text-neutral-700">Condición comercial</p>
+                <select
+                  value={condicionPago}
+                  onChange={event => setCondicionPago(event.target.value as typeof condicionPago)}
+                  className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-brand-red"
+                  disabled={superaCredito}
+                >
+                  {PAYMENT_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                {superaCredito ? (
+                  <p className="mt-2 text-xs text-red-700">
+                    Para montos superiores al crédito disponible, solo se permite pago contado.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                  <Building2 className="h-4 w-4 text-brand-red" /> Destino del pedido
+                </p>
+                <div className="space-y-2 text-sm">
+                  <label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 ${destinoTipo === 'cliente' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                    <input
+                      type="radio"
+                      name="destino"
+                      checked={destinoTipo === 'cliente'}
+                      onChange={() => setDestinoTipo('cliente')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-semibold text-neutral-900">Dirección principal</p>
+                      <p className="text-xs text-neutral-500">Usa la dirección legal registrada en catálogo.</p>
+                    </div>
+                  </label>
+                  <label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 ${destinoTipo === 'sucursal' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'} ${sucursales.length === 0 ? 'opacity-60' : ''}`}>
+                    <input
+                      type="radio"
+                      name="destino"
+                      checked={destinoTipo === 'sucursal'}
+                      onChange={() => setDestinoTipo('sucursal')}
+                      disabled={sucursales.length === 0}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-semibold text-neutral-900">Sucursal</p>
+                      <p className="text-xs text-neutral-500">
+                        {sucursales.length > 0
+                          ? 'Enviaremos el pedido a una sucursal registrada.'
+                          : 'Este cliente aún no registra sucursales con ID válido.'}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+                {destinoTipo === 'sucursal' ? (
+                  <div className="mt-3 space-y-2 rounded-xl border border-dashed border-brand-red/30 bg-brand-red/5 px-3 py-3 text-sm">
+                    {isLoadingSucursales ? (
+                      <p className="text-neutral-500">Cargando sucursales...</p>
+                    ) : sucursales.length === 0 ? (
+                      <p className="text-neutral-500">Sin sucursales disponibles.</p>
+                    ) : (
+                      sucursales.map(sucursal => (
+                        <label
+                          key={sucursal.id}
+                          className={`flex cursor-pointer items-start gap-2 rounded-xl border bg-white px-3 py-2 text-xs ${selectedSucursalId === sucursal.id ? 'border-brand-red/60 shadow-sm' : 'border-brand-red/10 hover:border-brand-red/40'}`}
+                        >
+                          <input
+                            type="radio"
+                            name="sucursal"
+                            checked={selectedSucursalId === sucursal.id}
+                            onChange={() => setSelectedSucursalId(sucursal.id)}
+                            className="mt-1"
+                          />
+                          <div>
+                            <p className="font-semibold text-neutral-900">{sucursal.nombre}</p>
+                            <p className="text-neutral-500">
+                              {[sucursal.direccion, sucursal.ciudad, sucursal.estado].filter(Boolean).join(' · ') || 'Sin dirección registrada'}
+                            </p>
+                          </div>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {submitError ? (
+              <Alert variant="destructive">{submitError}</Alert>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => clearCart()}
+                disabled={items.length === 0}
+                className="rounded-xl border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vaciar carrito
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmar}
+                disabled={items.length === 0 || isSubmitting}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-red px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-red700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Send className="h-4 w-4" /> Confirmar pedido
+              </button>
+            </div>
           </div>
         )}
-      </section>
-
-      {/* Promociones */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4 flex items-center gap-2">
-          <Percent className="h-5 w-5 text-brand-red" />
-          3. Aplica Promociones
-        </h3>
-        <p className="text-sm text-neutral-500">Las promociones aplicables se mostrarán automáticamente según los productos seleccionados</p>
-        <div className="mt-4">
-          {productos.length === 0 ? (
-            <div className="text-sm text-neutral-500">Selecciona un cliente para ver promociones aplicables.</div>
-          ) : (
-            (() => {
-              const promos = productos.filter((p) => (p as any).precio_oferta != null || (Array.isArray((p as any).promociones) && (p as any).promociones.length > 0))
-              if (promos.length === 0) return <div className="text-sm text-neutral-500">No hay promociones aplicables.</div>
-              const mapped = promos.map((p) => {
-                const prod: ProductoCliente = {
-                  id: (p as any).id,
-                  name: (p as any).nombre ?? (p as any).name ?? '',
-                  description: (p as any).descripcion ?? (p as any).description ?? '',
-                  price: Number((p as any).price ?? (p as any).precio_oferta ?? 0),
-                  precio_original: (p as any).precio_original ?? null,
-                  precio_oferta: (p as any).precio_oferta ?? (p as any).precio_oferta_fijo ?? null,
-                  ahorro: null,
-                  promociones: (p as any).promociones ?? [],
-                  campania_aplicada_id: (p as any).campania_aplicada_id ?? null,
-                  image: (p as any).imagen_url ?? (p as any).image ?? undefined,
-                  category: (p as any).categoria?.nombre ?? (p as any).category ?? '',
-                  inStock: Boolean((p as any).activo ?? (p as any).inStock ?? true),
-                }
-                return prod
-              })
-
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {mapped.map((mp) => (
-                    <ProductCard key={mp.id} producto={mp} onAddToCart={(item) => addToCart(item)} fetchPromos addButtonLabel="Agregar" />
-                  ))}
-                </div>
-              )
-            })()
-          )}
-        </div>
-      </section>
-
-      {/* Condición Comercial */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4">4. Define Condición Comercial</h3>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Forma de Pago
-            </label>
-            <select className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent">
-              <option value="">Seleccionar...</option>
-              <option value="contado">Contado</option>
-              <option value="credito">Crédito</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Días de Crédito
-            </label>
-            <input
-              type="number"
-              placeholder="0"
-              className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Resumen */}
-      <section className="rounded-xl border border-brand-red bg-brand-red/5 p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4">Resumen del Pedido</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-neutral-600">Subtotal:</span>
-            <span className="font-semibold text-neutral-950">--</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-neutral-600">Descuentos:</span>
-            <span className="font-semibold text-green-600">--</span>
-          </div>
-          <div className="flex justify-between pt-2 border-t border-neutral-200">
-            <span className="font-bold text-neutral-950">Total:</span>
-            <span className="font-bold text-brand-red text-lg">--</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Acciones */}
-      <section className="flex flex-wrap gap-3">
-        <ActionButton variant="primary" icon={<Send className="h-4 w-4" />}>
-          Enviar Pedido a Bodega
-        </ActionButton>
-        <ActionButton variant="secondary">
-          Guardar Borrador
-        </ActionButton>
-        <ActionButton variant="danger" icon={<Trash2 className="h-4 w-4" />}>
-          Cancelar
-        </ActionButton>
-      </section>
-
-      {/* Información */}
-      <section className="rounded-xl border border-blue-200 bg-blue-50 p-6">
-        <h4 className="font-semibold text-blue-900 mb-2">Flujo del Pedido</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>✓ Crea pedidos para clientes de tu cartera</li>
-          <li>✓ Edita el carrito antes de enviar</li>
-          <li>✓ El pedido se envía a bodega para validación de stock</li>
-          <li>✗ No puedes validar stock directamente</li>
-          <li>✗ La facturación la genera el ERP automáticamente</li>
-        </ul>
       </section>
     </div>
   )

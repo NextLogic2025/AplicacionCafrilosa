@@ -31,6 +31,12 @@ type CartContextValue = {
   dismissLastAction: () => void
 }
 
+type CartProviderProps = {
+  children: React.ReactNode
+  clienteId?: string | null
+  storageKey?: string
+}
+
 const CartContext = React.createContext<CartContextValue | null>(null)
 
 const noop = () => {}
@@ -50,18 +56,24 @@ const fallbackCartValue: CartContextValue = {
   dismissLastAction: noop,
 }
 
-function loadCart(): CartItem[] {
+const DEFAULT_STORAGE_KEY = 'cafrilosa:cart'
+
+function buildStorageKey(baseKey: string, scope?: string | null) {
+  return scope ? `${baseKey}:${scope}` : baseKey
+}
+
+function loadCart(storageKey: string): CartItem[] {
   try {
-    const raw = localStorage.getItem('cafrilosa:cart')
+    const raw = localStorage.getItem(storageKey)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-function saveCart(items: CartItem[]) {
+function saveCart(storageKey: string, items: CartItem[]) {
   try {
-    localStorage.setItem('cafrilosa:cart', JSON.stringify(items))
+    localStorage.setItem(storageKey, JSON.stringify(items))
   } catch {
     // ignore
   }
@@ -94,15 +106,27 @@ function mapServerItems(cart: BackendCart, previous: CartItem[]): CartItem[] {
     .filter((item): item is CartItem => Boolean(item))
 }
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = React.useState<CartItem[]>(() => loadCart())
+export function CartProvider({ children, clienteId = null, storageKey = DEFAULT_STORAGE_KEY }: CartProviderProps) {
+  const scopedStorageKey = React.useMemo(() => buildStorageKey(storageKey, clienteId), [storageKey, clienteId])
+  const [items, setItems] = React.useState<CartItem[]>(() => loadCart(scopedStorageKey))
   const [warnings, setWarnings] = React.useState<Array<{ issue: string }>>([])
   const [removedItems, setRemovedItems] = React.useState<Array<{ producto_id: string; campania_aplicada_id?: number | null }>>([])
   const [lastAction, setLastAction] = React.useState<CartActionEvent | null>(null)
   const pendingRemovalsRef = React.useRef(new Set<string>())
   const inflightUpsertsRef = React.useRef(new Map<string, Promise<void>>())
 
+  React.useEffect(() => {
+    setItems(loadCart(scopedStorageKey))
+    setWarnings([])
+    setRemovedItems([])
+    setLastAction(null)
+    pendingRemovalsRef.current = new Set()
+    inflightUpsertsRef.current = new Map()
+  }, [scopedStorageKey])
+
   const applyServerSnapshot = React.useCallback((cart: BackendCart) => {
+    // eslint-disable-next-line no-console
+    console.log('[CartContext] applyServerSnapshot called', { cartId: cart?.id, items: Array.isArray(cart?.items) ? cart.items.length : 0 })
     setItems(prev => {
       const mapped = mapServerItems(cart, prev)
       const mappedIsEmpty = mapped.length === 0
@@ -114,22 +138,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return prev
       }
 
-      saveCart(mapped)
+      saveCart(scopedStorageKey, mapped)
       return mapped
     })
     setWarnings(Array.isArray(cart?.warnings) ? cart.warnings : [])
     setRemovedItems(Array.isArray(cart?.removed_items) ? cart.removed_items : [])
-  }, [])
+  }, [scopedStorageKey])
 
   const syncCartFromServer = React.useCallback(async () => {
     if (!getToken()) return
     try {
-      const remote = await getCart()
+      const remote = await getCart(clienteId ?? null)
+      // eslint-disable-next-line no-console
+      console.log('[CartContext] syncCartFromServer', { clienteId, remoteExists: !!remote, remoteItems: Array.isArray((remote as any)?.items) ? (remote as any).items.length : 0 })
       if (remote) applyServerSnapshot(remote)
     } catch {
       // ignore sync errors
     }
-  }, [applyServerSnapshot])
+  }, [applyServerSnapshot, clienteId])
 
   React.useEffect(() => {
     syncCartFromServer()
@@ -142,7 +168,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!getToken()) return
       const operation = (async () => {
         try {
-          const resp = await upsertCartItem({ producto_id: productId, cantidad: quantity })
+          const resp = await upsertCartItem({ producto_id: productId, cantidad: quantity, cliente_id: clienteId ?? undefined })
           if (resp) applyServerSnapshot(resp)
         } catch {
           // ignore server errors, keep optimistic state
@@ -152,14 +178,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       })()
       inflightUpsertsRef.current.set(productId, operation)
     },
-    [applyServerSnapshot],
+    [applyServerSnapshot, clienteId],
   )
 
   const removeItem = React.useCallback(
     (productId: string) => {
       setItems(prev => {
         const next = prev.filter(i => i.id !== productId)
-        saveCart(next)
+        saveCart(scopedStorageKey, next)
         return next
       })
 
@@ -167,7 +193,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (!getToken()) return
         if (pendingRemovalsRef.current.has(productId)) return
         pendingRemovalsRef.current.add(productId)
-        removeFromCart(productId)
+        removeFromCart(productId, clienteId ?? null)
           .catch(() => null)
           .finally(() => {
             pendingRemovalsRef.current.delete(productId)
@@ -182,7 +208,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       executeRemoteRemoval()
     },
-    [syncCartFromServer],
+    [clienteId, syncCartFromServer],
   )
 
   const addItem = React.useCallback(
@@ -194,13 +220,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const next = existing
           ? prev.map(i => (i.id === item.id ? { ...i, quantity: nextQuantity } : i))
           : [...prev, { ...item, quantity: nextQuantity }]
-        saveCart(next)
+        saveCart(scopedStorageKey, next)
         return next
       })
       setLastAction({ type: 'add', itemId: item.id, name: item.name, quantity: nextQuantity, timestamp: Date.now() })
       syncItemQuantity(item.id, nextQuantity)
     },
-    [syncItemQuantity],
+    [scopedStorageKey, syncItemQuantity],
   )
 
   const updateQuantity = React.useCallback(
@@ -216,25 +242,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const next = hasItem
           ? prev.map(i => (i.id === productId ? { ...i, quantity } : i))
           : [...prev, { id: productId, name: existing?.name ?? 'Producto', unitPrice: existing?.unitPrice ?? 0, quantity }]
-        saveCart(next)
+        saveCart(scopedStorageKey, next)
         return next
       })
 
       setLastAction({ type: 'update', itemId: productId, name: existing?.name ?? 'Producto', quantity, timestamp: Date.now() })
       syncItemQuantity(productId, quantity)
     },
-    [items, removeItem, syncItemQuantity],
+    [items, removeItem, scopedStorageKey, syncItemQuantity],
   )
 
   const clearCart = React.useCallback(() => {
     setItems([])
-    saveCart([])
+    saveCart(scopedStorageKey, [])
     setWarnings([])
     setRemovedItems([])
     setLastAction(null)
     if (!getToken()) return
-    clearCartRemote().catch(() => {})
-  }, [])
+    clearCartRemote(clienteId ?? null).catch(() => {})
+  }, [clienteId, scopedStorageKey])
 
   const total = React.useMemo(() => items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [items])
 

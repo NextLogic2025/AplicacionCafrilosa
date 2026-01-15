@@ -166,7 +166,70 @@ export async function getPedidoDetalle(pedidoId: string): Promise<Pedido> {
     return null
   })
   if (!detalle) throw new Error('No se pudo obtener el detalle del pedido')
-  return mapPedidoFromBackend(detalle)
+  console.log('[clientApi] getPedidoDetalle - raw detalle:', detalle)
+  // Map backend structure to normalized Pedido
+  const mapped = mapPedidoFromBackend(detalle)
+  console.log('[clientApi] getPedidoDetalle - mapped:', mapped)
+
+  // Try to enrich mapped items: if productName looks like an ID or is empty, attempt to resolve via Catalogo
+  async function fetchProductNameById(id: string): Promise<string | null> {
+    if (!id) return null
+    const candidates = [`/productos/${encodeURIComponent(id)}`, `/products/${encodeURIComponent(id)}`, `/products?ids=${encodeURIComponent(id)}`]
+    for (const path of candidates) {
+      try {
+        const p = await httpCatalogo<any>(path).catch(() => null)
+        if (!p) continue
+        // p may be a single product or an object with items
+        if (p?.id && (p?.nombre || p?.name)) return String(p.nombre ?? p.name)
+        if (Array.isArray(p?.items) && p.items.length > 0) {
+          const found = p.items[0]
+          if (found?.nombre || found?.name) return String(found.nombre ?? found.name)
+        }
+      } catch {
+        // ignore and try next
+      }
+    }
+    return null
+  }
+
+  const needResolveIds = mapped.items
+    .filter(it => !it.productName || /^[0-9a-fA-F-]{8,}$/.test(String(it.productName)))
+    .map(it => String(it.id))
+    .filter(Boolean)
+
+  if (needResolveIds.length > 0) {
+    try {
+      const uniqueIds = Array.from(new Set(needResolveIds))
+      const results = await Promise.allSettled(uniqueIds.map(id => fetchProductNameById(id)))
+      const nameById: Record<string, string> = {}
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled' && r.value) nameById[uniqueIds[idx]] = r.value as string
+      })
+      // apply resolved names
+      mapped.items = mapped.items.map(it => ({
+        ...it,
+        productName: (nameById[String(it.id)] ?? it.productName ?? String(it.id))
+      }))
+    } catch (e) {
+      // ignore resolution errors
+    }
+  }
+
+  // Enrich cliente info if missing in detalle
+  if (!detalle?.cliente_info && (detalle?.cliente_id || detalle?.cliente || detalle?.usuario_id)) {
+    try {
+      const fetched = await fetchClienteDetalleByCandidates([detalle?.cliente_id, detalle?.cliente, detalle?.usuario_id])
+      if (fetched) {
+        // merge cliente_info into detalle so UI components can access it
+        detalle.cliente_info = { ...(detalle.cliente_info ?? {}), ...fetched }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Return merged object: include raw detalle and mapped normalized fields (mapped.items assigned)
+  return Object.assign({}, detalle, mapped, { items: mapped.items })
 }
 
 export async function deletePedido(orderId: string): Promise<boolean> {
@@ -309,24 +372,23 @@ export async function getSucursalesCliente(): Promise<SucursalCliente[]> {
   if (!clienteId) return []
   const data = await httpCatalogo<any[]>(`/clientes/${encodeURIComponent(clienteId)}/sucursales`).catch(() => [])
   if (!Array.isArray(data)) return []
-  return data
-    .map(sucursal => {
-      const id = sucursal?.id ?? sucursal?.sucursal_id
-      if (!id) return null
-      return {
-        id: String(id),
-        nombre: String(
-          sucursal?.nombre_sucursal ??
-            sucursal?.nombre ??
-            sucursal?.alias ??
-            (sucursal?.contacto_nombre ? `Sucursal ${sucursal.contacto_nombre}` : 'Sucursal'),
-        ),
-        direccion: sucursal?.direccion_entrega ?? sucursal?.direccion ?? sucursal?.direccion_exacta ?? null,
-        ciudad: sucursal?.municipio ?? sucursal?.ciudad ?? null,
-        estado: sucursal?.departamento ?? sucursal?.estado ?? null,
-      } satisfies SucursalCliente
-    })
-    .filter((s): s is SucursalCliente => Boolean(s))
+  const mappedRaw = data.map(sucursal => {
+    const id = sucursal?.id ?? sucursal?.sucursal_id
+    if (!id) return null
+    return {
+      id: String(id),
+      nombre: String(
+        sucursal?.nombre_sucursal ??
+          sucursal?.nombre ??
+          sucursal?.alias ??
+          (sucursal?.contacto_nombre ? `Sucursal ${sucursal.contacto_nombre}` : 'Sucursal'),
+      ),
+      direccion: sucursal?.direccion_entrega ?? sucursal?.direccion ?? sucursal?.direccion_exacta ?? null,
+      ciudad: sucursal?.municipio ?? sucursal?.ciudad ?? null,
+      estado: sucursal?.departamento ?? sucursal?.estado ?? null,
+    }
+  })
+  return mappedRaw.filter(Boolean) as SucursalCliente[]
 }
 
 export async function createTicket(_: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
@@ -402,11 +464,18 @@ function mapPedidoFromBackend(raw: any): Pedido {
     totalAmount: Number(raw?.total_final ?? 0),
     status: String(raw?.estado_actual ?? 'PENDIENTE').toUpperCase() as EstadoPedido,
     items: detalles.map((detalle: any) => {
-      const unitPrice = Number(detalle?.precio_final ?? detalle?.precio_unitario ?? 0)
-      const quantity = Number(detalle?.cantidad ?? 0)
+      const unitPrice = Number(detalle?.precio_final ?? detalle?.precio_unitario ?? detalle?.precio ?? 0)
+      const quantity = Number(detalle?.cantidad ?? detalle?.qty ?? detalle?.quantity ?? 0)
+
+      const productName = (
+        detalle?.nombre_producto ?? detalle?.producto_nombre ?? detalle?.nombre ??
+        detalle?.producto?.nombre ?? detalle?.producto?.nombre_producto ?? detalle?.producto?.titulo ??
+        detalle?.producto_id ?? detalle?.producto ?? detalle?.id ?? ''
+      )
+
       return {
-        id: String(detalle?.id ?? detalle?.producto_id ?? ''),
-        productName: String(detalle?.nombre_producto ?? detalle?.producto_id ?? ''),
+        id: String(detalle?.id ?? detalle?.producto_id ?? detalle?.producto ?? ''),
+        productName: String(productName),
         quantity,
         unit: String(detalle?.unidad_medida ?? 'UN'),
         unitPrice,

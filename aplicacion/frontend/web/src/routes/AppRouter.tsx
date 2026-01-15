@@ -46,6 +46,7 @@ const VendedorProductos = React.lazy(() => import('../features/vendedor/pages/Pr
 const VendedorPromociones = React.lazy(() => import('../features/vendedor/pages/Promociones'))
 const VendedorCrearPedido = React.lazy(() => import('../features/vendedor/pages/CrearPedido'))
 const VendedorPedidos = React.lazy(() => import('../features/vendedor/pages/Pedidos'))
+const VendedorPedidoDetalle = React.lazy(() => import('../features/vendedor/pages/Pedidos/Detalle'))
 const VendedorFacturas = React.lazy(() => import('../features/vendedor/pages/Facturas'))
 const VendedorEntregas = React.lazy(() => import('../features/vendedor/pages/Entregas'))
 const VendedorDevoluciones = React.lazy(() => import('../features/vendedor/pages/Devoluciones'))
@@ -150,9 +151,11 @@ export default function AppRouter() {
           <Route path="clientes" element={<VendedorClientes />} />
           <Route path="rutas" element={<VendedorRutas />} />
           <Route path="productos" element={<VendedorProductos />} />
+          <Route path="carrito" element={<VendedorCrearPedido />} />
           <Route path="promociones" element={<VendedorPromociones />} />
           <Route path="crear-pedido" element={<VendedorCrearPedido />} />
           <Route path="pedidos" element={<VendedorPedidos />} />
+          <Route path="pedidos/:id" element={<VendedorPedidoDetalle />} />
           <Route path="facturas" element={<VendedorFacturas />} />
           <Route path="entregas" element={<VendedorEntregas />} />
           <Route path="devoluciones" element={<VendedorDevoluciones />} />

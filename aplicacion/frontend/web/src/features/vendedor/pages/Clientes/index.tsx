@@ -270,7 +270,7 @@ function ClienteAsignadoCard({ cliente, onView }: { cliente: Cliente; onView?: (
   const handleIniciarPedido = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     event.preventDefault()
-    navigate(`/vendedor/crear-pedido?cliente=${cliente.id}`)
+    navigate(`/vendedor/carrito?cliente=${cliente.id}`)
   }
 
   const handleComoLlegar = (event: MouseEvent<HTMLButtonElement>) => {

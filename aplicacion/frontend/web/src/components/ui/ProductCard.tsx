@@ -7,9 +7,10 @@ type ProductCardProps = {
   producto: Producto
   onAddToCart: (item: { id: string; name: string; unitPrice: number; quantity: number }) => void
   fetchPromos?: boolean
+  showPriceFallback?: boolean
 }
 
-export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardProps) {
+export function ProductCard({ producto, onAddToCart, fetchPromos, showPriceFallback = true }: ProductCardProps) {
   const [remoteOffer, setRemoteOffer] = useState<number | null>(null)
 
   useEffect(() => {
@@ -45,6 +46,21 @@ export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardP
       mounted = false
     }
   }, [fetchPromos, producto])
+  // Compute an effective numeric price to use when adding to cart
+  const toNumber = (v: any): number | null => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v
+    if (typeof v === 'string') {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : null
+    }
+    return null
+  }
+
+  const ofertaLocal = toNumber(producto.precio_oferta)
+  const base = toNumber(producto.price ?? (producto as any).precio ?? (producto as any).precio_base)
+  const origField = toNumber((producto as any).precio_original)
+  const ofertaRemota = remoteOffer != null ? toNumber(remoteOffer) : null
+  const effectivePrice = ofertaLocal ?? ofertaRemota ?? (base != null && base > 0 ? base : origField ?? null)
   return (
     <div className="overflow-hidden rounded-lg border border-gray-100 bg-white shadow transition hover:shadow-lg h-full flex flex-col">
       <div className="relative flex h-60 w-full items-center justify-center overflow-hidden bg-gray-200 rounded-t-lg">
@@ -150,6 +166,9 @@ export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardP
                 return <p className="text-xl font-bold text-brand-red">{`$${effective.toFixed(2)}`}</p>
               }
 
+              // If caller doesn't want the "Sin precio" fallback, render nothing
+              if (!showPriceFallback) return null
+
               return <p className="text-xl font-bold text-brand-red">Sin precio</p>
             })()}
           </div>
@@ -160,7 +179,7 @@ export function ProductCard({ producto, onAddToCart, fetchPromos }: ProductCardP
               onAddToCart({
                 id: producto.id,
                 name: producto.name,
-                unitPrice: producto.price,
+                unitPrice: effectivePrice ?? 0,
                 quantity: 1,
               })
             }

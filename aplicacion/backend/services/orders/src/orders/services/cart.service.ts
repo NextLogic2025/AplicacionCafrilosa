@@ -79,7 +79,7 @@ export class CartService {
             });
             cart = await this.cartRepo.save(cart);
             cart.items = [];
-            this.logger.log('Created cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: resolvedClienteId || null, source: 'create' });
+            this.logger.debug('Created cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: resolvedClienteId || null, source: 'create' });
 
             const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
             const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
@@ -97,7 +97,7 @@ export class CartService {
                         if (body && body.id) {
                             cart.cliente_id = body.id;
                             await this.cartRepo.save(cart);
-                            this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user)');
+                            this.logger.debug('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user)');
                         }
                     }
 
@@ -105,7 +105,7 @@ export class CartService {
                     if (!cart.cliente_id && vendedor_id) {
                         cart.cliente_id = originalParamId;
                         await this.cartRepo.save(cart);
-                        this.logger.log('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id);
+                        this.logger.debug('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id);
                     }
                 } catch (err) {
                     this.logger.debug('No se pudo resolver cliente_id desde Catalog al crear carrito', { usuario_id: resolvedUsuarioId, err: err?.message || String(err) });
@@ -139,7 +139,7 @@ export class CartService {
                             if (body && body.id) {
                                 cart.cliente_id = body.id;
                                 await this.cartRepo.save(cart);
-                                this.logger.log('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user, existing)');
+                                this.logger.debug('Asignado cliente_id=' + body.id + ' al carrito ' + cart.id + ' (by-user, existing)');
                             }
                         }
                     }
@@ -150,7 +150,7 @@ export class CartService {
                 if (!cart.cliente_id) {
                     cart.cliente_id = originalParamId;
                     await this.cartRepo.save(cart);
-                    this.logger.log('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id + ' (existing)');
+                    this.logger.debug('Asignado cliente_id (fallback path)=' + originalParamId + ' al carrito ' + cart.id + ' (existing)');
                 }
             }
 
@@ -229,7 +229,7 @@ export class CartService {
      */
     async addItem(usuario_id: string, dto: UpdateCartItemDto, vendedor_id?: string): Promise<CarritoItem> {
         try {
-            this.logger.log(`Usuario ${usuario_id} agregando producto ${dto.producto_id} (vendedor_id=${vendedor_id || 'null'})`);
+            this.logger.debug(`Usuario ${usuario_id} agregando producto ${dto.producto_id} (vendedor_id=${vendedor_id || 'null'})`);
 
             const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
@@ -374,7 +374,7 @@ export class CartService {
     }
 
     async removeItem(usuario_id: string, producto_id: string, vendedor_id?: string): Promise<{ success: boolean }> {
-        this.logger.log(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
+        this.logger.debug(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
         
         const whereCondition: any = {
             usuario_id,
@@ -397,7 +397,7 @@ export class CartService {
         }
         
         const result = await this.itemRepo.delete({ carrito_id: cart.id, producto_id });
-        this.logger.log(`Resultado de eliminación: ${result.affected} items eliminados`);
+        this.logger.debug(`Resultado de eliminación: ${result.affected} items eliminados`);
 
         if (result.affected === 0) {
             throw new NotFoundException('El producto no se encuentra en el carrito');
@@ -408,7 +408,7 @@ export class CartService {
     }
 
     async clearCart(usuario_id: string, vendedor_id?: string): Promise<void> {
-        this.logger.log(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
+        this.logger.debug(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
         
         const whereCondition: any = {
             usuario_id,
@@ -431,7 +431,7 @@ export class CartService {
         }
         
         const deleteResult = await this.itemRepo.delete({ carrito_id: cart.id });
-        this.logger.log(`Carrito vaciado: ${deleteResult.affected} items eliminados`);
+        this.logger.debug(`Carrito vaciado: ${deleteResult.affected} items eliminados`);
         
         // Resetear total a 0
         cart.total_estimado = 0;
@@ -439,7 +439,7 @@ export class CartService {
     }
 
     async clearCartById(carrito_id: string): Promise<void> {
-        this.logger.log(`Vaciando carrito por ID: ${carrito_id}`);
+        this.logger.debug(`Vaciando carrito por ID: ${carrito_id}`);
         
         const cart = await this.cartRepo.findOne({
             where: { id: carrito_id, deleted_at: IsNull() },
@@ -451,7 +451,7 @@ export class CartService {
         }
         
         const deleteResult = await this.itemRepo.delete({ carrito_id: cart.id });
-        this.logger.log(`Carrito ${carrito_id} vaciado: ${deleteResult.affected} items eliminados`);
+        this.logger.debug(`Carrito ${carrito_id} vaciado: ${deleteResult.affected} items eliminados`);
         
         // Resetear total a 0
         cart.total_estimado = 0;
@@ -463,11 +463,11 @@ export class CartService {
      * Útil cuando un vendedor selecciona un cliente
      */
     async setClienteId(usuario_id: string, cliente_id: string, vendedor_id?: string): Promise<CarritoCabecera> {
-        this.logger.log(`Actualizando cliente_id=${cliente_id} para usuario=${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
+        this.logger.debug(`Actualizando cliente_id=${cliente_id} para usuario=${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
         const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
         cart.cliente_id = cliente_id;
         const saved = await this.cartRepo.save(cart);
-        this.logger.log(`Cliente guardado en carrito ${cart.id}`);
+        this.logger.debug(`Cliente guardado en carrito ${cart.id}`);
         return saved;
     }
 
@@ -484,7 +484,7 @@ export class CartService {
             return acc + (cantidad * precio);
         }, 0);
 
-        this.logger.log(`Recalculando totales para carrito ${carrito_id}: ${items.length} items, total=${total_estimado}`);
+        this.logger.debug(`Recalculando totales para carrito ${carrito_id}: ${items.length} items, total=${total_estimado}`);
         
         await this.cartRepo.update(carrito_id, { total_estimado });
         return total_estimado;
