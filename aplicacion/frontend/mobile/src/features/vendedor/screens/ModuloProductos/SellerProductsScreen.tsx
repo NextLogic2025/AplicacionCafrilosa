@@ -17,6 +17,7 @@ type ClientSelection = {
 import { CatalogService, type Product } from '../../../../services/api/CatalogService'
 import { ClientService, type Client, type ClientBranch } from '../../../../services/api/ClientService'
 import { useCart } from '../../../../context/CartContext'
+import { useToast } from '../../../../context/ToastContext'
 
 /**
  * SellerProductsScreen - Catálogo de productos para vendedores
@@ -30,12 +31,19 @@ import { useCart } from '../../../../context/CartContext'
 export function SellerProductsScreen() {
     const navigation = useNavigation()
     const { addToCart, cart, setClient: setCartClient } = useCart()
+    const { showToast } = useToast()
 
     // Estado del cliente seleccionado
     const [selectedClient, setSelectedClient] = useState<Client | null>(null)
     const [selectedBranch, setSelectedBranch] = useState<ClientBranch | null>(null)
     const [showClientModal, setShowClientModal] = useState(false)
     const [priceLists, setPriceLists] = useState<Map<number, string>>(new Map())
+
+    // Helper para manejar valores numéricos de forma segura
+    const safeNumber = (value: any): number => {
+        const num = Number(value)
+        return isNaN(num) || !isFinite(num) ? 0 : num
+    }
 
     // Estado de productos
     const [loading, setLoading] = useState(false)
@@ -127,28 +135,23 @@ export function SellerProductsScreen() {
             return
         }
 
-        // Determinar precio a usar
-        const precio = product.precio_oferta ?? product.precio_original ?? 0
-
+        // SIMPLE: Solo enviar ID y cantidad - el backend calcula todo
         addToCart({
-            producto_id: product.id,
+            id: product.id,
             codigo_sku: product.codigo_sku,
-            nombre_producto: product.nombre,
-            imagen_url: product.imagen_url,
-            unidad_medida: product.unidad_medida || 'UND',
-            precio_lista: product.precio_original || precio,
-            precio_final: precio,
-            lista_precios_id: selectedClient.lista_precios_id || 1,
-            tiene_promocion: !!product.precio_oferta,
-            descuento_porcentaje: product.ahorro && product.precio_original
-                ? Math.round((product.ahorro / product.precio_original) * 100)
-                : undefined,
+            nombre: product.nombre,
+            imagen_url: product.imagen_url || '',
+            unidad_medida: product.unidad_medida || 'UN',
+            precio_lista: 0,  // El backend lo calcula
+            precio_final: 0,  // El backend lo calcula
+            lista_precios_id: selectedClient.lista_precios_id || 0,
+            tiene_promocion: false,  // El backend lo determina
+            descuento_porcentaje: 0,  // El backend lo calcula
             campania_aplicada_id: product.campania_aplicada_id,
-            subtotal: precio
+            motivo_descuento: undefined
         }, 1)
 
-        // Feedback visual
-        Alert.alert('✓ Agregado', `${product.nombre} agregado al carrito`)
+        showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
     }
 
     const getPriceListName = (listaId: number | null) => {
@@ -156,7 +159,6 @@ export function SellerProductsScreen() {
         return priceLists.get(listaId)
     }
 
-    // Renderizar item de producto
     const renderProduct = ({ item }: { item: Product }) => {
         const hasPromotion = !!item.precio_oferta
         const precio = item.precio_oferta ?? item.precio_original ?? 0
@@ -192,20 +194,20 @@ export function SellerProductsScreen() {
                             {hasPromotion ? (
                                 <>
                                     <Text className="text-red-600 font-bold text-lg">
-                                        ${precio.toFixed(2)}
+                                        ${safeNumber(precio).toFixed(2)}
                                     </Text>
                                     <Text className="text-neutral-400 text-sm line-through ml-2">
-                                        ${precioOriginal.toFixed(2)}
+                                        ${safeNumber(precioOriginal).toFixed(2)}
                                     </Text>
                                     <View className="bg-red-100 px-2 py-0.5 rounded-full ml-2">
                                         <Text className="text-red-600 text-[10px] font-bold">
-                                            -{Math.round(((precioOriginal - precio) / precioOriginal) * 100)}%
+                                            -{safeNumber(precioOriginal) > 0 ? Math.round((safeNumber(precioOriginal) - safeNumber(precio)) / safeNumber(precioOriginal) * 100) : 0}%
                                         </Text>
                                     </View>
                                 </>
                             ) : (
                                 <Text className="text-neutral-900 font-bold text-lg">
-                                    ${precio.toFixed(2)}
+                                    ${safeNumber(precio).toFixed(2)}
                                 </Text>
                             )}
                         </View>
@@ -226,7 +228,7 @@ export function SellerProductsScreen() {
                     <View className="bg-red-50 px-3 py-1.5 flex-row items-center">
                         <Ionicons name="pricetag" size={14} color="#DC2626" />
                         <Text className="text-red-600 text-xs font-medium ml-1.5">
-                            Promoción activa - Ahorro: ${item.ahorro?.toFixed(2)}
+                            Promoción activa - Ahorro: ${safeNumber(item.ahorro).toFixed(2)}
                         </Text>
                     </View>
                 )}

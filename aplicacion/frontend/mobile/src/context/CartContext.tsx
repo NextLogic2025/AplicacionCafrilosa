@@ -32,6 +32,9 @@ interface Cart {
     impuestos_total?: number
     total_final?: number
     cliente_id?: string
+    cliente_nombre?: string
+    sucursal_id?: string
+    sucursal_nombre?: string
 }
 
 interface CartContextValue {
@@ -65,6 +68,7 @@ interface CartContextValue {
     updateQuantity: (productId: string, quantity: number) => void
     clearCart: () => void
     setClient: (client: Client | null, branch?: ClientBranch | null) => void
+    currentBranch: ClientBranch | null
     getItemCount: () => number
     validatePriceList: (clientListId: number) => boolean
     recalculatePrices: (newListId: number, productos: any[]) => void
@@ -74,8 +78,16 @@ const CartContext = createContext<CartContextValue | undefined>(undefined)
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userId, setUserId] = useState<string | null>(null)
-    const [cart, setCart] = useState<Cart>({ items: [], total_estimado: 0 })
+    const [cart, setCart] = useState<Cart>({
+        items: [],
+        total_estimado: 0,
+        subtotal: 0,
+        descuento_total: 0,
+        impuestos_total: 0,
+        total_final: 0
+    })
     const [currentClient, setCurrentClient] = useState<Client | null>(null)
+    const [currentBranch, setCurrentBranch] = useState<ClientBranch | null>(null)
     const [loading, setLoading] = useState(false)
 
     // Load User ID on Mount
@@ -109,12 +121,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
 
-            // Note: uid param is kept for compatibility but service uses target
             const serverCart = await CartService.getCart(target)
             const mappedCart = await mapServerCartToState(serverCart)
             setCart(mappedCart)
         } catch (error) {
             console.warn('Error loading cart from server', error)
+            // Establecer carrito vacío con estructura válida
+            setCart({
+                items: [],
+                total_estimado: 0,
+                subtotal: 0,
+                descuento_total: 0,
+                impuestos_total: 0,
+                total_final: 0,
+                cliente_id: currentClient?.id,
+                cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
+                sucursal_id: currentBranch?.id,
+                sucursal_nombre: currentBranch?.nombre_sucursal
+            })
         } finally {
             setLoading(false)
         }
@@ -127,49 +151,68 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         for (const item of serverCart.items) {
             try {
                 // Enrich with Catalog Data for display
-                const productDetails = await CatalogService.getProductById(item.producto_id)
+                let productDetails = null
+                try {
+                    productDetails = await CatalogService.getProductById(item.producto_id)
+                } catch (err) {
+                    console.warn(`Failed to fetch product details for ${item.producto_id}`, err)
+                }
 
                 // --- SNAPSHOT STRATEGY ---
-                // We trust the prices stored in the cart item (snapshots).
-                // If they are 0 (legacy data), we fallback to productDetails (current catalog price).
-
-                // Logic:
-                // 1. item.precio_original_snapshot -> Original Price (List Price)
-                // 2. item.precio_unitario_ref -> Final Price (Unit Price)
-
-                const precioLista = Number(item.precio_original_snapshot) > 0
+                // Usar precios del snapshot del carrito o fallback a valores seguros
+                const precioLista = Number(item.precio_original_snapshot || 0) > 0
                     ? Number(item.precio_original_snapshot)
-                    : (productDetails?.precio_original ?? 0);
+                    : Number(productDetails?.precio_original || 0)
 
-                const precioFinal = Number(item.precio_unitario_ref) > 0
+                const precioFinal = Number(item.precio_unitario_ref || 0) > 0
                     ? Number(item.precio_unitario_ref)
-                    : (productDetails?.precio_oferta ?? productDetails?.precio_original ?? 0);
+                    : Number(productDetails?.precio_oferta || productDetails?.precio_original || 0)
 
                 // Calculate Promotion Status
-                const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id;
-                let descuentoPorcentaje = 0;
+                const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id
+                let descuentoPorcentaje = 0
                 if (tienePromocion && precioLista > 0) {
-                    descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100);
+                    descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100)
                 }
+
+                const cantidad = Number(item.cantidad || 0)
+                const subtotal = cantidad * precioFinal
 
                 items.push({
                     id: item.id,
                     producto_id: item.producto_id,
-                    nombre_producto: productDetails?.nombre || 'Producto Desconocido',
-                    codigo_sku: productDetails?.codigo_sku || '',
-                    imagen_url: productDetails?.imagen_url || '',
-                    cantidad: Number(item.cantidad),
-                    unidad_medida: 'UN', // Default
+                    nombre_producto: productDetails?.nombre || item.nombre_producto || 'Producto',
+                    codigo_sku: productDetails?.codigo_sku || item.codigo_sku || 'N/A',
+                    imagen_url: productDetails?.imagen_url || item.imagen_url,
+                    cantidad,
+                    unidad_medida: productDetails?.unidad_medida || 'UN',
                     precio_lista: precioLista,
                     precio_final: precioFinal,
-                    subtotal: Number(item.cantidad) * precioFinal,
+                    subtotal,
                     campania_aplicada_id: item.campania_aplicada_id,
-                    motivo_descuento: item.motivo_descuento, // Mapped from backend
+                    motivo_descuento: item.motivo_descuento,
                     tiene_promocion: tienePromocion,
                     descuento_porcentaje: descuentoPorcentaje
                 })
             } catch (err) {
-                console.warn(`Error enriching cart item ${item.producto_id}`, err)
+                console.error(`Error processing cart item ${item.producto_id}`, err)
+                // Agregar item con valores mínimos para evitar perder datos
+                items.push({
+                    id: item.id,
+                    producto_id: item.producto_id,
+                    nombre_producto: 'Producto',
+                    codigo_sku: 'N/A',
+                    imagen_url: undefined,
+                    cantidad: Number(item.cantidad || 0),
+                    unidad_medida: 'UN',
+                    precio_lista: 0,
+                    precio_final: 0,
+                    subtotal: 0,
+                    campania_aplicada_id: item.campania_aplicada_id,
+                    motivo_descuento: item.motivo_descuento,
+                    tiene_promocion: false,
+                    descuento_porcentaje: 0
+                })
             }
         }
 
@@ -190,18 +233,46 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             descuento_total,
             impuestos_total,
             total_final,
-            cliente_id: serverCart.cliente_id
+            cliente_id: serverCart.cliente_id,
+            cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
+            sucursal_id: currentBranch?.id,
+            sucursal_nombre: currentBranch?.nombre_sucursal
         }
     }
 
     const setClient = (client: Client | null, branch?: ClientBranch | null) => {
         setCurrentClient(client)
-        // Switch Context to Client's User if available
-        if (client?.usuario_principal_id) {
-            setUserId(client.usuario_principal_id)
-        } else if (client === null) {
-            // Reset to logged in user
-            UserService.getProfile().then(p => { if (p?.id) setUserId(p.id) })
+        setCurrentBranch(branch || null)
+
+        // Actualizar info del cliente en el carrito
+        if (client) {
+            setCart(prev => ({
+                ...prev,
+                cliente_id: client.id,
+                cliente_nombre: client.nombre_comercial || client.razon_social,
+                sucursal_id: branch?.id,
+                sucursal_nombre: branch?.nombre_sucursal
+            }))
+
+            // IMPORTANTE: Cambiar el contexto del userId al usuario_principal_id del cliente
+            // Esto permite que el vendedor opere el carrito del cliente
+            if (client.usuario_principal_id) {
+                setUserId(client.usuario_principal_id)
+            }
+        } else {
+            // Limpiar info del cliente
+            setCart(prev => ({
+                ...prev,
+                cliente_id: undefined,
+                cliente_nombre: undefined,
+                sucursal_id: undefined,
+                sucursal_nombre: undefined
+            }))
+
+            // Restaurar el userId al usuario logueado (vendedor)
+            UserService.getProfile().then(p => {
+                if (p?.id) setUserId(p.id)
+            }).catch(() => {})
         }
     }
 
@@ -230,36 +301,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         try {
             // Server Call First
-            // The optimistic update is tricky because we need the snapshot prices from backend response
-            // to show correct promotion tag instantly if we rely on backend calc.
-
             const payload: AddToCartPayload = {
                 producto_id: product.id || product.producto_id,
                 cantidad: quantity,
-                // Do NOT send prices. Backend calculates them.
                 campania_aplicada_id: product.campania_aplicada_id,
                 motivo_descuento: product.motivo_descuento
             }
 
-            // --- FIX: Use addToCart instead of addItem ---
             const target = currentClient
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
 
-            if (existingItem(product.id || product.producto_id)) {
-                await CartService.addToCart(target, payload)
-            } else {
-                await CartService.addToCart(target, payload)
-            }
-            // ---------------------------------------------
+            await CartService.addToCart(target, payload)
 
-            // Reload to sync - this will fetch the cart with the calculated prices and promotions
-            loadCart(currentUserId)
+            // Recargar carrito desde servidor para sincronizar precios calculados
+            await loadCart(currentUserId)
 
         } catch (error) {
             console.error('Error adding to cart', error)
             Alert.alert('Error', 'No se pudo agregar al carrito')
-            loadCart(currentUserId)
+            await loadCart(currentUserId)
         }
     }
 
@@ -335,12 +396,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const value: CartContextValue = {
         userId,
         cart,
-        currentClient, // Expose this
-        items: cart.items, // Alias
-        totalItems: getItemCount(), // Alias
+        currentClient,
+        currentBranch,
+        items: cart.items,
+        totalItems: getItemCount(),
         addToCart,
         removeFromCart,
-        removeItem: removeFromCart, // Alias
+        removeItem: removeFromCart,
         updateQuantity,
         clearCart,
         setClient,

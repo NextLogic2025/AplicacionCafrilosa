@@ -160,18 +160,36 @@ export const OrderService = {
     },
 
     /**
-     * Servicio: Crear pedido desde el carrito (Server-side cart)
-     * Endpoint: POST /orders/from-cart/me o /orders/from-cart/client/:id
+     * Crear pedido desde el carrito (Server-side cart)
+     * 
+     * El backend crea el pedido desde el carrito almacenado en servidor.
+     * Solo requiere condicion_pago y sucursal_id opcional.
+     * El backend calcula precios, impuestos y totales automáticamente.
+     * 
+     * Endpoints:
+     * - Cliente: POST /orders/from-cart/me
+     * - Vendedor: POST /orders/from-cart/client/:clienteId
      */
-    createOrderFromCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, data?: Partial<CreateOrderPayload>): Promise<Order> => {
+    createOrderFromCart: async (
+        target: { type: 'me' } | { type: 'client', clientId: string },
+        options?: {
+            condicion_pago?: 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
+            sucursal_id?: string
+        }
+    ): Promise<Order> => {
         try {
             const endpoint = target.type === 'client'
                 ? `${env.api.ordersUrl}/orders/from-cart/client/${target.clientId}`
                 : `${env.api.ordersUrl}/orders/from-cart/me`
 
+            const payload = {
+                condicion_pago: options?.condicion_pago || 'CONTADO',
+                ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
+            }
+
             return await apiRequest<Order>(endpoint, {
                 method: 'POST',
-                body: data ? JSON.stringify(data) : undefined
+                body: JSON.stringify(payload)
             })
         } catch (error) {
             console.error('Error creating order from cart:', error)

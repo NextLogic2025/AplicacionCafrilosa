@@ -15,10 +15,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { useCart } from '../../../../context/CartContext'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
+import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { ClientService, type Client } from '../../../../services/api/ClientService'
-import { CartService } from '../../../../services/api/CartService'
 import { getToken } from '../../../../storage/authStorage'
 import { jwtDecode } from 'jwt-decode'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 /**
  * SellerCartScreen - Pantalla del Carrito del Vendedor
@@ -33,7 +34,7 @@ import { jwtDecode } from 'jwt-decode'
  */
 export function SellerCartScreen() {
     const navigation = useNavigation()
-    const { cart, removeFromCart, updateQuantity, clearCart, setClient, validatePriceList, recalculatePrices } = useCart()
+    const { cart, removeFromCart, updateQuantity, clearCart, setClient, validatePriceList, recalculatePrices, totalItems } = useCart()
 
     const [userId, setUserId] = useState<string>('')
     const [showClientModal, setShowClientModal] = useState(false)
@@ -41,7 +42,29 @@ export function SellerCartScreen() {
     const [loadingClients, setLoadingClients] = useState(false)
     const [clientsError, setClientsError] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [creatingOrder, setCreatingOrder] = useState(false)
+    const [showPriceDetails, setShowPriceDetails] = useState(true)
+
+    // Estado para el modal de Feedback
+    const [modalVisible, setModalVisible] = useState(false)
+    const [modalConfig, setModalConfig] = useState<{
+        type: FeedbackType
+        title: string
+        message: string
+        showCancel?: boolean
+        onConfirm?: () => void
+        confirmText?: string
+        cancelText?: string
+    }>({
+        type: 'info',
+        title: '',
+        message: ''
+    })
+
+    // Helper para manejar valores numéricos de forma segura
+    const safeNumber = (value: any): number => {
+        const num = Number(value)
+        return isNaN(num) || !isFinite(num) ? 0 : num
+    }
 
     // Obtener userId del token al montar el componente
     useEffect(() => {
@@ -119,83 +142,48 @@ export function SellerCartScreen() {
         }
     }
 
-    // Crear pedido
-    const handleCreateOrder = async () => {
-        // Validaciones
+    // Función para manejar el vaciado del carrito con confirmación
+    const handleClearCartPress = () => {
+        setModalConfig({
+            type: 'warning',
+            title: 'Vaciar Carrito',
+            message: '¿Estás seguro de que deseas eliminar todos los productos del carrito?',
+            showCancel: true,
+            confirmText: 'Vaciar',
+            cancelText: 'Cancelar',
+            onConfirm: async () => {
+                setModalVisible(false)
+                await clearCart()
+                setTimeout(() => {
+                    setModalConfig({
+                        type: 'success',
+                        title: 'Carrito Vaciado',
+                        message: 'Todos los productos han sido eliminados correctamente.',
+                        showCancel: false,
+                        confirmText: 'Entendido',
+                        onConfirm: () => setModalVisible(false)
+                    })
+                    setModalVisible(true)
+                }, 300)
+            }
+        })
+        setModalVisible(true)
+    }
+
+    // Navegar a la pantalla de Checkout
+    const handleCheckout = () => {
         if (cart.items.length === 0) {
-            Alert.alert('Carrito Vacío', 'Agrega productos al carrito antes de crear el pedido')
+            Alert.alert('Carrito Vacío', 'Agrega productos al carrito antes de continuar')
             return
         }
 
         if (!cart.cliente_id) {
-            Alert.alert('Cliente Requerido', 'Selecciona un cliente para crear el pedido')
-            setShowClientModal(true)
+            Alert.alert('Cliente Requerido', 'Selecciona un cliente desde el catálogo de productos')
             return
         }
 
-        if (!userId) {
-            Alert.alert('Error', 'No se pudo identificar el vendedor')
-            return
-        }
-
-        Alert.alert(
-            'Confirmar Pedido',
-            `¿Deseas crear el pedido para ${cart.cliente_nombre}?${cart.sucursal_nombre ? `\n📍 Sucursal: ${cart.sucursal_nombre}` : ''}\n\nTotal: $${cart.total_final.toFixed(2)}`,
-            [
-                {
-                    text: 'Cancelar',
-                    style: 'cancel'
-                },
-                {
-                    text: 'Crear Pedido',
-                    onPress: async () => {
-                        setCreatingOrder(true)
-                        try {
-                            await CartService.createOrderFromCart({
-                                cliente_id: cart.cliente_id!,
-                                vendedor_id: userId,
-                                sucursal_id: cart.sucursal_id,
-                                items: cart.items.map(item => ({
-                                    producto_id: item.producto_id,
-                                    codigo_sku: item.codigo_sku,
-                                    nombre_producto: item.nombre_producto,
-                                    cantidad: item.cantidad,
-                                    unidad_medida: item.unidad_medida,
-                                    precio_lista: item.precio_lista,
-                                    precio_final: item.precio_final,
-                                    subtotal_linea: item.subtotal,
-                                    campania_aplicada_id: item.campania_aplicada_id
-                                })),
-                                subtotal: cart.subtotal,
-                                descuento_total: cart.descuento_total,
-                                impuestos_total: cart.impuestos_total,
-                                total_final: cart.total_final,
-                                condicion_pago: 'CONTADO'
-                            })
-
-                            Alert.alert(
-                                'Pedido Creado',
-                                'El pedido se ha creado exitosamente',
-                                [
-                                    {
-                                        text: 'OK',
-                                        onPress: () => {
-                                            clearCart()
-                                            navigation.navigate('SellerHome' as never)
-                                        }
-                                    }
-                                ]
-                            )
-                        } catch (error: any) {
-                            console.error('Error creating order:', error)
-                            Alert.alert('Error', 'No se pudo crear el pedido. Intenta nuevamente.')
-                        } finally {
-                            setCreatingOrder(false)
-                        }
-                    }
-                }
-            ]
-        )
+        // @ts-expect-error - Navigation is typed but routes are dynamic
+        navigation.navigate('SellerCheckout')
     }
 
     // Renderizar item del carrito
@@ -220,7 +208,7 @@ export function SellerCartScreen() {
                         <View style={styles.promotionBadge}>
                             <Ionicons name="pricetag" size={12} color="#DC2626" />
                             <Text style={styles.promotionText}>
-                                -{item.descuento_porcentaje}% OFF
+                                -{safeNumber(item.descuento_porcentaje)}% OFF
                             </Text>
                         </View>
                     )}
@@ -256,11 +244,11 @@ export function SellerCartScreen() {
                 <View style={styles.priceContainer}>
                     {item.tiene_promocion && (
                         <Text style={styles.originalPrice}>
-                            ${(item.precio_lista * item.cantidad).toFixed(2)}
+                            ${safeNumber(safeNumber(item.precio_lista) * safeNumber(item.cantidad)).toFixed(2)}
                         </Text>
                     )}
                     <Text style={styles.finalPrice}>
-                        ${item.subtotal.toFixed(2)}
+                        ${safeNumber(item.subtotal).toFixed(2)}
                     </Text>
                 </View>
             </View>
@@ -271,13 +259,10 @@ export function SellerCartScreen() {
         <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
             <Header title="Mi Carrito" variant="standard" />
 
-            {/* Cliente seleccionado */}
+            {/* Cliente seleccionado - Solo mostrar, no permitir cambio */}
             <View style={styles.clientSection}>
                 {cart.cliente_id ? (
-                    <TouchableOpacity
-                        style={styles.selectedClientCard}
-                        onPress={() => setShowClientModal(true)}
-                    >
+                    <View style={styles.selectedClientCard}>
                         <View style={styles.clientIcon}>
                             <Ionicons name="person" size={20} color="#DC2626" />
                         </View>
@@ -288,19 +273,12 @@ export function SellerCartScreen() {
                                 <Text style={styles.clientBranch}>📍 {cart.sucursal_nombre}</Text>
                             )}
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
+                    </View>
                 ) : (
-                    <TouchableOpacity
-                        style={styles.selectClientButton}
-                        onPress={() => {
-                            loadClients()
-                            setShowClientModal(true)
-                        }}
-                    >
-                        <Ionicons name="person-add-outline" size={20} color="#DC2626" />
-                        <Text style={styles.selectClientText}>Seleccionar Cliente</Text>
-                    </TouchableOpacity>
+                    <View style={styles.emptyClientCard}>
+                        <Ionicons name="alert-circle-outline" size={20} color="#EF4444" />
+                        <Text style={styles.emptyClientText}>Selecciona un cliente desde Productos</Text>
+                    </View>
                 )}
             </View>
 
@@ -324,53 +302,78 @@ export function SellerCartScreen() {
                 />
             )}
 
-            {/* Resumen y totales */}
+            {/* Resumen y totales - Panel flotante inferior */}
             {cart.items.length > 0 && (
                 <View style={styles.summaryContainer}>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Subtotal</Text>
-                        <Text style={styles.summaryValue}>${cart.subtotal.toFixed(2)}</Text>
-                    </View>
-
-                    {cart.descuento_total > 0 && (
-                        <View style={styles.summaryRow}>
-                            <Text style={[styles.summaryLabel, { color: '#10B981' }]}>
-                                Descuentos
-                            </Text>
-                            <Text style={[styles.summaryValue, { color: '#10B981' }]}>
-                                -${cart.descuento_total.toFixed(2)}
-                            </Text>
+                    {/* Toggle para mostrar/ocultar detalles */}
+                    <TouchableOpacity
+                        style={styles.toggleRow}
+                        onPress={() => setShowPriceDetails(!showPriceDetails)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.toggleLeft}>
+                            <Ionicons
+                                name={showPriceDetails ? 'checkmark-circle' : 'ellipse-outline'}
+                                size={20}
+                                color={showPriceDetails ? '#10B981' : '#9CA3AF'}
+                            />
+                            <Text style={styles.toggleText}>Ver desglose de precios</Text>
                         </View>
+                        <Ionicons
+                            name={showPriceDetails ? 'chevron-up' : 'chevron-down'}
+                            size={18}
+                            color="#6B7280"
+                        />
+                    </TouchableOpacity>
+
+                    {/* Desglose de precios (colapsable) */}
+                    {showPriceDetails && (
+                        <>
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Subtotal</Text>
+                                <Text style={styles.summaryValue}>${safeNumber(cart.subtotal).toFixed(2)}</Text>
+                            </View>
+
+                            {safeNumber(cart.descuento_total) > 0 && (
+                                <View style={styles.summaryRow}>
+                                    <Text style={[styles.summaryLabel, { color: '#10B981' }]}>
+                                        Descuentos
+                                    </Text>
+                                    <Text style={[styles.summaryValue, { color: '#10B981' }]}>
+                                        -${safeNumber(cart.descuento_total).toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
+
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>IVA (12%)</Text>
+                                <Text style={styles.summaryValue}>${safeNumber(cart.impuestos_total).toFixed(2)}</Text>
+                            </View>
+
+                            <View style={styles.divider} />
+                        </>
                     )}
 
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>IVA (12%)</Text>
-                        <Text style={styles.summaryValue}>${cart.impuestos_total.toFixed(2)}</Text>
-                    </View>
-
-                    <View style={styles.divider} />
-
+                    {/* Total Final */}
                     <View style={styles.summaryRow}>
                         <Text style={styles.totalLabel}>Total</Text>
-                        <Text style={styles.totalValue}>${cart.total_final.toFixed(2)}</Text>
+                        <Text style={styles.totalValue}>${safeNumber(cart.total_final).toFixed(2)}</Text>
                     </View>
 
+                    {/* Botón de checkout */}
                     <TouchableOpacity
                         style={[
                             styles.createOrderButton,
-                            (!cart.cliente_id || creatingOrder) && styles.createOrderButtonDisabled
+                            !cart.cliente_id && styles.createOrderButtonDisabled
                         ]}
-                        onPress={handleCreateOrder}
-                        disabled={!cart.cliente_id || creatingOrder}
+                        onPress={handleCheckout}
+                        disabled={!cart.cliente_id}
+                        activeOpacity={0.9}
                     >
-                        {creatingOrder ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <>
-                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                                <Text style={styles.createOrderText}>Confirmar Pedido</Text>
-                            </>
-                        )}
+                        <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                        <Text style={styles.createOrderText}>
+                            Enviar Pedido • ${safeNumber(cart.total_final).toFixed(2)}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -399,7 +402,7 @@ export function SellerCartScreen() {
                             <Ionicons name="search" size={20} color="#9CA3AF" />
                             <Text
                                 style={styles.searchInput}
-                                onPress={() => {/* TODO: Implementar búsqueda */}}
+                                onPress={() => {/* TODO: Implementar búsqueda */ }}
                             >
                                 Buscar cliente...
                             </Text>
@@ -475,6 +478,19 @@ export function SellerCartScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal Genérico de Feedback */}
+            <FeedbackModal
+                visible={modalVisible}
+                type={modalConfig.type}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                onClose={() => setModalVisible(false)}
+                showCancel={modalConfig.showCancel}
+                onConfirm={modalConfig.onConfirm}
+                confirmText={modalConfig.confirmText}
+                cancelText={modalConfig.cancelText}
+            />
         </View>
     )
 }
@@ -545,7 +561,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 20,
-        paddingBottom: 300
+        paddingBottom: 380
     },
     cartItem: {
         backgroundColor: '#FFFFFF',
@@ -663,25 +679,27 @@ const styles = StyleSheet.create({
     },
     summaryContainer: {
         position: 'absolute',
-        bottom: 0,
+        bottom: 65,
         left: 0,
         right: 0,
         backgroundColor: '#FFFFFF',
         paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 32,
+        paddingTop: 16,
+        paddingBottom: 24,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.15,
         shadowRadius: 12,
-        elevation: 20
+        elevation: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB'
     },
     summaryRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 12
+        marginBottom: 8
     },
     summaryLabel: {
         fontSize: 14,
@@ -696,7 +714,7 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: '#E5E7EB',
-        marginVertical: 12
+        marginVertical: 8
     },
     totalLabel: {
         fontSize: 18,
@@ -713,9 +731,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#DC2626',
-        paddingVertical: 16,
-        borderRadius: 14,
-        marginTop: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginTop: 12,
         gap: 8,
         shadowColor: '#DC2626',
         shadowOffset: { width: 0, height: 4 },
@@ -895,5 +913,36 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: '700',
         color: '#DC2626'
+    },
+    emptyClientCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8
+    },
+    emptyClientText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#EF4444'
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+        marginBottom: 4
+    },
+    toggleLeft: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    toggleText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#374151',
+        marginLeft: 8
     }
 })

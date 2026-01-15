@@ -83,15 +83,12 @@ export interface Cart {
 /**
  * CartService - Servicio de gestión de carrito
  * 
- * Centraliza la comunicación con los endpoints /orders/cart/:userId
+ * Soporta dos flujos:
+ * 1. Cliente: usa endpoints /orders/cart/me (carrito propio)
+ * 2. Vendedor: usa endpoints /orders/cart/client/:clienteId (carrito del cliente)
  */
 export const CartService = {
-    /**
-     * Obtener el carrito actual del usuario desde el servidor
-     */
-    /**
-     * Obtener el carrito actual (Personal o de Cliente)
-     */
+    // Obtener carrito actual (personal o de cliente para vendedor)
     getCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<any> => {
         try {
             const endpoint = target.type === 'client'
@@ -105,9 +102,7 @@ export const CartService = {
         }
     },
 
-    /**
-     * Agregar o actualizar item en el carrito
-     */
+    // Agregar o actualizar item en el carrito
     addToCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, item: AddToCartPayload): Promise<any> => {
         try {
             const endpoint = target.type === 'client'
@@ -127,47 +122,23 @@ export const CartService = {
         }
     },
 
-    /**
-     * Eliminar item del carrito
-     * Nota: El endpoint de eliminar item específico solo se mostró para 'me' en los logs.
-     * Para cliente, asumiremos que se debe usar otra estrategia o el mismo si existiera, 
-     * pero por lo estricto de los logs, usaremos DELETE item para 'me' y warning para 'client' por ahora.
-     */
+    // Eliminar item del carrito
     removeFromCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, productId: string): Promise<void> => {
         try {
-            if (target.type === 'me') {
-                await apiRequest(`${env.api.ordersUrl}/orders/cart/me/item/${productId}`, {
-                    method: 'DELETE'
-                })
-            } else {
-                // Fallback: Try sending 0 quantity update if DELETE not available, or just log
-                // Based on standard REST, separate endpoint is preferred. 
-                // If missing from logs, it might be an oversight or handled via POST with qty 0.
-                // Let's force a call to the potentially existing equivalent or throw.
-                console.warn('DELETE item for client cart not explicitly logged. Attempting POST with qty 0 or similar logic required.')
-                // For safety, let's try assuming consistency if backend dev missed capturing one log line, 
-                // OR implementing a soft "set to 0" via addToCart logic if frontend logic permits. 
-                // But actually, looking at typical patterns, I'll allow this only for 'me' properly, 
-                // and for client I'll try the specific path hoping it aligns with 'me' pattern: /orders/cart/client/:id/item/:prodId
-                // If 404, we'll know.
-                /* 
-                   Wait, logs showed:
-                   Mapped {/orders/cart/me, DELETE} 
-                   Mapped {/orders/cart/me/item/:productId, DELETE}
-                   Mapped {/orders/cart/client/:clienteId, POST}
-                   No DELETE for client specific item. 
-                */
-                console.log('Use addToCart with quantity 0 to remove for client?')
-            }
+            const endpoint = target.type === 'client'
+                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}/item/${productId}`
+                : `${env.api.ordersUrl}/orders/cart/me/item/${productId}`
+
+            await apiRequest(endpoint, {
+                method: 'DELETE'
+            })
         } catch (error) {
             console.error('Error removing from cart:', error)
             throw error
         }
     },
 
-    /**
-     * Vaciar carrito completo
-     */
+    // Vaciar carrito completo
     clearCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<void> => {
         try {
             const endpoint = target.type === 'client'

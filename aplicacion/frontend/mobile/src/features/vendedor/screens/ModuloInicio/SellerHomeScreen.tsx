@@ -13,7 +13,7 @@ import { getUserName } from '../../../../storage/authStorage'
 
 export function SellerHomeScreen() {
     const navigation = useNavigation()
-    const { totalItems, totalPrice } = useCart()
+    const { totalItems, cart } = useCart()
     const [userName, setUserName] = useState('Vendedor')
 
     // Cargar nombre real
@@ -167,7 +167,7 @@ export function SellerHomeScreen() {
                                         {totalItems} producto{totalItems !== 1 ? 's' : ''}
                                     </Text>
                                     <Text className="text-sm text-green-600 font-bold">
-                                        ${totalPrice.toFixed(2)}
+                                        ${(cart.total_final || 0).toFixed(2)}
                                     </Text>
                                 </View>
                             </View>

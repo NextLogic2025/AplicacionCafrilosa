@@ -18,6 +18,7 @@ import { SellerProductsScreen } from '../features/vendedor/screens/ModuloProduct
 
 // ModuloCarrito
 import { SellerCartScreen } from '../features/vendedor/screens/ModuloCarrito/SellerCartScreen'
+import { SellerCheckoutScreen } from '../features/vendedor/screens/ModuloCarrito/SellerCheckoutScreen'
 
 // ModuloPedidos
 import { SellerOrderScreen } from '../features/vendedor/screens/ModuloPedidos/SellerOrderScreen'
@@ -50,6 +51,7 @@ export type SellerStackParamList = {
     SellerTabs: undefined
     SellerBranchDetail: { branch: any; clientName?: string }
     SellerProducts: undefined
+    SellerCheckout: undefined
     SellerPromotions: undefined
     SellerOrdersHistory: undefined
     SellerOrderDetail: { orderId: string }
@@ -88,6 +90,7 @@ export function SellerNavigator() {
             <Stack.Screen name="SellerBranchDetail" component={SellerBranchDetailScreen} />
             <Stack.Screen name="SellerClientDetail" component={SellerClientDetailScreen} />
             <Stack.Screen name="SellerProducts" component={SellerProductsScreen} />
+            <Stack.Screen name="SellerCheckout" component={SellerCheckoutScreen} />
             <Stack.Screen name="SellerPromotions" component={SellerPromotionsScreen} />
             <Stack.Screen name="SellerOrdersHistory" component={SellerOrderHistoryScreen} />
             <Stack.Screen name="SellerOrderDetail" component={SellerOrderDetailScreen} />
