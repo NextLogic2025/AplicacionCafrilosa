@@ -1,23 +1,32 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Timeline, TimelineStep } from '../../../../components/ui/Timeline'
 import { OrderService } from '../../../../services/api/OrderService'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
+type TrackingRouteProp = RouteProp<{ Tracking: { orderId?: string } }, 'Tracking'>
+
+type TrackingData = {
+    id: string | number
+    status: 'pending' | 'shipped' | 'delivered'
+    carrier?: string
+    estimatedDelivery?: string
+    evidence?: { photo?: string; signature?: string }
+    dates: { confirmed?: string; shipped?: string; delivered?: string }
+}
+
 export function ClientTrackingScreen() {
     const navigation = useNavigation()
-    const route = useRoute()
-    // @ts-ignore
-    const { orderId } = route.params || {}
+    const route = useRoute<TrackingRouteProp>()
+    const orderId = route.params?.orderId
 
     const [loading, setLoading] = useState(true)
-    const [trackingData, setTrackingData] = useState<any>(null)
+    const [trackingData, setTrackingData] = useState<TrackingData | null>(null)
 
     useEffect(() => {
-        // Si no hay orderId (desde FAB directo), buscar el último pedido activo
         const fetchTracking = async () => {
             try {
                 const data = await OrderService.getTrackingInfo(orderId)
@@ -82,7 +91,6 @@ export function ClientTrackingScreen() {
 
             <ScrollView className="flex-1 px-5 pt-6">
 
-                {/* Info Pedido */}
                 <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm shadow-black/5 border border-neutral-100">
                     <Text className="text-neutral-500 text-xs font-bold uppercase mb-1">Pedido Referencia</Text>
                     <Text className="text-neutral-900 font-bold text-2xl mb-1">#{trackingData.id}</Text>
@@ -92,19 +100,16 @@ export function ClientTrackingScreen() {
                     <Text className="text-neutral-400 text-sm">Fecha estimada: {trackingData.estimatedDelivery}</Text>
                 </View>
 
-                {/* Timeline */}
                 <View className="bg-white rounded-2xl p-5 mb-6 shadow-sm shadow-black/5 border border-neutral-100">
                     <Text className="text-neutral-900 font-bold text-lg mb-4">Estado del Envío</Text>
                     <Timeline steps={steps} />
                 </View>
 
-                {/* Evidencias (Solo si entregado) */}
                 {trackingData.status === 'delivered' && (
                     <View className="mb-10">
                         <Text className="text-neutral-900 font-bold text-lg mb-3 pl-1">Evidencias de Entrega</Text>
 
                         <View className="flex-row gap-4">
-                            {/* Foto */}
                             <View className="flex-1 bg-white rounded-2xl p-3 shadow-sm shadow-black/5 border border-neutral-100 items-center">
                                 <View className="w-full h-32 bg-neutral-100 rounded-xl mb-2 overflow-hidden items-center justify-center">
                                     {trackingData.evidence?.photo ? (
@@ -116,7 +121,6 @@ export function ClientTrackingScreen() {
                                 <Text className="text-neutral-500 text-xs font-medium">Foto Paquete</Text>
                             </View>
 
-                            {/* Firma */}
                             <View className="flex-1 bg-white rounded-2xl p-3 shadow-sm shadow-black/5 border border-neutral-100 items-center">
                                 <View className="w-full h-32 bg-neutral-100 rounded-xl mb-2 overflow-hidden items-center justify-center">
                                     {trackingData.evidence?.signature ? (

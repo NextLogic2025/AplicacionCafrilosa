@@ -104,7 +104,7 @@ export default function SellerCheckoutScreen() {
         try {
             // Payload for Backend
             const payload = {
-                condicion_pago: condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO',
+                condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
             }
 

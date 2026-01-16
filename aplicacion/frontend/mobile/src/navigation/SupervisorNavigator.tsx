@@ -33,7 +33,7 @@ import { SupervisorPromotionsScreen } from '../features/supervisor/screens/Modul
 import { SupervisorPromotionFormScreen as SupervisorCampaignFormScreen } from '../features/supervisor/screens/ModuloPromocion/SupervisorPromotionFormScreen'
 import { SupervisorRoutesScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRoutesScreen'
 import { SupervisorRouteCreateScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteCreateScreen'
-import { SupervisorRouteCreateScreenPaso2 } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteCreateScreenPaso2'
+import { SupervisorRouteScheduleScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteScheduleScreen'
 import { SupervisorRouteDetailScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteDetailScreen'
 import { SupervisorRoutesInactiveScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRoutesInactiveScreen'
 
@@ -126,7 +126,7 @@ export function SupervisorNavigator() {
             <Stack.Group>
                 <Stack.Screen name="SupervisorRoutes" component={SupervisorRoutesScreen} />
                 <Stack.Screen name="SupervisorRouteCreate" component={SupervisorRouteCreateScreen} />
-                <Stack.Screen name="SupervisorRouteCreatePaso2" component={SupervisorRouteCreateScreenPaso2} />
+                <Stack.Screen name="SupervisorRouteCreatePaso2" component={SupervisorRouteScheduleScreen} />
                 <Stack.Screen name="SupervisorRouteDetail" component={SupervisorRouteDetailScreen} />
                 <Stack.Screen name="SupervisorRoutesInactive" component={SupervisorRoutesInactiveScreen} />
                 <Stack.Screen name="SupervisorPromotions" component={SupervisorPromotionsScreen} />

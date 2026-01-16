@@ -15,11 +15,9 @@ interface Props {
 }
 
 export function ClientWizardStep2({ clientData, setClientData, zones, onNext, onBack }: Props) {
-    // 1. Get Selected Zone Polygon
     const selectedZone = zones.find(z => z.id === clientData.zona_comercial_id)
     const zonePolygon = selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : []
 
-    // 2. Initial Map Region
     const [region, setRegion] = useState({
         latitude: -3.99313,
         longitude: -79.20422,
@@ -27,11 +25,9 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
         longitudeDelta: 0.02
     })
 
-    // 3. Pin Location (from clientData or default)
     const [markerCoord, setMarkerCoord] = useState<{ latitude: number, longitude: number } | null>(null)
 
     useEffect(() => {
-        // Init region based on zone
         if (zonePolygon.length > 0) {
             setRegion({
                 latitude: zonePolygon[0].latitude,
@@ -41,8 +37,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
             })
         }
 
-        // Init marker if exists
-        // clientData.ubicacion_gps might be GeoJSON { type: 'Point', coordinates: [lng, lat] }
         if (clientData.ubicacion_gps && clientData.ubicacion_gps.coordinates) {
             setMarkerCoord({
                 longitude: clientData.ubicacion_gps.coordinates[0],
@@ -54,7 +48,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
     const handleMapPress = (e: MapPressEvent) => {
         const coord = e.nativeEvent.coordinate
         setMarkerCoord(coord)
-        // Save to parent state in GeoJSON format
         setClientData({
             ...clientData,
             ubicacion_gps: {
@@ -66,8 +59,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
 
     return (
         <View className="flex-1 bg-white">
-
-            {/* Header Instructions */}
             <View className="px-5 py-4 bg-white border-b border-neutral-100">
                 <Text className="text-lg font-bold text-neutral-900 mb-1">Ubicación Principal</Text>
                 <Text className="text-neutral-500 text-sm">
@@ -75,7 +66,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                 </Text>
             </View>
 
-            {/* Address Input Overlay */}
             <View className="px-5 py-3 bg-neutral-50 border-b border-neutral-200">
                 <Text className="text-neutral-500 font-medium mb-1">Dirección Escrita</Text>
                 <TextInput
@@ -87,7 +77,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                 />
             </View>
 
-            {/* Full Screen Map */}
             <View className="flex-1 relative">
                 <MapView
                     provider={PROVIDER_GOOGLE}
@@ -98,7 +87,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                     showsUserLocation={true}
                     showsMyLocationButton={true}
                 >
-                    {/* Zone Boundary */}
                     {zonePolygon.length > 0 && (
                         <Polygon
                             coordinates={zonePolygon}
@@ -108,7 +96,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                         />
                     )}
 
-                    {/* Draggable Marker */}
                     {markerCoord && (
                         <Marker
                             coordinate={markerCoord}
@@ -122,7 +109,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                     )}
                 </MapView>
 
-                {/* Instruction Overlay (Moved outside MapView) */}
                 {!markerCoord && (
                     <View className="absolute bottom-32 left-0 right-0 items-center px-4 pointer-events-none">
                         <View className="bg-neutral-900/80 px-4 py-3 rounded-full shadow-lg flex-row items-center">
@@ -134,7 +120,6 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                     </View>
                 )}
 
-                {/* Floating Navigation Buttons */}
                 <View className="absolute bottom-8 left-5 right-5 flex-row justify-between gap-4">
                     <TouchableOpacity
                         className="flex-1 bg-white border border-neutral-200 py-4 rounded-xl items-center shadow-lg"

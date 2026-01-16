@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(cat:*)",
-      "Bash(npm run android:*)"
+      "Bash(npm run android:*)",
+      "Bash(find:*)",
+      "Bash(findstr:*)",
+      "Bash(del \"C:\\\\Users\\\\Denis\\\\Desktop\\\\respaldo\\\\AplicacionCafrilosa\\\\aplicacion\\\\frontend\\\\mobile\\\\src\\\\features\\\\supervisor\\\\screens\\\\ModuloRutas\\\\components\\\\RouteCreateStepIndicator.tsx\")",
+      "Bash(del \"C:\\\\Users\\\\Denis\\\\Desktop\\\\respaldo\\\\AplicacionCafrilosa\\\\aplicacion\\\\frontend\\\\mobile\\\\src\\\\features\\\\supervisor\\\\screens\\\\ModuloRutas\\\\components\\\\RouteScheduleDaysSelector.tsx\")"
     ]
   }
 }

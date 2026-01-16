@@ -17,7 +17,6 @@ type Props = {
   onDone?: () => void
 }
 
-// Schema solo para este form
 const schema = z.object({
   email: emailSchema,
 })
@@ -50,7 +49,6 @@ export function ForgotPasswordScreen({ onBack }: Props) {
     }
   })
 
-  // Si se completa exitosamente, mostrar vista de éxito
   if (success) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center p-8">

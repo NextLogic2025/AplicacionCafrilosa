@@ -101,7 +101,7 @@ export function SellerRouteScreen() {
 
     const handleClientPress = (clientId: string) => {
         // SellerClientDetail was removed; go to clients list instead
-        navigation.navigate('SellerClients')
+        navigation.navigate('SellerTabs', { screen: 'SellerClients' })
     }
 
     // Filtrar visitas por día seleccionado

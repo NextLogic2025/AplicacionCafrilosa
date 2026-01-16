@@ -82,8 +82,8 @@ export function SellerOrderScreen() {
                     {client ? (
                         <View className="bg-white p-4 rounded-xl border border-neutral-200 flex-row justify-between items-center">
                             <View>
-                                <Text className="font-bold text-neutral-900">{client.businessName}</Text>
-                                <Text className="text-neutral-500 text-sm">{client.ruc}</Text>
+                                <Text className="font-bold text-neutral-900">{client.nombre_comercial || client.razon_social}</Text>
+                                <Text className="text-neutral-500 text-sm">{client.identificacion}</Text>
                             </View>
                             <Pressable onPress={() => setClient(null)}>
                                 <Ionicons name="close-circle" size={24} color="#D1D5DB" />

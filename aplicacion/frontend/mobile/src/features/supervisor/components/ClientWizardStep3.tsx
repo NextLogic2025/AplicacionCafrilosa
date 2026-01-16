@@ -9,8 +9,8 @@ import { GenericList } from '../../../components/ui/GenericList'
 import { ZoneHelpers } from '../../../services/api/ZoneService'
 
 interface Branch {
-    id?: string        // For existing branches from backend
-    tempId?: string    // For new branches not yet saved
+    id?: string
+    tempId?: string
     nombre_sucursal: string
     direccion_entrega: string
     ubicacion_gps?: {
@@ -19,7 +19,7 @@ interface Branch {
     }
     contacto_nombre?: string
     contacto_telefono?: string
-    zona_id?: number   // Zona comercial de la sucursal
+    zona_id?: number
 }
 
 interface Props {
@@ -34,11 +34,10 @@ interface Props {
 
 export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loading, zones, clientData }: Props) {
     const [showModal, setShowModal] = useState(false)
-    const [showFullMap, setShowFullMap] = useState(false) // New state for expanded map
+    const [showFullMap, setShowFullMap] = useState(false)
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
     const [showZonePicker, setShowZonePicker] = useState(false)
 
-    // Context Data for Map
     const [selectedBranchZoneId, setSelectedBranchZoneId] = useState<number | null>(clientData.zona_comercial_id || null)
     const selectedZone = useMemo(() => zones.find((z: any) => z.id === selectedBranchZoneId), [zones, selectedBranchZoneId])
     const zonePolygon = useMemo(() => selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : [], [selectedZone])
@@ -47,7 +46,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         longitude: clientData.ubicacion_gps.coordinates[0]
     } : null
 
-    // Temp Form State
     const [tempForm, setTempForm] = useState<Branch>({
         nombre_sucursal: '',
         direccion_entrega: '',
@@ -65,7 +63,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const [fullMapKey, setFullMapKey] = useState(0)
 
     const handleOpenFullMap = () => {
-        setFullMapKey(Date.now()) // Force remount of map to reset region
+        setFullMapKey(Date.now())
         setShowFullMap(true)
     }
 
@@ -76,11 +74,10 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         setTempForm({
             nombre_sucursal: '',
             direccion_entrega: '',
-            contacto_nombre: clientData.razon_social || '', // Default to client name
+            contacto_nombre: clientData.razon_social || '',
             contacto_telefono: ''
         })
         setSelectedBranchZoneId(clientData.zona_comercial_id || null)
-        // Default marker to client location if available
         setMarkerCoord(clientLocation || null)
         if (clientLocation) {
             setMapRegion({
@@ -93,16 +90,13 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         setShowModal(true)
     }
 
-    // ... (rest of functions)
-
-    // Calculate initial region for full map (only used on mount via key)
     const getFullMapInitialRegion = () => {
         const startLat = markerCoord?.latitude || mapRegion.latitude
         const startLng = markerCoord?.longitude || mapRegion.longitude
         return {
             latitude: startLat,
             longitude: startLng,
-            latitudeDelta: 0.002, // Very precise zoom
+            latitudeDelta: 0.002,
             longitudeDelta: 0.002
         }
     }
@@ -110,7 +104,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const handleEdit = (branch: Branch) => {
         setEditingBranch(branch)
         setTempForm({ ...branch })
-        // Usar zona_id de la sucursal si existe, sino usar zona del cliente
         setSelectedBranchZoneId(branch.zona_id || clientData.zona_comercial_id || null)
         if (branch.ubicacion_gps) {
             setMarkerCoord({
@@ -127,9 +120,8 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
         setShowModal(true)
     }
 
-    // Utility: point in polygon (ray casting)
     const isPointInPolygon = (point: { latitude: number, longitude: number }, polygon: { latitude: number, longitude: number }[]) => {
-        if (!polygon || polygon.length < 3) return true // If no polygon, skip validation
+        if (!polygon || polygon.length < 3) return true
         let inside = false
         for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
             const xi = polygon[i].longitude, yi = polygon[i].latitude
@@ -144,21 +136,16 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     const handleSaveBranch = () => {
         if (!tempForm.nombre_sucursal.trim()) return
 
-        // Validate marker present
         if (!markerCoord) {
             Alert.alert('Ubicación requerida', 'Debes seleccionar una ubicación en el mapa.')
             return
         }
-        // Validate selected zone
         if (!selectedBranchZoneId) {
             Alert.alert('Zona requerida', 'Debes seleccionar una zona para la sucursal.')
             return
         }
         if (zonePolygon.length === 0) {
-            // Zona sin polígono - permitir guardar pero advertir
-            console.warn('[ClientWizardStep3] Zona sin polígono definido')
         } else {
-            // Ensure marker is inside selected zone polygon
             const inside = isPointInPolygon(markerCoord, zonePolygon)
             if (!inside) {
                 Alert.alert('Ubicación fuera de la zona', 'La ubicación marcada debe estar dentro del polígono de la zona seleccionada.')
@@ -168,9 +155,9 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
 
         const newBranch: Branch = {
             ...tempForm,
-            id: editingBranch?.id,  // Preserve ID for existing branches
+            id: editingBranch?.id,
             tempId: editingBranch?.tempId || Date.now().toString(),
-            zona_id: selectedBranchZoneId,  // ✅ Guardar zona_id de la sucursal
+            zona_id: selectedBranchZoneId,
             ubicacion_gps: markerCoord ? {
                 type: 'Point',
                 coordinates: [markerCoord.longitude, markerCoord.latitude]
@@ -186,7 +173,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     }
 
     const handleDelete = (idOrTempId: string) => {
-        // Filtrar por tempId o id
         setBranches(branches.filter(b => b.tempId !== idOrTempId && b.id !== idOrTempId))
     }
 
@@ -246,7 +232,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                 />
             </View>
 
-            {/* Footer Buttons */}
             <View className="p-5 border-t border-neutral-100 bg-white">
                 <TouchableOpacity
                     className={`w-full py-4 rounded-xl items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
@@ -268,14 +253,12 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                 </TouchableOpacity>
             </View>
 
-            {/* Modal Add/Edit Branch */}
             <GenericModal
                 visible={showModal}
                 title={editingBranch ? 'Editar Sucursal' : 'Nueva Sucursal'}
                 onClose={() => setShowModal(false)}
             >
                 <ScrollView className="max-h-[500px]">
-                    {/* Zone Selector */}
                     <Text className="text-neutral-500 font-medium mb-1">Zona de la Sucursal</Text>
                     <TouchableOpacity
                         className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 mb-3 flex-row justify-between items-center"
@@ -287,7 +270,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                         <Ionicons name="chevron-down" size={18} color="#6B7280" />
                     </TouchableOpacity>
 
-                    {/* Zone Picker Modal */}
                     <GenericModal
                         visible={showZonePicker}
                         title="Seleccionar Zona"
@@ -367,7 +349,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                         </View>
                     </View>
 
-                    {/* Map for Branch */}
                     <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-neutral-500 font-medium">Ubicación GPS (Obligatorio)</Text>
                         <TouchableOpacity onPress={handleOpenFullMap}>
@@ -383,7 +364,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                                 onRegionChangeComplete={setMapRegion}
                                 onPress={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
                             >
-                                {/* Context: Zone Polygon */}
                                 {zonePolygon.length > 0 && (
                                     <Polygon
                                         coordinates={zonePolygon}
@@ -392,7 +372,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                                         strokeWidth={1}
                                     />
                                 )}
-                                {/* Context: Client Home Marker */}
                                 {clientLocation && (
                                     <Marker
                                         coordinate={clientLocation}
@@ -404,7 +383,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                                     </Marker>
                                 )}
 
-                                {/* Branch Marker (Draggable) */}
                                 {markerCoord && (
                                     <Marker
                                         coordinate={markerCoord}
@@ -443,23 +421,19 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                 </ScrollView>
             </GenericModal>
 
-            {/* Full Screen Map Modal (Uncontrolled Region Pattern) */}
             <GenericModal
                 visible={showFullMap}
                 title="Seleccionar Ubicación Precisa"
                 onClose={() => setShowFullMap(false)}
             >
                 <View className="h-[600px] rounded-xl overflow-hidden relative bg-neutral-100">
-                    {/* Key forces remount to apply new initialRegion */}
                     <MapView
                         key={fullMapKey}
                         provider={PROVIDER_GOOGLE}
                         style={{ flex: 1 }}
                         initialRegion={getFullMapInitialRegion()}
                         onPress={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
-                    // IMPORTANT: No onRegionChange prop to avoid feedback loop
                     >
-                        {/* Same Context Elements as small map */}
                         {zonePolygon.length > 0 && (
                             <Polygon coordinates={zonePolygon} strokeColor={BRAND_COLORS.red} fillColor="rgba(239, 68, 68, 0.1)" strokeWidth={1} />
                         )}

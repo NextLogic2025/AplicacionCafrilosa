@@ -1,4 +1,3 @@
-import type { SignInResponse } from '../../shared/types'
 import { jwtDecode } from 'jwt-decode'
 import { getToken, setToken, getRefreshToken, setRefreshToken, clearTokens, setUserName } from '../../storage/authStorage'
 
@@ -6,10 +5,33 @@ import { env } from '../../config/env'
 
 type ErrorResponse = { message?: string }
 
+type SignedInUser = {
+  id?: string
+  email?: string
+  nombre?: string
+  role?: string | null
+}
+
+type SignInApiResponse = {
+  access_token?: string
+  refresh_token?: string
+  token?: string
+  usuario?: SignedInUser
+  message?: string
+}
+
+type RefreshApiResponse = {
+  access_token?: string
+  refresh_token?: string
+  message?: string
+}
+
 type DecodedToken = {
   exp: number
   sub: string
   role?: string
+  rol?: string
+  userId?: string
 }
 
 export async function signIn(email: string, password: string) {
@@ -22,8 +44,7 @@ export async function signIn(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (await res.json().catch(() => null)) as any
+  const data = (await res.json().catch(() => null)) as SignInApiResponse | null
   if (!res.ok) throw new Error(typeof data?.message === 'string' ? data.message : 'No se pudo iniciar sesión')
 
   const accessToken = data?.access_token || data?.token
@@ -40,7 +61,8 @@ export async function signIn(email: string, password: string) {
     await setUserName(data.usuario.nombre)
   }
 
-  return { token: accessToken, user: data?.usuario }
+  const role = typeof data?.usuario?.role === 'string' ? data.usuario.role : undefined
+  return { token: accessToken, user: data?.usuario ? { ...data.usuario, role } : undefined }
 }
 
 export async function getValidToken(): Promise<string | null> {
@@ -49,43 +71,55 @@ export async function getValidToken(): Promise<string | null> {
 
   try {
     const decoded = jwtDecode<DecodedToken>(token)
-    // Check if expired (with 10s buffer)
     if (decoded.exp * 1000 > Date.now() + 10000) {
       return token
     }
-    console.log('Token expired, upgrading...')
   } catch {
     return null
   }
 
-  // Token expired, try refresh
   return await refreshAccessToken()
 }
 
+const AUTH_PATHS = {
+  refresh: '/auth/refresh',
+  logout: '/auth/logout',
+} as const
+
+function normalizeTokenString(token: string) {
+  return token.trim().replace(/^"|"$/g, '')
+}
+
+let refreshPromise: Promise<string | null> | null = null
+
 async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
   const refreshToken = await getRefreshToken()
   if (!refreshToken) {
     await signOut()
     return null
   }
 
-  const url = env.api.baseUrl + '/auth/refresh' // Assuming standard path, adjust if needed
+  const authBaseUrl = env.auth.baseUrl || env.api.baseUrl
+  const url = authBaseUrl + AUTH_PATHS.refresh
+  const cleanRefreshToken = normalizeTokenString(refreshToken)
 
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({ refresh_token: cleanRefreshToken }),
     })
 
     if (!res.ok) {
       throw new Error('Refresh failed')
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = (await res.json()) as any
-    const newAccessToken = data.access_token
-    const newRefreshToken = data.refresh_token
+    const data = (await res.json().catch(() => null)) as RefreshApiResponse | null
+    const newAccessToken = data?.access_token
+    const newRefreshToken = data?.refresh_token
 
     if (newAccessToken) {
       await setToken(newAccessToken)
@@ -97,20 +131,27 @@ async function refreshAccessToken(): Promise<string | null> {
     await clearTokens()
   }
   return null
+  })().finally(() => {
+    refreshPromise = null
+  })
+
+  return refreshPromise
 }
 
 export async function signOut() {
   try {
     const refreshToken = await getRefreshToken()
-    if (refreshToken) {
-      const cleanToken = refreshToken.trim().replace(/^"|"$/g, '')
-      const url = env.api.baseUrl + '/auth/logout'
+    const accessToken = await getToken()
+    if (refreshToken && accessToken) {
+      const cleanToken = normalizeTokenString(refreshToken)
+      const authBaseUrl = env.auth.baseUrl || env.api.baseUrl
+      const url = authBaseUrl + AUTH_PATHS.logout
       await fetch(url, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ refresh_token: cleanToken }),
       }).catch(err => console.warn('Logout backend failed', err))
@@ -118,7 +159,6 @@ export async function signOut() {
   } catch (error) {
     console.warn('Error during sign out process', error)
   } finally {
-    // Siempre limpiar credenciales locales
     await clearTokens()
   }
 }

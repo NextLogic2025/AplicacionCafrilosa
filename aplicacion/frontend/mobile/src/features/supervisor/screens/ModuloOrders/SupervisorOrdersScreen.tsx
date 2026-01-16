@@ -17,13 +17,11 @@ import {
 import { ClientService, Client } from '../../../../services/api/ClientService'
 import { BRAND_COLORS } from '../../../../shared/types'
 
-// Estados que el supervisor puede asignar (validación de pedidos)
 const SUPERVISOR_ALLOWED_STATUSES: OrderStatus[] = [
     'APROBADO',
     'RECHAZADO'
 ]
 
-// Todos los estados para filtros
 const ALL_ORDER_STATUSES: OrderStatus[] = [
     'PENDIENTE',
     'APROBADO',
@@ -35,28 +33,17 @@ const ALL_ORDER_STATUSES: OrderStatus[] = [
     'RECHAZADO'
 ]
 
-/**
- * SupervisorOrdersScreen
- * 
- * Pantalla de gestión de pedidos para supervisores con:
- * - Visualización de todos los pedidos
- * - Filtrado por cliente y estado
- * - Cambio de estado de pedidos
- * - Búsqueda por código
- */
 export function SupervisorOrdersScreen() {
-    const navigation = useNavigation()
+    const navigation = useNavigation<any>()
     const [loading, setLoading] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
     const [orders, setOrders] = useState<Order[]>([])
     const [clients, setClients] = useState<Client[]>([])
 
-    // Filtros
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL')
     const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
-    // Modales
     const [showClientModal, setShowClientModal] = useState(false)
     const [showStatusModal, setShowStatusModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -71,7 +58,6 @@ export function SupervisorOrdersScreen() {
     const loadOrders = async () => {
         setLoading(true)
         try {
-            // Supervisores usan getOrders() que llama a GET /orders
             const data = await OrderService.getOrders()
             setOrders(data)
         } catch (error) {
@@ -84,7 +70,6 @@ export function SupervisorOrdersScreen() {
 
     const loadClients = async () => {
         try {
-            // Usar getClients() que existe en ClientService
             const data = await ClientService.getClients()
             setClients(data)
         } catch (error) {
@@ -124,7 +109,6 @@ export function SupervisorOrdersScreen() {
         }
     }
 
-    // Filtrado local
     const filteredOrders = orders.filter(order => {
         const matchesSearch = searchQuery === '' ||
             order.codigo_visual.toString().includes(searchQuery) ||
@@ -180,7 +164,6 @@ export function SupervisorOrdersScreen() {
         <View className="flex-1 bg-neutral-50">
             <Header title="Gestión de Pedidos" variant="standard" showNotification={false} />
 
-            {/* Búsqueda */}
             <View className="px-5 pt-4 pb-3">
                 <SearchBar
                     value={searchQuery}
@@ -190,7 +173,6 @@ export function SupervisorOrdersScreen() {
                 />
             </View>
 
-            {/* Filtros */}
             <View className="px-5 pb-3 gap-3">
                 <TouchableOpacity
                     onPress={() => setShowClientModal(true)}
@@ -205,7 +187,6 @@ export function SupervisorOrdersScreen() {
                     <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
 
-                {/* Filtros de estado - Horizontal scroll */}
                 <FlatList
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -227,10 +208,8 @@ export function SupervisorOrdersScreen() {
                 />
             </View>
 
-            {/* Chips de filtros activos */}
             {renderFilterChips()}
 
-            {/* Lista de pedidos */}
             {loading && !refreshing ? (
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color={BRAND_COLORS.red} />
@@ -244,10 +223,8 @@ export function SupervisorOrdersScreen() {
                         <View className="px-5 mb-3">
                             <OrderCard
                                 order={item}
-                                // @ts-ignore
                                 onPress={() => navigation.navigate('SupervisorOrderDetail', { orderId: item.id })}
                             />
-                            {/* Botón de cambiar estado */}
                             <TouchableOpacity
                                 onPress={() => handleChangeStatus(item)}
                                 className="mt-2 bg-white border border-brand-red rounded-xl py-3 flex-row items-center justify-center"
@@ -286,7 +263,6 @@ export function SupervisorOrdersScreen() {
                 />
             )}
 
-            {/* Modal de selección de cliente */}
             <Modal
                 visible={showClientModal}
                 animationType="slide"
@@ -336,7 +312,6 @@ export function SupervisorOrdersScreen() {
                 </View>
             </Modal>
 
-            {/* Modal de cambio de estado */}
             <Modal
                 visible={showStatusModal}
                 animationType="slide"

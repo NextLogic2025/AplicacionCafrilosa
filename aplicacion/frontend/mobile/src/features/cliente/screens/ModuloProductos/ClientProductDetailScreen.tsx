@@ -6,41 +6,30 @@ import { Header } from '../../../../components/ui/Header'
 import { CatalogService, type Product } from '../../../../services/api/CatalogService'
 import { useCart } from '../../../../context/CartContext'
 
-type ProductDetailRouteProp = RouteProp<{ params: { productId: string } }, 'params'>
+type ProductDetailRouteProp = RouteProp<{ params: { productId: string; product?: Product } }, 'params'>
 
-/**
- * ClientProductDetailScreen - Detalle del Producto para Clientes
- *
- * Vista detallada de un producto individual con:
- * - Imagen grande del producto
- * - Información completa (nombre, SKU, descripción)
- * - Precios con/sin promoción
- * - Especificaciones del producto
- * - Control de cantidad
- * - Botón flotante para agregar al carrito
- *
- * Usa NativeWind (TailwindCSS) para estilos consistentes
- */
 export function ClientProductDetailScreen() {
     const navigation = useNavigation()
     const route = useRoute<ProductDetailRouteProp>()
-    const { productId } = route.params
+    const { productId, product: initialProduct } = route.params
     const { addToCart } = useCart()
 
-    const [product, setProduct] = useState<Product | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [product, setProduct] = useState<Product | null>(initialProduct ?? null)
+    const [loading, setLoading] = useState(!initialProduct)
     const [quantity, setQuantity] = useState(1)
 
     useEffect(() => {
+        if (initialProduct) {
+            setProduct(initialProduct)
+            setLoading(false)
+            return
+        }
         loadProductDetails()
-    }, [productId])
+    }, [productId, initialProduct])
 
     const loadProductDetails = async () => {
         try {
             setLoading(true)
-            // CRITICAL FIX: Usar getClientProductDetail en lugar de getProductById
-            // getProductById usa /api/products/:id que da 403 para clientes
-            // getClientProductDetail usa /api/precios/producto/:id que es accesible para clientes
             const data = await CatalogService.getClientProductDetail(productId)
             setProduct(data)
         } catch (error) {
@@ -50,7 +39,6 @@ export function ClientProductDetailScreen() {
         }
     }
 
-    // Estado de carga
     if (loading) {
         return (
             <View className="flex-1 bg-white">
@@ -63,7 +51,6 @@ export function ClientProductDetailScreen() {
         )
     }
 
-    // Estado de error
     if (!product) {
         return (
             <View className="flex-1 bg-white">
@@ -108,7 +95,7 @@ export function ClientProductDetailScreen() {
             descuento_porcentaje: descuentoPorcentaje,
             campania_aplicada_id: product.campania_aplicada_id,
             motivo_descuento: hasPromotion
-                ? (product.promociones && product.promociones.length > 0 ? product.promociones[0].tipo_descuento : 'Oferta Especial')
+                ? (product.promociones && product.promociones.length > 0 ? (product.promociones[0].tipo_descuento ?? 'Oferta Especial') : 'Oferta Especial')
                 : undefined
         }, quantity)
 
@@ -130,7 +117,6 @@ export function ClientProductDetailScreen() {
                 contentContainerStyle={{ paddingBottom: 140 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Imagen del Producto */}
                 <View className="w-full h-[300px] bg-neutral-100 relative">
                     {product.imagen_url ? (
                         <Image
@@ -144,7 +130,6 @@ export function ClientProductDetailScreen() {
                         </View>
                     )}
 
-                    {/* Badge de Promoción */}
                     {hasPromotion && (
                         <View className="absolute top-4 right-4 bg-red-500 px-4 py-2 rounded-lg">
                             <Text className="text-white text-sm font-bold">
@@ -155,7 +140,6 @@ export function ClientProductDetailScreen() {
                 </View>
 
                 <View className="px-5">
-                    {/* Categoría */}
                     {product.categoria && (
                         <View className="self-start bg-red-50 px-3 py-1.5 rounded-md mt-4 mb-3">
                             <Text className="text-brand-red text-xs font-semibold uppercase">
@@ -164,17 +148,14 @@ export function ClientProductDetailScreen() {
                         </View>
                     )}
 
-                    {/* Nombre del Producto */}
                     <Text className="text-2xl font-bold text-neutral-800 mb-2 leading-8">
                         {product.nombre}
                     </Text>
 
-                    {/* Código SKU */}
                     <Text className="text-[13px] text-neutral-500 mb-5">
                         {`SKU: ${product.codigo_sku}`}
                     </Text>
 
-                    {/* Sección de Precios */}
                     <View className="bg-neutral-50 p-4 rounded-xl mb-6">
                         {hasPromotion ? (
                             <>
@@ -204,7 +185,6 @@ export function ClientProductDetailScreen() {
                         )}
                     </View>
 
-                    {/* Descripción */}
                     {product.descripcion && (
                         <View className="mb-6">
                             <Text className="text-lg font-bold text-neutral-800 mb-3">
@@ -216,7 +196,6 @@ export function ClientProductDetailScreen() {
                         </View>
                     )}
 
-                    {/* Especificaciones */}
                     <View className="mb-6">
                         <Text className="text-lg font-bold text-neutral-800 mb-3">
                             Especificaciones
@@ -259,7 +238,6 @@ export function ClientProductDetailScreen() {
                         )}
                     </View>
 
-                    {/* Detalles de Promoción */}
                     {hasPromotion && product.promociones && product.promociones.length > 0 && (
                         <View className="mb-6">
                             <Text className="text-lg font-bold text-neutral-800 mb-3">
@@ -288,9 +266,7 @@ export function ClientProductDetailScreen() {
                 </View>
             </ScrollView>
 
-            {/* Botón Flotante - Agregar al Carrito */}
             <View className="absolute bottom-0 left-0 right-0 bg-white px-5 py-4 pb-6 border-t border-neutral-200 flex-row items-center gap-3 shadow-lg">
-                {/* Controles de cantidad */}
                 <View className="flex-row items-center bg-neutral-50 rounded-xl border border-neutral-200 p-1">
                     <TouchableOpacity
                         className="w-9 h-9 justify-center items-center bg-white rounded-lg"
@@ -311,7 +287,6 @@ export function ClientProductDetailScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Botón agregar */}
                 <TouchableOpacity
                     className="flex-1 flex-row items-center justify-center bg-brand-red py-3.5 px-6 rounded-xl shadow-md"
                     onPress={handleAddToCart}

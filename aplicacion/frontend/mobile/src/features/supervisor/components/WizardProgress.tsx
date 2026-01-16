@@ -5,7 +5,7 @@ import { BRAND_COLORS } from '../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 
 interface Props {
-    currentStep: number // 1, 2, or 3
+    currentStep: number
     totalSteps?: number
     labels?: string[]
 }
@@ -22,7 +22,6 @@ export function WizardProgress({ currentStep, totalSteps = 3, labels = ['Datos',
 
                 return (
                     <React.Fragment key={step}>
-                        {/* Step Circle */}
                         <View className="items-center">
                             <View
                                 className={`w-10 h-10 rounded-full items-center justify-center border-2 mb-1 
@@ -41,7 +40,6 @@ export function WizardProgress({ currentStep, totalSteps = 3, labels = ['Datos',
                             </Text>
                         </View>
 
-                        {/* Connector Line */}
                         {!isLast && (
                             <View className={`flex-1 h-1 mx-2 rounded-full ${isCompleted ? 'bg-red-500' : 'bg-neutral-200'}`} />
                         )}

@@ -15,6 +15,8 @@ interface Props {
     onSelect: (selection: ClientSelection) => void
     title?: string
     priceListsMap?: Map<number, string>
+    selectedClientId?: string
+    selectedBranchId?: string
 }
 
 export function ClientSelectorModal({ visible, onClose, onSelect, title = 'Seleccionar Cliente', priceListsMap }: Props) {

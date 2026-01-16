@@ -15,13 +15,11 @@ import { BRAND_COLORS } from '../../../../shared/types'
 
 type OrderDetailRouteProp = RouteProp<{ params: { orderId: string } }, 'params'>
 
-// Estados que el supervisor puede asignar (validación de pedidos)
 const SUPERVISOR_ALLOWED_STATUSES: OrderStatus[] = [
     'APROBADO',
     'RECHAZADO'
 ]
 
-// Todos los estados solo para referencia
 const ALL_ORDER_STATUSES: OrderStatus[] = [
     'PENDIENTE',
     'APROBADO',
@@ -112,7 +110,6 @@ export function SupervisorOrderDetailScreen() {
 
             <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false}>
 
-                {/* Estado Actual */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5 border-2" style={{ borderColor: ORDER_STATUS_COLORS[order.estado_actual] }}>
                     <View className="flex-row justify-between items-start mb-3">
                         <View className="flex-1">
@@ -147,7 +144,6 @@ export function SupervisorOrderDetailScreen() {
                         </View>
                     </View>
 
-                    {/* Botón cambiar estado */}
                     <TouchableOpacity
                         onPress={() => setShowStatusModal(true)}
                         className="mt-3 pt-3 border-t border-neutral-100 flex-row items-center justify-center"
@@ -157,7 +153,6 @@ export function SupervisorOrderDetailScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Cliente */}
                 {order.cliente && (
                     <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                         <Text className="text-neutral-900 font-bold text-lg mb-3">Cliente</Text>
@@ -174,7 +169,6 @@ export function SupervisorOrderDetailScreen() {
                     </View>
                 )}
 
-                {/* Información Adicional */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <Text className="text-neutral-900 font-bold text-lg mb-3">Información</Text>
                     {order.condicion_pago && (
@@ -197,7 +191,6 @@ export function SupervisorOrderDetailScreen() {
                     )}
                 </View>
 
-                {/* Productos */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="text-neutral-900 font-bold text-lg">
@@ -246,7 +239,6 @@ export function SupervisorOrderDetailScreen() {
                     )}
                 </View>
 
-                {/* Totales */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <Text className="text-neutral-900 font-bold text-lg mb-3">Resumen</Text>
 
@@ -281,7 +273,6 @@ export function SupervisorOrderDetailScreen() {
                     </View>
                 </View>
 
-                {/* Observaciones */}
                 {order.observaciones_entrega && (
                     <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                         <Text className="text-neutral-900 font-bold text-base mb-2">
@@ -296,7 +287,6 @@ export function SupervisorOrderDetailScreen() {
                 <View className="h-8" />
             </ScrollView>
 
-            {/* Modal de cambio de estado */}
             <Modal
                 visible={showStatusModal}
                 animationType="slide"

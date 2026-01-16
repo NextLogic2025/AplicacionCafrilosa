@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import type { NavigatorScreenParams } from '@react-navigation/native'
 import { TabNavigation } from '../components/ui/TabNavigation'
 
 // Screens - Organized by Module
@@ -48,7 +49,7 @@ import { SellerRouteMapScreen } from '../features/vendedor/screens/ModuloRutero/
 import { SellerProfileScreen } from '../features/vendedor/screens/ModuloPerfil/SellerProfileScreen'
 
 export type SellerStackParamList = {
-    SellerTabs: undefined
+    SellerTabs: NavigatorScreenParams<SellerTabParamList>
     SellerBranchDetail: { branch: any; clientName?: string }
     SellerProducts: undefined
     SellerCheckout: undefined
@@ -65,7 +66,15 @@ export type SellerStackParamList = {
     SellerClientDetail: { clientId: string }
 }
 
-const Tab = createBottomTabNavigator()
+export type SellerTabParamList = {
+    SellerHome: undefined
+    SellerClients: undefined
+    SellerProductList: undefined
+    SellerCart: undefined
+    SellerProfile: undefined
+}
+
+const Tab = createBottomTabNavigator<SellerTabParamList>()
 const Stack = createNativeStackNavigator<SellerStackParamList>()
 
 function SellerTabNavigator() {

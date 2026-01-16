@@ -15,7 +15,7 @@ export const SupportService = {
         return []
     },
 
-    async createTicket(ticket: Omit<Ticket, 'id' | 'date' | 'status'>): Promise<boolean> {
+    async createTicket(_ticket: Omit<Ticket, 'id' | 'date' | 'status'>): Promise<boolean> {
         await delay(1000)
         return true
     }

@@ -18,10 +18,8 @@ export function SupervisorClientsScreen({ navigation }: any) {
     const [searchQuery, setSearchQuery] = useState('')
     const [priceLists, setPriceLists] = useState<PriceList[]>([])
 
-    // Unified Filter ID: 'active' | 'blocked' | 'list_ID'
     const [filterMode, setFilterMode] = useState<string>('active')
 
-    // Feedback State
     const [feedbackVisible, setFeedbackVisible] = useState(false)
     const [feedbackConfig, setFeedbackConfig] = useState<{
         type: FeedbackType,
@@ -35,7 +33,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
     const fetchData = async () => {
         setLoading(true)
         try {
-            // Fetch All Data Including Blocked
             const [activeClients, blockedClients, listsData, zonesData, assignmentsData, vendorsData, usersData] = await Promise.all([
                 ClientService.getClients(),
                 ClientService.getBlockedClients(),
@@ -48,7 +45,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
 
             const allClientsRaw = [...activeClients, ...blockedClients]
 
-            // 1. Build Lookup Maps
             const zoneMap = new Map()
             zonesData.forEach(z => zoneMap.set(z.id, z.nombre))
 
@@ -58,14 +54,12 @@ export function SupervisorClientsScreen({ navigation }: any) {
             const userNameMap = new Map()
             usersData.forEach(u => userNameMap.set(u.id, u.name))
 
-            // Zone ID -> Vendor Name
             const zoneToVendorMap = new Map()
             assignmentsData.filter(a => a.es_principal).forEach(a => {
                 const vName = a.nombre_vendedor_cache || vendorNameMap.get(a.vendedor_usuario_id)
                 if (vName) zoneToVendorMap.set(Number(a.zona_id), vName)
             })
 
-            // 2. Enhance Clients
             const enhancedClients = allClientsRaw.map(c => {
                 const zoneName = c.zona_comercial_id ? zoneMap.get(c.zona_comercial_id) : null
                 const vendorName = c.zona_comercial_id ? zoneToVendorMap.get(c.zona_comercial_id) : null
@@ -96,21 +90,17 @@ export function SupervisorClientsScreen({ navigation }: any) {
         return unsubscribe
     }, [navigation])
 
-    // Main Filter Logic
     const filteredClients = clients.filter(c => {
-        // 1. Search (Always applies)
         const matchesSearch = c.razon_social.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.identificacion.includes(searchQuery)
 
         if (!matchesSearch) return false
 
-        // 2. Mode Filter
         if (filterMode === 'active') {
             return !c.bloqueado
         } else if (filterMode === 'blocked') {
             return c.bloqueado
         } else if (filterMode.startsWith('list_')) {
-            // Price List Filter (Implies Active)
             const listId = Number(filterMode.replace('list_', ''))
             return c.lista_precios_id === listId && !c.bloqueado
         }
@@ -144,7 +134,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
         try {
             if (client.bloqueado) {
                 await ClientService.unblockClient(client.id)
-                // Success Modal Config
                 setTimeout(() => {
                     setFeedbackConfig({
                         type: 'success',
@@ -158,7 +147,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
                 }, 300)
             } else {
                 await ClientService.deleteClient(client.id)
-                // Success Modal Config
                 setTimeout(() => {
                     setFeedbackConfig({
                         type: 'success',
@@ -190,7 +178,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
         }
     }
 
-    // Prepare Filter Categories
     const filterCategories = [
         { id: 'active', name: 'Activos' },
         { id: 'blocked', name: 'Suspendidos' },
@@ -198,7 +185,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
     ]
 
     const renderItem = ({ item }: { item: any }) => {
-        // Usar el nombre del usuario principal si está disponible (viene del backend)
         const displayName = item.usuario_principal_nombre || item._linkedUserName || 'Usuario no asignado'
         const commercialName = item.nombre_comercial || item.razon_social
 
@@ -217,16 +203,13 @@ export function SupervisorClientsScreen({ navigation }: any) {
                     borderColor: '#f3f4f6'
                 }}
             >
-                {/* Header: Nombre del Usuario en Grande */}
                 <View className="px-4 pt-4 pb-3" style={{ backgroundColor: '#fafafa' }}>
                     <View className="flex-row justify-between items-start">
                         <View className="flex-1 mr-3">
-                            {/* Nombre del Usuario - Grande y destacado */}
                             <Text className="font-bold text-neutral-900 text-xl mb-1.5" numberOfLines={1}>
                                 {displayName}
                             </Text>
 
-                            {/* Nombre Comercial/Razón Social - Más pequeño */}
                             <View className="flex-row items-center mb-2">
                                 <Ionicons name="business-outline" size={14} color="#9ca3af" style={{ marginRight: 6 }} />
                                 <Text className="text-neutral-500 text-sm font-medium" numberOfLines={1}>
@@ -234,14 +217,12 @@ export function SupervisorClientsScreen({ navigation }: any) {
                                 </Text>
                             </View>
 
-                            {/* Identificación */}
                             <View className="flex-row items-center">
                                 <Ionicons name="card-outline" size={12} color="#6b7280" style={{ marginRight: 4 }} />
                                 <Text className="text-neutral-600 text-xs font-semibold">{item.identificacion}</Text>
                             </View>
                         </View>
 
-                        {/* Switch Button - Estilo iOS Moderno */}
                         <TouchableOpacity
                             onPress={() => confirmToggleStatus(item)}
                             activeOpacity={0.8}
@@ -272,10 +253,8 @@ export function SupervisorClientsScreen({ navigation }: any) {
                     </View>
                 </View>
 
-                {/* Body Content - Info Badges */}
                 <View className="px-4 pb-4 pt-2">
                     <View className="flex-row flex-wrap">
-                        {/* Lista de Precios */}
                         <View className="bg-teal-50 px-3 py-2 rounded-xl border border-teal-200 flex-row items-center mr-2 mb-2">
                             <Ionicons name="pricetag" size={14} color="#0d9488" />
                             <Text className="text-teal-700 text-xs font-bold ml-1.5">
@@ -283,7 +262,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
                             </Text>
                         </View>
 
-                        {/* Zona Comercial */}
                         {(item.zona_comercial_nombre || item._zoneName) && (
                             <View className="bg-orange-50 px-3 py-2 rounded-xl border border-orange-200 flex-row items-center mr-2 mb-2">
                                 <Ionicons name="map-outline" size={14} color="#ea580c" />
@@ -293,7 +271,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
                             </View>
                         )}
 
-                        {/* Vendedor Asignado */}
                         {(item.vendedor_nombre || item._vendorName) && (
                             <View className="bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 flex-row items-center mr-2 mb-2">
                                 <Ionicons name="person-circle-outline" size={14} color="#2563EB" />
@@ -331,7 +308,6 @@ export function SupervisorClientsScreen({ navigation }: any) {
                     </TouchableOpacity>
                 </View>
 
-                {/* Simplified Chips Logic */}
                 <View className="mb-2">
                     <CategoryFilter
                         categories={filterCategories}

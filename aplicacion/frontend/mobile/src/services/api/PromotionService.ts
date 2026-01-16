@@ -1,6 +1,7 @@
 import { apiRequest } from './client'
 import { Product } from './CatalogService'
 import { Client } from './ClientService'
+import { endpoints } from './endpoints'
 
 export interface PromotionCampaign {
     id: number
@@ -30,39 +31,36 @@ export interface PromotionClient {
 }
 
 export const PromotionService = {
-    // --- Compaigns ---
     getCampaigns: async (): Promise<PromotionCampaign[]> => {
-        return apiRequest<PromotionCampaign[]>('/api/promociones')
+        return apiRequest<PromotionCampaign[]>(endpoints.catalog.promociones)
     },
 
     getCampaign: async (id: number): Promise<PromotionCampaign> => {
-        return apiRequest<PromotionCampaign>(`/api/promociones/${id}`)
+        return apiRequest<PromotionCampaign>(endpoints.catalog.promocionById(id))
     },
 
     createCampaign: async (data: Partial<PromotionCampaign>): Promise<PromotionCampaign> => {
-        return apiRequest<PromotionCampaign>('/api/promociones', {
+        return apiRequest<PromotionCampaign>(endpoints.catalog.promociones, {
             method: 'POST',
             body: JSON.stringify(data)
         })
     },
 
     updateCampaign: async (id: number, data: Partial<PromotionCampaign>): Promise<PromotionCampaign> => {
-        return apiRequest<PromotionCampaign>(`/api/promociones/${id}`, {
+        return apiRequest<PromotionCampaign>(endpoints.catalog.promocionById(id), {
             method: 'PUT',
             body: JSON.stringify(data)
         })
     },
 
     deleteCampaign: async (id: number): Promise<void> => {
-        return apiRequest<void>(`/api/promociones/${id}`, {
+        return apiRequest<void>(endpoints.catalog.promocionById(id), {
             method: 'DELETE'
         })
     },
 
-    // --- Products ---
     getProducts: async (campaignId: number): Promise<PromotionProduct[]> => {
-        const response = await apiRequest<{ items: any[] }>(`/api/promociones/${campaignId}/productos`)
-        // Backend returns { items: [...] }, extract the array
+        const response = await apiRequest<{ items: any[] }>(endpoints.catalog.promocionProductos(campaignId))
         if (response && typeof response === 'object' && 'items' in response) {
             return (response.items || []).map((item: any) => ({
                 campania_id: campaignId,
@@ -91,25 +89,24 @@ export const PromotionService = {
             body.precio_oferta_fijo = precioOferta
         }
 
-        return apiRequest<PromotionProduct>(`/api/promociones/${campaignId}/productos`, {
+        return apiRequest<PromotionProduct>(endpoints.catalog.promocionProductos(campaignId), {
             method: 'POST',
             body: JSON.stringify(body)
         })
     },
 
     removeProduct: async (campaignId: number, productId: string): Promise<void> => {
-        return apiRequest<void>(`/api/promociones/${campaignId}/productos/${productId}`, {
+        return apiRequest<void>(endpoints.catalog.promocionProductoById(campaignId, productId), {
             method: 'DELETE'
         })
     },
 
-    // --- Clients ---
     getClients: async (campaignId: number): Promise<PromotionClient[]> => {
-        return apiRequest<PromotionClient[]>(`/api/promociones/${campaignId}/clientes`)
+        return apiRequest<PromotionClient[]>(endpoints.catalog.promocionClientes(campaignId))
     },
 
     addClient: async (campaignId: number, clientId: string): Promise<PromotionClient> => {
-        return apiRequest<PromotionClient>(`/api/promociones/${campaignId}/clientes`, {
+        return apiRequest<PromotionClient>(endpoints.catalog.promocionClientes(campaignId), {
             method: 'POST',
             body: JSON.stringify({
                 cliente_id: clientId
@@ -118,7 +115,7 @@ export const PromotionService = {
     },
 
     removeClient: async (campaignId: number, clientId: string): Promise<void> => {
-        return apiRequest<void>(`/api/promociones/${campaignId}/clientes/${clientId}`, {
+        return apiRequest<void>(endpoints.catalog.promocionClienteById(campaignId, clientId), {
             method: 'DELETE'
         })
     }

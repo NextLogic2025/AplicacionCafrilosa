@@ -6,7 +6,9 @@ import type { RootStackParamList } from '../../../navigation/types'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoleSelector'>
 
-const ROLES: Array<{ key: string; label: string; screen: keyof RootStackParamList }> = [
+type RoleScreen = 'Cliente' | 'Supervisor' | 'Vendedor' | 'Transportista' | 'Bodeguero'
+
+const ROLES: Array<{ key: string; label: string; screen: RoleScreen }> = [
   { key: 'cliente', label: 'Cliente', screen: 'Cliente' },
   { key: 'supervisor', label: 'Supervisor', screen: 'Supervisor' },
   { key: 'vendedor', label: 'Vendedor', screen: 'Vendedor' },

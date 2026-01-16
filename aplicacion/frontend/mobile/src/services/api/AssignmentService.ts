@@ -1,13 +1,12 @@
-
 import { apiRequest } from './client'
 import { UserProfile } from './UserService'
+import { endpoints } from './endpoints'
 
 export interface Allocation {
     id: number
     zona_id: number
     vendedor_usuario_id: string
     es_principal: boolean
-    // Optional expanded info if backend joins
     vendedor?: UserProfile
     nombre_vendedor_cache?: string
     fecha_fin?: string | null
@@ -25,7 +24,6 @@ export interface AssignVendorPayload {
 export const AssignmentService = {
     getAssignmentsByZone: async (zoneId: number): Promise<Allocation[]> => {
         try {
-            // BACKEND WORKAROUND: Endpoint /asignacion returns ALL records.
             const allAssignments = await AssignmentService.getAllAssignments()
             return allAssignments.filter(a => Number(a.zona_id) === Number(zoneId))
         } catch (error) {
@@ -36,13 +34,12 @@ export const AssignmentService = {
 
     getAllAssignments: async (): Promise<Allocation[]> => {
         try {
-            return await apiRequest<Allocation[]>('/api/asignacion')
+            return await apiRequest<Allocation[]>(endpoints.catalog.asignacion)
         } catch (error) {
             console.error('Error fetching all assignments:', error)
             return []
         }
     },
-
 
     assignVendor: async (data: AssignVendorPayload): Promise<{ success: boolean; message?: string }> => {
         try {
@@ -54,7 +51,7 @@ export const AssignmentService = {
                 nombre_vendedor_cache: data.nombre_vendedor_cache || null
             }
 
-            await apiRequest('/api/asignacion', {
+            await apiRequest(endpoints.catalog.asignacion, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })
@@ -74,7 +71,7 @@ export const AssignmentService = {
                 nombre_vendedor_cache: data.nombre_vendedor_cache || null
             }
 
-            await apiRequest(`/api/asignacion/${id}`, {
+            await apiRequest(endpoints.catalog.asignacionById(id), {
                 method: 'PUT',
                 body: JSON.stringify(payload)
             })
@@ -87,7 +84,7 @@ export const AssignmentService = {
 
     removeAssignment: async (id: number): Promise<{ success: boolean; message?: string }> => {
         try {
-            await apiRequest(`/api/asignacion/${id}`, {
+            await apiRequest(endpoints.catalog.asignacionById(id), {
                 method: 'DELETE'
             })
             return { success: true, message: 'Asignación eliminada correctamente' }

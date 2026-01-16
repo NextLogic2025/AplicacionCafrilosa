@@ -15,7 +15,6 @@ export interface UserProfile {
 export const UserService = {
     getProfile: async (): Promise<UserProfile | null> => {
         try {
-            // Using usersUrl for user-related data
             const data = await apiRequest<any>(`${env.api.usersUrl}/usuarios/me`)
 
             return {
@@ -67,7 +66,6 @@ export const UserService = {
 
     getUsers: async (): Promise<UserProfile[]> => {
         try {
-            // Users service endpoints
             const data = await apiRequest<any[]>(`${env.api.usersUrl}/usuarios`)
 
             return data.map((u: any) => ({
@@ -106,13 +104,11 @@ export const UserService = {
 
     updateUser: async (userId: string, data: Partial<{ nombre: string; activo: boolean; rolId: number }>): Promise<{ success: boolean; message?: string }> => {
         try {
-            // 1. Update basic info (Name, Role, etc.)
             await apiRequest(`${env.api.usersUrl}/usuarios/${userId}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             })
 
-            // 2. Handle Activation/Deactivation Explicitly if provided
             if (data.activo !== undefined) {
                 const action = data.activo ? 'activar' : 'desactivar'
                 await apiRequest(`${env.api.usersUrl}/usuarios/${userId}/${action}`, {

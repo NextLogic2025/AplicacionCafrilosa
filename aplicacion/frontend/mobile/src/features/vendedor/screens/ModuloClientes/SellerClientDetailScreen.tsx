@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Pressable, Alert, Linking, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, type Client, type ClientBranch } from '../../../../services/api/ClientService'
 import { OrderService, type Order } from '../../../../services/api/OrderService'
+import type { SellerStackParamList } from '../../../../navigation/SellerNavigator'
 
 export function SellerClientDetailScreen() {
-  const navigation = useNavigation()
-  const route = useRoute()
-  // @ts-ignore
-  const { clientId } = route.params || {}
+  type ScreenNavigation = NativeStackNavigationProp<SellerStackParamList, 'SellerClientDetail'>
+  type ScreenRoute = RouteProp<SellerStackParamList, 'SellerClientDetail'>
+
+  const navigation = useNavigation<ScreenNavigation>()
+  const route = useRoute<ScreenRoute>()
+  const { clientId } = route.params
 
   const [client, setClient] = useState<Client | null>(null)
   const [branches, setBranches] = useState<ClientBranch[]>([])
@@ -311,10 +315,10 @@ export function SellerClientDetailScreen() {
                <Pressable
                  key={branch.id}
                  className={`flex-row items-center justify-between p-4 active:bg-neutral-50 ${index !== branches.length - 1 ? 'border-b border-neutral-100' : ''}`}
-                 onPress={() => navigation.navigate('SellerBranchDetail', { branch, clientName: client.nombre_comercial })}
+                 onPress={() => navigation.navigate('SellerBranchDetail', { branch, clientName: client.nombre_comercial || client.razon_social })}
                >
                  <View className="flex-1 mr-2">
-                   <Text className="font-semibold text-neutral-800 text-base">{branch.nombre || 'Sucursal Principal'}</Text>
+                   <Text className="font-semibold text-neutral-800 text-base">{branch.nombre_sucursal || 'Sucursal Principal'}</Text>
                    <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={1}>{branch.direccion_entrega}</Text>
                  </View>
                  <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
@@ -345,14 +349,14 @@ export function SellerClientDetailScreen() {
                     <View key={order.id} className={`flex-row items-center justify-between p-4 ${index !== Math.min(orders.length, 3) - 1 ? 'border-b border-neutral-100' : ''}`}>
                         <View>
                             <View className="flex-row items-center gap-2">
-                                <Text className="font-bold text-neutral-800">#{order.numero || order.id.slice(0,8)}</Text>
+                                <Text className="font-bold text-neutral-800">#{order.codigo_visual || order.id.slice(0,8)}</Text>
                                 <View className={`px-1.5 py-0.5 rounded text-[10px] ${order.estado_actual === 'ENTREGADO' ? 'bg-green-100' : 'bg-yellow-100'}`}>
                                     <Text className={`${order.estado_actual === 'ENTREGADO' ? 'text-green-700' : 'text-yellow-700'} font-bold text-[10px]`}>
                                         {order.estado_actual}
                                     </Text>
                                 </View>
                             </View>
-                            <Text className="text-xs text-neutral-500 mt-1">{new Date(order.fecha_creacion).toLocaleDateString()}</Text>
+                            <Text className="text-xs text-neutral-500 mt-1">{new Date(order.fecha_creacion ?? order.created_at).toLocaleDateString()}</Text>
                         </View>
                         <Text className="font-bold text-neutral-800 text-base">${order.total_final.toFixed(2)}</Text>
                     </View>

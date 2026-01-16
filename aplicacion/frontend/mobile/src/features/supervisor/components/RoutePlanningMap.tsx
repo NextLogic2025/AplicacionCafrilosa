@@ -6,10 +6,9 @@ import { RoutePlan } from '../../../services/api/RouteService'
 
 interface Props {
     routes: RoutePlan[]
-    zonePolygon?: any // GeoJSON or array of points
+    zonePolygon?: any
 }
 
-// Pseudo-random number generator for stable coordinates based on ID
 const pseudoRandom = (seed: string) => {
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
@@ -21,8 +20,6 @@ const pseudoRandom = (seed: string) => {
 }
 
 export function RoutePlanningMap({ routes, zonePolygon }: Props) {
-
-    // Initial region (Loja fallback)
     const initialRegion = {
         latitude: -3.99313,
         longitude: -79.20422,
@@ -35,16 +32,12 @@ export function RoutePlanningMap({ routes, zonePolygon }: Props) {
             let lat = -3.99313
             let lng = -79.20422
 
-            // 1. Try Real GPS
             if (r._cliente?.ubicacion_gps?.coordinates) {
-                // PostGIS uses [lon, lat]
                 const [lon, latitude] = r._cliente.ubicacion_gps.coordinates
                 lat = latitude
                 lng = lon
             }
-            // 2. Deterministic Fallback (Stable Random)
             else {
-                // Use client ID or temp ID to generate stable offset
                 const seedLat = pseudoRandom(r.cliente_id + 'lat')
                 const seedLng = pseudoRandom(r.cliente_id + 'lng')
 
@@ -60,17 +53,15 @@ export function RoutePlanningMap({ routes, zonePolygon }: Props) {
                 }
             }
         })
-    }, [routes]) // Only re-calc if routes list actually changes
+    }, [routes])
 
     const orderedCoordinates = markers.map(m => m.coordinate)
 
-    // Parse Polygon if GeoJSON
     let polygonCoords = []
     if (zonePolygon) {
         if (Array.isArray(zonePolygon)) {
             polygonCoords = zonePolygon
         } else if (zonePolygon.coordinates && zonePolygon.coordinates[0]) {
-            // GeoJSON Polygon geometry: [[[lon, lat], ...]]
             polygonCoords = zonePolygon.coordinates[0].map((pt: number[]) => ({
                 latitude: pt[1],
                 longitude: pt[0]
@@ -85,32 +76,29 @@ export function RoutePlanningMap({ routes, zonePolygon }: Props) {
                 style={styles.map}
                 initialRegion={initialRegion}
             >
-                {/* Zone Polygon */}
                 {polygonCoords.length > 2 && (
                     <Polygon
                         coordinates={polygonCoords}
                         strokeColor={BRAND_COLORS.red}
-                        fillColor="rgba(239, 68, 68, 0.1)" // Red with low opacity
+                        fillColor="rgba(239, 68, 68, 0.1)"
                         strokeWidth={2}
                     />
                 )}
 
-                {/* Route Line */}
                 {orderedCoordinates.length > 1 && (
                     <Polyline
                         coordinates={orderedCoordinates}
-                        strokeColor="#2563EB" // Blue
+                        strokeColor="#2563EB"
                         strokeWidth={4}
                         lineDashPattern={[0]}
                     />
                 )}
 
-                {/* Markers */}
                 {markers.map((marker, index) => (
                     <Marker
-                        key={marker.cliente_id} // Stable Key!
+                        key={marker.cliente_id}
                         coordinate={marker.coordinate}
-                        title={marker._cliente?.nombre_comercial}
+                        title={marker._cliente?.nombre_comercial ?? marker._cliente?.razon_social ?? undefined}
                         description={`Orden: ${index + 1}`}
                     >
                         <View style={styles.markerContainer}>

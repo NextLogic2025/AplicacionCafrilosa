@@ -1,29 +1,9 @@
-/**
- * SupervisorClientDetailScreen - Detalle completo del cliente
- * 
- * Pantalla que muestra información detallada del cliente incluyendo:
- * - Datos generales (identificación, usuario, zona, etc.)
- * - Mapa con ubicación GPS principal
- * - Lista de sucursales con mapas individuales
- * - Información de crédito si aplica
- * - Opciones para editar
- * 
- * Componentes globales utilizados:
- * - Header: Encabezado con navegación
- * - SectionHeader: Encabezados de sección
- * - StatusBadge: Badge de estado del cliente
- * - MapView (react-native-maps): Mapas integrados con GPS
- * 
- * @screen
- */
-
 import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl, Dimensions, StyleSheet } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
 
-// Componentes globales UI
 import { Header } from '../../../../components/ui/Header'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { SectionHeader } from '../../../../components/ui/SectionHeader'
@@ -37,19 +17,14 @@ export function SupervisorClientDetailScreen() {
   const route = useRoute<any>()
   const navigation = useNavigation<any>()
   
-  // Parámetros de navegación
   const clientParam: Client | undefined = route.params?.client
   const clientId: string | undefined = clientParam?.id || route.params?.clientId
 
-  // Estados
   const [client, setClient] = useState<Client | null>(clientParam || null)
   const [branches, setBranches] = useState<ClientBranch[]>([])
   const [loading, setLoading] = useState(false)
   const [expandedBranch, setExpandedBranch] = useState<string | null>(null)
 
-  /**
-   * Carga datos del cliente y sus sucursales desde el API
-   */
   const loadData = async () => {
     if (!clientId) return
     setLoading(true)
@@ -73,18 +48,12 @@ export function SupervisorClientDetailScreen() {
     return unsub
   }, [navigation])
 
-  /**
-   * Abre ubicación en Google Maps externo
-   */
   const openInGoogleMaps = (coordinates: [number, number], title: string) => {
     const [lng, lat] = coordinates
     const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
     Linking.openURL(url).catch(err => console.error('Error abriendo Google Maps:', err))
   }
 
-  /**
-   * Renderiza un mapa con marcador
-   */
   const renderMap = (coordinates: [number, number], title: string, subtitle?: string, height: number = 280) => {
     const [lng, lat] = coordinates
     
@@ -111,7 +80,6 @@ export function SupervisorClientDetailScreen() {
             />
           </MapView>
           
-          {/* Badge con coordenadas */}
           <View style={styles.coordsBadge} className="bg-white/95 px-3 py-1.5 rounded-full border border-neutral-200 shadow-sm">
             <Text className="text-neutral-700 text-[10px] font-mono font-semibold">
               {lat.toFixed(6)}, {lng.toFixed(6)}
@@ -119,7 +87,6 @@ export function SupervisorClientDetailScreen() {
           </View>
         </View>
         
-        {/* Botón abrir en Google Maps */}
         <TouchableOpacity
           onPress={() => openInGoogleMaps(coordinates, title)}
           className="mt-2 flex-row items-center justify-center py-2 px-4 bg-blue-50 rounded-lg border border-blue-200"
@@ -134,7 +101,6 @@ export function SupervisorClientDetailScreen() {
     )
   }
 
-  // Loading inicial
   if (loading && !client) {
     return (
       <View className="flex-1 bg-neutral-50">
@@ -147,7 +113,6 @@ export function SupervisorClientDetailScreen() {
     )
   }
 
-  // Cliente no encontrado
   if (!client) {
     return (
       <View className="flex-1 bg-neutral-50">
@@ -421,7 +386,6 @@ export function SupervisorClientDetailScreen() {
                 })}
               </View>
             ) : (
-              // Estado vacío
               <View className="mt-3 bg-white rounded-2xl border border-neutral-200 p-8 items-center">
                 <View className="bg-neutral-100 w-16 h-16 rounded-full items-center justify-center mb-3">
                   <Ionicons name="storefront-outline" size={32} color="#9CA3AF" />

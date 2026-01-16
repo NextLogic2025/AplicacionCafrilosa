@@ -30,6 +30,14 @@ const DAYS = [
 export function SupervisorRoutesInactiveScreen() {
     const navigation = useNavigation()
 
+    const handleBack = useCallback(() => {
+        if (navigation.canGoBack()) {
+            navigation.goBack()
+            return
+        }
+        ;(navigation as any).navigate?.('SupervisorTabs')
+    }, [navigation])
+
     const [routes, setRoutes] = useState<RoutePlanWithClient[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -43,10 +51,8 @@ export function SupervisorRoutesInactiveScreen() {
 
     const loadInactiveRoutes = useCallback(async () => {
         try {
-            // Obtener rutas desactivadas
             const inactiveRoutes = await RouteService.getInactive()
             
-            // Cargar info de clientes
             const clientIds = [...new Set(inactiveRoutes.map(r => r.cliente_id))]
             const clientsMap = new Map<string, Client>()
             
@@ -61,7 +67,6 @@ export function SupervisorRoutesInactiveScreen() {
                 })
             )
 
-            // Enriquecer rutas con datos de cliente
             const enrichedRoutes: RoutePlanWithClient[] = inactiveRoutes.map(route => {
                 const client = clientsMap.get(route.cliente_id)
                 return {
@@ -127,7 +132,7 @@ export function SupervisorRoutesInactiveScreen() {
             <Header 
                 title="Rutas Desactivadas" 
                 variant="standard" 
-                onBackPress={() => navigation.goBack()} 
+                onBackPress={handleBack} 
             />
 
             {loading ? (
@@ -153,27 +158,23 @@ export function SupervisorRoutesInactiveScreen() {
                     }
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Info Banner */}
                     <View className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex-row items-start">
-                        <Ionicons name="information-circle" size={20} color="#F59E0B" />
+                        <Ionicons name="information-circle" size={20} color={BRAND_COLORS.gold} />
                         <Text className="text-amber-800 text-sm ml-2 flex-1">
                             Las rutas desactivadas no aparecen en la planificación. Puedes reactivarlas en cualquier momento.
                         </Text>
                     </View>
 
-                    {/* Contador */}
                     <Text className="text-neutral-500 text-sm mb-3">
                         {routes.length} ruta(s) desactivada(s)
                     </Text>
 
-                    {/* Lista de rutas */}
                     {routes.map((route) => (
                         <View 
                             key={route.id}
                             className="bg-white rounded-xl border border-neutral-200 mb-3 overflow-hidden"
                         >
                             <View className="p-4">
-                                {/* Header */}
                                 <View className="flex-row items-start justify-between mb-2">
                                     <View className="flex-1">
                                         <View className="flex-row items-center">
@@ -191,7 +192,6 @@ export function SupervisorRoutesInactiveScreen() {
                                     </View>
                                 </View>
 
-                                {/* Detalles */}
                                 <View className="flex-row flex-wrap gap-2 mt-2">
                                     <View className="bg-blue-50 px-2 py-1 rounded-full flex-row items-center">
                                         <Ionicons name="calendar" size={12} color="#3B82F6" />
@@ -216,7 +216,6 @@ export function SupervisorRoutesInactiveScreen() {
                                 </View>
                             </View>
 
-                            {/* Botón Reactivar */}
                             <TouchableOpacity
                                 onPress={() => handleReactivate(route)}
                                 disabled={reactivatingId === route.id}
@@ -248,3 +247,4 @@ export function SupervisorRoutesInactiveScreen() {
         </View>
     )
 }
+

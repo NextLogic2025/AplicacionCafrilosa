@@ -30,7 +30,6 @@ export function ClientWizardStep1({
     const [showZoneModal, setShowZoneModal] = React.useState(false)
     const [showPassword, setShowPassword] = React.useState(false)
 
-    // Calculate region for mini map based on selected zone
     const selectedZone = zones.find(z => z.id === clientData.zona_comercial_id)
     const zonePolygon = selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : []
 
@@ -52,7 +51,6 @@ export function ClientWizardStep1({
 
     return (
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-            {/* 1. Datos Personales / Acceso (Solo Creación) */}
             {!isEditing && (
                 <View className="bg-white p-5 rounded-2xl shadow-sm mb-4 border border-neutral-100">
                     <View className="flex-row items-center mb-4 border-b border-neutral-100 pb-2">
@@ -94,7 +92,6 @@ export function ClientWizardStep1({
                 </View>
             )}
 
-            {/* 2. Datos Comerciales */}
             <View className="bg-white p-5 rounded-2xl shadow-sm mb-4 border border-neutral-100">
                 <View className="flex-row items-center mb-4 border-b border-neutral-100 pb-2">
                     <Ionicons name="business-outline" size={20} color={BRAND_COLORS.red} />
@@ -164,7 +161,6 @@ export function ClientWizardStep1({
                     <Ionicons name="chevron-down" size={20} color="#9ca3af" />
                 </TouchableOpacity>
 
-                {/* Mini Map Preview */}
                 <View className="h-40 rounded-xl overflow-hidden mb-4 border border-neutral-200 relative">
                     <MapView
                         provider={PROVIDER_GOOGLE}
@@ -191,7 +187,6 @@ export function ClientWizardStep1({
                     )}
                 </View>
 
-                {/* Crédito */}
                 <View className="flex-row items-center justify-between mb-4">
                     <Text className="text-neutral-700 font-medium">Tiene Crédito</Text>
                     <Switch
@@ -225,7 +220,6 @@ export function ClientWizardStep1({
                 )}
             </View>
 
-            {/* Botón Siguiente */}
             <TouchableOpacity
                 className="bg-red-600 mx-5 py-4 rounded-xl items-center shadow-lg mb-10"
                 style={{ backgroundColor: BRAND_COLORS.red }}
@@ -234,7 +228,6 @@ export function ClientWizardStep1({
                 <Text className="text-white font-bold text-lg">Siguiente: Ubicación</Text>
             </TouchableOpacity>
 
-            {/* Modal de Zonas */}
             <GenericModal
                 visible={showZoneModal}
                 title="Seleccionar Zona"

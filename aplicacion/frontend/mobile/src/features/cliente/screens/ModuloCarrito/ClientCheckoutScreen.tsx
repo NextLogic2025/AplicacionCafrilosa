@@ -102,7 +102,7 @@ export function ClientCheckoutScreen() {
         try {
             // Strict Payload for Backend: Only supported fields
             const payload = {
-                condicion_pago: condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO',
+                condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
             }
 

@@ -9,34 +9,8 @@ interface ClientProductCardProps {
     onAddToCart?: (product: Product) => void
 }
 
-/**
- * ClientProductCard - Tarjeta de Producto para Cliente
- *
- * Componente moderno para mostrar productos en grilla de 2 columnas para clientes
- * Muestra producto con precios filtrados por lista_precios_id del cliente
- *
- * Integración Backend:
- * - precio_original: Precio de la lista asignada al cliente
- * - precio_oferta: Mejor precio calculado de promociones aplicables
- * - ahorro: Monto de ahorro (precio_original - precio_oferta)
- * - promociones[]: GLOBAL + POR_LISTA (su lista) + POR_CLIENTE (si está autorizado)
- *
- * Características:
- * - Diseño moderno con sombras y gradientes
- * - Badge de promoción con porcentaje de descuento
- * - Pricing antes/después para productos en oferta
- * - Badge de ahorro visual
- * - Layout profesional en grilla de 2 columnas
- * - Animaciones suaves y feedback táctil
- */
 export function ClientProductCard({ product, onPress, onAddToCart }: ClientProductCardProps) {
-    // Verificar si hay promoción aplicable
     const hasPromotion = !!product.precio_oferta && product.precio_oferta < (product.precio_original ?? 0)
-
-    // Calcular porcentaje de descuento
-    const discountPercentage = hasPromotion && product.precio_original
-        ? Math.round(((product.precio_original - product.precio_oferta!) / product.precio_original) * 100)
-        : 0
 
     return (
         <TouchableOpacity
@@ -44,7 +18,6 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
             onPress={() => onPress(product)}
             activeOpacity={0.8}
         >
-            {/* Badge de Promoción */}
             {hasPromotion && (
                 <View style={styles.promotionBadge}>
                     <Ionicons name="pricetag" size={12} color="#FFFFFF" style={{ marginRight: 3 }} />
@@ -52,14 +25,12 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
                 </View>
             )}
 
-            {/* Indicador de Producto Activo */}
             {product.activo && (
                 <View style={styles.stockBadge}>
                     <View style={styles.stockDot} />
                 </View>
             )}
 
-            {/* Imagen del Producto */}
             <View style={styles.imageContainer}>
                 {product.imagen_url ? (
                     <Image
@@ -74,18 +45,14 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
                 )}
             </View>
 
-            {/* Información del Producto */}
             <View style={styles.infoContainer}>
-                {/* Nombre del Producto */}
                 <Text style={styles.productName} numberOfLines={2} ellipsizeMode="tail">
                     {product.nombre}
                 </Text>
 
-                {/* Sección de Precios */}
                 <View style={styles.priceContainer}>
                     {hasPromotion ? (
                         <>
-                            {/* Precio Antes (tachado) con Badge de Ahorro */}
                             <View style={styles.beforePriceContainer}>
                                 <Text style={styles.beforePrice}>
                                     ${product.precio_original?.toFixed(2)}
@@ -97,7 +64,6 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
                                     </Text>
                                 </View>
                             </View>
-                            {/* Precio Después (Promocional) */}
                             <View style={styles.afterPriceContainer}>
                                 <Text style={styles.afterPrice}>
                                     ${product.precio_oferta?.toFixed(2)}
@@ -114,7 +80,6 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
                     )}
                 </View>
 
-                {/* Información de Unidad */}
                 {product.unidad_medida && (
                     <View style={styles.unitContainer}>
                         <Ionicons name="cube-outline" size={12} color="#9CA3AF" />
@@ -124,7 +89,6 @@ export function ClientProductCard({ product, onPress, onAddToCart }: ClientProdu
                     </View>
                 )}
 
-                {/* Botón Agregar al Carrito */}
                 {onAddToCart && (
                     <TouchableOpacity
                         style={styles.addToCartButton}
@@ -157,7 +121,7 @@ const styles = StyleSheet.create({
         width: '100%',
         borderWidth: 1,
         borderColor: '#F3F4F6',
-        height: 350 // Altura fija para todas las tarjetas (promoción o no)
+        height: 350
     },
     promotionBadge: {
         position: 'absolute',
@@ -221,8 +185,8 @@ const styles = StyleSheet.create({
     },
     infoContainer: {
         padding: 12,
-        flex: 1, // Occupy remaining space
-        justifyContent: 'space-between' // Push content apart
+        flex: 1,
+        justifyContent: 'space-between'
     },
     productName: {
         fontSize: 14,
@@ -233,25 +197,8 @@ const styles = StyleSheet.create({
         minHeight: 40
     },
     priceContainer: {
-        marginBottom: 'auto' // Let price sit naturally, or use space-between on parent
+        marginBottom: 'auto'
     },
-    // ... rest of styles
-    addToCartButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#DC2626',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        marginTop: 12, // Increased margin for visual separation
-        shadowColor: '#DC2626',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 4
-    },
-
     beforePriceContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -315,7 +262,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 12,
-        marginTop: 12, // Increased margin for visual separation
+        marginTop: 12,
         shadowColor: '#DC2626',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.3,

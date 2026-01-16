@@ -3,14 +3,14 @@ import { delay } from '../../utils/delay'
 export interface Invoice {
     id: string
     number: string
-    issueDate: string // ISO Date
-    dueDate: string // ISO Date
+    issueDate: string
+    dueDate: string
     total: number
-    balance: number // Saldo pendiente
-    status: 'paid' | 'pending' | 'overdue' // pagado, pendiente, vencido
+    balance: number
+    status: 'paid' | 'pending' | 'overdue'
     pdfUrl?: string
     itemsCount?: number
-    clientName?: string // For Seller View
+    clientName?: string
 }
 
 export const InvoiceService = {
@@ -19,12 +19,12 @@ export const InvoiceService = {
         return []
     },
 
-    async getInvoiceById(id: string): Promise<Invoice | null> {
+    async getInvoiceById(_id: string): Promise<Invoice | null> {
         await delay(500)
         return null
     },
 
-    async getInvoiceDetail(id: string): Promise<Invoice | undefined> {
+    async getInvoiceDetail(_id: string): Promise<Invoice | undefined> {
         await delay(500)
         return undefined
     }

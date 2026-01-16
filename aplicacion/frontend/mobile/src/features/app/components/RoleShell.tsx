@@ -5,7 +5,7 @@ import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import type { RootStackParamList } from '../../../navigation/types'
-import { clearToken } from '../../../storage/authStorage'
+import { clearTokens } from '../../../storage/authStorage'
 
 type Props = {
   title: string
@@ -22,7 +22,7 @@ export function RoleShell({ title, children }: Props) {
         <Pressable
           accessibilityRole="button"
           onPress={async () => {
-            await clearToken()
+            await clearTokens()
             navigation.reset({ index: 0, routes: [{ name: 'Login' }] })
           }}
           className="rounded-2xl bg-neutral-900 px-4 py-2 active:opacity-90"

@@ -12,7 +12,6 @@ export interface Notification {
 export const NotificationService = {
     async getNotifications(): Promise<Notification[]> {
         await delay(500)
-        // Clean functionality: return empty array by default to avoid hardcoded data
         return []
     }
 }

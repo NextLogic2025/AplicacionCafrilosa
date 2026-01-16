@@ -36,7 +36,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
                 <View style={{ backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '70%' }}>
-                    {/* Header */}
                     <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#111827' }}>Detalles de Visita</Text>
@@ -47,7 +46,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                     </View>
 
                     <ScrollView style={{ flex: 1, padding: 20 }} showsVerticalScrollIndicator={false}>
-                        {/* Client Info */}
                         <View style={{ marginBottom: 24, padding: 16, backgroundColor: '#FEF2F2', borderRadius: 12, borderWidth: 1, borderColor: '#FEE2E2' }}>
                             <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#9CA3AF', marginBottom: 8 }}>CLIENTE</Text>
                             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827' }}>{routeItem._cliente?.nombre_comercial}</Text>
@@ -56,7 +54,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                             )}
                         </View>
 
-                        {/* Frequency */}
                         <View style={{ marginBottom: 24 }}>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Frecuencia de Visita</Text>
                             <View style={{ flexDirection: 'row' }}>
@@ -86,7 +83,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                             </View>
                         </View>
 
-                        {/* Priority */}
                         <View style={{ marginBottom: 24 }}>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>Prioridad</Text>
                             <View style={{ flexDirection: 'row' }}>
@@ -121,7 +117,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                             </View>
                         </View>
 
-                        {/* Estimated Time */}
                         <View style={{ marginBottom: 32 }}>
                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>Hora Estimada (HH:MM)</Text>
                             <TouchableOpacity
@@ -165,7 +160,6 @@ export function RouteItemEditModal({ visible, routeItem, onClose, onSave }: Prop
                         </View>
                     </ScrollView>
 
-                    {/* Actions */}
                     <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
                         <TouchableOpacity
                             onPress={handleSave}
