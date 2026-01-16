@@ -23,7 +23,6 @@ export function ClientSucursalesScreen() {
     const [selectedFilter, setSelectedFilter] = useState<string | number>('actives')
     const [searchQuery, setSearchQuery] = useState('')
 
-    // # Función para cargar las sucursales según filtro
     const loadBranches = async () => {
         setLoading(true)
         try {
@@ -31,8 +30,6 @@ export function ClientSucursalesScreen() {
             if (clientData) {
                 let data: ClientBranch[] = []
 
-                // # Lógica para cargar activas o inactivas desde endpoints diferentes
-                // Esto optimiza la carga y respeta la estructura del backend
                 if (selectedFilter === 'actives') {
                     data = await ClientService.getClientBranches(clientData.id)
                 } else {
@@ -48,20 +45,17 @@ export function ClientSucursalesScreen() {
         }
     }
 
-    // # Efecto para cargar sucursales al montar el componente
     useFocusEffect(
         useCallback(() => {
             loadBranches()
-        }, [selectedFilter]) // # Recargar cuando cambia el filtro
+        }, [selectedFilter]) 
     )
 
-    // # Función para refrescar la lista manualmente
     const handleRefresh = () => {
         setRefreshing(true)
         loadBranches()
     }
 
-    // # Filtrado local de sucursales por búsqueda
     const filteredBranches = useMemo(() => {
         if (!searchQuery) return branches
         return branches.filter(b =>
@@ -71,7 +65,6 @@ export function ClientSucursalesScreen() {
         )
     }, [branches, searchQuery])
 
-    // # Renderizar cada item de la lista de sucursales
     const renderItem = ({ item }: { item: ClientBranch }) => (
         <TouchableOpacity
             className={`p-4 rounded-2xl mb-3 border shadow-sm flex-row items-center justify-between ${item.activo ? 'bg-white border-neutral-100' : 'bg-neutral-50 border-neutral-200'
@@ -120,7 +113,6 @@ export function ClientSucursalesScreen() {
             <Header title="Mis Sucursales" variant="standard" onBackPress={() => navigation.goBack()} />
 
             <View className="bg-white pb-2 border-b border-neutral-100 z-10">
-                {/* # Barra de Búsqueda y Botón de Crear */}
                 <View className="px-4 py-2 flex-row items-center gap-3">
                     <View className="flex-1">
                         <SearchBar
@@ -138,7 +130,6 @@ export function ClientSucursalesScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* # Filtro de Categorías (Activas / Inactivas) */}
                 <CategoryFilter
                     categories={FILTER_CATEGORIES}
                     selectedId={selectedFilter}

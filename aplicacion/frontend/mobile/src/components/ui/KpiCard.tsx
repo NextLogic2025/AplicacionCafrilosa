@@ -20,7 +20,6 @@ export function KpiCard({ label, value, icon, color, fullWidth = false }: KpiCar
                 <View className="p-2 rounded-lg bg-neutral-50" style={{ backgroundColor: `${color}15` }}>
                     <Ionicons name={icon as any} size={20} color={color} />
                 </View>
-                {/* Optional Badge */}
             </View>
             <Text className="text-2xl font-bold text-neutral-900 mb-1">{value}</Text>
             <Text className="text-xs text-neutral-500 font-medium">{label}</Text>

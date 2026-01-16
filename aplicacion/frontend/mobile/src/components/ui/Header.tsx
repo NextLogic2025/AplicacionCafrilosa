@@ -47,9 +47,6 @@ export function Header({
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
 
-  // Removed unsafe useNavigation hook usage which caused crashes when context was lost/unavailable.
-  // We now use global navigationRef for navigation actions, or the onBackPress prop.
-
   const isStandard = variant === 'standard' || !!title
 
   const handleNotificationPress = () => {
@@ -72,7 +69,6 @@ export function Header({
     >
       <View className="flex-row items-center justify-between">
 
-        {/* IZQUIERDA: Título o Info de Usuario */}
         {isStandard ? (
           <View className="flex-row items-center flex-1">
             {onBackPress && (
@@ -120,9 +116,7 @@ export function Header({
           </View>
         )}
 
-        {/* DERECHA: Acciones */}
         <View className="flex-row items-center">
-          {/* Solo mostrar carrito en Home si se pide explicitamente (aunque ahora está en Tabs) */}
           {showCart && (
             <Pressable
               onPress={onCartPress}

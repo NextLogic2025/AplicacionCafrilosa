@@ -6,17 +6,6 @@ import { Header } from '../../../../components/ui/Header'
 import { OrderService, Order, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../../../services/api/OrderService'
 import { BRAND_COLORS } from '../../../../shared/types'
 
-/**
- * ClientOrderDetailScreen
- *
- * Pantalla de detalle completo del pedido con trazabilidad.
- * Muestra información del pedido, items, totales y historial de estados.
- * 
- * PERMISOS DEL CLIENTE:
- * - ✅ VER detalle completo del pedido
- * - ✅ CANCELAR pedido (solo si está en estado PENDIENTE)
- * - ❌ NO puede EDITAR ni MODIFICAR pedidos
- */
 export function ClientOrderDetailScreen() {
     const navigation = useNavigation()
     const route = useRoute()
@@ -75,20 +64,13 @@ export function ClientOrderDetailScreen() {
         )
     }
 
-    /**
-     * Generar historial de trazabilidad basado en el estado actual
-     * En un futuro, esto vendría del backend con timestamps reales
-     */
     const getStatusHistory = (currentStatus: string, createdAt: string) => {
         const statuses = ['PENDIENTE', 'APROBADO', 'EN_PREPARACION', 'FACTURADO', 'EN_RUTA', 'ENTREGADO']
         const history = []
 
-        // Validar fecha antes de parsear
         const createdDate = createdAt ? new Date(createdAt) : new Date()
         
-        // Validar que la fecha sea válida
         if (isNaN(createdDate.getTime())) {
-            // Si la fecha es inválida, usar fecha actual
             createdDate.setTime(Date.now())
         }
 
@@ -97,7 +79,6 @@ export function ClientOrderDetailScreen() {
             const isCompleted = statuses.indexOf(currentStatus) >= i
             const isCurrent = status === currentStatus
 
-            // Simular fechas incrementales
             const statusDate = new Date(createdDate.getTime() + (i * 24 * 60 * 60 * 1000)) // +1 día por estado
 
             history.push({
@@ -182,7 +163,6 @@ export function ClientOrderDetailScreen() {
                         </View>
                     </View>
 
-                    {/* Origen del pedido */}
                     {order.origen_pedido && (
                         <View className="flex-row items-center mt-3 pt-3 border-t border-neutral-100">
                             <Ionicons name="phone-portrait-outline" size={16} color="#9CA3AF" />
@@ -193,7 +173,6 @@ export function ClientOrderDetailScreen() {
                     )}
                 </View>
 
-                {/* Trazabilidad - Timeline */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <Text className="text-neutral-900 font-bold text-lg mb-4">Trazabilidad del Pedido</Text>
 
@@ -223,7 +202,6 @@ export function ClientOrderDetailScreen() {
                                 )}
                             </View>
 
-                            {/* Contenido del paso */}
                             <View className="flex-1">
                                 <Text
                                     className={`font-bold text-base ${step.isCompleted || step.isCurrent ? 'text-neutral-900' : 'text-neutral-400'}`}
@@ -251,7 +229,6 @@ export function ClientOrderDetailScreen() {
                                 )}
                             </View>
 
-                            {/* Línea conectora */}
                             {index < statusHistory.length - 1 && (
                                 <View className="absolute left-4 top-8 w-0.5 h-8 bg-neutral-200" />
                             )}
@@ -259,7 +236,6 @@ export function ClientOrderDetailScreen() {
                     ))}
                 </View>
 
-                {/* Productos */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="text-neutral-900 font-bold text-lg">
@@ -303,7 +279,6 @@ export function ClientOrderDetailScreen() {
                     )}
                 </View>
 
-                {/* Totales */}
                 <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                     <Text className="text-neutral-900 font-bold text-lg mb-3">Resumen</Text>
 
@@ -338,7 +313,6 @@ export function ClientOrderDetailScreen() {
                     </View>
                 </View>
 
-                {/* Observaciones */}
                 {order.observaciones_entrega && (
                     <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                         <Text className="text-neutral-900 font-bold text-base mb-2">
@@ -350,7 +324,6 @@ export function ClientOrderDetailScreen() {
                     </View>
                 )}
 
-                {/* Acciones */}
                 {canCancel && (
                     <TouchableOpacity
                         onPress={handleCancelOrder}

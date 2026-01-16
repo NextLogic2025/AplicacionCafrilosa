@@ -27,47 +27,38 @@ export function ClientCheckoutScreen() {
     const navigation = useNavigation()
     const { cart, clearCart, userId, currentClient } = useCart()
 
-    // Data State
     const [clienteData, setClienteData] = useState<Client | null>(null)
     const [sucursales, setSucursales] = useState<ClientBranch[]>([])
 
-    // Form State
     const [condicionPago, setCondicionPago] = useState('CONTADO')
     const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<DeliveryOption>('MATRIZ')
 
-    // UI State
     const [loading, setLoading] = useState(false)
     const [loadingData, setLoadingData] = useState(true)
     const [showSucursalesAccordion, setShowSucursalesAccordion] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [orderNumber, setOrderNumber] = useState('')
 
-    // Cart Totals 
     const subtotal = cart.subtotal || cart.items.reduce((sum, item) => sum + item.subtotal, 0)
     const descuentos = cart.descuento_total || 0
     const iva = cart.impuestos_total || (subtotal - descuentos) * 0.12
     const total = cart.total_final || (subtotal - descuentos + iva)
 
-    // Load Initial Data
     useEffect(() => {
         const loadData = async () => {
             setLoadingData(true)
             try {
-                // If we are Vendedor masquerading, userId in context is correct.
-                // We fetch client data to get addresses, credit limit etc.
                 const cliente = await ClientService.getMyClientData()
 
                 if (cliente) {
                     setClienteData(cliente)
 
-                    // Set Payment Condition based on Credit
                     if (cliente.tiene_credito && cliente.dias_plazo > 0) {
                         setCondicionPago(diasPlazoToCondicion(cliente.dias_plazo))
                     } else {
                         setCondicionPago('CONTADO')
                     }
 
-                    // Load Branches
                     try {
                         const branches = await ClientService.getClientBranches(cliente.id)
                         setSucursales(branches.filter(b => b.activo))
@@ -77,7 +68,6 @@ export function ClientCheckoutScreen() {
                 }
             } catch (error) {
                 console.warn('Could not load client details', error)
-                // We don't block, but UI might be limited.
             } finally {
                 setLoadingData(false)
             }
@@ -85,13 +75,11 @@ export function ClientCheckoutScreen() {
         loadData()
     }, [])
 
-    // Handle Delivery Selection
     const handleDeliveryOptionChange = useCallback((option: DeliveryOption) => {
         setSelectedDeliveryOption(option)
         if (option !== 'MATRIZ') setShowSucursalesAccordion(false)
     }, [])
 
-    // Confirm Order
     const handleConfirmOrder = async () => {
         if (!userId) {
             Alert.alert('Error', 'No se ha identificado el usuario del carrito.')
@@ -100,16 +88,11 @@ export function ClientCheckoutScreen() {
 
         setLoading(true)
         try {
-            // Strict Payload for Backend: Only supported fields
             const payload = {
                 condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
             }
 
-            // NOTE: observaciones, fecha_entrega, ubicacion are NOT sent 
-            // because strict backend DTO ignores them.
-
-            // Use context userId to ensure we are ordering for the same user who owns the cart
             const target = currentClient
                 ? { type: 'client' as const, clientId: currentClient.id }
                 : { type: 'me' as const }
@@ -118,7 +101,6 @@ export function ClientCheckoutScreen() {
 
             setOrderNumber(newOrder.codigo_visual?.toString() || 'N/A')
 
-            // Clear cart purely for UI response (backend clears it too)
             setTimeout(() => clearCart(), 100)
             setShowSuccessModal(true)
 
@@ -234,7 +216,6 @@ export function ClientCheckoutScreen() {
                     )}
                 </View>
 
-                {/* 3. Detalles de Facturación */}
                 <View className="bg-white mt-4 mx-4 p-4 rounded-2xl shadow-sm border border-neutral-100">
                     <Text className="text-lg font-bold text-neutral-800 mb-3">💳 Pago</Text>
 
@@ -268,7 +249,6 @@ export function ClientCheckoutScreen() {
                     )}
                 </View>
 
-                {/* 6. Totales Finales */}
                 <View className="mt-6 mx-6 mb-8">
                     <View className="flex-row justify-between mb-2">
                         <Text className="text-neutral-500">Subtotal</Text>
@@ -286,7 +266,6 @@ export function ClientCheckoutScreen() {
                 </View>
             </ScrollView>
 
-            {/* Bottom Bar */}
             <View className="absolute bottom-0 w-full bg-white border-t border-neutral-100 p-4 shadow-lg">
                 <TouchableOpacity
                     onPress={handleConfirmOrder}

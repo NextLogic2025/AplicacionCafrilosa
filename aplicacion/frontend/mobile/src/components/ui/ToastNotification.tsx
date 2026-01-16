@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, Platform, Animated } from 'react-native';
+import { View, Text, Dimensions, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -14,12 +14,10 @@ interface ToastProps {
 const { width } = Dimensions.get('window');
 
 export const ToastNotification = ({ message, type = 'success', duration = 2000, onHide }: ToastProps) => {
-    // Initial position off-screen (top)
     const translateY = useRef(new Animated.Value(-100)).current;
     const opacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Show Animation
         Animated.parallel([
             Animated.timing(translateY, {
                 toValue: Platform.OS === 'ios' ? 50 : 40,
@@ -33,7 +31,6 @@ export const ToastNotification = ({ message, type = 'success', duration = 2000, 
             }),
         ]).start();
 
-        // Hide Timer
         const timer = setTimeout(() => {
             hideToast();
         }, duration);
@@ -72,43 +69,23 @@ export const ToastNotification = ({ message, type = 'success', duration = 2000, 
 
     return (
         <Animated.View
-            style={[
-                styles.container,
-                {
-                    backgroundColor: colors.bg,
-                    borderColor: colors.border,
-                    opacity: opacity,
-                    transform: [{ translateY: translateY }]
-                }
-            ]}
+            className="absolute top-0 self-center flex-row items-center p-4 rounded-xl border shadow-lg z-[9999]"
+            style={{
+                width: width * 0.9,
+                backgroundColor: colors.bg,
+                borderColor: colors.border,
+                opacity: opacity,
+                transform: [{ translateY: translateY }],
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 8,
+            }}
         >
-            <Ionicons name={colors.icon as any} size={24} color={colors.text} style={{ marginRight: 10 }} />
-            <Text style={[styles.text, { color: colors.text }]}>{message}</Text>
+            <Ionicons name={colors.icon as any} size={24} color={colors.text} className="mr-2.5" />
+            <Text className="text-sm font-semibold flex-1" style={{ color: colors.text }}>{message}</Text>
         </Animated.View>
     );
 };
 
-const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        top: 0, // Animated transform will handle positioning
-        alignSelf: 'center',
-        width: width * 0.9,
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        borderRadius: 12,
-        borderWidth: 1,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 8,
-        zIndex: 9999,
-    },
-    text: {
-        fontSize: 14,
-        fontWeight: '600',
-        flex: 1,
-    },
-});

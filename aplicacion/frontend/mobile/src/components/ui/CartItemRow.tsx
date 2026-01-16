@@ -26,9 +26,7 @@ export function CartItemRow({ item, onIncrement, onDecrement, onRemove }: Props)
 
   return (
     <View className="bg-white rounded-2xl p-4 mb-3 border border-neutral-100 shadow-sm shadow-black/5">
-      {/* Header com produto e preço */}
       <View className="flex-row gap-3 mb-3">
-        {/* Imagem */}
         <View className="h-16 w-16 bg-neutral-50 rounded-xl items-center justify-center flex-shrink-0">
           {item.image ? (
             <Image source={{ uri: item.image }} className="h-full w-full rounded-xl" resizeMode="cover" />
@@ -37,9 +35,7 @@ export function CartItemRow({ item, onIncrement, onDecrement, onRemove }: Props)
           )}
         </View>
 
-        {/* Info do produto */}
         <View className="flex-1">
-          {/* Código e Categoria */}
           <View className="flex-row items-center gap-2 mb-1">
             <Text className="text-[10px] text-neutral-400 font-bold bg-neutral-100 px-1.5 py-0.5 rounded">
               {item.code}
@@ -58,7 +54,6 @@ export function CartItemRow({ item, onIncrement, onDecrement, onRemove }: Props)
           </Text>
         </View>
 
-        {/* Botão remover */}
         <Pressable
           onPress={onRemove}
           className="items-center justify-center w-8 h-8 rounded-full bg-red-50 active:bg-red-100"
@@ -67,7 +62,6 @@ export function CartItemRow({ item, onIncrement, onDecrement, onRemove }: Props)
         </Pressable>
       </View>
 
-      {/* Quantity Controller */}
       <View className="flex-row items-center justify-between bg-neutral-50 rounded-xl p-2">
         <Pressable
           onPress={onDecrement}
@@ -88,7 +82,6 @@ export function CartItemRow({ item, onIncrement, onDecrement, onRemove }: Props)
           <Ionicons name="add" size={18} color={BRAND_COLORS.red} />
         </Pressable>
 
-        {/* Subtotal */}
         <View className="ml-auto items-end">
           <Text className="text-neutral-600 text-xs font-medium mb-0.5">Subtotal</Text>
           <Text className="font-extrabold text-neutral-900 text-base">

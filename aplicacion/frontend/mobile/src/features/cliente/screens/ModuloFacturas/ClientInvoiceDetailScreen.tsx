@@ -17,23 +17,8 @@ export function ClientInvoiceDetailScreen() {
     useEffect(() => {
         const fetchDetail = async () => {
             try {
-                // Mock fetch detail
-                // En produccion usar await InvoiceService.getInvoiceDetail(invoiceId)
-                // Aqui simulamos data si no vuelve nada el servicio (porque esta limpio)
-                // Para demo visual si estuviera conectado:
-                /* 
-                const mock: Invoice = {
-                     id: invoiceId, 
-                     number: 'FAC-00000', 
-                     balance: 0, 
-                     dueDate: new Date().toISOString(), 
-                     issueDate: new Date().toISOString(), 
-                     status: 'pending', 
-                     total: 0 
-                } 
-                setInvoice(mock)
-                */
-                setInvoice(null) // Mantener limpio por defecto
+              
+                setInvoice(null) 
             } finally {
                 setLoading(false)
             }
@@ -102,7 +87,6 @@ export function ClientInvoiceDetailScreen() {
                     </View>
                 </View>
 
-                {/* Acciones */}
                 <Pressable
                     onPress={handleDownload}
                     className="flex-row items-center justify-center bg-white border border-brand-red rounded-xl py-4 mb-4"

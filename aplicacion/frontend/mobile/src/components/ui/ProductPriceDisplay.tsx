@@ -10,13 +10,12 @@ interface ProductPriceDisplayProps {
     priceLists?: Array<{ id: number; nombre: string }>
     size?: 'sm' | 'md' | 'lg'
     layout?: 'horizontal' | 'vertical'
-    showAllPrices?: boolean // Mostrar todas las listas de precios
-    precioOfertaFijo?: number | null // Precio de oferta específico de una campaña
+    showAllPrices?: boolean 
+    precioOfertaFijo?: number | null 
     tipoDescuento?: 'PORCENTAJE' | 'MONTO_FIJO'
     valorDescuento?: number
 }
 
-// Función auxiliar para formatear precios (fuera del componente)
 const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CO', {
         style: 'currency',
@@ -46,7 +45,6 @@ export function ProductPriceDisplay({
     tipoDescuento,
     valorDescuento
 }: ProductPriceDisplayProps) {
-    // Tamaños de texto según el prop size
     const textSizes = {
         sm: { price: 'text-sm', original: 'text-[10px]', badge: 'text-[9px]', discount: 'text-[10px]' },
         md: { price: 'text-base', original: 'text-xs', badge: 'text-[10px]', discount: 'text-xs' },
@@ -77,7 +75,6 @@ export function ProductPriceDisplay({
             return precioBase
         }
 
-        // Filtrar solo precios con listas válidas ANTES del map
         type PrecioConLista = {
             precioItem: { lista_id: number; precio: number }
             lista: { id: number; nombre: string }
@@ -112,7 +109,6 @@ export function ProductPriceDisplay({
                             key={precioItem.lista_id}
                             className={`mb-3 p-3 bg-white rounded-lg border ${tieneDescuento ? 'border-red-200 bg-red-50' : 'border-neutral-100'}`}
                         >
-                            {/* Header con nombre de lista */}
                             <View className="flex-row items-center mb-2">
                                 <View className={`px-2 py-1 rounded-md mr-2 ${
                                     lista.nombre === 'General' ? 'bg-blue-100' :
@@ -134,7 +130,6 @@ export function ProductPriceDisplay({
                                 )}
                             </View>
 
-                            {/* Precios */}
                             {tieneDescuento ? (
                                 <View className="flex-row items-center justify-between">
                                     <View className="flex-1">
@@ -162,7 +157,6 @@ export function ProductPriceDisplay({
                                 </View>
                             )}
 
-                            {/* Ahorro */}
                             {tieneDescuento && ahorroCalculado > 0 && (
                                 <View className="flex-row items-center mt-2 pt-2 border-t border-red-100">
                                     <Ionicons name="pricetag" size={12} color="#16A34A" />
@@ -188,12 +182,10 @@ export function ProductPriceDisplay({
         )
     }
 
-    // Si queremos mostrar todas las listas de precios con promociones
     if (showAllPrices && precios && priceLists && precios.length > 0) {
         return renderAllPricesWithPromotion()
     }
 
-    // Si no hay precio, mostrar mensaje
     if (!precioOriginal && !precioOferta && (!precios || precios.length === 0)) {
         return (
             <View className="flex-row items-center">
@@ -209,7 +201,6 @@ export function ProductPriceDisplay({
             <View className="items-start">
                 {hasPromotion ? (
                     <>
-                        {/* Precio con oferta */}
                         <View className="flex-row items-center mb-1">
                             <View className="bg-red-100 px-2 py-0.5 rounded-md mr-2">
                                 <Text className={`font-bold text-red-600 ${sizes.badge} uppercase`}>OFERTA</Text>
@@ -218,11 +209,9 @@ export function ProductPriceDisplay({
                                 {formatPrice(precioOferta!)}
                             </Text>
                         </View>
-                        {/* Precio original tachado */}
                         <Text className={`text-neutral-400 line-through ${sizes.original}`}>
                             {formatPrice(precioOriginal!)}
                         </Text>
-                        {/* Ahorro */}
                         {ahorro != null && ahorro > 0 && (
                             <View className="flex-row items-center mt-1">
                                 <Ionicons name="pricetag" size={10} color="#16A34A" />
@@ -233,7 +222,6 @@ export function ProductPriceDisplay({
                         )}
                     </>
                 ) : (
-                    /* Precio normal sin promoción */
                     <Text className={`font-bold text-neutral-900 ${sizes.price}`}>
                         {formatPrice(precioOriginal!)}
                     </Text>
@@ -242,26 +230,21 @@ export function ProductPriceDisplay({
         )
     }
 
-    // Layout horizontal (default)
     return (
         <View className="flex-row items-center flex-wrap">
             {hasPromotion ? (
                 <>
-                    {/* Badge de oferta */}
                     <View className="bg-red-100 px-2 py-0.5 rounded-md mr-2">
                         <Text className={`font-bold text-red-600 ${sizes.badge} uppercase`}>OFERTA</Text>
                     </View>
-                    {/* Precio oferta */}
                     <Text className={`font-bold text-red-600 ${sizes.price} mr-2`}>
                         {formatPrice(precioOferta!)}
                     </Text>
-                    {/* Precio original tachado */}
                     <Text className={`text-neutral-400 line-through ${sizes.original}`}>
                         {formatPrice(precioOriginal!)}
                     </Text>
                 </>
             ) : (
-                /* Precio normal */
                 <Text className={`font-bold text-neutral-900 ${sizes.price}`}>
                     {formatPrice(precioOriginal!)}
                 </Text>

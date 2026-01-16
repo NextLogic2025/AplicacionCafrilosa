@@ -1,7 +1,7 @@
 import { BRAND_COLORS } from '../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
-import { Animated, StyleSheet, Text, View } from 'react-native'
+import { Animated, Text, View } from 'react-native'
 
 type SnackbarProps = {
     message: string
@@ -64,7 +64,7 @@ export function Snackbar({ message, visible, onDismiss, duration = 3000, type = 
 
     const getColor = () => {
         switch (type) {
-            case 'success': return '#059669' // brand greenish
+            case 'success': return '#059669'
             case 'error': return '#DC2626'
             default: return '#374151'
         }
@@ -74,38 +74,22 @@ export function Snackbar({ message, visible, onDismiss, duration = 3000, type = 
 
     return (
         <Animated.View
-            style={[
-                styles.container,
-                { opacity, transform: [{ translateY }] },
-                { backgroundColor: '#1F2937' } // Dark toast
-            ]}
+            className="absolute left-5 right-5 p-4 rounded-xl flex-row items-center shadow-lg z-[2000]"
+            style={{
+                bottom: 90,
+                opacity,
+                transform: [{ translateY }],
+                backgroundColor: '#1F2937',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4.65,
+                elevation: 8,
+            }}
         >
-            <Ionicons name={getIcon()} size={20} color={type === 'success' ? '#34D399' : '#fff'} style={{ marginRight: 12 }} />
-            <Text style={styles.text}>{message}</Text>
+            <Ionicons name={getIcon()} size={20} color={type === 'success' ? '#34D399' : '#fff'} className="mr-3" />
+            <Text className="text-white font-semibold text-sm">{message}</Text>
         </Animated.View>
     )
 }
 
-const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        bottom: 90, // Above tabs/FAB
-        left: 20,
-        right: 20,
-        padding: 16,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
-        elevation: 8,
-        zIndex: 2000,
-    },
-    text: {
-        color: 'white',
-        fontWeight: '600',
-        fontSize: 14
-    }
-})

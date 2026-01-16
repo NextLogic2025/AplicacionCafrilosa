@@ -10,7 +10,6 @@ import { OrderService, Order } from '../../../../services/api/OrderService'
 import { UserService } from '../../../../services/api/UserService'
 import { BRAND_COLORS } from '../../../../shared/types'
 
-// Filtros de estado para "Chips" - Todos los estados de la base de datos
 const STATUS_FILTERS = [
     { id: 'all', label: 'Todos' },
     { id: 'PENDIENTE', label: 'Pendiente' },
@@ -36,9 +35,6 @@ export function ClientOrdersScreen() {
     const fetchOrders = async () => {
         setLoading(true)
         try {
-            // UPDATED: Use getOrderHistory which automatically uses JWT token
-            // Backend resolves cliente_id from usuario_principal_id for clients
-            // No need to manually fetch userId
             const data = await OrderService.getOrderHistory()
             setOrders(data)
         } catch (error) {
@@ -53,7 +49,7 @@ export function ClientOrdersScreen() {
         useCallback(() => {
             fetchOrders()
             return () => { }
-        }, [currentClient]) // Add currentClient as dependency to refetch when switching
+        }, [currentClient]) 
     )
 
     const handleCancelOrder = async (orderId: string) => {
@@ -66,7 +62,6 @@ export function ClientOrdersScreen() {
         }
     }
 
-    // Filtrado en memoria (idealmente esto sería params al backend)
     const filteredOrders = React.useMemo(() => {
         return orders.filter(order => {
             const matchesStatus = selectedStatus === 'all' || order.estado_actual === selectedStatus
@@ -75,7 +70,6 @@ export function ClientOrdersScreen() {
         })
     }, [orders, selectedStatus, searchQuery])
 
-    // Estadísticas simples
     const stats = {
         total: orders.length,
         pending: orders.filter(o => o.estado_actual === 'PENDIENTE').length,
@@ -90,7 +84,6 @@ export function ClientOrdersScreen() {
             />
 
             <View className="flex-1">
-                {/* 1. Estadísticas Resumen */}
                 <View className="flex-row px-5 py-4 gap-3 bg-white border-b border-neutral-100 z-10">
                     <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
                         <Text className="text-neutral-500 text-xs font-medium uppercase mb-1">Totales</Text>
@@ -106,7 +99,6 @@ export function ClientOrdersScreen() {
                     </View>
                 </View>
 
-                {/* 2. Búsqueda y Filtros */}
                 <View className="bg-white px-5 pb-4 shadow-sm shadow-black/5 z-0">
                     <SearchBar
                         value={searchQuery}
@@ -138,7 +130,6 @@ export function ClientOrdersScreen() {
                     </View>
                 </View>
 
-                {/* 3. Lista de Resultados */}
                 {loading ? (
                     <View className="flex-1 items-center justify-center">
                         <ActivityIndicator size="large" color={BRAND_COLORS.red} />

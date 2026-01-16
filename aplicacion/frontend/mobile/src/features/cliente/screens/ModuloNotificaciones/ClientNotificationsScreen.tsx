@@ -27,7 +27,6 @@ export function ClientNotificationsScreen() {
     }
 
     const markAsRead = (id: string) => {
-        // Optimistic update
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
     }
 
