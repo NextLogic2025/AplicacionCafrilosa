@@ -63,6 +63,12 @@ export async function apiRequest<T>(endpoint: string, options: ApiRequestOptions
                 throw new Error('SESSION_EXPIRED')
             }
 
+            // Enhanced logging for 403 errors
+            if (response.status === 403) {
+                console.error(`[API] 403 Forbidden - Access denied to: ${endpoint}`)
+                console.error('[API] Verify that the user role has permissions for this endpoint')
+            }
+
             const errorText = await response.text().catch(() => '')
             const errorPayload =
                 (response.headers.get('content-type') ?? '').includes('application/json') ? safeJsonParse(errorText) : null

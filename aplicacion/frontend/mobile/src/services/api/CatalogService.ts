@@ -110,6 +110,8 @@ export const CatalogService = {
         return response.items || []
     },
 
+    // ⚠️ WARNING: This function uses /api/products which does NOT allow 'cliente' role
+    // For clients, use getClientProducts() instead to avoid 403 Forbidden errors
     getProductsPaginated: async (
         page: number = 1,
         perPage: number = 20,
