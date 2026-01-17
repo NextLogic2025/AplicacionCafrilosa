@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BRAND_COLORS } from '../../shared/types'
 
@@ -18,8 +19,13 @@ type Props = {
 }
 
 export function ExpandableFab({ actions }: Props) {
+    const insets = useSafeAreaInsets()
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
+    const fabBottom = React.useMemo(() => {
+        const base = 96
+        return base + (insets.bottom || 16)
+    }, [insets.bottom])
 
     const openMenu = React.useCallback(() => {
         setIsOpen(true)
@@ -54,7 +60,8 @@ export function ExpandableFab({ actions }: Props) {
 
     const renderFab = (onPress: () => void) => (
         <View
-            className="absolute right-6 bottom-[110px]"
+            className="absolute right-6"
+            style={{ bottom: fabBottom }}
             pointerEvents="box-none"
         >
             <Pressable
@@ -126,7 +133,8 @@ export function ExpandableFab({ actions }: Props) {
                     />
 
                     <View
-                        className="absolute right-6 bottom-[110px] items-end"
+                        className="absolute right-6 items-end"
+                        style={{ bottom: fabBottom }}
                         pointerEvents="box-none"
                     >
                         {actions.map((action, index) => {

@@ -45,6 +45,7 @@ export function SupervisorDashboardScreen() {
                 role="SUPERVISOR"
                 variant="home"
                 showNotification={true}
+                notificationRoute="SupervisorAlerts"
             />
 
             <ScrollView

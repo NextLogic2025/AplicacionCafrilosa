@@ -3,6 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import * as ExpoSplashScreen from 'expo-splash-screen'
 import * as React from 'react'
+import { Platform } from 'react-native'
+import * as NavigationBar from 'expo-navigation-bar'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { jwtDecode } from 'jwt-decode'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
@@ -21,6 +24,7 @@ import type { RootStackParamList } from './navigation/types'
 import { getToken } from './storage/authStorage'
 import { CartProvider } from './context/CartContext'
 import { ToastProvider } from './context/ToastContext'
+import { NotificationProvider } from './context/NotificationContext'
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {})
 
@@ -50,6 +54,11 @@ const getRouteForRole = (role?: string | null): AuthStartRoute => {
 export default function App() {
     React.useEffect(() => {
         ExpoSplashScreen.hideAsync().catch(() => {})
+
+        if (Platform.OS === 'android') {
+            NavigationBar.setBackgroundColorAsync('#f3f4f6').catch(() => {})
+            NavigationBar.setButtonStyleAsync('dark').catch(() => {})
+        }
     }, [])
 
     const handleSplashDone = async (navigation: NativeStackNavigationProp<RootStackParamList, 'Splash'>) => {
@@ -68,41 +77,45 @@ export default function App() {
     }
 
     return (
-        <CartProvider>
-            <SafeAreaProvider>
-                <ToastProvider>
-                    <NavigationContainer ref={navigationRef}>
-                        <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-                            <Stack.Screen name="Splash">
-                                {({ navigation }) => (
-                                    <SplashScreen onDone={() => handleSplashDone(navigation)} />
-                                )}
-                            </Stack.Screen>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <CartProvider>
+                <SafeAreaProvider>
+                    <NotificationProvider>
+                        <ToastProvider>
+                            <NavigationContainer ref={navigationRef}>
+                                <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+                                    <Stack.Screen name="Splash">
+                                        {({ navigation }) => (
+                                            <SplashScreen onDone={() => handleSplashDone(navigation)} />
+                                        )}
+                                    </Stack.Screen>
 
-                            <Stack.Screen name="Login">
-                                {({ navigation }) => (
-                                    <LoginScreen
-                                        onSignedIn={(role) => navigation.replace(getRouteForRole(role))}
-                                        onForgotPassword={() => navigation.navigate('ForgotPassword')}
-                                    />
-                                )}
-                            </Stack.Screen>
+                                    <Stack.Screen name="Login">
+                                        {({ navigation }) => (
+                                            <LoginScreen
+                                                onSignedIn={(role) => navigation.replace(getRouteForRole(role))}
+                                                onForgotPassword={() => navigation.navigate('ForgotPassword')}
+                                            />
+                                        )}
+                                    </Stack.Screen>
 
-                            <Stack.Screen name="ForgotPassword">
-                                {({ navigation }) => (
-                                    <ForgotPasswordScreen onBack={() => navigation.goBack()} />
-                                )}
-                            </Stack.Screen>
+                                    <Stack.Screen name="ForgotPassword">
+                                        {({ navigation }) => (
+                                            <ForgotPasswordScreen onBack={() => navigation.goBack()} />
+                                        )}
+                                    </Stack.Screen>
 
-                            <Stack.Screen name="Cliente" component={ClientNavigator} />
-                            <Stack.Screen name="Supervisor" component={SupervisorNavigator} />
-                            <Stack.Screen name="Vendedor" component={SellerNavigator} />
-                            <Stack.Screen name="Transportista" component={TransportistaNavigator} />
-                            <Stack.Screen name="Bodeguero" component={WarehouseNavigator} />
-                        </Stack.Navigator>
-                    </NavigationContainer>
-                </ToastProvider>
-            </SafeAreaProvider>
-        </CartProvider>
+                                    <Stack.Screen name="Cliente" component={ClientNavigator} />
+                                    <Stack.Screen name="Supervisor" component={SupervisorNavigator} />
+                                    <Stack.Screen name="Vendedor" component={SellerNavigator} />
+                                    <Stack.Screen name="Transportista" component={TransportistaNavigator} />
+                                    <Stack.Screen name="Bodeguero" component={WarehouseNavigator} />
+                                </Stack.Navigator>
+                            </NavigationContainer>
+                        </ToastProvider>
+                    </NotificationProvider>
+                </SafeAreaProvider>
+            </CartProvider>
+        </GestureHandlerRootView>
     )
 }

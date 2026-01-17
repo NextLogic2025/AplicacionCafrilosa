@@ -90,7 +90,7 @@ export function TransportistaHomeScreen() {
                 role="TRANSPORTISTA"
                 showNotification={true}
                 variant="home"
-                onNotificationPress={() => navigation.navigate('Notificaciones')}
+                notificationRoute="Notificaciones"
             />
 
             <ScrollView

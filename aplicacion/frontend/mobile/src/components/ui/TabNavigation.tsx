@@ -81,8 +81,9 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
         <View
             className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-100 rounded-t-[24px] shadow-lg shadow-black/10"
             style={{
-                paddingBottom: (insets.bottom || 16) + 12, 
+                paddingBottom: Math.max(insets.bottom, 16) + 14,
                 paddingTop: 12,
+                paddingHorizontal: 6,
                 elevation: 12,
                 zIndex: 50, 
             }}

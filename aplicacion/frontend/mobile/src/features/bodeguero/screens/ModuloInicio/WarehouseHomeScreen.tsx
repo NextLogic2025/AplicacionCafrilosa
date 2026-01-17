@@ -91,10 +91,7 @@ export function WarehouseHomeScreen() {
                 role="BODEGA"
                 showNotification={true}
                 variant="home"
-                onNotificationPress={() => {
-                    // @ts-expect-error - Navigation is typed but routes are dynamic
-                    navigation.navigate('WarehouseNotifications')
-                }}
+                notificationRoute="WarehouseNotifications"
             />
 
             <ScrollView

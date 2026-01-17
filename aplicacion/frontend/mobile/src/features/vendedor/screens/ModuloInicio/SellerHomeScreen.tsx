@@ -99,10 +99,7 @@ export function SellerHomeScreen() {
                 role="VENDEDOR"
                 showNotification={true}
                 variant="home"
-                onNotificationPress={() => {
-                    // @ts-expect-error - Navigation is typed but routes are dynamic
-                    navigation.navigate('SellerNotifications')
-                }}
+                notificationRoute="SellerNotifications"
             />
 
             <ScrollView

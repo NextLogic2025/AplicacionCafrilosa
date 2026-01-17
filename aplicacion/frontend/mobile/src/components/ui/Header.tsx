@@ -4,6 +4,7 @@ import React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { navigationRef } from '../../navigation/navigationRef'
+import { useNotificationsOptional } from '../../context/NotificationContext'
 
 type HeaderProps = {
   userName?: string
@@ -11,6 +12,7 @@ type HeaderProps = {
   role?: string
   showNotification?: boolean
   notificationCount?: number
+  useGlobalNotifications?: boolean
   onNotificationPress?: () => void
   showCart?: boolean
   cartCount?: number
@@ -32,7 +34,8 @@ export function Header({
   userImage,
   role,
   showNotification = true,
-  notificationCount = 0,
+  notificationCount,
+  useGlobalNotifications = true,
   onNotificationPress,
   showCart = false,
   cartCount = 0,
@@ -46,6 +49,7 @@ export function Header({
   rightAction
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
+  const notificationsCtx = useNotificationsOptional()
 
   const isStandard = variant === 'standard' || !!title
 
@@ -57,7 +61,12 @@ export function Header({
         navigationRef.navigate(notificationRoute as never);
       }
     }
+    notificationsCtx?.markAllRead()
   }
+
+  const effectiveNotificationCount = useGlobalNotifications
+    ? (notificationCount ?? notificationsCtx?.badgeCount ?? 0)
+    : (notificationCount ?? 0)
 
   return (
     <View
@@ -135,7 +144,7 @@ export function Header({
               className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="notifications-outline" size={22} color="white" />
-              {notificationCount > 0 && (
+              {effectiveNotificationCount > 0 && (
                 <View className="absolute top-2 right-2 h-2.5 w-2.5 bg-brand-gold rounded-full border border-brand-red" />
               )}
             </Pressable>
