@@ -1,0 +1,13 @@
+{
+  "name": "test-socket-client",
+  "version": "1.0.0",
+  "description": "Cliente de prueba para WebSocket de Cafrilosa Catalog",
+  "main": "client.js",
+  "scripts": {
+    "start": "node client.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.4",
+    "dotenv": "^16.4.5"
+  }
+}
