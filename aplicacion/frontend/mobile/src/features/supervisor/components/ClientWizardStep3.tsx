@@ -1,7 +1,6 @@
-
 import React, { useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native'
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps'
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../shared/types'
 import { GenericModal } from '../../../components/ui/GenericModal'
@@ -30,9 +29,10 @@ interface Props {
     loading: boolean
     zones: any[]
     clientData: any
+    showNav?: boolean
 }
 
-export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loading, zones, clientData }: Props) {
+export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loading, zones, clientData, showNav = true }: Props) {
     const [showModal, setShowModal] = useState(false)
     const [showFullMap, setShowFullMap] = useState(false)
     const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
@@ -61,13 +61,12 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
     })
 
     const [fullMapKey, setFullMapKey] = useState(0)
+    const [markerCoord, setMarkerCoord] = useState<{ latitude: number, longitude: number } | null>(null)
 
     const handleOpenFullMap = () => {
         setFullMapKey(Date.now())
         setShowFullMap(true)
     }
-
-    const [markerCoord, setMarkerCoord] = useState<{ latitude: number, longitude: number } | null>(null)
 
     const handleAdd = () => {
         setEditingBranch(null)
@@ -135,7 +134,6 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
 
     const handleSaveBranch = () => {
         if (!tempForm.nombre_sucursal.trim()) return
-
         if (!markerCoord) {
             Alert.alert('Ubicación requerida', 'Debes seleccionar una ubicación en el mapa.')
             return
@@ -144,8 +142,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
             Alert.alert('Zona requerida', 'Debes seleccionar una zona para la sucursal.')
             return
         }
-        if (zonePolygon.length === 0) {
-        } else {
+        if (zonePolygon.length > 0) {
             const inside = isPointInPolygon(markerCoord, zonePolygon)
             if (!inside) {
                 Alert.alert('Ubicación fuera de la zona', 'La ubicación marcada debe estar dentro del polígono de la zona seleccionada.')
@@ -207,7 +204,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                                     {branchZone && (
                                         <View className="flex-row items-center mt-1">
                                             <View className="bg-indigo-100 px-2 py-0.5 rounded-full">
-                                                <Text className="text-indigo-700 text-[10px] font-medium">📍 {branchZone.nombre}</Text>
+                                                <Text className="text-indigo-700 text-[10px] font-medium">Zona: {branchZone.nombre}</Text>
                                             </View>
                                         </View>
                                     )}
@@ -232,26 +229,28 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                 />
             </View>
 
-            <View className="p-5 border-t border-neutral-100 bg-white">
-                <TouchableOpacity
-                    className={`w-full py-4 rounded-xl items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
-                    style={{ backgroundColor: BRAND_COLORS.red }}
-                    onPress={onSubmit}
-                    disabled={loading}
-                >
-                    <Text className="text-white font-bold text-lg">
-                        {loading ? 'Guardando...' : 'Finalizar y Guardar'}
-                    </Text>
-                </TouchableOpacity>
+            {showNav && (
+                <View className="p-5 border-t border-neutral-100 bg-white">
+                    <TouchableOpacity
+                        className={`w-full py-4 rounded-xl items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
+                        style={{ backgroundColor: BRAND_COLORS.red }}
+                        onPress={onSubmit}
+                        disabled={loading}
+                    >
+                        <Text className="text-white font-bold text-lg">
+                            {loading ? 'Guardando...' : 'Finalizar y Guardar'}
+                        </Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                    className="mt-4 py-2 items-center"
-                    onPress={onBack}
-                    disabled={loading}
-                >
-                    <Text className="text-neutral-500 font-bold">Volver</Text>
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity
+                        className="mt-4 py-2 items-center"
+                        onPress={onBack}
+                        disabled={loading}
+                    >
+                        <Text className="text-neutral-500 font-bold">Volver</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             <GenericModal
                 visible={showModal}
@@ -280,9 +279,7 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                                 zones.map((z: any) => (
                                     <TouchableOpacity
                                         key={z.id}
-                                        className={`p-4 border-b border-neutral-100 flex-row items-center justify-between ${
-                                            selectedBranchZoneId === z.id ? 'bg-red-50' : ''
-                                        }`}
+                                        className={`p-4 border-b border-neutral-100 flex-row items-center justify-between ${selectedBranchZoneId === z.id ? 'bg-red-50' : ''}`}
                                         onPress={() => {
                                             setSelectedBranchZoneId(z.id)
                                             setShowZonePicker(false)
@@ -352,52 +349,46 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
                     <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-neutral-500 font-medium">Ubicación GPS (Obligatorio)</Text>
                         <TouchableOpacity onPress={handleOpenFullMap}>
-                            <Text className="text-blue-600 font-bold text-xs">Ampliar Mapa ⤢</Text>
+                            <Text className="text-blue-600 font-bold text-xs">Ampliar Mapa</Text>
                         </TouchableOpacity>
                     </View>
                     <View className="h-56 rounded-xl overflow-hidden mb-4 border border-neutral-200 relative bg-neutral-100">
-                        {mapRegion.latitude !== 0 ? (
-                            <MapView
-                                provider={PROVIDER_GOOGLE}
-                                style={{ flex: 1 }}
-                                region={mapRegion}
-                                onRegionChangeComplete={setMapRegion}
-                                onPress={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
-                            >
-                                {zonePolygon.length > 0 && (
-                                    <Polygon
-                                        coordinates={zonePolygon}
-                                        strokeColor={BRAND_COLORS.red}
-                                        fillColor="rgba(239, 68, 68, 0.1)"
-                                        strokeWidth={1}
-                                    />
-                                )}
-                                {clientLocation && (
-                                    <Marker
-                                        coordinate={clientLocation}
-                                        title="Matriz (Cliente)"
-                                        description="Ubicación principal"
-                                        opacity={0.6}
-                                    >
-                                        <Ionicons name="business" size={30} color="#4B5563" />
-                                    </Marker>
-                                )}
+                        <MapView
+                            provider={PROVIDER_GOOGLE}
+                            style={{ flex: 1 }}
+                            region={mapRegion}
+                            onRegionChangeComplete={setMapRegion}
+                            onPress={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
+                        >
+                            {zonePolygon.length > 0 && (
+                                <Polygon
+                                    coordinates={zonePolygon}
+                                    strokeColor={BRAND_COLORS.red}
+                                    fillColor="rgba(239, 68, 68, 0.1)"
+                                    strokeWidth={1}
+                                />
+                            )}
+                            {clientLocation && (
+                                <Marker
+                                    coordinate={clientLocation}
+                                    title="Matriz (Cliente)"
+                                    description="Ubicación principal"
+                                    opacity={0.6}
+                                >
+                                    <Ionicons name="business" size={30} color="#4B5563" />
+                                </Marker>
+                            )}
 
-                                {markerCoord && (
-                                    <Marker
-                                        coordinate={markerCoord}
-                                        draggable
-                                        onDragEnd={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
-                                        title="Nueva Sucursal"
-                                        pinColor={BRAND_COLORS.red}
-                                    />
-                                )}
-                            </MapView>
-                        ) : (
-                            <View className="flex-1 items-center justify-center">
-                                <Text>Cargando mapa...</Text>
-                            </View>
-                        )}
+                            {markerCoord && (
+                                <Marker
+                                    coordinate={markerCoord}
+                                    draggable
+                                    onDragEnd={(e) => setMarkerCoord(e.nativeEvent.coordinate)}
+                                    title="Nueva Sucursal"
+                                    pinColor={BRAND_COLORS.red}
+                                />
+                            )}
+                        </MapView>
 
                         {!markerCoord && (
                             <View className="absolute bottom-4 left-0 right-0 items-center">

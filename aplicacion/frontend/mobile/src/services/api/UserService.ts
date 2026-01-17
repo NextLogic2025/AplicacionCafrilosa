@@ -1,5 +1,6 @@
 import { env } from '../../config/env'
 import { apiRequest } from './client'
+import { getUserFriendlyMessage, logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface UserProfile {
     id: string
@@ -28,7 +29,7 @@ export const UserService = {
                 lastLogin: data.lastLogin
             }
         } catch (error) {
-            console.error('Error fetching profile:', error)
+            logErrorForDebugging(error, 'UserService.getProfile')
             return null
         }
     },
@@ -41,7 +42,7 @@ export const UserService = {
             })
             return true
         } catch (error) {
-            console.error('Error updating profile:', error)
+            logErrorForDebugging(error, 'UserService.updateProfile', { userId })
             return false
         }
     },
@@ -56,11 +57,11 @@ export const UserService = {
             return {
                 success: true,
                 message: 'Usuario creado exitosamente',
-                userId: response.id || response.userId // Handling potential response variations
+                userId: response.id || response.userId
             }
         } catch (error: any) {
-            console.error('Error creating user:', error)
-            return { success: false, message: error.message || 'Error de red al crear usuario' }
+            logErrorForDebugging(error, 'UserService.createUser', { email: userData.email })
+            return { success: false, message: getUserFriendlyMessage(error, 'CREATE_ERROR') }
         }
     },
 
@@ -78,7 +79,7 @@ export const UserService = {
                 active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
-            console.error('Error fetching users:', error)
+            logErrorForDebugging(error, 'UserService.getUsers')
             return []
         }
     },
@@ -97,7 +98,7 @@ export const UserService = {
                 active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
-            console.error('Error fetching vendors:', error)
+            logErrorForDebugging(error, 'UserService.getVendors')
             return []
         }
     },
@@ -118,8 +119,8 @@ export const UserService = {
 
             return { success: true, message: 'Usuario actualizado correctamente' }
         } catch (error: any) {
-            console.error('Error updating user:', error)
-            return { success: false, message: error.message || 'Error al actualizar usuario' }
+            logErrorForDebugging(error, 'UserService.updateUser', { userId })
+            return { success: false, message: getUserFriendlyMessage(error, 'UPDATE_ERROR') }
         }
     },
 
@@ -130,8 +131,8 @@ export const UserService = {
             })
             return { success: true, message: 'Usuario eliminado correctamente' }
         } catch (error: any) {
-            console.error('Error deleting user:', error)
-            return { success: false, message: error.message || 'Error al eliminar usuario' }
+            logErrorForDebugging(error, 'UserService.deleteUser', { userId })
+            return { success: false, message: getUserFriendlyMessage(error, 'DELETE_ERROR') }
         }
     }
 }

@@ -10,8 +10,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import logo from '../../../assets/logo'
 import { PrimaryButton } from '../../../components/ui/PrimaryButton'
 import { TextField } from '../../../components/ui/TextField'
+import { ToastNotification } from '../../../components/ui/ToastNotification'
 import { signIn } from '../../../services/auth/authClient'
-import { setToken } from '../../../storage/authStorage'
+import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 
 type Props = {
   onSignedIn: (role?: string) => void
@@ -42,13 +43,23 @@ export function LoginScreen({ onSignedIn, onForgotPassword }: Props) {
       const result = await signIn(email, password)
       onSignedIn(result.user?.role)
     } catch (e) {
-      setServerError(e instanceof Error ? e.message : 'Credenciales incorrectas')
+      const friendlyMessage = getUserFriendlyMessage(e, 'INVALID_CREDENTIALS')
+      setServerError(friendlyMessage)
     }
   })
 
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" backgroundColor="transparent" translucent />
+
+      {serverError && (
+        <ToastNotification
+          message={serverError}
+          type="error"
+          duration={4000}
+          onHide={() => setServerError(null)}
+        />
+      )}
 
       <View className="absolute top-0 left-0 right-0 h-1/3 bg-brand-red opacity-5" />
       <View className="absolute -top-20 -right-20 w-64 h-64 bg-brand-red rounded-full opacity-[0.03]" />
@@ -83,14 +94,6 @@ export function LoginScreen({ onSignedIn, onForgotPassword }: Props) {
               </View>
 
               <View className="w-full gap-5">
-                {serverError && (
-                  <View className="flex-row items-center bg-red-50 border border-red-100 p-4 rounded-xl gap-3">
-                    <Ionicons name="alert-circle" size={20} color={BRAND_COLORS.red700} />
-                    <Text className="flex-1 text-red-700 text-sm font-medium">
-                      {serverError}
-                    </Text>
-                  </View>
-                )}
 
                 <Controller
                   control={control}

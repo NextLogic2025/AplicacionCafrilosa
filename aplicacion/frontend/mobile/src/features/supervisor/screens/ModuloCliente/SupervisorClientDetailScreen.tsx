@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking, RefreshControl, Dimensions, StyleSheet } from 'react-native'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
 
 import { Header } from '../../../../components/ui/Header'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
@@ -10,6 +9,8 @@ import { SectionHeader } from '../../../../components/ui/SectionHeader'
 
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, Client, ClientBranch } from '../../../../services/api/ClientService'
+import { MiniMapPreview } from '../../../../components/ui/MiniMapPreview'
+import { ZoneHelpers } from '../../../../services/api/ZoneService'
 
 const { width } = Dimensions.get('window')
 
@@ -22,6 +23,7 @@ export function SupervisorClientDetailScreen() {
 
   const [client, setClient] = useState<Client | null>(clientParam || null)
   const [branches, setBranches] = useState<ClientBranch[]>([])
+  const [zonePolygon, setZonePolygon] = useState<{ latitude: number; longitude: number }[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [expandedBranch, setExpandedBranch] = useState<string | null>(null)
 
@@ -30,11 +32,18 @@ export function SupervisorClientDetailScreen() {
     setLoading(true)
     try {
       const [clientData, sucursales] = await Promise.all([
-        client ? Promise.resolve(client) : ClientService.getClient(clientId),
+        ClientService.getClient(clientId),
         ClientService.getClientBranches(clientId)
       ])
       setClient(clientData)
       setBranches(sucursales)
+      if (clientData?.zona_comercial_id) {
+        const zone = await ClientService.getCommercialZoneById(clientData.zona_comercial_id, true)
+        if (zone?.poligono_geografico) setZonePolygon(ZoneHelpers.parsePolygon(zone.poligono_geografico))
+        else setZonePolygon(null)
+      } else {
+        setZonePolygon(null)
+      }
     } catch (e) {
       console.error('Error cargando detalle del cliente:', e)
     } finally {
@@ -52,53 +61,6 @@ export function SupervisorClientDetailScreen() {
     const [lng, lat] = coordinates
     const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
     Linking.openURL(url).catch(err => console.error('Error abriendo Google Maps:', err))
-  }
-
-  const renderMap = (coordinates: [number, number], title: string, subtitle?: string, height: number = 280) => {
-    const [lng, lat] = coordinates
-    
-    return (
-      <View>
-        <View className="bg-white rounded-xl overflow-hidden border border-neutral-200" style={{ height }}>
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ flex: 1 }}
-            initialRegion={{
-              latitude: lat,
-              longitude: lng,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-            scrollEnabled={true}
-            zoomEnabled={true}
-          >
-            <Marker
-              coordinate={{ latitude: lat, longitude: lng }}
-              title={title}
-              description={subtitle}
-              pinColor={BRAND_COLORS.red}
-            />
-          </MapView>
-          
-          <View style={styles.coordsBadge} className="bg-white/95 px-3 py-1.5 rounded-full border border-neutral-200 shadow-sm">
-            <Text className="text-neutral-700 text-[10px] font-mono font-semibold">
-              {lat.toFixed(6)}, {lng.toFixed(6)}
-            </Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity
-          onPress={() => openInGoogleMaps(coordinates, title)}
-          className="mt-2 flex-row items-center justify-center py-2 px-4 bg-blue-50 rounded-lg border border-blue-200"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="navigate" size={16} color="#2563EB" />
-          <Text className="text-blue-700 font-semibold text-xs ml-2">
-            Abrir en Google Maps
-          </Text>
-        </TouchableOpacity>
-      </View>
-    )
   }
 
   if (loading && !client) {
@@ -246,7 +208,6 @@ export function SupervisorClientDetailScreen() {
             </View>
           </View>
 
-          {/* Mapa de ubicación principal */}
           {client.ubicacion_gps && (
             <View className="mt-4">
               <SectionHeader
@@ -255,12 +216,30 @@ export function SupervisorClientDetailScreen() {
                 iconColor={BRAND_COLORS.red}
               />
               <View className="mt-3">
-                {renderMap(
-                  client.ubicacion_gps.coordinates,
-                  client.nombre_comercial || client.razon_social,
-                  client.direccion_texto || undefined,
-                  280
-                )}
+                <MiniMapPreview
+                  height={240}
+                  polygon={zonePolygon || undefined}
+                  marker={{ latitude: client.ubicacion_gps.coordinates[1], longitude: client.ubicacion_gps.coordinates[0] }}
+                  center={{ latitude: client.ubicacion_gps.coordinates[1], longitude: client.ubicacion_gps.coordinates[0] }}
+                  onPress={() => openInGoogleMaps(client.ubicacion_gps!.coordinates, client.nombre_comercial || client.razon_social)}
+                />
+                <View className="flex-row items-center justify-between mt-2">
+                  <View className="bg-white px-3 py-1.5 rounded-full border border-neutral-200 shadow-sm">
+                    <Text className="text-neutral-700 text-[10px] font-mono font-semibold">
+                      {client.ubicacion_gps.coordinates[1].toFixed(6)}, {client.ubicacion_gps.coordinates[0].toFixed(6)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => openInGoogleMaps(client.ubicacion_gps!.coordinates, client.nombre_comercial || client.razon_social)}
+                    className="flex-row items-center bg-blue-50 border border-blue-200 px-3 py-2 rounded-lg"
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="navigate" size={16} color="#2563EB" />
+                    <Text className="text-blue-700 font-semibold text-xs ml-2">
+                      Abrir en Google Maps
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -372,12 +351,13 @@ export function SupervisorClientDetailScreen() {
                         {/* Mapa expandido */}
                         {isExpanded && hasGPS && (
                           <View className="mt-4 pt-4 border-t border-neutral-100">
-                            {renderMap(
-                              branch.ubicacion_gps!.coordinates,
-                              branch.nombre_sucursal,
-                              branch.direccion_entrega,
-                              250
-                            )}
+                            <MiniMapPreview
+                              height={220}
+                              polygon={zonePolygon || undefined}
+                              marker={{ latitude: branch.ubicacion_gps!.coordinates[1], longitude: branch.ubicacion_gps!.coordinates[0] }}
+                              center={{ latitude: branch.ubicacion_gps!.coordinates[1], longitude: branch.ubicacion_gps!.coordinates[0] }}
+                              onPress={() => openInGoogleMaps(branch.ubicacion_gps!.coordinates, branch.nombre_sucursal)}
+                            />
                           </View>
                         )}
                       </View>

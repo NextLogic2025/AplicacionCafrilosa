@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
 import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface Client {
     id: string
@@ -124,7 +125,7 @@ export const ClientService = {
         try {
             return await apiRequest<Client>(endpoints.catalog.clienteById('me'))
         } catch (error: any) {
-            console.error('Error fetching client data:', error)
+            logErrorForDebugging(error, 'ClientService.getMyClientData')
             return null
         }
     },
@@ -133,7 +134,7 @@ export const ClientService = {
         try {
             return await apiRequest<Client[]>(endpoints.catalog.clientesMis)
         } catch (error) {
-            console.error('Error fetching my clients:', error)
+            logErrorForDebugging(error, 'ClientService.getMyClients')
             return []
         }
     },
@@ -142,7 +143,7 @@ export const ClientService = {
         try {
             return await apiRequest<PriceList[]>(endpoints.catalog.preciosListas)
         } catch (error) {
-            console.error('Error fetching price lists:', error)
+            logErrorForDebugging(error, 'ClientService.getPriceLists')
             return []
         }
     },
@@ -151,7 +152,7 @@ export const ClientService = {
         try {
             return await apiRequest<CommercialZone[]>(endpoints.catalog.zonas, { silent })
         } catch (error) {
-            if (!silent) console.error('Error fetching commercial zones:', error)
+            if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZones')
             return []
         }
     },
@@ -160,7 +161,7 @@ export const ClientService = {
         try {
             return await apiRequest<CommercialZone>(endpoints.catalog.zonaById(id), { silent })
         } catch (error) {
-            if (!silent) console.error(`Error fetching commercial zone ${id}:`, error)
+            if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZoneById', { id })
             return null
         }
     },
@@ -169,7 +170,7 @@ export const ClientService = {
         try {
             return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesByClienteId(clientId))
         } catch (error) {
-            console.error('Error fetching client branches:', error)
+            logErrorForDebugging(error, 'ClientService.getClientBranches', { clientId })
             return []
         }
     },
@@ -185,7 +186,7 @@ export const ClientService = {
         try {
             return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesDesactivadasByClienteId(clientId))
         } catch (error) {
-            console.error('Error fetching deactivated branches:', error)
+            logErrorForDebugging(error, 'ClientService.getDeactivatedClientBranches', { clientId })
             return []
         }
     },
@@ -201,7 +202,7 @@ export const ClientService = {
         try {
             return await apiRequest<ClientBranch>(endpoints.catalog.sucursalById(branchId))
         } catch (error) {
-            console.error('Error fetching branch details:', error)
+            logErrorForDebugging(error, 'ClientService.getClientBranchById', { branchId })
             return null
         }
     }

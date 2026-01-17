@@ -2,6 +2,7 @@ import { apiRequest } from './client'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { isApiError } from './ApiError'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 function ordersEndpoint(path: string) {
     return `${env.api.ordersUrl}${path}`
@@ -224,7 +225,7 @@ export const OrderService = {
             })
             return OrderService.normalizeOrder(order)
         } catch (error) {
-            console.error('Error creating order from cart:', error)
+            logErrorForDebugging(error, 'OrderService.createOrderFromCart', { target })
             throw error
         }
     },
@@ -236,7 +237,7 @@ export const OrderService = {
                 .map(OrderService.normalizeOrder)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         } catch (error) {
-            console.error('Error fetching order history:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderHistory')
             throw error
         }
     },
@@ -246,7 +247,7 @@ export const OrderService = {
             const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersByClientId(userId)))
             return orders.map(OrderService.normalizeOrder).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         } catch (error) {
-            console.error('Error fetching client orders:', error)
+            logErrorForDebugging(error, 'OrderService.getClientOrders', { userId })
             throw error
         }
     },
@@ -279,7 +280,7 @@ export const OrderService = {
                 const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
                 return applyOrderFilters(orders.map(OrderService.normalizeOrder), filters)
             }
-            console.error('Error fetching orders:', error)
+            logErrorForDebugging(error, 'OrderService.getOrders', { filters })
             throw error
         }
     },
@@ -355,7 +356,7 @@ export const OrderService = {
             })
             return OrderService.normalizeOrder(order)
         } catch (error) {
-            console.error('Error fetching order details:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderById', { orderId })
             throw error
         }
     },
@@ -384,7 +385,7 @@ export const OrderService = {
                 updated_at: createdAt,
             }))
         } catch (error) {
-            console.error('Error fetching order details:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderDetails', { orderId })
             throw error
         }
     },
@@ -396,7 +397,7 @@ export const OrderService = {
             })
             return OrderService.normalizeOrder(cancelledOrder)
         } catch (error) {
-            console.error('Error cancelling order:', error)
+            logErrorForDebugging(error, 'OrderService.cancelOrder', { orderId })
             throw error
         }
     },
@@ -409,7 +410,7 @@ export const OrderService = {
             })
             return OrderService.normalizeOrder(updatedOrder)
         } catch (error) {
-            console.error('Error updating order:', error)
+            logErrorForDebugging(error, 'OrderService.changeOrderStatus', { orderId, newStatus })
             throw error
         }
     },

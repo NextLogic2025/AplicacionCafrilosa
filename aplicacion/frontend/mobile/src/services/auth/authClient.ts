@@ -2,6 +2,7 @@ import { jwtDecode } from 'jwt-decode'
 import { getToken, setToken, getRefreshToken, setRefreshToken, clearTokens, setUserName } from '../../storage/authStorage'
 
 import { env } from '../../config/env'
+import { ERROR_MESSAGES, logErrorForDebugging } from '../../utils/errorMessages'
 
 type ErrorResponse = { message?: string }
 
@@ -36,21 +37,42 @@ type DecodedToken = {
 
 export async function signIn(email: string, password: string) {
   const url = env.auth.loginUrl
-  if (!url) throw new Error('Servicio de inicio de sesión no disponible')
+  if (!url) throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE)
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+  } catch (networkError) {
+    logErrorForDebugging(networkError, 'signIn', { email })
+    throw new Error(ERROR_MESSAGES.NETWORK_ERROR)
+  }
 
   const data = (await res.json().catch(() => null)) as SignInApiResponse | null
-  if (!res.ok) throw new Error(typeof data?.message === 'string' ? data.message : 'No se pudo iniciar sesión')
+
+  if (!res.ok) {
+    const backendMsg = typeof data?.message === 'string' ? data.message.toLowerCase() : ''
+
+    if (res.status === 401 || backendMsg.includes('credenciales') || backendMsg.includes('inválid')) {
+      throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS)
+    }
+    if (backendMsg.includes('desactivado') || backendMsg.includes('bloqueado')) {
+      throw new Error(ERROR_MESSAGES.ACCOUNT_DISABLED)
+    }
+
+    throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS)
+  }
 
   const accessToken = data?.access_token || data?.token
   const refreshToken = data?.refresh_token
 
-  if (!accessToken) throw new Error('Respuesta inválida del servidor (falta token)')
+  if (!accessToken) {
+    logErrorForDebugging(new Error('Missing token in response'), 'signIn', { data })
+    throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE)
+  }
 
   await setToken(accessToken)
   if (refreshToken) {
@@ -127,7 +149,7 @@ async function refreshAccessToken(): Promise<string | null> {
       return newAccessToken
     }
   } catch (error) {
-    console.log('Error refreshing token:', error)
+    logErrorForDebugging(error, 'refreshAccessToken')
     await clearTokens()
   }
   return null
@@ -154,10 +176,10 @@ export async function signOut() {
           'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ refresh_token: cleanToken }),
-      }).catch(err => console.warn('Logout backend failed', err))
+      }).catch(err => logErrorForDebugging(err, 'signOut.backendLogout'))
     }
   } catch (error) {
-    console.warn('Error during sign out process', error)
+    logErrorForDebugging(error, 'signOut')
   } finally {
     await clearTokens()
   }
@@ -165,18 +187,23 @@ export async function signOut() {
 
 export async function requestPasswordReset(email: string) {
   const url = env.auth.forgotPasswordUrl
-  if (!url) throw new Error('Servicio de recuperación no disponible')
+  if (!url) throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE)
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+  } catch (networkError) {
+    logErrorForDebugging(networkError, 'requestPasswordReset', { email })
+    throw new Error(ERROR_MESSAGES.NETWORK_ERROR)
+  }
 
   if (res.ok) return
 
   const data = (await res.json().catch(() => null)) as ErrorResponse | null
-  throw new Error(
-    typeof data?.message === 'string' ? data.message : 'No se pudo enviar el correo de recuperación'
-  )
+  logErrorForDebugging(data, 'requestPasswordReset', { status: res.status })
+  throw new Error(ERROR_MESSAGES.PASSWORD_RESET_ERROR)
 }

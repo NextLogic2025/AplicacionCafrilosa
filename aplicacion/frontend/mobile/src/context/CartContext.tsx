@@ -73,17 +73,24 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined)
 
+const emptyCartState: Cart = {
+    items: [],
+    total_estimado: 0,
+    subtotal: 0,
+    descuento_total: 0,
+    impuestos_total: 0,
+    total_final: 0
+}
+
+const canUseCart = (role?: string | null) => {
+    const normalized = role?.toLowerCase()
+    return normalized === 'cliente' || normalized === 'vendedor'
+}
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userId, setUserId] = useState<string | null>(null)
     const [userRole, setUserRole] = useState<string | null>(null)
-    const [cart, setCart] = useState<Cart>({
-        items: [],
-        total_estimado: 0,
-        subtotal: 0,
-        descuento_total: 0,
-        impuestos_total: 0,
-        total_final: 0
-    })
+    const [cart, setCart] = useState<Cart>(emptyCartState)
     const [currentClient, setCurrentClient] = useState<Client | null>(null)
     const [currentBranch, setCurrentBranch] = useState<ClientBranch | null>(null)
     const [loading, setLoading] = useState(false)
@@ -105,13 +112,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         if (!userId) {
-            setCart({ items: [], total_estimado: 0 })
+            setCart(emptyCartState)
             return
         }
+
+        if (!canUseCart(userRole)) {
+            setCart(emptyCartState)
+            return
+        }
+
         loadCart(userId)
-    }, [userId])
+    }, [userId, userRole])
 
     const loadCart = async (uid: string) => {
+        if (!canUseCart(userRole)) return
+
         setLoading(true)
         try {
             const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'

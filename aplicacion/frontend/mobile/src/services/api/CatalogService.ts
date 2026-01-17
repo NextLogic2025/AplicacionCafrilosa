@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
 import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface Category {
     id: number
@@ -110,8 +111,6 @@ export const CatalogService = {
         return response.items || []
     },
 
-    // ⚠️ WARNING: This function uses /api/products which does NOT allow 'cliente' role
-    // For clients, use getClientProducts() instead to avoid 403 Forbidden errors
     getProductsPaginated: async (
         page: number = 1,
         perPage: number = 20,
@@ -129,7 +128,7 @@ export const CatalogService = {
 
             return await apiRequest<ProductsResponse>(`${endpoints.catalog.products}?${params.toString()}`)
         } catch (error) {
-            console.error('Error fetching paginated products:', error)
+            logErrorForDebugging(error, 'CatalogService.getProductsPaginated', { page, searchQuery })
             return {
                 metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
                 items: []
@@ -181,7 +180,7 @@ export const CatalogService = {
                 items: transformedItems
             }
         } catch (error) {
-            console.error('Error fetching client products:', error)
+            logErrorForDebugging(error, 'CatalogService.getClientProducts', { page, searchQuery })
             return {
                 metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
                 items: []
@@ -209,7 +208,7 @@ export const CatalogService = {
                 `${endpoints.catalog.productsByCategory(categoryId)}?${params.toString()}`
             )
         } catch (error) {
-            console.error('Error fetching products by category:', error)
+            logErrorForDebugging(error, 'CatalogService.getProductsByCategory', { categoryId, page })
             return {
                 metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
                 items: []
@@ -221,7 +220,7 @@ export const CatalogService = {
         try {
             return await apiRequest<Product>(endpoints.catalog.productById(productId))
         } catch (error) {
-            console.error('Error fetching product details:', error)
+            logErrorForDebugging(error, 'CatalogService.getProductById', { productId })
             return null
         }
     },
@@ -243,7 +242,7 @@ export const CatalogService = {
 
             return null
         } catch (error) {
-            console.error('Error fetching client product details:', error)
+            logErrorForDebugging(error, 'CatalogService.getClientProductDetail', { productId })
             return null
         }
     },

@@ -23,6 +23,7 @@ import { SupervisorReportsScreen } from '../features/supervisor/screens/ModuloRe
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/ModuloAlertas/SupervisorAlertsScreen'
 import { SupervisorZonesScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZonesScreen'
 import { SupervisorZoneDetailScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZoneDetailScreen'
+import { SupervisorZoneFormScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZoneFormScreen'
 import { SupervisorZoneMapScreen } from '../features/supervisor/screens/ModuloZona/SupervisorZoneMapScreen'
 import { SupervisorCatalogScreen } from '../features/supervisor/screens/ModuloProductos/SupervisorCatalogScreen'
 import { SupervisorProductDetailScreen } from '../features/supervisor/screens/ModuloProductos/SupervisorProductDetailScreen'
@@ -134,6 +135,7 @@ export function SupervisorNavigator() {
             </Stack.Group>
             <Stack.Screen name="SupervisorZones" component={SupervisorZonesScreen} />
             <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
+            <Stack.Screen name="SupervisorZoneForm" component={SupervisorZoneFormScreen} />
             <Stack.Screen name="SupervisorZoneMap" component={SupervisorZoneMapScreen} />
             <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>

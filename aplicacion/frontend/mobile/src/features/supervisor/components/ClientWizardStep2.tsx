@@ -12,9 +12,10 @@ interface Props {
     zones: Zone[]
     onNext: () => void
     onBack: () => void
+    showNav?: boolean
 }
 
-export function ClientWizardStep2({ clientData, setClientData, zones, onNext, onBack }: Props) {
+export function ClientWizardStep2({ clientData, setClientData, zones, onNext, onBack, showNav = true }: Props) {
     const selectedZone = zones.find(z => z.id === clientData.zona_comercial_id)
     const zonePolygon = selectedZone ? ZoneHelpers.parsePolygon(selectedZone.poligono_geografico) : []
 
@@ -120,23 +121,25 @@ export function ClientWizardStep2({ clientData, setClientData, zones, onNext, on
                     </View>
                 )}
 
-                <View className="absolute bottom-8 left-5 right-5 flex-row justify-between gap-4">
-                    <TouchableOpacity
-                        className="flex-1 bg-white border border-neutral-200 py-4 rounded-xl items-center shadow-lg"
-                        onPress={onBack}
-                    >
-                        <Text className="text-neutral-700 font-bold text-lg">Atrás</Text>
-                    </TouchableOpacity>
+                {showNav && (
+                    <View className="absolute bottom-8 left-5 right-5 flex-row justify-between gap-4">
+                        <TouchableOpacity
+                            className="flex-1 bg-white border border-neutral-200 py-4 rounded-xl items-center shadow-lg"
+                            onPress={onBack}
+                        >
+                            <Text className="text-neutral-700 font-bold text-lg">Atrás</Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        className={`flex-1 py-4 rounded-xl items-center shadow-lg ${!markerCoord ? 'bg-neutral-300' : 'bg-red-600'}`}
-                        style={markerCoord ? { backgroundColor: BRAND_COLORS.red } : {}}
-                        onPress={onNext}
-                        disabled={!markerCoord}
-                    >
-                        <Text className="text-white font-bold text-lg">Siguiente</Text>
-                    </TouchableOpacity>
-                </View>
+                        <TouchableOpacity
+                            className={`flex-1 py-4 rounded-xl items-center shadow-lg ${!markerCoord ? 'bg-neutral-300' : 'bg-red-600'}`}
+                            style={markerCoord ? { backgroundColor: BRAND_COLORS.red } : {}}
+                            onPress={onNext}
+                            disabled={!markerCoord}
+                        >
+                            <Text className="text-white font-bold text-lg">Siguiente</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </View>
     )

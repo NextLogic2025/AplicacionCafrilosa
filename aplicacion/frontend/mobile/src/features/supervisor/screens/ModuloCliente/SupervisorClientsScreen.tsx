@@ -11,6 +11,7 @@ import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { CategoryFilter } from '../../../../components/ui/CategoryFilter'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 
 export function SupervisorClientsScreen({ navigation }: any) {
     const [clients, setClients] = useState<Client[]>([])
@@ -223,33 +224,13 @@ export function SupervisorClientsScreen({ navigation }: any) {
                             </View>
                         </View>
 
-                        <TouchableOpacity
-                            onPress={() => confirmToggleStatus(item)}
-                            activeOpacity={0.8}
-                            style={{
-                                width: 51,
-                                height: 31,
-                                borderRadius: 15.5,
-                                backgroundColor: item.bloqueado ? '#D1D5DB' : '#34D399',
-                                padding: 2,
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <View
-                                style={{
-                                    width: 27,
-                                    height: 27,
-                                    borderRadius: 13.5,
-                                    backgroundColor: '#FFFFFF',
-                                    shadowColor: '#000',
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.2,
-                                    shadowRadius: 2,
-                                    elevation: 3,
-                                    transform: [{ translateX: item.bloqueado ? 0 : 20 }]
-                                }}
-                            />
-                        </TouchableOpacity>
+                        <ToggleSwitch
+                            checked={!item.bloqueado}
+                            onToggle={() => confirmToggleStatus(item)}
+                            size="sm"
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
+                        />
                     </View>
                 </View>
 

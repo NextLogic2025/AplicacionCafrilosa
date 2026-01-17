@@ -39,7 +39,8 @@ export class ReservationsService {
 
         const resItem = new ReservationItem();
         resItem.productId = itemDto.productId;
-        resItem.sku = itemDto.sku || null;
+        // DB has a NOT NULL constraint on sku in some environments; default to empty string to avoid QueryFailedError
+        resItem.sku = itemDto.sku ?? '';
         resItem.quantity = itemDto.quantity;
         resItem.stockUbicacionId = stockRecord.id;
         reservation.items.push(resItem);

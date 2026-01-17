@@ -19,13 +19,15 @@ interface Props {
     priceLists: PriceList[]
     isEditing: boolean
     onNext: () => void
+    showNav?: boolean
 }
 
 export function ClientWizardStep1({
     userData, setUserData,
     clientData, setClientData,
     zones, priceLists,
-    isEditing, onNext
+    isEditing, onNext,
+    showNav = true
 }: Props) {
     const [showZoneModal, setShowZoneModal] = React.useState(false)
     const [showPassword, setShowPassword] = React.useState(false)
@@ -220,13 +222,15 @@ export function ClientWizardStep1({
                 )}
             </View>
 
-            <TouchableOpacity
-                className="bg-red-600 mx-5 py-4 rounded-xl items-center shadow-lg mb-10"
-                style={{ backgroundColor: BRAND_COLORS.red }}
-                onPress={onNext}
-            >
-                <Text className="text-white font-bold text-lg">Siguiente: Ubicación</Text>
-            </TouchableOpacity>
+            {showNav && (
+                <TouchableOpacity
+                    className="bg-red-600 mx-5 py-4 rounded-xl items-center shadow-lg mb-10"
+                    style={{ backgroundColor: BRAND_COLORS.red }}
+                    onPress={onNext}
+                >
+                    <Text className="text-white font-bold text-lg">Siguiente: Ubicación</Text>
+                </TouchableOpacity>
+            )}
 
             <GenericModal
                 visible={showZoneModal}

@@ -111,7 +111,7 @@ export function SupervisorZonesScreen() {
                     <TouchableOpacity
                         className="w-12 h-12 rounded-xl items-center justify-center shadow-lg"
                         style={{ backgroundColor: BRAND_COLORS.red }}
-                        onPress={() => navigation.navigate('SupervisorZoneDetail', { zone: null })}
+                        onPress={() => navigation.navigate('SupervisorZoneForm', { zone: null })}
                     >
                         <Ionicons name="add" size={28} color="white" />
                     </TouchableOpacity>

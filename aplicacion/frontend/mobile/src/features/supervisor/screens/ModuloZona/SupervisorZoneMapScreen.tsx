@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'
 import MapView, { Polygon, Marker, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps'
 import { useNavigation, useRoute } from '@react-navigation/native'
@@ -10,6 +10,9 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ECUADOR_LOCATIONS } from '../../../../data/ecuadorLocations'
+import { GenericModal } from '../../../../components/ui/GenericModal'
+import { GenericList } from '../../../../components/ui/GenericList'
 
 // Extended Zone interface for map display
 interface ZoneWithVendor extends Zone {
@@ -23,6 +26,7 @@ export function SupervisorZoneMapScreen() {
     // Simple Params
     const mode = route.params?.mode || 'view'
     const isEditMode = mode === 'edit'
+    const centerHint = route.params?.centerHint as LatLng | undefined
 
     const [loading, setLoading] = useState(false)
 
@@ -81,18 +85,34 @@ export function SupervisorZoneMapScreen() {
 
     const mapRef = useRef<MapView>(null)
 
-    // Initial Region (Loja, Ecuador)
-    const [region, setRegion] = useState({
-        latitude: -3.99313,
-        longitude: -79.20422,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05
+    const defaultRegion = { latitude: -3.99313, longitude: -79.20422, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+
+    // Initial Region (Loja by default, overridden by selection)
+    const [region, setRegion] = useState(() => {
+        const base = centerHint || defaultRegion
+        return {
+            latitude: base.latitude ?? defaultRegion.latitude,
+            longitude: base.longitude ?? defaultRegion.longitude,
+            latitudeDelta: base.latitudeDelta ?? defaultRegion.latitudeDelta,
+            longitudeDelta: base.longitudeDelta ?? defaultRegion.longitudeDelta
+        }
     })
 
+    const [selectedProvince, setSelectedProvince] = useState<string>('Loja')
+    const [selectedCity, setSelectedCity] = useState<string>('Loja')
+    const availableCities = useMemo(
+        () => (ECUADOR_LOCATIONS.find(p => p.province === selectedProvince)?.cities || []),
+        [selectedProvince]
+    )
+    const [showProvinceModal, setShowProvinceModal] = useState(false)
+    const [showCityModal, setShowCityModal] = useState(false)
+
     // --- 1. Initial Load ---
+    useEffect(() => { loadMapData() }, [])
     useEffect(() => {
-        loadMapData()
-    }, [])
+        const unsub = navigation.addListener('focus', loadMapData)
+        return unsub
+    }, [navigation])
 
     // --- 2. Load Data ---
     const loadMapData = async () => {
@@ -133,6 +153,17 @@ export function SupervisorZoneMapScreen() {
                     latitudeDelta: 0.02,
                     longitudeDelta: 0.02
                 })
+            } else if (centerHint) {
+                const safeHint = {
+                    latitude: centerHint.latitude ?? defaultRegion.latitude,
+                    longitude: centerHint.longitude ?? defaultRegion.longitude,
+                    latitudeDelta: 0.04,
+                    longitudeDelta: 0.04
+                }
+                setRegion(safeHint)
+                if (mapRef.current) {
+                    mapRef.current.animateToRegion(safeHint, 300)
+                }
             }
 
         } catch (error) {
@@ -163,6 +194,30 @@ export function SupervisorZoneMapScreen() {
         ZoneEditState.tempPolygon = currentPolygon
         ZoneEditState.editingZoneId = null
         navigation.goBack()
+    }
+
+    const goToRegion = (lat: number, lng: number) => {
+        const target = { latitude: lat, longitude: lng, latitudeDelta: 0.04, longitudeDelta: 0.04 }
+        setRegion(target)
+        mapRef.current?.animateToRegion(target, 300)
+    }
+
+    const handleSelectProvince = (province: string) => {
+        setSelectedProvince(province)
+        const cities = ECUADOR_LOCATIONS.find(p => p.province === province)?.cities || []
+        const firstCity = cities[0]
+        if (firstCity) {
+            setSelectedCity(firstCity.name)
+            goToRegion(firstCity.lat, firstCity.lng)
+        }
+        setShowProvinceModal(false)
+    }
+
+    const handleSelectCity = (name: string) => {
+        const city = availableCities.find(c => c.name === name)
+        setSelectedCity(name)
+        if (city) goToRegion(city.lat, city.lng)
+        setShowCityModal(false)
     }
 
     const handleDeleteFromDB = () => {
@@ -202,13 +257,32 @@ export function SupervisorZoneMapScreen() {
             />
 
             <View className="flex-1 relative">
+                <View className="absolute top-3 left-4 right-4 z-30 bg-white rounded-2xl shadow-md border border-neutral-100 px-3 py-2 flex-row items-center gap-2">
+                    <TouchableOpacity
+                        onPress={() => setShowProvinceModal(true)}
+                        className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 flex-row items-center justify-between"
+                    >
+                        <Text className="font-semibold text-neutral-800" numberOfLines={1}>{selectedProvince}</Text>
+                        <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setShowCityModal(true)}
+                        className="flex-1 px-3 py-2 rounded-xl border border-neutral-200 bg-neutral-50 flex-row items-center justify-between"
+                    >
+                        <Text className="font-semibold text-neutral-800" numberOfLines={1}>{selectedCity}</Text>
+                        <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                </View>
+
                 <MapView
                     ref={mapRef}
                     provider={PROVIDER_GOOGLE}
                     style={{ flex: 1, width: Dimensions.get('window').width }}
                     initialRegion={region}
+                    region={region}
                     showsUserLocation={false} /* Disabled as requested */
                     showsMyLocationButton={false}
+                    onRegionChangeComplete={setRegion}
                     onPress={handleMapPress}
                     mapType="standard"
                     userInterfaceStyle="light"
@@ -324,6 +398,55 @@ export function SupervisorZoneMapScreen() {
                         <ActivityIndicator size="small" color={BRAND_COLORS.red} />
                     </View>
                 )}
+
+                <GenericModal visible={showProvinceModal} title="Provincia" onClose={() => setShowProvinceModal(false)}>
+                    <View className="h-80">
+                        <GenericList
+                            items={ECUADOR_LOCATIONS}
+                            isLoading={false}
+                            onRefresh={() => { }}
+                            renderItem={(item) => {
+                                const isSelected = item.province === selectedProvince
+                                return (
+                                    <TouchableOpacity
+                                        className={`p-3 mb-2 rounded-xl flex-row items-center justify-between border ${isSelected ? 'bg-blue-50 border-blue-200' : 'bg-white border-neutral-100'}`}
+                                        onPress={() => handleSelectProvince(item.province)}
+                                    >
+                                        <Text className={`font-bold ${isSelected ? 'text-blue-900' : 'text-neutral-800'}`}>{item.province}</Text>
+                                        {isSelected && <Ionicons name="checkmark-circle" size={22} color="#2563EB" />}
+                                    </TouchableOpacity>
+                                )
+                            }}
+                            emptyState={{ icon: 'map', title: 'Sin provincias', message: 'No hay provincias cargadas.' }}
+                        />
+                    </View>
+                </GenericModal>
+
+                <GenericModal visible={showCityModal} title={`Ciudades de ${selectedProvince}`} onClose={() => setShowCityModal(false)}>
+                    <View className="h-80">
+                        <GenericList
+                            items={availableCities}
+                            isLoading={false}
+                            onRefresh={() => { }}
+                            renderItem={(city) => {
+                                const isSelected = city.name === selectedCity
+                                return (
+                                    <TouchableOpacity
+                                        className={`p-3 mb-2 rounded-xl flex-row items-center justify-between border ${isSelected ? 'bg-blue-50 border-blue-200' : 'bg-white border-neutral-100'}`}
+                                        onPress={() => handleSelectCity(city.name)}
+                                    >
+                                        <View>
+                                            <Text className={`font-bold ${isSelected ? 'text-blue-900' : 'text-neutral-800'}`}>{city.name}</Text>
+                                            <Text className="text-xs text-neutral-500">Lat {city.lat.toFixed(3)} · Lng {city.lng.toFixed(3)}</Text>
+                                        </View>
+                                        {isSelected && <Ionicons name="checkmark-circle" size={22} color="#2563EB" />}
+                                    </TouchableOpacity>
+                                )
+                            }}
+                            emptyState={{ icon: 'location', title: 'Sin ciudades', message: 'Selecciona una provincia.' }}
+                        />
+                    </View>
+                </GenericModal>
 
                 <FeedbackModal
                     visible={modalConfig.visible}

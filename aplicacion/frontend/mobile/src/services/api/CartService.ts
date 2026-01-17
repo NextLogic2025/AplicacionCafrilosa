@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
 import { apiRequest } from './client'
 import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface CartItemDto {
     producto_id: string
@@ -70,7 +71,7 @@ export const CartService = {
 
             return await apiRequest(endpoint)
         } catch (error) {
-            console.error('Error fetching cart:', error)
+            logErrorForDebugging(error, 'CartService.getCart', { target })
             throw error
         }
     },
@@ -87,7 +88,7 @@ export const CartService = {
                 body: JSON.stringify(item)
             })
         } catch (error) {
-            console.error('Error adding to cart:', error)
+            logErrorForDebugging(error, 'CartService.addToCart', { target, productId: item.producto_id })
             throw error
         }
     },
@@ -101,7 +102,7 @@ export const CartService = {
 
             await apiRequest(endpoint, { method: 'DELETE' })
         } catch (error) {
-            console.error('Error removing from cart:', error)
+            logErrorForDebugging(error, 'CartService.removeFromCart', { target, productId })
             throw error
         }
     },
@@ -115,7 +116,7 @@ export const CartService = {
 
             await apiRequest(endpoint, { method: 'DELETE' })
         } catch (error) {
-            console.error('Error clearing cart:', error)
+            logErrorForDebugging(error, 'CartService.clearCart', { target })
             throw error
         }
     }

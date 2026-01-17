@@ -9,17 +9,18 @@ import { PickingService } from './picking.service';
 import { CreatePickingDto } from './dto/create-picking.dto';
 
 @Controller('picking')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class PickingController {
     constructor(private readonly service: PickingService) { }
 
     @Get()
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
     findAll(@Query('estado') estado?: string) {
         return this.service.findAll(estado);
     }
 
     @Get('mis-ordenes')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     misOrdenes(@Req() req: any) {
         const bodegueroId = req.user?.userId;
@@ -27,18 +28,21 @@ export class PickingController {
     }
 
     @Get(':id')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
     findOne(@Param('id') id: string) {
         return this.service.findOne(id);
     }
 
     @Post()
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     create(@Body() dto: CreatePickingDto) {
         return this.service.create(dto);
     }
 
     @Post('confirm')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     async confirm(@Body() body: any) {
         const pedidoId = body.pedido_id || body.pedidoId;
@@ -59,12 +63,14 @@ export class PickingController {
     }
 
     @Put(':id/asignar')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     asignar(@Param('id') id: string, @Body() body: { bodegueroId: string }) {
         return this.service.asignarBodeguero(id, body.bodegueroId);
     }
 
     @Post(':id/iniciar')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     iniciar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
@@ -72,6 +78,7 @@ export class PickingController {
     }
 
     @Post(':id/completar')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     completar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
@@ -79,6 +86,7 @@ export class PickingController {
     }
 
     @Post(':id/items/:itemId/pickear')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     pickearItem(
         @Param('id') pickingId: string,
