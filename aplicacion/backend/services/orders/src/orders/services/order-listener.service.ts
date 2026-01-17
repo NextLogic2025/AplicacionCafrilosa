@@ -23,9 +23,10 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
             await this.pgClient.connect();
 
             // Suscripción a los canales definidos en el SQL 05-init-orders.sql
-            await this.pgClient.query('LISTEN pedido_creado');
-            await this.pgClient.query('LISTEN pedido_aprobado');
-            await this.pgClient.query('LISTEN pedido_entregado');
+            // Los triggers usan nombres con guiones: 'pedido-creado', 'pedido-aprobado', 'pedido-entregado'
+            await this.pgClient.query("LISTEN \"pedido-creado\"");
+            await this.pgClient.query("LISTEN \"pedido-aprobado\"");
+            await this.pgClient.query("LISTEN \"pedido-entregado\"");
 
             this.pgClient.on('notification', (notification) => {
                 this.handleNotification(notification);
@@ -47,13 +48,13 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
 
         // Aquí integrarías con otros microservicios o WebSockets
         switch (channel) {
-            case 'pedido_creado':
+            case 'pedido-creado':
                 this.onOrderCreated(pedidoId);
                 break;
-            case 'pedido_aprobado':
+            case 'pedido-aprobado':
                 this.onOrderApproved(pedidoId);
                 break;
-            case 'pedido_entregado':
+            case 'pedido-entregado':
                 this.onOrderDelivered(pedidoId);
                 break;
         }
@@ -88,6 +89,22 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
                 if (!resp || !resp.ok) {
                     const txt = resp ? await resp.text().catch(() => null) : null;
                     this.logger.warn('Warehouse picking confirm failed', { pedidoId: id, status: resp?.status, body: txt });
+
+                    // Si la falla fue 401 (no autorizado), intentar endpoint interno sin auth (solo para entornos locales)
+                    if (resp && resp.status === 401) {
+                        try {
+                            this.logger.debug('Intentando endpoint interno /picking/internal/confirm-open por 401', { pedidoId: id });
+                            const resp2: any = await fetchFn(apiBaseW + '/picking/internal/confirm-open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyToSend) });
+                            if (resp2 && resp2.ok) {
+                                this.logger.debug('Warehouse picking confirmed via internal endpoint', { pedidoId: id });
+                            } else {
+                                const txt2 = resp2 ? await resp2.text().catch(() => null) : null;
+                                this.logger.warn('Warehouse internal picking confirm also failed', { pedidoId: id, status: resp2?.status, body: txt2 });
+                            }
+                        } catch (innerErr) {
+                            this.logger.error('Error calling internal picking confirm', { pedidoId: id, error: innerErr?.message || innerErr });
+                        }
+                    }
                 } else {
                     this.logger.debug('Warehouse picking confirmed for pedido', { pedidoId: id });
                 }

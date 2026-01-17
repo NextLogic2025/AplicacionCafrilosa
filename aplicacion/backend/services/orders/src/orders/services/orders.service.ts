@@ -117,12 +117,20 @@ export class OrdersService {
           : ('resv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
 
         const reservationBody = {
-          items: (createOrderDto.items || []).map((it: any) => ({ producto_id: it.producto_id, cantidad: it.cantidad })),
+          items: (createOrderDto.items || []).map((it: any) => ({
+            producto_id: it.producto_id ?? it.productId,
+            cantidad: it.cantidad ?? it.quantity,
+            // Propagar sku/codigo_sku tal cual vienen; NO adivinar valores alternativos
+            sku: it.sku ?? null,
+            codigo_sku: it.codigo_sku ?? null,
+          })),
           temp_id: tempId,
           pedido_temp_id: tempId
         };
 
         this.logger.debug('Attempting warehouse reservation', { url: apiBaseW + '/reservations', items: reservationBody.items?.length });
+        // Log payload to help debugging propagation of sku to Warehouse
+        this.logger.debug('Reservation payload', { reservationBody });
         if (typeof fetchFn === 'function') {
           const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
           const resp: any = await fetchFn(apiBaseW + '/reservations', { method: 'POST', headers: headersObj, body: JSON.stringify(reservationBody) });

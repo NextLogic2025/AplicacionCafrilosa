@@ -235,39 +235,83 @@ CREATE TABLE audit_log_catalog (
     ip_address INET
 );
 
+-- =================================================================
+-- CORRECCIÓN FINAL: FUNCIÓN DE AUDITORÍA ROBUSTA (JSON BASED)
+-- =================================================================
+
 CREATE OR REPLACE FUNCTION fn_audit_catalog()
 RETURNS TRIGGER AS $$
 DECLARE
     v_changed_by UUID;
     v_ip INET := inet_client_addr();
     v_record_id TEXT;
+    v_new_json JSONB;
+    v_old_json JSONB;
 BEGIN
+    -- 1. Intentar obtener el usuario actual (si falla, null)
     BEGIN
         v_changed_by := current_setting('app.current_user', true)::uuid;
     EXCEPTION WHEN OTHERS THEN
         v_changed_by := NULL;
     END;
 
-    -- Para tablas con clave compuesta, concatena los IDs
-    IF TG_TABLE_NAME = 'promociones_clientes_permitidos' THEN
-        v_record_id := COALESCE(NEW.campaña_id::TEXT || '-' || NEW.cliente_id, OLD.campaña_id::TEXT || '-' || OLD.cliente_id);
+    -- 2. CONVERTIR A JSON PARA EVITAR ERRORES DE COLUMNAS INEXISTENTES
+    -- Esta es la clave: al convertir a JSON, podemos preguntar por campos 
+    -- sin que PostgreSQL lance error si no existen.
+    v_new_json := to_jsonb(NEW);
+    v_old_json := to_jsonb(OLD);
+
+    -- 3. EXTRAER EL ID SEGÚN LA TABLA
+    -- Usamos ->> para extraer texto del JSON. Si no existe, devuelve NULL (no explota).
+    
+    IF TG_TABLE_NAME = 'precios_items' THEN
+        -- Clave compuesta: lista_id | producto_id
+        v_record_id := COALESCE(
+            (v_new_json->>'lista_id') || '|' || (v_new_json->>'producto_id'),
+            (v_old_json->>'lista_id') || '|' || (v_old_json->>'producto_id')
+        );
+        
+    ELSIF TG_TABLE_NAME = 'productos_promocion' THEN
+        -- Clave compuesta: campaña_id | producto_id
+        v_record_id := COALESCE(
+            (v_new_json->>'campaña_id') || '|' || (v_new_json->>'producto_id'),
+            (v_old_json->>'campaña_id') || '|' || (v_old_json->>'producto_id')
+        );
+        
+    ELSIF TG_TABLE_NAME = 'promociones_clientes_permitidos' THEN
+        -- Clave compuesta: campaña_id | cliente_id
+        v_record_id := COALESCE(
+            (v_new_json->>'campaña_id') || '|' || (v_new_json->>'cliente_id'),
+            (v_old_json->>'campaña_id') || '|' || (v_old_json->>'cliente_id')
+        );
+        
     ELSE
-        v_record_id := COALESCE(NEW.id::TEXT, OLD.id::TEXT);
+        -- Caso estándar para todas las tablas normales (productos, clientes, etc.)
+        -- Busca el campo "id". Si no existe, no pasa nada.
+        v_record_id := COALESCE(v_new_json->>'id', v_old_json->>'id');
     END IF;
 
+    -- 4. INSERTAR EN EL LOG DE AUDITORÍA
     INSERT INTO audit_log_catalog (
-        table_name, record_id, operation, old_data, new_data, changed_by, ip_address
+        table_name, 
+        record_id, 
+        operation, 
+        old_data, 
+        new_data, 
+        changed_by, 
+        ip_address
     )
     VALUES (
         TG_TABLE_NAME,
         v_record_id,
         TG_OP,
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN v_old_json END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN v_new_json END,
         v_changed_by,
         v_ip
     );
-    RETURN NULL;
+    
+    RETURN NULL; -- Trigger AFTER, el retorno no afecta
 END;
 $$ LANGUAGE plpgsql;
 
@@ -294,20 +338,49 @@ CREATE INDEX idx_audit_catalog ON audit_log_catalog(table_name, record_id, chang
 -- =========================================
 -- 12. EVENTOS ASÍNCRONOS (MEJORADOS PARA NOTIFICACIONES)
 -- =========================================
+-- =================================================================
+-- CORRECCIÓN: FUNCIÓN DE NOTIFICACIÓN SEGURA (Sin acceso directo a NEW.id)
+-- =================================================================
 
 CREATE OR REPLACE FUNCTION notify_catalogo_cambio()
 RETURNS TRIGGER AS $$
 DECLARE
     payload JSON;
+    v_record_id TEXT;
+    v_data JSON;
 BEGIN
-    -- Construimos un payload rico en datos para que Node.js sepa a quién avisar
-    payload = json_build_object(
-        'table', TG_TABLE_NAME,
-        'action', TG_OP, -- INSERT, UPDATE, DELETE
-        'id', COALESCE(NEW.id::TEXT, OLD.id::TEXT),
-        'data', row_to_json(NEW) -- ¡Vital! Envía el registro nuevo (ej. el precio, la zona, etc.)
-    );
+    -- 1. Convertimos la fila a JSON de forma segura
+    -- Esto evita el error porque ya no manipulamos el Record directamente
+    v_data := COALESCE(row_to_json(NEW), row_to_json(OLD));
+
+    -- 2. Extraemos los IDs desde el JSON (v_data->>'campo')
+    -- Si el campo no existe en el JSON, devuelve NULL en lugar de lanzar error.
     
+    IF TG_TABLE_NAME = 'precios_items' THEN
+        -- Clave compuesta: lista_id | producto_id
+        v_record_id := (v_data->>'lista_id') || '|' || (v_data->>'producto_id');
+        
+    ELSIF TG_TABLE_NAME = 'productos_promocion' THEN
+        -- Clave compuesta: campaña_id | producto_id
+        v_record_id := (v_data->>'campaña_id') || '|' || (v_data->>'producto_id');
+        
+    ELSIF TG_TABLE_NAME = 'promociones_clientes_permitidos' THEN
+         -- Clave compuesta: campaña_id | cliente_id
+        v_record_id := (v_data->>'campaña_id') || '|' || (v_data->>'cliente_id');
+        
+    ELSE
+        -- Caso por defecto: Tablas que SÍ tienen columna ID (productos, clientes, etc.)
+        v_record_id := v_data->>'id';
+    END IF;
+
+    -- 3. Construir payload
+    payload := json_build_object(
+        'table', TG_TABLE_NAME,
+        'action', TG_OP,
+        'id', v_record_id,
+        'data', v_data
+    );
+
     PERFORM pg_notify('catalogo-cambio', payload::text);
     RETURN NEW;
 END;
