@@ -23,11 +23,13 @@ export class StockService {
     ) { }
 
     findAll() {
-        return this.repo.find({
-            relations: ['ubicacion', 'lote'],
-            where: { cantidadFisica: this.repo.manager.connection.driver.createParameter('cantidadFisica', 0) as any },
-            order: { ubicacionId: 'ASC' },
-        });
+        return this.repo
+            .createQueryBuilder('s')
+            .leftJoinAndSelect('s.ubicacion', 'u')
+            .leftJoinAndSelect('s.lote', 'l')
+            .where('s.cantidad_fisica > 0')
+            .orderBy('s.ubicacion_id', 'ASC')
+            .getMany();
     }
 
     async findByUbicacion(ubicacionId: string) {

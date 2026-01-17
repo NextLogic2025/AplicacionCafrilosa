@@ -27,13 +27,13 @@ export class UbicacionesController {
     }
 
     @Post()
-    @Roles('admin', 'supervisor')
+    @Roles('admin', 'supervisor', 'bodeguero')
     create(@Body() dto: CreateUbicacionDto) {
         return this.service.create(dto);
     }
 
     @Put(':id')
-    @Roles('admin', 'supervisor')
+    @Roles('admin', 'supervisor', 'bodeguero')
     update(@Param('id') id: string, @Body() dto: UpdateUbicacionDto) {
         return this.service.update(id, dto);
     }

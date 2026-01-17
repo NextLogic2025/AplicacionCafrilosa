@@ -95,6 +95,7 @@ CREATE TABLE pedidos (
     cliente_id UUID NOT NULL,
     vendedor_id UUID,  -- Nullable: puede no tener vendedor asignado
     sucursal_id UUID,
+    reservation_id UUID,
     estado_actual VARCHAR(20) NOT NULL REFERENCES estados_pedido(codigo) DEFAULT 'PENDIENTE',
     
     -- TOTALES

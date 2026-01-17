@@ -26,19 +26,19 @@ export class AlmacenesController {
     }
 
     @Post()
-    @Roles('admin')
+    @Roles('admin','bodeguero')
     create(@Body() dto: CreateAlmacenDto) {
         return this.service.create(dto);
     }
 
     @Put(':id')
-    @Roles('admin')
+    @Roles('admin', 'bodeguero')
     update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAlmacenDto) {
         return this.service.update(id, dto);
     }
 
-    @Delete(':id')
-    @Roles('admin')
+    @Delete(':id',)
+    @Roles('admin', 'bodeguero')
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
     }

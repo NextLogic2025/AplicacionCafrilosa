@@ -8,6 +8,8 @@ import { PickingItem } from './entities/picking-item.entity';
 import { StockUbicacion } from '../stock/entities/stock-ubicacion.entity';
 import { Lote } from '../lotes/entities/lote.entity';
 import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
+import { ReservationItem } from '../reservations/entities/reservation-item.entity';
 
 @Injectable()
 export class PickingService {
@@ -24,6 +26,10 @@ export class PickingService {
         private readonly loteRepo: Repository<Lote>,
         @InjectRepository(KardexMovimiento)
         private readonly kardexRepo: Repository<KardexMovimiento>,
+            @InjectRepository(Reservation)
+            private readonly reservationRepo: Repository<Reservation>,
+            @InjectRepository(ReservationItem)
+            private readonly reservationItemRepo: Repository<ReservationItem>,
     ) { }
 
     findAll(estado?: string) {
@@ -255,5 +261,31 @@ export class PickingService {
 
         await this.ordenRepo.update(id, { deletedAt: new Date(), updatedAt: new Date() } as any);
         return { id, cancelled: true };
+    }
+
+    /**
+     * Confirm a reservation and create a picking for the given pedido.
+     * Expects a reservation id previously created via /reservations.
+     */
+    async confirmFromReservation(pedidoId: string, reservationId: string) {
+        if (!reservationId) throw new BadRequestException('reservation_id requerido');
+
+        const reservation = await this.reservationRepo.findOne({ where: { id: reservationId }, relations: ['items'] as any });
+        if (!reservation) throw new NotFoundException('Reservation no encontrada');
+        if (reservation.status !== 'ACTIVE') throw new BadRequestException('Reservation no está en estado ACTIVE');
+
+
+        const items = (reservation.items || []).map((it: ReservationItem) => ({ productoId: it.productId, cantidad: Number(it.quantity) }));
+
+        // If no pedidoId provided, fallback to reservation id so DB constraint is satisfied
+        const effectivePedidoId = pedidoId || reservation.tempId || reservation.id;
+
+        // Create picking using existing create logic (will reserve stock where possible)
+        const picking = await this.create({ pedidoId: effectivePedidoId, items });
+
+        // Mark reservation as CONFIRMED
+        await this.reservationRepo.update(reservationId, { status: 'CONFIRMED' } as any);
+
+        return picking;
     }
 }

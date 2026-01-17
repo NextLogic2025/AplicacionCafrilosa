@@ -14,7 +14,7 @@ variable "services" {
 }
 
 variable "backend_urls" {
-  description = "URLs de los backends de Cloud Run"
+  description = "URLs de los backends de Cloud Run (Mapa: servicio -> url)"
   type        = map(string)
 }
 

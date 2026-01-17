@@ -33,8 +33,27 @@ variable "cloudsql_connection" {
   type        = string
 }
 
+# --- VARIABLES FALTANTES (AGREGADAS) ---
+
+variable "db_password_secret_ids" {
+  description = "Mapa de IDs de los secretos de base de datos para cada servicio"
+  type        = map(string)
+}
+
+variable "jwt_secret_id" {
+  description = "ID del secreto JWT para firma de tokens"
+  type        = string
+}
+
+# ---------------------------------------
+
 variable "labels" {
   description = "Labels para los recursos"
   type        = map(string)
   default     = {}
+}
+
+variable "gateway_sa_email" {
+  description = "Email de la cuenta de servicio del API Gateway (para permitir invocación)"
+  type        = string
 }

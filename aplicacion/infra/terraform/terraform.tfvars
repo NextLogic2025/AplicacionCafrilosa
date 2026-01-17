@@ -7,8 +7,17 @@ zone       = "us-east1-b"
 github_repo_owner = "NextLogic2025"
 github_repo_name  = "AplicacionCafrilosa"
 
-# Servicios a desplegar
-services = ["ventas", "usuarios", "inventario"]
+# --- CAMBIO CRÍTICO AQUÍ ---
+# Lista de servicios basada en las carpetas REALES de Omer
+# (Nota: 'inventario' lo quitamos porque está vacío. Agregamos 'auth', 'catalog', 'orders')
+services = [
+  "ventas", 
+  "usuarios", 
+  "auth", 
+  "catalog", 
+  "orders", 
+  "warehouse"
+]
 
 # Configuración de BD
 environment = "production"

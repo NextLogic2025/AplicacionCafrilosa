@@ -34,10 +34,13 @@ variable "github_repo_name" {
   default     = "AplicacionCafrilosa"
 }
 
+# --- CORRECCIÓN IMPORTANTE: LISTA DE SERVICIOS REAL ---
 variable "services" {
   description = "Lista de microservicios a desplegar"
   type        = list(string)
-  default     = ["ventas", "usuarios", "inventario"]
+  # Agregamos 'auth', 'catalog', 'orders' que vimos en las carpetas.
+  # Mantenemos 'inventario' solo si planean subir código pronto.
+  default     = ["auth", "catalog", "orders", "usuarios", "ventas", "warehouse"]
 }
 
 variable "enable_deletion_protection" {
@@ -57,6 +60,22 @@ variable "db_admin_user" {
   type        = string
   default     = "postgres"
 }
+
+# --- NUEVAS VARIABLES NECESARIAS PARA EL MÓDULO CLOUD RUN ---
+# (Agregamos estas porque las referenciamos en el main.tf corregido anteriormente)
+
+variable "db_password_secret_ids" {
+  description = "Map de IDs de secretos de base de datos (se pasa desde outputs, puede estar vacío aquí)"
+  type        = map(string)
+  default     = {} 
+}
+
+variable "jwt_secret_id" {
+  description = "ID del secreto JWT (se pasa desde outputs, puede estar vacío aquí)"
+  type        = string
+  default     = ""
+}
+# ------------------------------------------------------------
 
 locals {
   app_name = "cafrisales"

@@ -12,14 +12,24 @@ resource "google_service_account" "cloud_run_sa" {
 }
 
 # ============================================================
-# IAM: Permisos específicos para Cloud Run
+# IAM: Permisos específicos para leer secretos
 # ============================================================
 
-# Permitir Cloud Run acceder a Secret Manager
-resource "google_secret_manager_secret_iam_member" "cloud_run_secrets" {
+# 1. Permiso para leer la contraseña de SU base de datos
+resource "google_secret_manager_secret_iam_member" "db_secret_access" {
   for_each = toset(var.services)
 
-  secret_id = each.key
+  # Usamos el ID del secreto que nos pasan como variable
+  secret_id = var.db_password_secret_ids[each.key]
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa[each.key].email}"
+}
+
+# 2. Permiso para leer el JWT (Todos los servicios lo necesitan)
+resource "google_secret_manager_secret_iam_member" "jwt_secret_access" {
+  for_each = toset(var.services)
+
+  secret_id = var.jwt_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloud_run_sa[each.key].email}"
 }
@@ -34,9 +44,6 @@ resource "google_cloud_run_v2_service" "services" {
   name     = each.key
   location = var.region
 
-  # ============================================================
-  # TEMPLATE: Especificación del contenedor
-  # ============================================================
   template {
     # Service Account para el contenedor
     service_account = google_service_account.cloud_run_sa[each.key].email
@@ -44,25 +51,27 @@ resource "google_cloud_run_v2_service" "services" {
     # Timeout de solicitud
     timeout = "300s"
 
-    # Escalado automático
+    # Escalado automático (Scale to Zero para ahorrar dinero)
     scaling {
-      min_instance_count = 1
-      max_instance_count = 100
+      min_instance_count = 0
+      max_instance_count = 5
     }
 
     # VPC Connector (acceso a BD privada)
     vpc_access {
       connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"  # Solo IP privadas
+      # "PRIVATE_RANGES_ONLY" envía tráfico a IPs privadas (SQL) por el conector.
+      # El tráfico público sale directo a internet (sin IP estática). 
+      # Esto es lo que revisará Pablo.
+      egress    = "PRIVATE_RANGES_ONLY" 
     }
 
     # Container spec
     containers {
       image = "${var.artifact_registry_url}/${each.key}:latest"
 
-      # Puerto de escucha
       ports {
-        container_port = 8080
+        container_port = 3000
         protocol       = "TCP"
       }
 
@@ -75,12 +84,12 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       # ============================================================
-      # VARIABLES DE ENTORNO: Inyectadas por Terraform
+      # VARIABLES DE ENTORNO (CORREGIDAS PARA NESTJS)
       # ============================================================
 
       env {
         name  = "PORT"
-        value = "8080"
+        value = "3000"
       }
 
       env {
@@ -93,39 +102,53 @@ resource "google_cloud_run_v2_service" "services" {
         value = data.google_client_config.current.project
       }
 
+      # --- CONEXIÓN BASE DE DATOS (NOMBRES CORREGIDOS) ---
+      
       env {
-        name  = "CLOUDSQL_PRIVATE_IP"
+        name  = "DATABASE_HOST"  # Antes: DB_HOST
         value = var.cloudsql_private_ip
       }
 
       env {
-        name  = "DB_HOST"
-        value = var.cloudsql_private_ip
+        name  = "DATABASE_PORT"  # Agregado: NestJS lo requiere
+        value = "5432"
       }
 
       env {
-        name  = "DB_NAME"
+        name  = "DATABASE_NAME"  # Antes: DB_NAME
         value = "${each.key}_db"
       }
 
       env {
-        name  = "DB_USER"
+        name  = "DATABASE_USER"  # Antes: DB_USER
         value = "${each.key}_user"
       }
 
       env {
-        name = "DB_PASSWORD"
+        name = "DATABASE_PASSWORD" # Antes: DB_PASSWORD
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.db_passwords[each.key].id
+            secret  = var.db_password_secret_ids[each.key]
             version = "latest"
           }
         }
       }
 
+      # Esta variable es útil si decides usar IAM Auth en el futuro
       env {
         name  = "CLOUDSQL_CONNECTION_NAME"
         value = var.cloudsql_connection
+      }
+
+      # --- SEGURIDAD JWT ---
+      env {
+        name = "JWT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = var.jwt_secret_id
+            version = "latest"
+          }
+        }
       }
 
       env {
@@ -134,17 +157,16 @@ resource "google_cloud_run_v2_service" "services" {
       }
 
       # ============================================================
-      # HEALTH CHECK: Readiness probe
+      # HEALTH CHECK
       # ============================================================
       startup_probe {
         initial_delay_seconds = 10
-        timeout_seconds       = 10
+        timeout_seconds       = 5
         period_seconds        = 10
         failure_threshold     = 3
-
         http_get {
-          path = "/health"
-          port = 8080
+          path = "/"
+          port = 3000
         }
       }
 
@@ -153,10 +175,9 @@ resource "google_cloud_run_v2_service" "services" {
         timeout_seconds       = 5
         period_seconds        = 10
         failure_threshold     = 3
-
         http_get {
-          path = "/health"
-          port = 8080
+          path = "/"
+          port = 3000
         }
       }
     }
@@ -164,56 +185,34 @@ resource "google_cloud_run_v2_service" "services" {
     labels = merge(var.labels, { service = each.key })
   }
 
-  # ============================================================
-  # TRAFFIC: Dirigir al template más reciente
-  # ============================================================
   traffic {
     type            = "TRAFFIC_TARGET_ALLOCATE_LATEST"
     latest_revision = true
   }
 
-  # Etiquetas
   labels = merge(var.labels, { service = each.key })
 }
 
 # ============================================================
-# SECRET MANAGER: Credenciales de BD (sincronizado con DB)
+# IAM: Permitir acceso público (Vía Gateway)
 # ============================================================
 
-resource "google_secret_manager_secret" "db_passwords" {
-  for_each = toset(var.services)
+resource "google_cloud_run_service_iam_member" "invoker" {
+  for_each = google_cloud_run_v2_service.services
 
-  secret_id = "${var.project_id}-${each.key}-db-password"
-  labels    = merge(var.labels, { service = each.key })
-
-  replication {
-    automatic = true
-  }
-}
-
-# ============================================================
-# IAM: Permitir Cloud Run acceder a servicios
-# ============================================================
-
-# No permitir invocación pública (solo API Gateway)
-resource "google_cloud_run_service_iam_member" "no_public_access" {
-  for_each = toset(var.services)
-
-  service  = google_cloud_run_v2_service.services[each.key].name
-  location = google_cloud_run_v2_service.services[each.key].location
+  service  = each.value.name
+  location = each.value.location
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${data.google_client_config.current.project}@cloudbuild.gserviceaccount.com"
+  
+  # Solo permitimos al robot del Gateway
+  member = "serviceAccount:${var.gateway_sa_email}"
 }
 
 # ============================================================
-# DATA SOURCE: Configuración actual
+# DATA SOURCE & OUTPUTS
 # ============================================================
 
 data "google_client_config" "current" {}
-
-# ============================================================
-# OUTPUTS
-# ============================================================
 
 output "service_urls" {
   value = {
