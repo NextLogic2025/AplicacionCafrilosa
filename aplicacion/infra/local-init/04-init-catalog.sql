@@ -292,20 +292,75 @@ CREATE INDEX idx_promos_activas ON campañas_promocionales(fecha_inicio, fecha_f
 CREATE INDEX idx_audit_catalog ON audit_log_catalog(table_name, record_id, changed_at DESC);
 
 -- =========================================
--- 12. EVENTOS ASÍNCRONOS
+-- 12. EVENTOS ASÍNCRONOS (MEJORADOS PARA NOTIFICACIONES)
 -- =========================================
+
 CREATE OR REPLACE FUNCTION notify_catalogo_cambio()
 RETURNS TRIGGER AS $$
+DECLARE
+    payload JSON;
 BEGIN
-    PERFORM pg_notify('catalogo-cambio', json_build_object(
+    -- Construimos un payload rico en datos para que Node.js sepa a quién avisar
+    payload = json_build_object(
         'table', TG_TABLE_NAME,
+        'action', TG_OP, -- INSERT, UPDATE, DELETE
         'id', COALESCE(NEW.id::TEXT, OLD.id::TEXT),
-        'operation', TG_OP
-    )::text);
+        'data', row_to_json(NEW) -- ¡Vital! Envía el registro nuevo (ej. el precio, la zona, etc.)
+    );
+    
+    PERFORM pg_notify('catalogo-cambio', payload::text);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_notify_productos AFTER INSERT OR UPDATE OR DELETE ON productos FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
-CREATE TRIGGER trg_notify_clientes AFTER INSERT OR UPDATE OR DELETE ON clientes FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
-CREATE TRIGGER trg_notify_promos AFTER INSERT OR UPDATE OR DELETE ON campañas_promocionales FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+-- 1. Cambios en el Catálogo General
+CREATE TRIGGER trg_notify_productos 
+AFTER INSERT OR UPDATE OR DELETE ON productos 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+CREATE TRIGGER trg_notify_clientes 
+AFTER INSERT OR UPDATE OR DELETE ON clientes 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- 2. CASO: "Nueva Promoción" (Global o por Lista)
+CREATE TRIGGER trg_notify_promos 
+AFTER INSERT OR UPDATE OR DELETE ON campañas_promocionales 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- 3. CASO: "Promoción específica para un cliente" (Faltaba este)
+CREATE TRIGGER trg_notify_promo_cliente 
+AFTER INSERT OR UPDATE OR DELETE ON promociones_clientes_permitidos 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- 4. CASO: "Nuevo producto en la lista de precios de ese cliente" (Faltaba este)
+CREATE TRIGGER trg_notify_precios 
+AFTER INSERT OR UPDATE OR DELETE ON precios_items 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- 5. CASO: "Vendedor tiene nueva ruta/zona" (Faltaba este)
+CREATE TRIGGER trg_notify_asignacion_vendedor 
+AFTER INSERT OR UPDATE OR DELETE ON asignacion_vendedores 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- 6. CASO: "Cliente agregó nueva sucursal" (Alerta para Supervisor) (Faltaba este)
+CREATE TRIGGER trg_notify_sucursales 
+AFTER INSERT OR UPDATE OR DELETE ON sucursales_cliente 
+FOR EACH ROW EXECUTE FUNCTION notify_catalogo_cambio();
+
+-- =========================================
+-- 13. AUTOMATIZACIÓN (UPDATED_AT)
+-- =========================================
+CREATE OR REPLACE FUNCTION fn_update_timestamp_catalog()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_upd_categorias BEFORE UPDATE ON categorias FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();
+CREATE TRIGGER tr_upd_productos BEFORE UPDATE ON productos FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();
+CREATE TRIGGER tr_upd_zonas BEFORE UPDATE ON zonas_comerciales FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();
+CREATE TRIGGER tr_upd_clientes BEFORE UPDATE ON clientes FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();
+CREATE TRIGGER tr_upd_sucursales BEFORE UPDATE ON sucursales_cliente FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();
+CREATE TRIGGER tr_upd_campañas BEFORE UPDATE ON campañas_promocionales FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_catalog();

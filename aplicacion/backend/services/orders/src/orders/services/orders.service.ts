@@ -98,11 +98,57 @@ export class OrdersService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    // Variables que deben estar en scope para manejar compensación en catch
+    let fetchFn: any = (globalThis as any).fetch;
+    let serviceToken: string | undefined = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+    let reservationId: string | null = null;
+
     try {
       // Antes de calcular totales, obtener precios canónicos desde Catalog
       const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-      const fetchFn = (globalThis as any).fetch;
+
+      // Reserva síncrona en Warehouse (Camino Dorado)
+      let reservationId: string | null = null;
+      try {
+        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+        const tempId = (globalThis as any).crypto && typeof (globalThis as any).crypto.randomUUID === 'function'
+          ? (globalThis as any).crypto.randomUUID()
+          : ('resv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+
+        const reservationBody = {
+          items: (createOrderDto.items || []).map((it: any) => ({ producto_id: it.producto_id, cantidad: it.cantidad })),
+          temp_id: tempId,
+          pedido_temp_id: tempId
+        };
+
+        this.logger.debug('Attempting warehouse reservation', { url: apiBaseW + '/reservations', items: reservationBody.items?.length });
+        if (typeof fetchFn === 'function') {
+          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+          const resp: any = await fetchFn(apiBaseW + '/reservations', { method: 'POST', headers: headersObj, body: JSON.stringify(reservationBody) });
+          if (!resp) throw new BadRequestException('No response from warehouse service');
+          if (resp.status === 409) {
+            // Stock insuficiente
+            throw new BadRequestException('Stock insuficiente para los items del pedido');
+          }
+          if (!resp.ok) {
+            const txt = await resp.text().catch(() => null);
+            this.logger.warn('Warehouse reservation failed', { status: resp.status, body: txt });
+            throw new InternalServerErrorException('Error reservando stock en Warehouse');
+          }
+          const data = await resp.json();
+          reservationId = data?.id ?? tempId;
+          this.logger.debug('Warehouse reservation created', { reservationId });
+        } else {
+          this.logger.warn('Fetch no disponible para reservar stock en Warehouse');
+          throw new InternalServerErrorException('Fetch no disponible');
+        }
+      } catch (resErr) {
+        this.logger.warn('Reservation error, aborting order create', { error: resErr?.message || resErr });
+        // Exponer error hacia el cliente: stock insuficiente o warehouse caído
+        if (resErr instanceof BadRequestException) throw resErr;
+        throw new BadRequestException('Stock insuficiente o servicio de Warehouse no disponible');
+      }
 
       for (const item of createOrderDto.items) {
         try {
@@ -217,6 +263,7 @@ export class OrdersService {
         impuestos_total,
         total_final,
         estado_actual: 'PENDIENTE',
+        reservation_id: reservationId || null,
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
@@ -299,6 +346,25 @@ export class OrdersService {
 
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      // Intentar liberar la reserva en Warehouse si existe
+      try {
+        if (typeof reservationId !== 'undefined' && reservationId) {
+          try {
+            const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+            const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+            const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+            if (typeof fetchFn === 'function') {
+              await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: headersObj });
+              this.logger.debug('Released warehouse reservation after rollback', { reservationId });
+            }
+          } catch (releaseErr) {
+            this.logger.error('CRÍTICO: No se pudo liberar la reserva en Warehouse tras rollback', { reservationId, error: releaseErr?.message || releaseErr });
+          }
+        }
+      } catch (e) {
+        this.logger.warn('Error intentando liberar reserva', { error: e?.message || e });
+      }
+
       this.logger.error('Error al crear pedido', { error: err.message, stack: err.stack, dto: createOrderDto });
       throw new InternalServerErrorException('No se pudo procesar el pedido.');
     } finally {
@@ -475,6 +541,31 @@ export class OrdersService {
 
       // Al hacer commit, se dispararán los triggers de pg_notify del SQL
       await queryRunner.commitTransaction();
+      // If the pedido was set to ANULADO, attempt to release warehouse reservation
+      try {
+        if (String(nuevoEstado).toUpperCase() === 'ANULADO') {
+          // try to obtain reservation_id
+          try {
+            const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
+            const reservationId = res && res[0] ? res[0].reservation_id || null : null;
+            if (reservationId) {
+              const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+              const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+              const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+              const fetchFn = (globalThis as any).fetch;
+              if (typeof fetchFn === 'function') {
+                await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
+                this.logger.debug('Released warehouse reservation after pedido ANULADO', { pedidoId, reservationId });
+              }
+            }
+          } catch (err) {
+            this.logger.warn('Could not release warehouse reservation after pedido ANULADO', { pedidoId, error: err?.message || err });
+          }
+        }
+      } catch (e) {
+        this.logger.warn('Unexpected error in post-updateStatus release logic', { error: e?.message || e });
+      }
+
       return this.findOne(pedidoId);
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -551,6 +642,28 @@ export class OrdersService {
       await queryRunner.commitTransaction();
       
       this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
+      // After successfully cancelling the pedido, attempt to release warehouse reservation if present
+      try {
+        try {
+          const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
+          const reservationId = res && res[0] ? res[0].reservation_id || null : null;
+          if (reservationId) {
+            const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+            const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+            const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+            const fetchFn = (globalThis as any).fetch;
+            if (typeof fetchFn === 'function') {
+              await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
+              this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
+            }
+          }
+        } catch (err) {
+          this.logger.warn('Could not release warehouse reservation after cancelOrder', { pedidoId, error: err?.message || err });
+        }
+      } catch (e) {
+        this.logger.warn('Unexpected error in post-cancel release logic', { error: e?.message || e });
+      }
+
       return this.findOne(pedidoId);
     } catch (err) {
       await queryRunner.rollbackTransaction();

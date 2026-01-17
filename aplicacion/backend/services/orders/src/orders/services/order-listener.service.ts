@@ -64,9 +64,39 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`Lógica de post-creación para pedido: ${id}`);
     }
 
-    private onOrderApproved(id: string) {
-        // Ejemplo: Notificar a Bodega para que inicie el picking
+    private async onOrderApproved(id: string) {
+        // Notificar a Warehouse para confirmar la reserva y crear el picking
         this.logger.debug(`Pedido aprobado, notificando a logística: ${id}`);
+        const fetchFn = (globalThis as any).fetch;
+        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+        const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+        if (typeof fetchFn === 'function') {
+            try {
+                const headersObj: any = serviceToken ? { Authorization: 'Bearer ' + serviceToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+                // Try to fetch reservation_id for this pedido to pass to Warehouse
+                let reservationId: string | null = null;
+                try {
+                    const res = await this.pgClient.query('SELECT reservation_id FROM pedidos WHERE id = $1', [id]);
+                    if (res && res.rows && res.rows.length) reservationId = res.rows[0].reservation_id || null;
+                } catch (e) {
+                    this.logger.warn('No se pudo obtener reservation_id del pedido', { pedidoId: id, error: e?.message || e });
+                }
+
+                const bodyToSend: any = reservationId ? { pedido_id: id, reservation_id: reservationId } : { pedido_id: id };
+                const resp: any = await fetchFn(apiBaseW + '/picking/confirm', { method: 'POST', headers: headersObj, body: JSON.stringify(bodyToSend) });
+                if (!resp || !resp.ok) {
+                    const txt = resp ? await resp.text().catch(() => null) : null;
+                    this.logger.warn('Warehouse picking confirm failed', { pedidoId: id, status: resp?.status, body: txt });
+                } else {
+                    this.logger.debug('Warehouse picking confirmed for pedido', { pedidoId: id });
+                }
+            } catch (err) {
+                this.logger.error('Error notifying warehouse for picking confirm', { pedidoId: id, error: err?.message || err });
+            }
+        } else {
+            this.logger.warn('Fetch no disponible: no se pudo notificar Warehouse del pedido aprobado', { pedidoId: id });
+        }
     }
 
     private onOrderDelivered(id: string) {

@@ -1,5 +1,5 @@
 // picking/picking.controller.ts
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseGuards, Query, Req, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -36,6 +36,26 @@ export class PickingController {
     @Roles('admin', 'supervisor')
     create(@Body() dto: CreatePickingDto) {
         return this.service.create(dto);
+    }
+
+    @Post('confirm')
+    @Roles('admin', 'supervisor')
+    async confirm(@Body() body: any) {
+        const pedidoId = body.pedido_id || body.pedidoId;
+        const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
+        if (!reservationId) {
+            throw new BadRequestException('reservation_id is required');
+        }
+        return this.service.confirmFromReservation(pedidoId, reservationId);
+    }
+
+    // Internal helper for local testing: no auth, directly confirm a reservation.
+    @Post('internal/confirm-open')
+    async confirmOpen(@Body() body: any) {
+        const pedidoId = body.pedido_id || body.pedidoId;
+        const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
+        if (!reservationId) throw new BadRequestException('reservation_id is required');
+        return this.service.confirmFromReservation(pedidoId, reservationId);
     }
 
     @Put(':id/asignar')
