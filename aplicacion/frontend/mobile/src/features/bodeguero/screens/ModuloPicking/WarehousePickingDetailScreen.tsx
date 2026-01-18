@@ -19,8 +19,9 @@ export function WarehousePickingDetailScreen() {
             pickingId={pickingId}
             allowStart
             allowComplete
+            allowPick
             onBack={() => navigation.goBack()}
-            onUpdated={() => navigation.goBack()}
+            onUpdated={() => {}}
         />
     )
 }

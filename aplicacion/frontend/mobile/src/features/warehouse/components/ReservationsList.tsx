@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text, Pressable } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../components/ui/Header'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { ReservationService, type Reservation } from '../../../services/api/ReservationService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
+import { BRAND_COLORS } from '../../../shared/types'
 
 type Props = {
     title?: string
@@ -17,12 +20,26 @@ type Props = {
     refreshToken?: number
 }
 
-export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen, refreshToken }: Props) {
+const formatDate = (dateStr?: string) => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+const getStatusConfig = (status: Reservation['status']) => {
+    const configs = {
+        ACTIVE: { label: 'Pendiente', variant: 'warning' as const, icon: 'time-outline' as const },
+        CONFIRMED: { label: 'Confirmada', variant: 'success' as const, icon: 'checkmark-circle-outline' as const },
+        CANCELLED: { label: 'Cancelada', variant: 'error' as const, icon: 'close-circle-outline' as const },
+    }
+    return configs[status] || configs.ACTIVE
+}
+
+export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate, onOpen, refreshToken }: Props) {
     const [search, setSearch] = useState('')
     const [status, setStatus] = useState<string>('ACTIVE')
     const [loading, setLoading] = useState(false)
     const [reservations, setReservations] = useState<Reservation[]>([])
-    const [infoMessage, setInfoMessage] = useState<string>('')
     const [modalState, setModalState] = useState<{ visible: boolean; type: FeedbackType; title: string; message: string }>({
         visible: false,
         type: 'info',
@@ -33,10 +50,8 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
         visible: false,
         mode: 'confirm',
     })
-    const [detailModal, setDetailModal] = useState<{ visible: boolean; title: string; message: string }>({
+    const [detailModal, setDetailModal] = useState<{ visible: boolean; reservation?: Reservation }>({
         visible: false,
-        title: '',
-        message: '',
     })
 
     const loadData = async () => {
@@ -44,10 +59,8 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
         try {
             const data = await ReservationService.list()
             setReservations(Array.isArray(data) ? data : [])
-            setInfoMessage('')
         } catch (error) {
             setReservations([])
-            setInfoMessage('Las reservas se generan automaticamente al aprobar pedidos.')
         } finally {
             setLoading(false)
         }
@@ -55,12 +68,11 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
 
     React.useEffect(() => {
         loadData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [status, refreshToken])
 
     const filters = useMemo(
         () => [
-            { id: 'ACTIVE', name: 'Activas' },
+            { id: 'ACTIVE', name: 'Pendientes' },
             { id: 'CONFIRMED', name: 'Confirmadas' },
             { id: 'CANCELLED', name: 'Canceladas' },
             { id: 'all', name: 'Todas' },
@@ -91,17 +103,17 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
         try {
             if (mode === 'confirm') {
                 await ReservationService.confirm(id)
-                setModalState({ visible: true, type: 'success', title: 'Reserva confirmada', message: 'Se generara el picking.' })
+                setModalState({ visible: true, type: 'success', title: 'Reserva Confirmada', message: 'El picking ha sido generado automaticamente. El bodeguero puede comenzar a preparar el pedido.' })
             } else {
                 await ReservationService.cancel(id)
-                setModalState({ visible: true, type: 'success', title: 'Reserva cancelada', message: 'Stock liberado.' })
+                setModalState({ visible: true, type: 'success', title: 'Reserva Cancelada', message: 'El stock ha sido liberado y esta disponible nuevamente.' })
             }
             await loadData()
         } catch (error) {
             setModalState({
                 visible: true,
                 type: 'error',
-                title: mode === 'confirm' ? 'No se pudo confirmar' : 'No se pudo cancelar',
+                title: mode === 'confirm' ? 'Error al Confirmar' : 'Error al Cancelar',
                 message: getUserFriendlyMessage(error, mode === 'confirm' ? 'UPDATE_ERROR' : 'DELETE_ERROR'),
             })
         } finally {
@@ -109,62 +121,22 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
         }
     }
 
-    const openDetails = (reservation: Reservation) => {
-        if (!reservation.items?.length) {
-            setDetailModal({
-                visible: true,
-                title: 'Detalle de reserva',
-                message: 'No hay items vinculados en esta reserva.',
-            })
-            return
-        }
-
-        const message = reservation.items
-            .map((item, index) => {
-                const label = item.sku || 'Producto'
-                const ubic = item.stockUbicacionId ? ` • Ubicación: ${String(item.stockUbicacionId).slice(0, 8)}` : ''
-                return `${index + 1}) ${label} • Cantidad: ${item.quantity}${ubic}`
-            })
-            .join('\n')
-
-        setDetailModal({
-            visible: true,
-            title: 'Detalle de reserva',
-            message,
-        })
-    }
-
-    const renderStatusBadge = (value: Reservation['status']) => {
-        const map = {
-            ACTIVE: { text: 'Activo', bg: '#E8FFF3', color: '#16A34A' },
-            CONFIRMED: { text: 'Confirmada', bg: '#EEF2FF', color: '#4338CA' },
-            CANCELLED: { text: 'Cancelada', bg: '#FEF2F2', color: '#B91C1C' },
-        } as const
-        const conf = map[value] || map.ACTIVE
-        return (
-            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: conf.bg }}>
-                <Text className="text-[10px] font-bold uppercase" style={{ color: conf.color }}>
-                    {conf.text}
-                </Text>
-            </View>
-        )
+    const totalItems = (reservation: Reservation) => {
+        return reservation.items?.reduce((acc, item) => acc + item.quantity, 0) || 0
     }
 
     return (
         <View className="flex-1 bg-neutral-50">
             <Header title={title} variant="standard" onBackPress={onBack} />
 
-            <View className="bg-white px-5 pb-4 pt-5 border-b border-neutral-100 shadow-sm shadow-black/5">
-                <View className="flex-row items-center gap-3">
-                    <SearchBar
-                        placeholder="Buscar reserva..."
-                        value={search}
-                        onChangeText={setSearch}
-                        onClear={() => setSearch('')}
-                        style={{ flex: 1 }}
-                    />
-                </View>
-                <View className="-mx-5 mt-3">
+            <View className="bg-white px-4 pb-4 pt-4 border-b border-neutral-100">
+                <SearchBar
+                    placeholder="Buscar por ID de reserva..."
+                    value={search}
+                    onChangeText={setSearch}
+                    onClear={() => setSearch('')}
+                />
+                <View className="-mx-4 mt-3">
                     <CategoryFilter categories={filters} selectedId={status} onSelect={(id) => setStatus(String(id))} />
                 </View>
             </View>
@@ -174,66 +146,102 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
                 isLoading={loading}
                 onRefresh={loadData}
                 emptyState={{
-                    icon: 'cube-outline',
-                    title: 'Sin reservas',
-                    message: infoMessage || 'Las reservas se generan automaticamente al aprobar pedidos.',
+                    icon: 'layers-outline',
+                    title: status === 'ACTIVE' ? 'Sin Reservas Pendientes' : 'Sin Reservas',
+                    message: 'Las reservas se generan automaticamente cuando un cliente o vendedor realiza un pedido.',
                 }}
                 renderItem={(item) => {
-                    const preview =
-                        item.items && item.items.length
-                            ? item.items
-                                  .slice(0, 2)
-                                  .map((it) => `${it.sku || 'Producto'} • ${it.quantity}`)
-                                  .join(' · ')
-                            : 'Sin items disponibles'
+                    const statusConfig = getStatusConfig(item.status)
+                    const itemCount = item.items?.length || 0
+                    const totalQty = totalItems(item)
 
                     return (
-                        <View className="bg-white rounded-2xl p-4 border border-neutral-100 shadow-sm mb-3">
-                            <View className="flex-row items-start">
-                                <View className="w-11 h-11 rounded-xl bg-neutral-50 items-center justify-center mr-3 border border-neutral-100">
-                                    <Text className="text-neutral-400 font-black text-lg">R</Text>
-                                </View>
-                                <View className="flex-1">
-                                    <View className="flex-row justify-between items-start">
-                                        <Text className="text-base font-bold text-neutral-900">
-                                            {`Reserva ${item.id.slice(0, 6)}`}
-                                        </Text>
-                                        {renderStatusBadge(item.status)}
+                        <Pressable
+                            onPress={() => setDetailModal({ visible: true, reservation: item })}
+                            className="bg-white rounded-2xl border border-neutral-100 overflow-hidden mb-3"
+                            style={{ elevation: 2 }}
+                        >
+                            <View className="p-4">
+                                <View className="flex-row items-start justify-between">
+                                    <View className="flex-row items-center flex-1">
+                                        <View
+                                            className="w-12 h-12 rounded-xl items-center justify-center mr-3"
+                                            style={{ backgroundColor: item.status === 'ACTIVE' ? '#FEF3C7' : item.status === 'CONFIRMED' ? '#D1FAE5' : '#FEE2E2' }}
+                                        >
+                                            <Ionicons
+                                                name={statusConfig.icon}
+                                                size={24}
+                                                color={item.status === 'ACTIVE' ? '#D97706' : item.status === 'CONFIRMED' ? '#059669' : '#DC2626'}
+                                            />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-base font-bold text-neutral-900">
+                                                Reserva #{item.id.slice(0, 8).toUpperCase()}
+                                            </Text>
+                                            <Text className="text-xs text-neutral-500 mt-0.5">
+                                                {formatDate(item.createdAt)}
+                                            </Text>
+                                        </View>
                                     </View>
-                                    <Text className="text-xs text-neutral-500 mt-1" numberOfLines={1}>
-                                        {item.tempId ? `Temp: ${item.tempId}` : 'Generada automaticamente'}
-                                    </Text>
-                                    <Text className="text-sm text-neutral-700 mt-2" numberOfLines={2}>
-                                        {preview}
-                                    </Text>
+                                    <StatusBadge label={statusConfig.label} variant={statusConfig.variant} size="sm" />
                                 </View>
+
+                                <View className="flex-row mt-3 gap-2">
+                                    <View className="flex-row items-center bg-neutral-100 px-3 py-1.5 rounded-full">
+                                        <Ionicons name="cube-outline" size={14} color="#6B7280" />
+                                        <Text className="text-xs font-semibold text-neutral-600 ml-1">
+                                            {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+                                        </Text>
+                                    </View>
+                                    <View className="flex-row items-center bg-neutral-100 px-3 py-1.5 rounded-full">
+                                        <Ionicons name="layers-outline" size={14} color="#6B7280" />
+                                        <Text className="text-xs font-semibold text-neutral-600 ml-1">
+                                            {totalQty} unidades
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {item.items && item.items.length > 0 && (
+                                    <View className="mt-3 pt-3 border-t border-neutral-100">
+                                        {item.items.slice(0, 2).map((it, idx) => (
+                                            <View key={idx} className="flex-row items-center justify-between py-1">
+                                                <Text className="text-sm text-neutral-700 flex-1" numberOfLines={1}>
+                                                    {it.sku || `Producto ${idx + 1}`}
+                                                </Text>
+                                                <Text className="text-sm font-semibold text-neutral-900 ml-2">
+                                                    x{it.quantity}
+                                                </Text>
+                                            </View>
+                                        ))}
+                                        {item.items.length > 2 && (
+                                            <Text className="text-xs text-neutral-400 mt-1">
+                                                +{item.items.length - 2} mas...
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
                             </View>
 
-                            <View className="flex-row mt-3 justify-end gap-2">
-                                <Pressable
-                                    className="px-3 py-2 rounded-full bg-neutral-100"
-                                    onPress={() => openDetails(item)}
-                                >
-                                    <Text className="text-xs font-semibold text-neutral-700">Ver detalle</Text>
-                                </Pressable>
-                                {item.status === 'ACTIVE' ? (
-                                    <>
-                                        <Pressable
-                                            className="px-3 py-2 rounded-full bg-emerald-500"
-                                            onPress={() => handleConfirm(item.id)}
-                                        >
-                                            <Text className="text-xs font-semibold text-white">Confirmar</Text>
-                                        </Pressable>
-                                        <Pressable
-                                            className="px-3 py-2 rounded-full bg-neutral-100 border border-neutral-200"
-                                            onPress={() => handleCancel(item.id)}
-                                        >
-                                            <Text className="text-xs font-semibold text-neutral-700">Cancelar</Text>
-                                        </Pressable>
-                                    </>
-                                ) : null}
-                            </View>
-                        </View>
+                            {item.status === 'ACTIVE' && (
+                                <View className="flex-row border-t border-neutral-100">
+                                    <Pressable
+                                        className="flex-1 flex-row items-center justify-center py-3 border-r border-neutral-100"
+                                        onPress={() => handleCancel(item.id)}
+                                    >
+                                        <Ionicons name="close-circle-outline" size={18} color="#6B7280" />
+                                        <Text className="text-sm font-semibold text-neutral-600 ml-2">Cancelar</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        className="flex-1 flex-row items-center justify-center py-3"
+                                        style={{ backgroundColor: '#059669' }}
+                                        onPress={() => handleConfirm(item.id)}
+                                    >
+                                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                                        <Text className="text-sm font-bold text-white ml-2">Confirmar</Text>
+                                    </Pressable>
+                                </View>
+                            )}
+                        </Pressable>
                     )
                 }}
             />
@@ -249,15 +257,15 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
             <FeedbackModal
                 visible={confirmModal.visible}
                 type="warning"
-                title={confirmModal.mode === 'confirm' ? 'Confirmar reserva' : 'Cancelar reserva'}
+                title={confirmModal.mode === 'confirm' ? 'Confirmar Reserva' : 'Cancelar Reserva'}
                 message={
                     confirmModal.mode === 'confirm'
-                        ? 'Se generara el picking asociado. Deseas continuar?'
-                        : 'Se liberara el stock reservado. Deseas continuar?'
+                        ? 'Al confirmar, se generara automaticamente una orden de picking para que el bodeguero prepare los productos.'
+                        : 'Al cancelar, el stock reservado sera liberado y estara disponible para otros pedidos.'
                 }
                 showCancel
-                cancelText="No"
-                confirmText={confirmModal.mode === 'confirm' ? 'Confirmar' : 'Cancelar'}
+                cancelText="Volver"
+                confirmText={confirmModal.mode === 'confirm' ? 'Si, Confirmar' : 'Si, Cancelar'}
                 onClose={() => setConfirmModal((prev) => ({ ...prev, visible: false }))}
                 onConfirm={() => executeAction(confirmModal.mode, confirmModal.id)}
             />
@@ -265,9 +273,15 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
             <FeedbackModal
                 visible={detailModal.visible}
                 type="info"
-                title={detailModal.title}
-                message={detailModal.message}
-                onClose={() => setDetailModal({ visible: false, title: '', message: '' })}
+                title={`Reserva #${detailModal.reservation?.id?.slice(0, 8).toUpperCase() || ''}`}
+                message={
+                    detailModal.reservation?.items?.length
+                        ? detailModal.reservation.items
+                              .map((item, idx) => `${idx + 1}. ${item.sku || 'Producto'} - Cantidad: ${item.quantity}`)
+                              .join('\n')
+                        : 'No hay productos en esta reserva.'
+                }
+                onClose={() => setDetailModal({ visible: false })}
                 confirmText="Cerrar"
             />
         </View>

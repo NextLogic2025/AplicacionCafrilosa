@@ -13,8 +13,8 @@ export function WarehousePickingListScreen() {
 
     return (
         <PickingList
-            title="Mis pickings"
-            mine
+            title="Ordenes de Picking"
+            showTakeButton
             onBack={() => navigation.goBack()}
             onOpen={(id) => navigation.navigate('WarehousePickingDetail', { pickingId: id })}
             refreshToken={refreshToken}
