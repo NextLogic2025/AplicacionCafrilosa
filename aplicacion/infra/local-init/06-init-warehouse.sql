@@ -79,7 +79,7 @@
         bodeguero_asignado_id UUID,             -- referencia lógica a auth_db.usuarios
         prioridad INT DEFAULT 1,
         estado VARCHAR(20) DEFAULT 'ASIGNADO',
-        fencha_inicio TIMESTAMPTZ,
+        fecha_inicio TIMESTAMPTZ,
         fecha_fi TIMESTAMPTZ,
         observaciones_bodega TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),

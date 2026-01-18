@@ -61,7 +61,7 @@ export type SellerStackParamList = {
     SellerReturns: undefined
     SellerNotifications: undefined
     SellerRoute: undefined
-    SellerRouteMap: undefined
+    SellerRouteMap: { day?: number } | undefined
     SellerOrder: { preselectedClient: any } | undefined
     SellerClientDetail: { clientId: string }
 }

@@ -13,10 +13,21 @@ import { WarehouseProfileScreen } from '../features/bodeguero/screens/ModuloPerf
 
 // FAB Screens
 import { WarehouseLotsScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseLotsScreen'
+import { WarehouseStockListScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseStockListScreen'
+import { WarehouseStockFormScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseStockFormScreen'
+import { WarehouseLoteFormScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseLoteFormScreen'
 import { WarehousePreparationScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehousePreparationScreen'
 import { WarehouseDispatchScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehouseDispatchScreen'
 import { WarehouseReturnsScreen } from '../features/bodeguero/screens/ModuloDevoluciones/WarehouseReturnsScreen'
 import { WarehouseNotificationsScreen } from '../features/bodeguero/screens/ModuloNotificaciones/WarehouseNotificationsScreen'
+import { WarehouseAlmacenesScreen } from '../features/bodeguero/screens/ModuloAlmacenes/WarehouseAlmacenesScreen'
+import { WarehouseAlmacenFormScreen } from '../features/bodeguero/screens/ModuloAlmacenes/WarehouseAlmacenFormScreen'
+import { WarehouseUbicacionesListScreen } from '../features/bodeguero/screens/ModuloUbicacionAlmacen/WarehouseUbicacionesListScreen'
+import { WarehouseUbicacionFormScreen } from '../features/bodeguero/screens/ModuloUbicacionAlmacen/WarehouseUbicacionFormScreen'
+import { WarehousePickingListScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingListScreen'
+import { WarehousePickingDetailScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingDetailScreen'
+import { WarehouseReservationsScreen } from '../features/bodeguero/screens/ModuloReservas/WarehouseReservationsScreen'
+import { WarehouseReservationCreateScreen } from '../features/bodeguero/screens/ModuloReservas/WarehouseReservationCreateScreen'
 
 import { TabNavigation } from '../components/ui/TabNavigation'
 
@@ -74,10 +85,21 @@ export function WarehouseNavigator() {
 
             {/* FAB Screens */}
             <Stack.Screen name="WarehouseLots" component={WarehouseLotsScreen} />
+            <Stack.Screen name="WarehouseStock" component={WarehouseStockListScreen} />
+            <Stack.Screen name="WarehouseStockForm" component={WarehouseStockFormScreen} />
+            <Stack.Screen name="WarehouseLoteForm" component={WarehouseLoteFormScreen} />
             <Stack.Screen name="WarehousePreparation" component={WarehousePreparationScreen} />
             <Stack.Screen name="WarehouseDispatch" component={WarehouseDispatchScreen} />
             <Stack.Screen name="WarehouseReturns" component={WarehouseReturnsScreen} />
             <Stack.Screen name="WarehouseNotifications" component={WarehouseNotificationsScreen} />
+            <Stack.Screen name="WarehouseAlmacenes" component={WarehouseAlmacenesScreen} />
+            <Stack.Screen name="WarehouseAlmacenForm" component={WarehouseAlmacenFormScreen} />
+            <Stack.Screen name="WarehouseUbicaciones" component={WarehouseUbicacionesListScreen} />
+            <Stack.Screen name="WarehouseUbicacionForm" component={WarehouseUbicacionFormScreen} />
+            <Stack.Screen name="WarehousePickingList" component={WarehousePickingListScreen} />
+            <Stack.Screen name="WarehousePickingDetail" component={WarehousePickingDetailScreen} />
+            <Stack.Screen name="WarehouseReservations" component={WarehouseReservationsScreen} />
+            <Stack.Screen name="WarehouseReservationCreate" component={WarehouseReservationCreateScreen} />
         </Stack.Navigator>
     )
 }

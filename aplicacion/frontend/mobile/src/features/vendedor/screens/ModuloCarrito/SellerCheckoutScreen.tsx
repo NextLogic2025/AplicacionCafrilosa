@@ -100,6 +100,12 @@ export default function SellerCheckoutScreen() {
             return
         }
 
+        const hasZeroPrice = cart.items.some(i => (safeNumber(i.precio_final) <= 0) || (safeNumber(i.subtotal) <= 0))
+        if (hasZeroPrice || total <= 0) {
+            Alert.alert('Error', 'Hay productos sin precio válido. Verifica los precios antes de confirmar.')
+            return
+        }
+
         setLoading(true)
         try {
             // Payload for Backend
@@ -122,7 +128,8 @@ export default function SellerCheckoutScreen() {
 
         } catch (error: any) {
             console.error('Checkout error:', error)
-            let errorMessage = error.message || 'No se pudo procesar el pedido'
+            const backendMsg = error?.info?.backendMessage || error?.message
+            let errorMessage = backendMsg || 'No se pudo procesar el pedido'
 
             if (errorMessage.includes('500')) {
                 errorMessage = 'Error del servidor. Por favor verifica tu conexión.'

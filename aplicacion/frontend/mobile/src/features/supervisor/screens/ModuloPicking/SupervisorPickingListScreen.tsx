@@ -1,8 +1,8 @@
 import React from 'react'
 import { useNavigation } from '@react-navigation/native'
-import { LotesList } from '../../../warehouse/components/LotesList'
+import { PickingList } from '../../../warehouse/components/PickingList'
 
-export function WarehouseLotsScreen() {
+export function SupervisorPickingListScreen() {
     const navigation = useNavigation<any>()
     const [refreshToken, setRefreshToken] = React.useState(0)
 
@@ -12,12 +12,11 @@ export function WarehouseLotsScreen() {
     }, [navigation])
 
     return (
-        <LotesList
-            title="Lotes"
+        <PickingList
+            title="Pickings"
             onBack={() => navigation.goBack()}
-            onCreate={() => navigation.navigate('WarehouseLoteForm')}
-            onOpen={(id) => navigation.navigate('WarehouseLoteForm', { loteId: id })}
-            allowDelete={false}
+            onCreate={() => navigation.navigate('SupervisorPickingCreate')}
+            onOpen={(id) => navigation.navigate('SupervisorPickingDetail', { pickingId: id })}
             refreshToken={refreshToken}
         />
     )

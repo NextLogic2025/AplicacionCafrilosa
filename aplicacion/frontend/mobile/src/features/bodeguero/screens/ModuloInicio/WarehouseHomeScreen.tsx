@@ -53,6 +53,12 @@ export function WarehouseHomeScreen() {
 
     const fabActions: FabAction[] = [
         {
+            icon: 'business-outline',
+            label: 'Almacenes',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseAlmacenes')
+        },
+        {
             icon: 'notifications-outline',
             label: 'Notificaciones',
             // @ts-expect-error - Navigation is typed but routes are dynamic
@@ -81,6 +87,24 @@ export function WarehouseHomeScreen() {
             label: 'Lotes / Vencimientos',
             // @ts-expect-error - Navigation is typed but routes are dynamic
             onPress: () => navigation.navigate('WarehouseLots')
+        },
+        {
+            icon: 'analytics-outline',
+            label: 'Stock',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseStock')
+        },
+        {
+            icon: 'clipboard-outline',
+            label: 'Picking',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehousePickingList')
+        },
+        {
+            icon: 'lock-closed-outline',
+            label: 'Reservas',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseReservations')
         }
     ]
 

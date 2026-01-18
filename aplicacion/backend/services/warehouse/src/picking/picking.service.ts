@@ -328,4 +328,21 @@ export class PickingService {
 
         return picking;
     }
+
+    async getStatsPorBodeguero() {
+        const stats = await this.ordenRepo.createQueryBuilder('orden')
+            .select('orden.bodegueroAsignadoId', 'bodegueroId')
+            .addSelect("COUNT(CASE WHEN orden.estado = 'COMPLETADO' THEN 1 END)", 'totalCompletados')
+            .addSelect("COUNT(CASE WHEN orden.estado IN ('ASIGNADO', 'EN_PROCESO') THEN 1 END)", 'cargaActual')
+            .where('orden.bodegueroAsignadoId IS NOT NULL')
+            .andWhere('orden.deletedAt IS NULL')
+            .groupBy('orden.bodegueroAsignadoId')
+            .getRawMany();
+
+        return stats.map(s => ({
+            bodegueroId: s.bodegueroid || s.bodegueroId,
+            totalCompletados: Number(s.totalcompletados || s.totalCompletados),
+            cargaActual: Number(s.cargaactual || s.cargaActual)
+        }));
+    }
 }

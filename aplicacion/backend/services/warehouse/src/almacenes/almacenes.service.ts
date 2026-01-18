@@ -39,4 +39,16 @@ export class AlmacenesService {
         await this.repo.update(id, { activo: false, updatedAt: new Date() } as any);
         return { id, deleted: true };
     }
+
+    findDeleted() {
+        return this.repo.find({ where: { activo: false }, order: { id: 'ASC' } });
+    }
+
+    async restore(id: number) {
+        const almacen = await this.repo.findOne({ where: { id } });
+        if (!almacen) throw new NotFoundException('Almacén no encontrado');
+        if (almacen.activo) return { id, restored: false, message: 'Ya activo' };
+        await this.repo.update(id, { activo: true, updatedAt: new Date() } as any);
+        return { id, restored: true };
+    }
 }

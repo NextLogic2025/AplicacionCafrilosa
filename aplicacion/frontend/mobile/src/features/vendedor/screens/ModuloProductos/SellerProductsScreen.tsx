@@ -91,10 +91,15 @@ export function SellerProductsScreen() {
                 selectedClient.id // Filtrar por lista de precios del cliente
             )
 
+            const pricedItems = response.items.filter((p) => {
+                const price = safeNumber(p.precio_oferta ?? p.precio_original ?? (p.precios && p.precios[0]?.precio))
+                return price > 0
+            })
+
             if (reset) {
-                setProducts(response.items)
+                setProducts(pricedItems)
             } else {
-                setProducts(prev => [...prev, ...response.items])
+                setProducts(prev => [...prev, ...pricedItems])
             }
 
             setTotalItems(response.metadata.total_items)
@@ -132,6 +137,12 @@ export function SellerProductsScreen() {
         if (!selectedClient) {
             Alert.alert('Selecciona un cliente', 'Debes seleccionar un cliente antes de agregar productos')
             setShowClientModal(true)
+            return
+        }
+
+        const priceForCheck = safeNumber(product.precio_oferta ?? product.precio_original ?? (product.precios && product.precios[0]?.precio))
+        if (priceForCheck <= 0) {
+            showToast('Este producto no tiene precio asignado para el cliente', 'warning')
             return
         }
 

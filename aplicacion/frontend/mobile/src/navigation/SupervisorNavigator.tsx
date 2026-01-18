@@ -18,6 +18,19 @@ import { SupervisorClientsScreen } from '../features/supervisor/screens/ModuloCl
 import { SupervisorClientDetailScreen } from '../features/supervisor/screens/ModuloCliente/SupervisorClientDetailScreen'
 import { SupervisorClientFormScreen } from '../features/supervisor/screens/ModuloCliente/SupervisorClientFormScreen'
 import { SupervisorWarehouseScreen } from '../features/supervisor/screens/ModuloAlmacen/SupervisorWarehouseScreen'
+import { SupervisorUbicacionesListScreen } from '../features/supervisor/screens/ModuloAlmacen/SupervisorUbicacionesListScreen'
+import { WarehouseUbicacionFormScreen } from '../features/bodeguero/screens/ModuloUbicacionAlmacen/WarehouseUbicacionFormScreen'
+import { SupervisorAlmacenesListScreen } from '../features/supervisor/screens/ModuloAlmacen/SupervisorAlmacenesListScreen'
+import { WarehouseAlmacenFormScreen } from '../features/bodeguero/screens/ModuloAlmacenes/WarehouseAlmacenFormScreen'
+import { SupervisorLotesListScreen } from '../features/supervisor/screens/ModuloLotes/SupervisorLotesListScreen'
+import { SupervisorLoteFormScreen } from '../features/supervisor/screens/ModuloLotes/SupervisorLoteFormScreen'
+import { SupervisorStockListScreen } from '../features/supervisor/screens/ModuloStock/SupervisorStockListScreen'
+import { SupervisorStockFormScreen } from '../features/supervisor/screens/ModuloStock/SupervisorStockFormScreen'
+import { SupervisorPickingListScreen } from '../features/supervisor/screens/ModuloPicking/SupervisorPickingListScreen'
+import { SupervisorPickingDetailScreen } from '../features/supervisor/screens/ModuloPicking/SupervisorPickingDetailScreen'
+import { SupervisorPickingCreateScreen } from '../features/supervisor/screens/ModuloPicking/SupervisorPickingCreateScreen'
+import { SupervisorReservationsScreen } from '../features/supervisor/screens/ModuloReservas/SupervisorReservationsScreen'
+import { SupervisorReservationCreateScreen } from '../features/supervisor/screens/ModuloReservas/SupervisorReservationCreateScreen'
 import { SupervisorReturnsScreen } from '../features/supervisor/screens/ModuloDevoluciones/SupervisorReturnsScreen'
 import { SupervisorReportsScreen } from '../features/supervisor/screens/ModuloReportes/SupervisorReportsScreen'
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/ModuloAlertas/SupervisorAlertsScreen'
@@ -113,6 +126,19 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorTeam" component={SupervisorTeamScreen} />
             <Stack.Screen name="SupervisorTeamDetail" component={SupervisorTeamDetailScreen} />
             <Stack.Screen name="SupervisorWarehouse" component={SupervisorWarehouseScreen} />
+            <Stack.Screen name="SupervisorAlmacenes" component={SupervisorAlmacenesListScreen} />
+            <Stack.Screen name="SupervisorUbicaciones" component={SupervisorUbicacionesListScreen} />
+            <Stack.Screen name="SupervisorUbicacionForm" component={WarehouseUbicacionFormScreen} />
+            <Stack.Screen name="SupervisorAlmacenForm" component={WarehouseAlmacenFormScreen} />
+            <Stack.Screen name="SupervisorLotes" component={SupervisorLotesListScreen} />
+            <Stack.Screen name="SupervisorLoteForm" component={SupervisorLoteFormScreen} />
+            <Stack.Screen name="SupervisorStock" component={SupervisorStockListScreen} />
+            <Stack.Screen name="SupervisorStockForm" component={SupervisorStockFormScreen} />
+            <Stack.Screen name="SupervisorPickingList" component={SupervisorPickingListScreen} />
+            <Stack.Screen name="SupervisorPickingDetail" component={SupervisorPickingDetailScreen} />
+            <Stack.Screen name="SupervisorPickingCreate" component={SupervisorPickingCreateScreen} />
+            <Stack.Screen name="SupervisorReservations" component={SupervisorReservationsScreen} />
+            <Stack.Screen name="SupervisorReservationCreate" component={SupervisorReservationCreateScreen} />
             <Stack.Screen name="SupervisorReturns" component={SupervisorReturnsScreen} />
             <Stack.Screen name="SupervisorReports" component={SupervisorReportsScreen} />
             <Stack.Screen name="SupervisorAlerts" component={SupervisorAlertsScreen} />

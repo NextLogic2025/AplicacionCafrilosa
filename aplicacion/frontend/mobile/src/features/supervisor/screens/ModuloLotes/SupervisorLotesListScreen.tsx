@@ -1,8 +1,9 @@
 import React from 'react'
 import { useNavigation } from '@react-navigation/native'
 import { LotesList } from '../../../warehouse/components/LotesList'
+import { LoteService } from '../../../../services/api/LoteService'
 
-export function WarehouseLotsScreen() {
+export function SupervisorLotesListScreen() {
     const navigation = useNavigation<any>()
     const [refreshToken, setRefreshToken] = React.useState(0)
 
@@ -11,13 +12,18 @@ export function WarehouseLotsScreen() {
         return unsub
     }, [navigation])
 
+    const handleDelete = async (id: string) => {
+        await LoteService.remove(id)
+    }
+
     return (
         <LotesList
             title="Lotes"
             onBack={() => navigation.goBack()}
-            onCreate={() => navigation.navigate('WarehouseLoteForm')}
-            onOpen={(id) => navigation.navigate('WarehouseLoteForm', { loteId: id })}
-            allowDelete={false}
+            onCreate={() => navigation.navigate('SupervisorLoteForm')}
+            onOpen={(id) => navigation.navigate('SupervisorLoteForm', { loteId: id })}
+            onDelete={handleDelete}
+            allowDelete
             refreshToken={refreshToken}
         />
     )

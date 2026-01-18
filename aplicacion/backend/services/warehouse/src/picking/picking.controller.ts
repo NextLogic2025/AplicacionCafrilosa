@@ -19,6 +19,13 @@ export class PickingController {
         return this.service.findAll(estado);
     }
 
+    @Get('stats/general')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles('admin', 'supervisor')
+    getStats() {
+        return this.service.getStatsPorBodeguero();
+    }
+
     @Get('mis-ordenes')
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
