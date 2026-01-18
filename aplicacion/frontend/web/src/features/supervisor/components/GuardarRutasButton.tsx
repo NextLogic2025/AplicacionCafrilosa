@@ -14,6 +14,7 @@ interface GuardarRutasButtonProps {
   }>;
   zonaId: number | string;
   diasSeleccionados: string[];
+  vendedorId?: string; // New prop
   onSuccess?: () => void;
 }
 
@@ -25,7 +26,7 @@ const diasMap: Record<string, number> = {
   'Viernes': 5,
 };
 
-export const GuardarRutasButton: React.FC<GuardarRutasButtonProps> = ({ destinos, zonaId, diasSeleccionados, onSuccess }) => {
+export const GuardarRutasButton: React.FC<GuardarRutasButtonProps> = ({ destinos, zonaId, diasSeleccionados, vendedorId, onSuccess }) => {
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState<string | null>(null);
 
@@ -36,7 +37,7 @@ export const GuardarRutasButton: React.FC<GuardarRutasButtonProps> = ({ destinos
       let orden = 1;
       for (const destino of destinos) {
         for (const dia of diasSeleccionados) {
-          const payload: CrearRutaPayload = {
+          const payload: CrearRutaPayload & { vendedor_id?: string } = {
             cliente_id: destino.clienteId,
             sucursal_id: destino.id.startsWith('principal-') ? null : destino.id,
             zona_id: Number(zonaId),
@@ -45,6 +46,7 @@ export const GuardarRutasButton: React.FC<GuardarRutasButtonProps> = ({ destinos
             prioridad_visita: destino.prioridad === 'ALTA' ? 'ALTA' : destino.prioridad === 'MEDIA' ? 'NORMAL' : 'BAJA',
             orden_sugerido: orden,
             hora_estimada_arribo: destino.hora || null,
+            vendedor_id: vendedorId // Send to backend
           };
           await crearRuta(payload);
         }

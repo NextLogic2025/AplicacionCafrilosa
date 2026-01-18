@@ -42,6 +42,9 @@ export class Pedido {
   @Column({ type: 'varchar', length: 50, nullable: true })
   condicion_pago: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  reservation_id: string | null;
+
   @Column({ type: 'date', nullable: true })
   fecha_entrega_solicitada: Date;
 

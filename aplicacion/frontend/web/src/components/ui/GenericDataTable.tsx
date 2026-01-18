@@ -16,6 +16,7 @@ export interface GenericTableProps<T> {
   emptyStateTitle?: string
   emptyStateDescription?: string
   emptyStateIcon?: React.ReactNode
+  loading?: boolean
 }
 
 export function GenericDataTable<T extends { id: string | number }>({
@@ -27,7 +28,16 @@ export function GenericDataTable<T extends { id: string | number }>({
   emptyStateTitle = 'Sin datos',
   emptyStateDescription = 'No hay registros para mostrar',
   emptyStateIcon = <Package className="h-8 w-8 text-gray-400" />,
+  loading = false,
 }: GenericTableProps<T>) {
+  if (loading) {
+    return (
+      <div className="flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-brand-red" />
+      </div>
+    )
+  }
+
   if (data.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">

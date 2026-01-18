@@ -26,6 +26,9 @@ import { RuteroModule } from './rutero/rutero.module';
 import { AsignacionModule } from './asignacion/asignacion.module';
 import { HealthModule } from './health/health.module';
 import { JwtStrategy } from './auth/strategies/jwt.strategy';
+import { JwtModule } from '@nestjs/jwt';
+import { DbListenerService } from './events/db-listener.service';
+import { EventsGateway } from './events/events.gateway';
 
 @Module({
   imports: [
@@ -49,7 +52,8 @@ import { JwtStrategy } from './auth/strategies/jwt.strategy';
     RuteroModule,
     AsignacionModule,
     HealthModule,
+    JwtModule.register({ secret: process.env.JWT_SECRET || 'dev_jwt_secret' }),
   ],
-  providers: [JwtStrategy],
+  providers: [JwtStrategy, DbListenerService, EventsGateway],
 })
 export class AppModule {}

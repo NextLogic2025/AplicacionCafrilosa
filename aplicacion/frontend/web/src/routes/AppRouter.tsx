@@ -17,8 +17,12 @@ import {
   ReportesPage,
   PerfilPage,
 } from '../features/bodeguero/pages'
-const PedidosPendientesPage = React.lazy(() => import('../features/bodeguero/pages/PedidosPendientes'))
+const PedidosPendientesPage = React.lazy(() => import('../features/bodeguero/pages/Pedidos'))
 const NotificacionesBodegaPage = React.lazy(() => import('../features/bodeguero/pages/Notificaciones'))
+const AlmacenesPage = React.lazy(() => import('../features/bodeguero/pages/Almacenes'))
+const PickingPage = React.lazy(() => import('../features/bodeguero/pages/Picking'))
+const StockPage = React.lazy(() => import('../features/bodeguero/pages/Stock'))
+const UbicacionPage = React.lazy(() => import('../features/bodeguero/pages/Ubicacion')) // Added import
 
 import { RequireAuth } from './RequireAuth'
 
@@ -76,6 +80,7 @@ const SupervisorEntregas = React.lazy(() => import('../features/supervisor/pages
 const SupervisorDevoluciones = React.lazy(() => import('../features/supervisor/pages/Devoluciones'))
 const SupervisorReportes = React.lazy(() => import('../features/supervisor/pages/Reportes'))
 const SupervisorAlertas = React.lazy(() => import('../features/supervisor/pages/Alertas'))
+const SupervisorNotificaciones = React.lazy(() => import('../features/supervisor/pages/Notificaciones')) // User created this file
 const SupervisorPerfil = React.lazy(() => import('../features/supervisor/pages/Perfil'))
 
 export default function AppRouter() {
@@ -133,6 +138,10 @@ export default function AppRouter() {
           <Route path="trazabilidad" element={<TrazabilidadPage />} />
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="notificaciones" element={<NotificacionesBodegaPage />} />
+          <Route path="almacenes" element={<AlmacenesPage />} />
+          <Route path="picking" element={<PickingPage />} />
+          <Route path="stock" element={<StockPage />} />
+          <Route path="ubicaciones" element={<UbicacionPage />} />
           <Route path="perfil" element={<PerfilPage />} />
         </Route>
 
@@ -209,6 +218,7 @@ export default function AppRouter() {
           <Route path="devoluciones" element={<SupervisorDevoluciones />} />
           <Route path="reportes" element={<SupervisorReportes />} />
           <Route path="alertas" element={<SupervisorAlertas />} />
+          <Route path="notificaciones" element={<SupervisorNotificaciones />} />
           <Route path="perfil" element={<SupervisorPerfil />} />
         </Route>
 

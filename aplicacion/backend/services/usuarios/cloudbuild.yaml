@@ -1,0 +1,44 @@
+steps:
+  # ==============================================================================
+  # PASO 1: Construir la imagen Docker
+  # ==============================================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker build -t ${_REGION}-docker.pkg.dev/${_GCP_PROJECT}/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest .
+    
+    # IMPORTANTE: Esto asegura que el comando se ejecute DENTRO de la carpeta del servicio
+    dir: 'aplicacion/backend/services/${_SERVICE_NAME}'
+
+  # ==============================================================================
+  # PASO 2: Subir la imagen a Artifact Registry ("El Almacén")
+  # ==============================================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${_GCP_PROJECT}/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest']
+
+  # ==============================================================================
+  # PASO 3: Desplegar el servicio en Cloud Run
+  # ==============================================================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_GCP_PROJECT}/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'
+      - '--region'
+      - '${_REGION}'
+      # Estas variables ya las configuró Terraform, aquí solo reforzamos el deploy
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '3000' # Asegúrate que tus NestJS corren en el puerto 3000
+
+# ==============================================================================
+# OPTIMIZACIÓN: Guardar caché de la imagen para builds más rápidos
+# ==============================================================================
+images:
+  - '${_REGION}-docker.pkg.dev/${_GCP_PROJECT}/${_ARTIFACT_REGISTRY}/${_SERVICE_NAME}:latest'

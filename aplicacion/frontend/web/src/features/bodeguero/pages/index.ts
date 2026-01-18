@@ -8,3 +8,4 @@ export { default as DevolucionesPage } from './Devoluciones'
 export { default as TrazabilidadPage } from './Trazabilidad'
 export { default as ReportesPage } from './Reportes'
 export { default as PerfilPage } from './Perfil'
+export { default as UbicacionPage } from './Ubicacion' // Added line

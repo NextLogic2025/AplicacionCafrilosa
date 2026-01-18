@@ -75,6 +75,12 @@ export async function httpOrders<T>(path: string, options: HttpOptions = {}): Pr
   return httpRequest<T>(env.api.orders, path, options)
 }
 
+// Función para servicio de Warehouse (puerto 3005)
+export async function httpWarehouse<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  const pathWithApi = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`
+  return httpRequest<T>(env.api.warehouse, pathWithApi, options)
+}
+
 // Exportar también la versión genérica (deprecada, usar las específicas)
 /** @deprecated Usa httpAuth, httpUsuarios o httpCatalogo según el servicio */
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {

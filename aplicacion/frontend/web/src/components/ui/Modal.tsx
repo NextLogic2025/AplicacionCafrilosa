@@ -27,18 +27,18 @@ export function Modal({
   isOpen,
   title,
   onClose,
-  headerGradient = 'blue',
+  headerGradient = 'red',
   maxWidth = 'md',
   children,
 }: ModalProps) {
   if (!isOpen) return null
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       onClick={onClose}
     >
-      <div 
+      <div
         className={`max-h-[90vh] w-full ${widths[maxWidth]} overflow-y-auto rounded-lg bg-white shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >

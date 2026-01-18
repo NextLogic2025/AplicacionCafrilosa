@@ -1,6 +1,6 @@
-import { 
-  Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw, 
-  BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart, 
+import {
+  Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw,
+  BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart,
   Percent, MessageCircle, Users, FileText, Map, Calendar, BookOpen, Route
 } from 'lucide-react'
 import type { SidebarItem } from '../components/ui/SidebarNav'
@@ -36,6 +36,10 @@ export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
   { id: 'despachos', label: 'Despachos', to: '/bodeguero/despachos', icon: Truck },
   { id: 'devoluciones', label: 'Devoluciones', to: '/bodeguero/devoluciones', icon: RotateCcw },
   { id: 'reportes', label: 'Reportes', to: '/bodeguero/reportes', icon: BarChart3 },
+  { id: 'almacenes', label: 'Almacenes', to: '/bodeguero/almacenes', icon: Package },
+  { id: 'picking', label: 'Picking', to: '/bodeguero/picking', icon: Boxes },
+  { id: 'stock', label: 'Stock', to: '/bodeguero/stock', icon: BarChart3 },
+  { id: 'ubicaciones', label: 'Ubicaciones', to: '/bodeguero/ubicaciones', icon: Map },
   { id: 'notificaciones', label: 'Notificaciones', to: '/bodeguero/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/bodeguero/perfil', icon: User },
 ]
@@ -56,6 +60,7 @@ export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'devoluciones', label: 'Devoluciones', to: '/supervisor/devoluciones', icon: RotateCcw },
   { id: 'reportes', label: 'Reportes', to: '/supervisor/reportes', icon: BarChart3 },
   { id: 'alertas', label: 'Alertas', to: '/supervisor/alertas', icon: Bell },
+  { id: 'notificaciones', label: 'Notificaciones', to: '/supervisor/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/supervisor/perfil', icon: User },
 ]
 

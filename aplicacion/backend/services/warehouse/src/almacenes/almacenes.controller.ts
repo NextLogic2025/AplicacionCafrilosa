@@ -19,6 +19,12 @@ export class AlmacenesController {
         return this.service.findAll();
     }
 
+    @Get('deleted')
+    @Roles('admin', 'supervisor', 'bodeguero')
+    findDeleted() {
+        return this.service.findDeleted();
+    }
+
     @Get(':id')
     @Roles('admin', 'supervisor', 'bodeguero')
     findOne(@Param('id', ParseIntPipe) id: number) {
@@ -26,20 +32,26 @@ export class AlmacenesController {
     }
 
     @Post()
-    @Roles('admin')
+    @Roles('admin','bodeguero', 'supervisor')
     create(@Body() dto: CreateAlmacenDto) {
         return this.service.create(dto);
     }
 
     @Put(':id')
-    @Roles('admin')
+    @Roles('admin', 'bodeguero', 'supervisor')
     update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAlmacenDto) {
         return this.service.update(id, dto);
     }
 
-    @Delete(':id')
-    @Roles('admin')
+    @Delete(':id',)
+    @Roles('admin', 'bodeguero', 'supervisor')
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.service.remove(id);
+    }
+
+    @Post(':id/restore')
+    @Roles('admin', 'supervisor', 'bodeguero')
+    restore(@Param('id', ParseIntPipe) id: number) {
+        return this.service.restore(id);
     }
 }

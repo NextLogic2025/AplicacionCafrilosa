@@ -69,7 +69,7 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
           const coords = zona.poligono_geografico.coordinates[0];
           poligono = coords.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
         }
-      } catch {}
+      } catch { }
       setPoligonoZona(poligono);
 
       // 2. Obtener puntos de los destinos seleccionados
@@ -88,7 +88,7 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
                 nombre: destino.nombre,
               });
             }
-          } catch {}
+          } catch { }
         } else if (String(destino.id).startsWith('principal-')) {
           // Dirección principal: buscar cliente y usar ubicacion_gps o latitud/longitud
           const cliente = clientes.find((c: any) => String(c.id) === String(destino.clienteId));
