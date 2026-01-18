@@ -80,7 +80,7 @@
         prioridad INT DEFAULT 1,
         estado VARCHAR(20) DEFAULT 'ASIGNADO',
         fecha_inicio TIMESTAMPTZ,
-        fecha_fi TIMESTAMPTZ,
+        fecha_fin TIMESTAMPTZ,
         observaciones_bodega TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW(),
