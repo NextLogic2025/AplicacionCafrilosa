@@ -1,5 +1,170 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Client } from 'pg';
+import { OrdersService } from './orders.service';
+
+@Injectable()
+export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
+    private readonly logger = new Logger(OrderListenerService.name);
+    private pgClient: Client;
+
+    constructor(private configService: ConfigService, private readonly ordersService: OrdersService) {
+        this.pgClient = new Client({ connectionString: this.configService.get<string>('DATABASE_URL') });
+    }
+
+    async onModuleInit() {
+        await this.setupListener();
+    }
+
+    private async setupListener() {
+        try {
+            await this.pgClient.connect();
+
+            await this.pgClient.query("LISTEN \"pedido-creado\"");
+            await this.pgClient.query("LISTEN \"pedido-aprobado\"");
+            await this.pgClient.query("LISTEN \"pedido-entregado\"");
+            await this.pgClient.query("LISTEN \"picking-completado\"");
+
+            this.pgClient.on('notification', (notification) => {
+                // fire and forget
+                void this.handleNotification(notification);
+            });
+
+            this.logger.debug('🚀 Escuchando eventos asíncronos de la base de datos (PostgreSQL Notify)');
+        } catch (error) {
+            this.logger.error('Error al conectar el listener de eventos:', error);
+            setTimeout(() => void this.setupListener(), 5000);
+        }
+    }
+
+    private async handleNotification(notification: any) {
+        const { channel, payload } = notification;
+        const id = payload;
+        this.logger.debug(`Evento recibido en canal [${channel}]: id ${id}`);
+
+        try {
+            switch (channel) {
+                case 'pedido-creado':
+                    this.onOrderCreated(id);
+                    break;
+                case 'pedido-aprobado':
+                    await this.onOrderApproved(id);
+                    break;
+                case 'pedido-entregado':
+                    this.onOrderDelivered(id);
+                    break;
+                case 'picking-completado':
+                    await this.onPickingCompleted(id);
+                    break;
+                default:
+                    this.logger.debug('Canal no manejado por listener:', channel);
+            }
+        } catch (err) {
+            this.logger.error('Error manejando notificación', { channel, id, error: err?.message || err });
+        }
+    }
+
+    private onOrderCreated(id: string) {
+        this.logger.debug(`Lógica de post-creación para pedido: ${id}`);
+    }
+
+    private async onOrderApproved(id: string) {
+        this.logger.debug(`Pedido aprobado, notificando a logística: ${id}`);
+        const fetchFn = (globalThis as any).fetch;
+        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+        const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+
+        if (typeof fetchFn !== 'function') {
+            this.logger.warn('Fetch no disponible: no se pudo notificar Warehouse del pedido aprobado', { pedidoId: id });
+            return;
+        }
+
+        try {
+            const headersObj: any = serviceToken ? { Authorization: 'Bearer ' + serviceToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+            let reservationId: string | null = null;
+            try {
+                const res = await this.pgClient.query('SELECT reservation_id FROM pedidos WHERE id = $1', [id]);
+                if (res && res.rows && res.rows.length) reservationId = res.rows[0].reservation_id || null;
+            } catch (e) {
+                this.logger.warn('No se pudo obtener reservation_id del pedido', { pedidoId: id, error: e?.message || e });
+            }
+
+            const bodyToSend: any = reservationId ? { pedido_id: id, reservation_id: reservationId } : { pedido_id: id };
+            const resp: any = await fetchFn(apiBaseW + '/picking/confirm', { method: 'POST', headers: headersObj, body: JSON.stringify(bodyToSend) });
+            if (!resp || !resp.ok) {
+                const txt = resp ? await resp.text().catch(() => null) : null;
+                this.logger.warn('Warehouse picking confirm failed', { pedidoId: id, status: resp?.status, body: txt });
+                if (resp && resp.status === 401) {
+                    try {
+                        this.logger.debug('Intentando endpoint interno /picking/internal/confirm-open por 401', { pedidoId: id });
+                        const resp2: any = await fetchFn(apiBaseW + '/picking/internal/confirm-open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyToSend) });
+                        if (resp2 && resp2.ok) this.logger.debug('Warehouse picking confirmed via internal endpoint', { pedidoId: id });
+                        else {
+                            const txt2 = resp2 ? await resp2.text().catch(() => null) : null;
+                            this.logger.warn('Warehouse internal picking confirm also failed', { pedidoId: id, status: resp2?.status, body: txt2 });
+                        }
+                    } catch (innerErr) {
+                        this.logger.error('Error calling internal picking confirm', { pedidoId: id, error: innerErr?.message || innerErr });
+                    }
+                }
+            } else {
+                this.logger.debug('Warehouse picking confirmed for pedido', { pedidoId: id });
+            }
+        } catch (err) {
+            this.logger.error('Error notifying warehouse for picking confirm', { pedidoId: id, error: err?.message || err });
+        }
+    }
+
+    private onOrderDelivered(id: string) {
+        this.logger.debug(`Pedido entregado con éxito: ${id}`);
+    }
+
+    private async onPickingCompleted(pickingId: string) {
+        this.logger.debug(`Picking completado recibido: ${pickingId}`);
+        const fetchFn = (globalThis as any).fetch;
+        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+        const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+
+        if (typeof fetchFn !== 'function') {
+            this.logger.warn('Fetch no disponible: no se puede consultar Warehouse para picking', { pickingId });
+            return;
+        }
+
+        try {
+            const headersObj: any = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+            const resp: any = await fetchFn(apiBaseW + '/picking/' + pickingId, { method: 'GET', headers: headersObj });
+            if (!resp || !resp.ok) {
+                const txt = resp ? await resp.text().catch(() => null) : null;
+                this.logger.warn('No se pudo obtener picking desde Warehouse', { pickingId, status: resp?.status, body: txt });
+                return;
+            }
+
+            const pickingJson = await resp.json().catch(() => null);
+            const pedidoId = pickingJson?.pedidoId || pickingJson?.pedido_id || pickingJson?.pedido || null;
+            if (!pedidoId) {
+                this.logger.warn('Picking obtenido no contiene pedido asociado', { pickingId, picking: pickingJson });
+                return;
+            }
+
+            try {
+                await this.ordersService.updateStatus(pedidoId, 'PREPARADO', null, 'Picking completado - actualización automática');
+                this.logger.debug('Pedido marcado como PREPARADO tras picking completado', { pickingId, pedidoId });
+            } catch (err) {
+                this.logger.error('Error actualizando estado del pedido tras picking completado', { pickingId, pedidoId, error: err?.message || err });
+            }
+        } catch (err) {
+            this.logger.error('Error fetching picking from Warehouse', { pickingId, error: err?.message || err });
+        }
+    }
+
+    async onModuleDestroy() {
+        try { await this.pgClient.end(); } catch (_) {}
+    }
+}
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Client } from 'pg'; // Basado en la dependencia 'pg' de tu package.json
 
 @Injectable()
@@ -9,6 +174,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
 
     constructor(private configService: ConfigService) {
         // Configuramos el cliente directamente para tener control total del flujo LISTEN/NOTIFY
+        private readonly ordersService: OrdersService
         this.pgClient = new Client({
             connectionString: this.configService.get<string>('DATABASE_URL'),
         });
@@ -27,6 +193,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
             await this.pgClient.query("LISTEN \"pedido-creado\"");
             await this.pgClient.query("LISTEN \"pedido-aprobado\"");
             await this.pgClient.query("LISTEN \"pedido-entregado\"");
+            await this.pgClient.query("LISTEN \"picking-completado\"");
 
             this.pgClient.on('notification', (notification) => {
                 this.handleNotification(notification);
@@ -41,6 +208,9 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
     }
 
     private handleNotification(notification: any) {
+                    case 'picking-completado':
+                        this.onPickingCompleted(pedidoId);
+                        break;
         const { channel, payload } = notification;
         const pedidoId = payload;
 
@@ -57,6 +227,43 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
             case 'pedido-entregado':
                 this.onOrderDelivered(pedidoId);
                 break;
+        }
+        this.logger.debug(`Picking completado recibido: ${pickingId}`);
+        const fetchFn = (globalThis as any).fetch;
+        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
+        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
+        const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
+
+        if (typeof fetchFn !== 'function') {
+            this.logger.warn('Fetch no disponible: no se puede consultar Warehouse para picking', { pickingId });
+            return;
+        }
+
+        try {
+            const headersObj: any = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
+            const resp: any = await fetchFn(apiBaseW + '/picking/' + pickingId, { method: 'GET', headers: headersObj });
+            if (!resp || !resp.ok) {
+                const txt = resp ? await resp.text().catch(() => null) : null;
+                this.logger.warn('No se pudo obtener picking desde Warehouse', { pickingId, status: resp?.status, body: txt });
+                return;
+            }
+
+            const pickingJson = await resp.json().catch(() => null);
+            const pedidoId = pickingJson?.pedidoId || pickingJson?.pedido_id || pickingJson?.pedido || null;
+            if (!pedidoId) {
+                this.logger.warn('Picking obtenido no contiene pedido asociado', { pickingId, picking: pickingJson });
+                return;
+            }
+
+            // Actualizar estado del pedido a PREPARADO (actor: sistema)
+            try {
+                await this.ordersService.updateStatus(pedidoId, 'PREPARADO', null, 'Picking completado - actualización automática');
+                this.logger.debug('Pedido marcado como PREPARADO tras picking completado', { pickingId, pedidoId });
+            } catch (err) {
+                this.logger.error('Error actualizando estado del pedido tras picking completado', { pickingId, pedidoId, error: err?.message || err });
+            }
+        } catch (err) {
+            this.logger.error('Error fetching picking from Warehouse', { pickingId, error: err?.message || err });
         }
     }
 

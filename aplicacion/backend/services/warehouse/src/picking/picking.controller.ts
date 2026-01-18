@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { PickingService } from './picking.service';
 import { CreatePickingDto } from './dto/create-picking.dto';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
 @Controller('picking')
 export class PickingController {
@@ -62,6 +63,7 @@ export class PickingController {
 
     // Internal helper for local testing: no auth, directly confirm a reservation.
     @Post('internal/confirm-open')
+    @UseGuards(ServiceAuthGuard)
     async confirmOpen(@Body() body: any) {
         const pedidoId = body.pedido_id || body.pedidoId;
         const reservationId = body.reservation_id || body.reservationId || body.reserva_id;

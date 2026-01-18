@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Req, Logger, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Req, Logger, BadRequestException, UseGuards } from '@nestjs/common';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 import { ProductsService } from './products.service';
 import { ClientesService } from '../clientes/clientes.service';
 
@@ -9,21 +10,11 @@ export class ProductsInternalController {
   constructor(private productsService: ProductsService, private clientesService: ClientesService) {}
 
   @Post('batch')
+  @UseGuards(ServiceAuthGuard)
   async batch(@Body() body: { ids: string[]; cliente_id?: string }, @Req() req: any) {
     const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
     if (!ids.length) throw new BadRequestException('ids is required');
-
-    // Seguridad S2S: acepta SERVICE_TOKEN header Bearer
-    const serviceToken = process.env.SERVICE_TOKEN;
-    const auth = (req.headers?.authorization || '').toString();
-    if (serviceToken) {
-      const expected = `Bearer ${serviceToken}`;
-      if (auth !== expected) {
-        // If token not provided, still allow if caller is authenticated via JWT (e.g., admin)
-        // But since this internal endpoint is intended for S2S, reject otherwise
-        throw new BadRequestException('Unauthorized internal access');
-      }
-    }
+    // ahora protegido por ServiceAuthGuard
 
     let clienteListaId: number | null = null;
     if (body.cliente_id) {

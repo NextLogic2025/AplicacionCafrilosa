@@ -1,5 +1,9 @@
+version: '3.8'
+
 services:
-  # --- BASE DE DATOS (Ya la tenías) ---
+  # =========================================
+  # 1. CAPA DE DATOS (PostgreSQL + PostGIS)
+  # =========================================
   database:
     image: postgis/postgis:17-3.4-alpine
     container_name: gcp-sql-local
@@ -15,7 +19,6 @@ services:
     networks:
       - app-network
 
-  # --- PGADMIN (Ya lo tenías) ---
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin-local
@@ -29,72 +32,11 @@ services:
     networks:
       - app-network
 
-  # --- NUEVO: MICROSERVICIO USUARIOS ---
-  usuarios-service:
-    build:
-      context: ./backend/services/usuarios  # 👈 Docker buscará el Dockerfile aquí
-      dockerfile: Dockerfile
-    container_name: usuarios-service
-    restart: on-failure
-    ports:
-      - "3002:3000"  # 👈 Tu PC (3002) -> Contenedor (3000)
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
-      - JWT_EXPIRES_IN=1h
-    depends_on:
-      - database
-    networks:
-      - app-network
+  # =========================================
+  # 2. MICROSERVICIOS DE NEGOCIO
+  # =========================================
 
-  # --- NUEVO: MICROSERVICIO CATALOG ---
-  catalog-service:
-    build:
-      context: ./backend/services/catalog
-      dockerfile: Dockerfile
-    container_name: catalog-service
-    restart: on-failure
-    ports:
-      - "3003:3000"  # Host 3003 -> Contenedor 3000
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
-      - JWT_EXPIRES_IN=1h
-      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
-      - SERVICE_TOKEN=MiTokenS2S123
-    depends_on:
-      - database
-    networks:
-      - app-network
-
-  # --- NUEVO: MICROSERVICIO ORDERS ---
-  orders-service:
-    build:
-      context: ./backend/services/orders
-      dockerfile: Dockerfile
-    container_name: orders-service
-    restart: on-failure
-    ports:
-      - "3004:3000"  # Host 3004 -> Contenedor 3000
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgres://admin:root@database:5432/orders_db
-      - CATALOG_SERVICE_URL=http://catalog-service:3000
-      - SERVICE_TOKEN=MiTokenS2S123
-      - JWT_SECRET=MiSecretoSuperSeguro2025
-      - JWT_EXPIRES_IN=1h
-    depends_on:
-      - database
-      - catalog-service
-    networks:
-      - app-network
-
-  # --- NUEVO: MICROSERVICIO AUTH (login/refresh/logout) ---
+  # --- AUTH SERVICE ---
   auth-service:
     build:
       context: ./backend/services/auth
@@ -102,19 +44,91 @@ services:
     container_name: auth-service
     restart: on-failure
     ports:
-      - "3001:3000"  # Host 3001 -> Contenedor 3000
+      - "3001:3000"
     environment:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
       - JWT_SECRET=MiSecretoSuperSeguro2025
       - JWT_EXPIRES_IN=1h
+      # Seguridad interna S2S
+      - SERVICE_TOKEN=MiTokenS2S123
     depends_on:
       - database
     networks:
       - app-network
-  
-    # --- NUEVO: MICROSERVICIO WAREHOUSE ---
+
+  # --- USUARIOS SERVICE ---
+  usuarios-service:
+    build:
+      context: ./backend/services/usuarios
+      dockerfile: Dockerfile
+    container_name: usuarios-service
+    restart: on-failure
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      # Seguridad interna S2S
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- CATALOG SERVICE ---
+  catalog-service:
+    build:
+      context: ./backend/services/catalog
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    restart: on-failure
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      # Seguridad interna S2S (Para validarse y para llamar a otros)
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+    networks:
+      - app-network
+
+  # --- ORDERS SERVICE ---
+  orders-service:
+    build:
+      context: ./backend/services/orders
+      dockerfile: Dockerfile
+    container_name: orders-service
+    restart: on-failure
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/orders_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      # Conexiones Salientes (A quién llama Orders)
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      # Seguridad interna S2S
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+      - catalog-service
+      - warehouse-service
+    networks:
+      - app-network
+
+  # --- WAREHOUSE SERVICE ---
   warehouse-service:
     build:
       context: ./backend/services/warehouse
@@ -122,21 +136,32 @@ services:
     container_name: warehouse-service
     restart: on-failure
     ports:
-      - "3005:3000" # Host 3005 -> Contenedor 3000
+      - "3005:3000"
     environment:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/warehouse_db
       - JWT_SECRET=MiSecretoSuperSeguro2025
-      - JWT_EXPIRES_IN=1h
-      - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes (A quién llama Warehouse)
       - CATALOG_SERVICE_URL=http://catalog-service:3000
       - ORDERS_SERVICE_URL=http://orders-service:3000
+      # Seguridad interna S2S
+      - SERVICE_TOKEN=MiTokenS2S123
     depends_on:
       - database
     networks:
       - app-network
+    # Healthcheck para asegurar que responda
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
+# =========================================
+# 3. REDES Y VOLÚMENES
+# =========================================
 networks:
   app-network:
     driver: bridge
