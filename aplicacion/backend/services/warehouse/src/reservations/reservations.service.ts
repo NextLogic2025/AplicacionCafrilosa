@@ -92,4 +92,16 @@ export class ReservationsService {
       await queryRunner.release();
     }
   }
+
+  async findAll(status?: string) {
+    const where: any = {};
+    if (status) where.status = status;
+    return this.dataSource.manager.find(Reservation, { where, relations: ['items'], order: { createdAt: 'DESC' } });
+  }
+
+  async findOne(id: string) {
+    const res = await this.dataSource.manager.findOne(Reservation, { where: { id }, relations: ['items'] });
+    if (!res) throw new NotFoundException('Reserva no encontrada');
+    return res;
+  }
 }
