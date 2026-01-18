@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { View, Pressable } from 'react-native'
+import { View, Pressable, Text } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -7,7 +7,6 @@ import { Header } from '../../../components/ui/Header'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
-import { GenericItemCard } from '../../../components/ui/GenericItemCard'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
 import { PickingService, type Picking } from '../../../services/api/PickingService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
@@ -133,20 +132,71 @@ export function PickingList({ title = 'Pickings', mine = false, onBack, onCreate
                 emptyState={{
                     icon: 'cube-outline',
                     title: 'Sin pickings',
-                    message: mine ? 'No tienes pickings asignados.' : 'Crea un picking para empezar.',
+                    message: mine
+                        ? 'No tienes pickings asignados. Se asignan al confirmar una reserva o por un supervisor.'
+                        : 'Crea o confirma una reserva para generar pickings.',
                 }}
                 renderItem={(item) => {
                     const colors = estadoColor(item.estado)
+                    const linesText =
+                        item.items && item.items.length
+                            ? `${item.items.length} ${item.items.length === 1 ? 'linea' : 'lineas'}`
+                            : 'Sin lineas'
                     return (
-                        <GenericItemCard
-                            title={`Picking #${item.id?.slice(0, 6) || 'N/A'}`}
-                            subtitle={item.pedidoId ? `Pedido: ${item.pedidoId}` : 'Sin pedido'}
-                            subtitleLabel={estadoLabel(item.estado)}
-                            isActive={item.estado !== 'COMPLETADO'}
-                            placeholderIcon="clipboard-outline"
+                        <Pressable
                             onPress={() => onOpen?.(item.id)}
-                            style={{ borderColor: '#E2E8F0', borderWidth: 1.2 }}
-                        />
+                            className="bg-white rounded-2xl p-4 border border-neutral-100 shadow-sm mb-3"
+                            style={{ elevation: 2, borderColor: '#E2E8F0' }}
+                        >
+                            <View className="flex-row items-start">
+                                <View className="w-11 h-11 rounded-xl bg-neutral-50 items-center justify-center mr-3 border border-neutral-100">
+                                    <Ionicons name="clipboard-outline" size={22} color="#94A3B8" />
+                                </View>
+                                <View className="flex-1">
+                                    <View className="flex-row justify-between items-start">
+                                        <View className="flex-1 pr-2">
+                                            <Text className="text-base font-bold text-neutral-900">
+                                                {`Picking ${item.id?.slice(0, 6) || 'N/D'}`}
+                                            </Text>
+                                            <Text className="text-xs text-neutral-500 mt-1" numberOfLines={1}>
+                                                {item.pedidoId ? `Pedido: ${item.pedidoId}` : 'Sin pedido vinculado'}
+                                            </Text>
+                                        </View>
+                                        <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: colors.bg }}>
+                                            <Text className="text-[10px] font-bold uppercase" style={{ color: colors.text }}>
+                                                {estadoLabel(item.estado)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View className="flex-row items-center gap-2 mt-2">
+                                        <View className="px-2 py-1 rounded-full bg-neutral-100 border border-neutral-200">
+                                            <Text className="text-[11px] font-semibold text-neutral-700">{linesText}</Text>
+                                        </View>
+                                        {item.bodegueroId ? (
+                                            <View className="px-2 py-1 rounded-full bg-blue-50 border border-blue-100">
+                                                <Text className="text-[11px] font-semibold text-blue-700">
+                                                    Asignado
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            <View className="px-2 py-1 rounded-full bg-amber-50 border border-amber-100">
+                                                <Text className="text-[11px] font-semibold text-amber-700">
+                                                    Sin asignar
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    {item.items && item.items.length ? (
+                                        <Text className="text-sm text-neutral-700 mt-2" numberOfLines={1}>
+                                            {(item.items || [])
+                                                .slice(0, 2)
+                                                .map((it) => `${it.nombreProducto || it.productoId?.slice(0, 6) || 'Producto'} • ${it.cantidadSolicitada}`)
+                                                .join(' · ')}
+                                        </Text>
+                                    ) : null}
+                                </View>
+                            </View>
+                        </Pressable>
                     )
                 }}
             />

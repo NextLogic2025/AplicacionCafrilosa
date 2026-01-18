@@ -115,8 +115,10 @@ export default function SellerCheckoutScreen() {
             }
 
             // Vendedor crea pedido desde carrito del cliente
+            // Use usuario_principal_id if available, otherwise fall back to client.id
+            const clientIdentifier = currentClient.usuario_principal_id || currentClient.id
             const newOrder = await OrderService.createOrderFromCart(
-                { type: 'client', clientId: currentClient.id },
+                { type: 'client', clientId: clientIdentifier },
                 payload
             )
 

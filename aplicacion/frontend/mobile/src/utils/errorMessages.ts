@@ -79,6 +79,8 @@ const BACKEND_MESSAGE_PATTERNS: Array<{ pattern: RegExp | string; message: strin
     { pattern: /codigo_ref/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
     { pattern: /codigo_visual/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
     { pattern: /ya existe.*ubicacion/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
+    { pattern: /lote/i, message: 'Este producto no tiene stock disponible en bodega.' },
+    { pattern: /stock insuficiente/i, message: 'No hay stock suficiente para completar la operacion.' },
     { pattern: /token (inválido|expirado|ilegible)/i, message: ERROR_MESSAGES.SESSION_EXPIRED },
     { pattern: /refresh token/i, message: ERROR_MESSAGES.SESSION_EXPIRED },
     { pattern: /network|red|conexión/i, message: ERROR_MESSAGES.NETWORK_ERROR },

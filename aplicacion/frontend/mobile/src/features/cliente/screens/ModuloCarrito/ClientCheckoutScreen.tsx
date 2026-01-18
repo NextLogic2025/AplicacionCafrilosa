@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
     View, Text, ScrollView, TouchableOpacity,
-    ActivityIndicator, Alert, Platform
+    ActivityIndicator, Alert
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -25,7 +26,12 @@ const diasPlazoToCondicion = (dias: number): string => {
 
 export function ClientCheckoutScreen() {
     const navigation = useNavigation()
-    const { cart, clearCart, userId, currentClient } = useCart()
+    // Note: For ClientCheckoutScreen, we ALWAYS use 'me' endpoint since the client is making their own order
+    // The isVendorMode flag is not used here because this screen is only for clients
+    const { cart, clearCart, userId } = useCart()
+    const insets = useSafeAreaInsets()
+    const footerBottomSpacing = insets.bottom + 16
+    const scrollPaddingBottom = footerBottomSpacing + 140
 
     const [clienteData, setClienteData] = useState<Client | null>(null)
     const [sucursales, setSucursales] = useState<ClientBranch[]>([])
@@ -93,9 +99,9 @@ export function ClientCheckoutScreen() {
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
             }
 
-            const target = currentClient
-                ? { type: 'client' as const, clientId: currentClient.id }
-                : { type: 'me' as const }
+            // Client always uses 'me' endpoint - their own cart, their own order
+            // vendedor_id will be null in the backend since this is the client's own order
+            const target = { type: 'me' as const }
 
             const newOrder = await OrderService.createOrderFromCart(target, payload)
 
@@ -141,7 +147,10 @@ export function ClientCheckoutScreen() {
         <View className="flex-1 bg-neutral-50">
             <Header title="Confirmar Pedido" variant="standard" />
 
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 120 }}>
+            <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
+            >
                 {/* 1. Resumen */}
                 <View className="bg-white mt-4 mx-4 p-4 rounded-2xl shadow-sm border border-neutral-100">
                     <Text className="text-lg font-bold text-neutral-800 mb-3">📦 Resumen del Pedido</Text>
@@ -266,7 +275,10 @@ export function ClientCheckoutScreen() {
                 </View>
             </ScrollView>
 
-            <View className="absolute bottom-0 w-full bg-white border-t border-neutral-100 p-4 shadow-lg">
+            <View
+                className="absolute w-full bg-white border-t border-neutral-100 p-4 shadow-lg"
+                style={{ bottom: footerBottomSpacing, paddingBottom: footerBottomSpacing }}
+            >
                 <TouchableOpacity
                     onPress={handleConfirmOrder}
                     disabled={loading}

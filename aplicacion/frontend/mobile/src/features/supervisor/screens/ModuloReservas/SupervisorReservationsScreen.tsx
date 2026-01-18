@@ -18,7 +18,7 @@ export function SupervisorReservationsScreen() {
         <ReservationsList
             title="Reservas"
             onBack={() => navigation.goBack()}
-            onCreate={() => navigation.navigate('SupervisorReservationCreate')}
+            onCreate={undefined}
             onOpen={() => {}}
             refreshToken={localRefresh}
         />

@@ -2,6 +2,7 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import { FlatList, Text, View, Image, TouchableOpacity } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 
 import { EmptyState } from '../../../../components/ui/EmptyState'
@@ -12,6 +13,9 @@ import { useCart } from '../../../../context/CartContext'
 export function ClientCartScreen() {
   const navigation = useNavigation()
   const { cart, items, updateQuantity, removeItem, totalItems, clearCart } = useCart()
+  const insets = useSafeAreaInsets()
+  const priceSummaryHeight = 280
+  const listPaddingBottom = priceSummaryHeight + insets.bottom + 24
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [showPriceDetails, setShowPriceDetails] = React.useState(true)
 
@@ -197,11 +201,14 @@ export function ClientCartScreen() {
         data={items}
         keyExtractor={item => item.id}
         renderItem={renderCartItem}
-        contentContainerStyle={{ padding: 20, paddingBottom: 380 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: listPaddingBottom }}
         showsVerticalScrollIndicator={false}
       />
 
-      <View className="absolute bottom-20 left-0 right-0 bg-white p-5 pb-6 border-t border-neutral-200 shadow-lg rounded-t-3xl">
+      <View
+        className="absolute left-0 right-0 bg-white p-5 border-t border-neutral-200 shadow-lg rounded-t-3xl"
+        style={{ bottom: insets.bottom + 20, paddingBottom: 20 + insets.bottom }}
+      >
         <TouchableOpacity
           className="flex-row justify-between items-center py-2 mb-2"
           onPress={() => setShowPriceDetails(!showPriceDetails)}

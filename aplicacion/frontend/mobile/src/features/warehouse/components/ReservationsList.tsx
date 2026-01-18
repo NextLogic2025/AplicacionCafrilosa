@@ -1,16 +1,12 @@
 import React, { useMemo, useState } from 'react'
-import { View, Pressable, Alert } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Ionicons } from '@expo/vector-icons'
+import { View, Text, Pressable } from 'react-native'
 
 import { Header } from '../../../components/ui/Header'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
-import { GenericItemCard } from '../../../components/ui/GenericItemCard'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
-import { BRAND_COLORS } from '../../../shared/types'
-import { type Reservation } from '../../../services/api/ReservationService'
+import { ReservationService, type Reservation } from '../../../services/api/ReservationService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 
 type Props = {
@@ -26,9 +22,19 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
     const [status, setStatus] = useState<string>('ACTIVE')
     const [loading, setLoading] = useState(false)
     const [reservations, setReservations] = useState<Reservation[]>([])
+    const [infoMessage, setInfoMessage] = useState<string>('')
     const [modalState, setModalState] = useState<{ visible: boolean; type: FeedbackType; title: string; message: string }>({
         visible: false,
         type: 'info',
+        title: '',
+        message: '',
+    })
+    const [confirmModal, setConfirmModal] = useState<{ visible: boolean; mode: 'confirm' | 'cancel'; id?: string }>({
+        visible: false,
+        mode: 'confirm',
+    })
+    const [detailModal, setDetailModal] = useState<{ visible: boolean; title: string; message: string }>({
+        visible: false,
         title: '',
         message: '',
     })
@@ -38,13 +44,10 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
         try {
             const data = await ReservationService.list()
             setReservations(Array.isArray(data) ? data : [])
+            setInfoMessage('')
         } catch (error) {
-            setModalState({
-                visible: true,
-                type: 'error',
-                title: 'No se pudo cargar',
-                message: getUserFriendlyMessage(error, 'LOAD_ERROR'),
-            })
+            setReservations([])
+            setInfoMessage('Las reservas se generan automaticamente al aprobar pedidos.')
         } finally {
             setLoading(false)
         }
@@ -74,56 +77,77 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
     }, [reservations, search, status])
 
     const handleCancel = (id: string) => {
-        Alert.alert('Cancelar reserva', 'Se liberara el stock reservado. Continuar?', [
-            { text: 'No', style: 'cancel' },
-            {
-                text: 'Si, cancelar',
-                style: 'destructive',
-                onPress: async () => {
-                    setLoading(true)
-                    try {
-                        await ReservationService.cancel(id)
-                        setModalState({ visible: true, type: 'success', title: 'Reserva cancelada', message: 'Stock liberado.' })
-                        await loadData()
-                    } catch (error) {
-                        setModalState({
-                            visible: true,
-                            type: 'error',
-                            title: 'No se pudo cancelar',
-                            message: getUserFriendlyMessage(error, 'DELETE_ERROR'),
-                        })
-                    } finally {
-                        setLoading(false)
-                    }
-                },
-            },
-        ])
+        setConfirmModal({ visible: true, mode: 'cancel', id })
     }
 
     const handleConfirm = (id: string) => {
-        Alert.alert('Confirmar reserva', 'Se generara el picking asociado. Continuar?', [
-            { text: 'No', style: 'cancel' },
-            {
-                text: 'Confirmar',
-                onPress: async () => {
-                    setLoading(true)
-                    try {
-                        await ReservationService.confirm(id)
-                        setModalState({ visible: true, type: 'success', title: 'Reserva confirmada', message: 'Se generara el picking.' })
-                        await loadData()
-                    } catch (error) {
-                        setModalState({
-                            visible: true,
-                            type: 'error',
-                            title: 'No se pudo confirmar',
-                            message: getUserFriendlyMessage(error, 'UPDATE_ERROR'),
-                        })
-                    } finally {
-                        setLoading(false)
-                    }
-                },
-            },
-        ])
+        setConfirmModal({ visible: true, mode: 'confirm', id })
+    }
+
+    const executeAction = async (mode: 'confirm' | 'cancel', id?: string) => {
+        if (!id) return
+        setConfirmModal((prev) => ({ ...prev, visible: false }))
+        setLoading(true)
+        try {
+            if (mode === 'confirm') {
+                await ReservationService.confirm(id)
+                setModalState({ visible: true, type: 'success', title: 'Reserva confirmada', message: 'Se generara el picking.' })
+            } else {
+                await ReservationService.cancel(id)
+                setModalState({ visible: true, type: 'success', title: 'Reserva cancelada', message: 'Stock liberado.' })
+            }
+            await loadData()
+        } catch (error) {
+            setModalState({
+                visible: true,
+                type: 'error',
+                title: mode === 'confirm' ? 'No se pudo confirmar' : 'No se pudo cancelar',
+                message: getUserFriendlyMessage(error, mode === 'confirm' ? 'UPDATE_ERROR' : 'DELETE_ERROR'),
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const openDetails = (reservation: Reservation) => {
+        if (!reservation.items?.length) {
+            setDetailModal({
+                visible: true,
+                title: 'Detalle de reserva',
+                message: 'No hay items vinculados en esta reserva.',
+            })
+            return
+        }
+
+        const message = reservation.items
+            .map((item, index) => {
+                const label = item.sku || 'Producto'
+                const ubic = item.stockUbicacionId ? ` • Ubicación: ${String(item.stockUbicacionId).slice(0, 8)}` : ''
+                return `${index + 1}) ${label} • Cantidad: ${item.quantity}${ubic}`
+            })
+            .join('\n')
+
+        setDetailModal({
+            visible: true,
+            title: 'Detalle de reserva',
+            message,
+        })
+    }
+
+    const renderStatusBadge = (value: Reservation['status']) => {
+        const map = {
+            ACTIVE: { text: 'Activo', bg: '#E8FFF3', color: '#16A34A' },
+            CONFIRMED: { text: 'Confirmada', bg: '#EEF2FF', color: '#4338CA' },
+            CANCELLED: { text: 'Cancelada', bg: '#FEF2F2', color: '#B91C1C' },
+        } as const
+        const conf = map[value] || map.ACTIVE
+        return (
+            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: conf.bg }}>
+                <Text className="text-[10px] font-bold uppercase" style={{ color: conf.color }}>
+                    {conf.text}
+                </Text>
+            </View>
+        )
     }
 
     return (
@@ -139,22 +163,6 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
                         onClear={() => setSearch('')}
                         style={{ flex: 1 }}
                     />
-                    {onCreate ? (
-                        <Pressable
-                            onPress={onCreate}
-                            className="rounded-2xl shadow-md shadow-black/15"
-                            style={{ width: 52, height: 52, overflow: 'hidden' }}
-                        >
-                            <LinearGradient
-                                colors={[BRAND_COLORS.red, (BRAND_COLORS as any).red700 || BRAND_COLORS.red]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-                            >
-                                <Ionicons name="add" size={26} color="#fff" />
-                            </LinearGradient>
-                        </Pressable>
-                    ) : null}
                 </View>
                 <View className="-mx-5 mt-3">
                     <CategoryFilter categories={filters} selectedId={status} onSelect={(id) => setStatus(String(id))} />
@@ -168,20 +176,66 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
                 emptyState={{
                     icon: 'cube-outline',
                     title: 'Sin reservas',
-                    message: 'Crea una reserva para bloquear stock.',
+                    message: infoMessage || 'Las reservas se generan automaticamente al aprobar pedidos.',
                 }}
-                renderItem={(item) => (
-                    <GenericItemCard
-                        title={`Reserva ${item.id.slice(0, 6)}`}
-                        subtitle={item.tempId ? `Temp: ${item.tempId}` : `Estado: ${item.status}`}
-                        subtitleLabel={item.status}
-                        isActive={item.status === 'ACTIVE'}
-                        placeholderIcon="lock-closed-outline"
-                        onPress={() => onOpen?.(item.id)}
-                        onDelete={item.status === 'ACTIVE' ? () => handleCancel(item.id) : undefined}
-                        style={{ borderColor: '#E2E8F0', borderWidth: 1.2 }}
-                    />
-                )}
+                renderItem={(item) => {
+                    const preview =
+                        item.items && item.items.length
+                            ? item.items
+                                  .slice(0, 2)
+                                  .map((it) => `${it.sku || 'Producto'} • ${it.quantity}`)
+                                  .join(' · ')
+                            : 'Sin items disponibles'
+
+                    return (
+                        <View className="bg-white rounded-2xl p-4 border border-neutral-100 shadow-sm mb-3">
+                            <View className="flex-row items-start">
+                                <View className="w-11 h-11 rounded-xl bg-neutral-50 items-center justify-center mr-3 border border-neutral-100">
+                                    <Text className="text-neutral-400 font-black text-lg">R</Text>
+                                </View>
+                                <View className="flex-1">
+                                    <View className="flex-row justify-between items-start">
+                                        <Text className="text-base font-bold text-neutral-900">
+                                            {`Reserva ${item.id.slice(0, 6)}`}
+                                        </Text>
+                                        {renderStatusBadge(item.status)}
+                                    </View>
+                                    <Text className="text-xs text-neutral-500 mt-1" numberOfLines={1}>
+                                        {item.tempId ? `Temp: ${item.tempId}` : 'Generada automaticamente'}
+                                    </Text>
+                                    <Text className="text-sm text-neutral-700 mt-2" numberOfLines={2}>
+                                        {preview}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View className="flex-row mt-3 justify-end gap-2">
+                                <Pressable
+                                    className="px-3 py-2 rounded-full bg-neutral-100"
+                                    onPress={() => openDetails(item)}
+                                >
+                                    <Text className="text-xs font-semibold text-neutral-700">Ver detalle</Text>
+                                </Pressable>
+                                {item.status === 'ACTIVE' ? (
+                                    <>
+                                        <Pressable
+                                            className="px-3 py-2 rounded-full bg-emerald-500"
+                                            onPress={() => handleConfirm(item.id)}
+                                        >
+                                            <Text className="text-xs font-semibold text-white">Confirmar</Text>
+                                        </Pressable>
+                                        <Pressable
+                                            className="px-3 py-2 rounded-full bg-neutral-100 border border-neutral-200"
+                                            onPress={() => handleCancel(item.id)}
+                                        >
+                                            <Text className="text-xs font-semibold text-neutral-700">Cancelar</Text>
+                                        </Pressable>
+                                    </>
+                                ) : null}
+                            </View>
+                        </View>
+                    )
+                }}
             />
 
             <FeedbackModal
@@ -190,6 +244,31 @@ export function ReservationsList({ title = 'Reservas', onBack, onCreate, onOpen,
                 title={modalState.title}
                 message={modalState.message}
                 onClose={() => setModalState((prev) => ({ ...prev, visible: false }))}
+            />
+
+            <FeedbackModal
+                visible={confirmModal.visible}
+                type="warning"
+                title={confirmModal.mode === 'confirm' ? 'Confirmar reserva' : 'Cancelar reserva'}
+                message={
+                    confirmModal.mode === 'confirm'
+                        ? 'Se generara el picking asociado. Deseas continuar?'
+                        : 'Se liberara el stock reservado. Deseas continuar?'
+                }
+                showCancel
+                cancelText="No"
+                confirmText={confirmModal.mode === 'confirm' ? 'Confirmar' : 'Cancelar'}
+                onClose={() => setConfirmModal((prev) => ({ ...prev, visible: false }))}
+                onConfirm={() => executeAction(confirmModal.mode, confirmModal.id)}
+            />
+
+            <FeedbackModal
+                visible={detailModal.visible}
+                type="info"
+                title={detailModal.title}
+                message={detailModal.message}
+                onClose={() => setDetailModal({ visible: false, title: '', message: '' })}
+                confirmText="Cerrar"
             />
         </View>
     )

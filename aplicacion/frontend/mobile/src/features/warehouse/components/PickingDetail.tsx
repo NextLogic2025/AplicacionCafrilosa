@@ -8,7 +8,6 @@ import { PrimaryButton } from '../../../components/ui/PrimaryButton'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
 import { PickingService, type Picking, type PickingItem } from '../../../services/api/PickingService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
-import { BRAND_COLORS } from '../../../shared/types'
 
 type Props = {
     pickingId: string
@@ -129,9 +128,29 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
             <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
                 {picking ? (
                     <View className="bg-white p-4 rounded-3xl border border-neutral-100 shadow-sm">
-                        <Text className="text-lg font-extrabold text-neutral-900">Picking #{picking.id?.slice(0, 6)}</Text>
-                        <Text className="text-sm text-neutral-600 mt-1">Estado: {picking.estado}</Text>
-                        <Text className="text-sm text-neutral-600 mt-1">Pedido: {picking.pedidoId ?? 'N/D'}</Text>
+                        <View className="flex-row justify-between items-start">
+                            <View className="flex-1 pr-3">
+                                <Text className="text-lg font-extrabold text-neutral-900">Picking #{picking.id?.slice(0, 6)}</Text>
+                                <Text className="text-sm text-neutral-600 mt-1">
+                                    Pedido: {picking.pedidoId ?? 'No vinculado'}
+                                </Text>
+                            </View>
+                            <View className="px-3 py-1 rounded-full bg-blue-50 border border-blue-100">
+                                <Text className="text-[11px] font-bold text-blue-700 uppercase">{picking.estado}</Text>
+                            </View>
+                        </View>
+                        <View className="flex-row gap-2 mt-3">
+                            <View className="px-3 py-1 rounded-full bg-neutral-100 border border-neutral-200">
+                                <Text className="text-[11px] font-semibold text-neutral-700">
+                                    {picking.items?.length || 0} lineas
+                                </Text>
+                            </View>
+                            <View className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100">
+                                <Text className="text-[11px] font-semibold text-emerald-700">
+                                    {picking.bodegueroId ? 'Asignado' : 'Sin asignar'}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 ) : null}
 
@@ -149,6 +168,12 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                     {item.loteSugerido ? (
                                         <Text className="text-xs text-neutral-500 mt-1">Lote sugerido: {item.loteSugerido}</Text>
                                     ) : null}
+                                </View>
+                                <View className="px-3 py-1 rounded-full bg-neutral-100 border border-neutral-200">
+                                    <Text className="text-[11px] font-semibold text-neutral-700">
+                                        Pendiente:{' '}
+                                        {(item.cantidadSolicitada || 0) - (item.cantidadPickeada || 0)}
+                                    </Text>
                                 </View>
                             </View>
 

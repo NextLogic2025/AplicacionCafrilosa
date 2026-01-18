@@ -30,7 +30,6 @@ import { SupervisorPickingListScreen } from '../features/supervisor/screens/Modu
 import { SupervisorPickingDetailScreen } from '../features/supervisor/screens/ModuloPicking/SupervisorPickingDetailScreen'
 import { SupervisorPickingCreateScreen } from '../features/supervisor/screens/ModuloPicking/SupervisorPickingCreateScreen'
 import { SupervisorReservationsScreen } from '../features/supervisor/screens/ModuloReservas/SupervisorReservationsScreen'
-import { SupervisorReservationCreateScreen } from '../features/supervisor/screens/ModuloReservas/SupervisorReservationCreateScreen'
 import { SupervisorReturnsScreen } from '../features/supervisor/screens/ModuloDevoluciones/SupervisorReturnsScreen'
 import { SupervisorReportsScreen } from '../features/supervisor/screens/ModuloReportes/SupervisorReportsScreen'
 import { SupervisorAlertsScreen } from '../features/supervisor/screens/ModuloAlertas/SupervisorAlertsScreen'
@@ -138,7 +137,6 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorPickingDetail" component={SupervisorPickingDetailScreen} />
             <Stack.Screen name="SupervisorPickingCreate" component={SupervisorPickingCreateScreen} />
             <Stack.Screen name="SupervisorReservations" component={SupervisorReservationsScreen} />
-            <Stack.Screen name="SupervisorReservationCreate" component={SupervisorReservationCreateScreen} />
             <Stack.Screen name="SupervisorReturns" component={SupervisorReturnsScreen} />
             <Stack.Screen name="SupervisorReports" component={SupervisorReportsScreen} />
             <Stack.Screen name="SupervisorAlerts" component={SupervisorAlertsScreen} />

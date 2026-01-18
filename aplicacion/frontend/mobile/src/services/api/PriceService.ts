@@ -14,6 +14,33 @@ export interface PriceAssignment {
     precio: number
 }
 
+export interface PriceListProductPromotion {
+    campana_id?: number
+    campana_nombre?: string
+    tipo_descuento?: string
+    valor_descuento?: number
+    precio_oferta?: number
+}
+
+export interface PriceListProduct {
+    id: string
+    codigo_sku: string
+    nombre: string
+    unidad_medida?: string
+    precio_lista: number
+    promociones: PriceListProductPromotion[]
+}
+
+export interface PriceListProductsResponse {
+    metadata: {
+        total_items: number
+        page: number
+        per_page: number
+        total_pages: number
+    }
+    items: PriceListProduct[]
+}
+
 export const PriceService = {
     getLists: async (): Promise<PriceList[]> => {
         return apiRequest<PriceList[]>(endpoints.catalog.preciosListas)
@@ -54,5 +81,22 @@ export const PriceService = {
         return apiRequest(endpoints.catalog.preciosListaProducto(listaId, productoId), {
             method: 'DELETE'
         })
+    },
+
+    getProductsForList: async (
+        listId: number,
+        page: number = 1,
+        perPage: number = 20,
+        search?: string
+    ): Promise<PriceListProductsResponse> => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
+        if (search) params.append('q', search)
+
+        return apiRequest<PriceListProductsResponse>(
+            `${endpoints.catalog.preciosListaProductos(listId)}?${params.toString()}`
+        )
     }
 }

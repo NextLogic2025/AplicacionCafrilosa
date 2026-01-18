@@ -18,7 +18,7 @@ export function WarehouseReservationsScreen() {
         <ReservationsList
             title="Reservas"
             onBack={() => navigation.goBack()}
-            onCreate={() => navigation.navigate('WarehouseReservationCreate')}
+            onCreate={undefined}
             onOpen={() => {}}
             refreshToken={localRefresh}
         />
