@@ -16,7 +16,19 @@ export class PickingController {
     @Get()
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
-    findAll(@Query('estado') estado?: string) {
+    findAll(@Query('estado') estado?: string, @Query('all') all?: string, @Req() req?: any) {
+        // If requester is a bodeguero and did not explicitly request all entries,
+        // return only orders assigned to or available for that bodeguero.
+        const user = req?.user;
+        const roles = Array.isArray(user?.role) ? user.role : [user?.role];
+        const hasRoleBodeguero = roles.map(r => String(r || '').toLowerCase()).includes('bodeguero');
+        const hasRolIdBodeguero = Number(user?.rolId) === 3;
+
+        if ((hasRoleBodeguero || hasRolIdBodeguero) && !all) {
+            // Bodegueros should see only orders that do NOT have a bodeguero assigned (available to take)
+            return this.service.findAvailable();
+        }
+
         return this.service.findAll(estado);
     }
 
@@ -78,6 +90,14 @@ export class PickingController {
         return this.service.asignarBodeguero(id, body.bodegueroId);
     }
 
+    @Post(':id/tomar')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles('bodeguero')
+    tomar(@Param('id') id: string, @Req() req: any) {
+        const usuarioId = req.user?.userId;
+        return this.service.asignarBodeguero(id, usuarioId);
+    }
+
     @Post(':id/iniciar')
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
@@ -89,9 +109,10 @@ export class PickingController {
     @Post(':id/completar')
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
-    completar(@Param('id') id: string, @Req() req: any) {
+    completar(@Param('id') id: string, @Req() req: any, @Body() body?: any) {
         const usuarioId = req.user?.userId;
-        return this.service.completarPicking(id, usuarioId);
+        const observacionesBodega = body?.observacionesBodega || body?.observaciones_bodega || null;
+        return this.service.completarPicking(id, usuarioId, observacionesBodega);
     }
 
     @Post(':id/items/:itemId/pickear')

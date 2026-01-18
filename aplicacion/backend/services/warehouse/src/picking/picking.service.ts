@@ -39,10 +39,23 @@ export class PickingService {
     }
 
     findByBodeguero(bodegueroId: string) {
+        // Return orders explicitly assigned to this bodeguero
         return this.ordenRepo.find({
             where: { bodegueroAsignadoId: bodegueroId, deletedAt: IsNull() },
             order: { prioridad: 'DESC', createdAt: 'ASC' },
         });
+    }
+
+    findAvailable() {
+        // Orders without an assigned bodeguero (available to be taken)
+        return this.ordenRepo
+            .createQueryBuilder('p')
+            .where('p.deleted_at IS NULL')
+            .andWhere('p.bodeguero_asignado_id IS NULL')
+            .andWhere("p.estado != 'COMPLETADO'")
+            .orderBy('p.prioridad', 'DESC')
+            .addOrderBy('p.created_at', 'ASC')
+            .getMany();
     }
 
     async findOne(id: string) {
@@ -58,13 +71,13 @@ export class PickingService {
         return { ...orden, items };
     }
 
-    async create(dto: { pedidoId: string; items: any[] }) {
+    async create(dto: { pedidoId: string; items: any[]; estado?: string }) {
         const existe = await this.ordenRepo.findOne({ where: { pedidoId: dto.pedidoId } });
         if (existe) throw new BadRequestException('Ya existe una orden de picking para este pedido');
 
         const orden = this.ordenRepo.create({
             pedidoId: dto.pedidoId,
-            estado: 'ASIGNADO',
+            estado: dto.estado || 'ASIGNADO',
             prioridad: 1,
         });
         const saved: PickingOrden = await this.ordenRepo.save(orden);
@@ -169,10 +182,16 @@ export class PickingService {
 
     async asignarBodeguero(id: string, bodegueroId: string) {
         const orden = await this.findOne(id);
-        if (orden.estado !== 'ASIGNADO') throw new BadRequestException('Orden ya fue tomada o completada');
+        if (orden.estado === 'COMPLETADO') throw new BadRequestException('Orden ya fue completada');
+
+        if (orden.bodegueroAsignadoId && orden.bodegueroAsignadoId !== bodegueroId) {
+            throw new BadRequestException('Orden ya está asignada a otro bodeguero');
+        }
 
         await this.ordenRepo.update(id, {
             bodegueroAsignadoId: bodegueroId,
+            // when assigning, ensure estado reflects assignment if it was pending
+            estado: orden.estado === 'PENDIENTE' ? 'ASIGNADO' : orden.estado,
             updatedAt: new Date(),
         } as any);
 
@@ -220,7 +239,7 @@ export class PickingService {
         return item;
     }
 
-    async completarPicking(id: string, usuarioId: string) {
+    async completarPicking(id: string, usuarioId: string, observacionesBodega?: string) {
         const orden = await this.findOne(id);
 
         if (orden.bodegueroAsignadoId !== usuarioId) {
@@ -264,11 +283,15 @@ export class PickingService {
             });
         }
 
-        await this.ordenRepo.update(id, {
+        const updatePayload: any = {
             estado: 'COMPLETADO',
             fechaFin: new Date(),
             updatedAt: new Date(),
-        } as any);
+        };
+
+        if (observacionesBodega) updatePayload.observacionesBodega = observacionesBodega;
+
+        await this.ordenRepo.update(id, updatePayload as any);
 
         return this.findOne(id);
     }
@@ -321,7 +344,7 @@ export class PickingService {
         const effectivePedidoId = pedidoId || reservation.tempId || reservation.id;
 
         // Create picking using existing create logic (will reserve stock where possible)
-        const picking = await this.create({ pedidoId: effectivePedidoId, items });
+        const picking = await this.create({ pedidoId: effectivePedidoId, items, estado: 'PENDIENTE' });
 
         // Mark reservation as CONFIRMED
         await this.reservationRepo.update(reservationId, { status: 'CONFIRMED' } as any);
