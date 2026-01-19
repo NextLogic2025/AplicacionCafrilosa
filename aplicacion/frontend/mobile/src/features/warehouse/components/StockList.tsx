@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { View, Pressable } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -15,6 +15,7 @@ import { UbicacionService, type Ubicacion } from '../../../services/api/Ubicacio
 import { CatalogService, type Product } from '../../../services/api/CatalogService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type EnrichedStock = StockItem & {
     loteNumero?: string
@@ -43,8 +44,7 @@ export function StockList({ title = 'Stock', onBack, onCreate, onOpen, refreshTo
         message: '',
     })
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const [stock, lotes, ubicaciones, productos] = await Promise.all([
                 StockService.list(),
@@ -76,6 +76,15 @@ export function StockList({ title = 'Stock', onBack, onCreate, onOpen, refreshTo
             })
             setItems(mapped)
         } catch (error) {
+            console.error('Error loading stock:', error)
+        }
+    }, [])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
+        } catch (error) {
             setModalState({
                 visible: true,
                 type: 'error',
@@ -85,12 +94,14 @@ export function StockList({ title = 'Stock', onBack, onCreate, onOpen, refreshTo
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     React.useEffect(() => {
-        loadData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshToken])
+        loadDataWithLoading()
+    }, [refreshToken, loadDataWithLoading])
 
     const filters = useMemo(
         () => [
@@ -153,7 +164,7 @@ export function StockList({ title = 'Stock', onBack, onCreate, onOpen, refreshTo
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'cube-outline',
                     title: 'Sin stock',

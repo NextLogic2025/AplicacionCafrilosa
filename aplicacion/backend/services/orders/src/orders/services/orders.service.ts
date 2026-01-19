@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException, ConflictException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, NotFoundException, InternalServerErrorException, Inject, forwardRef, Logger, BadRequestException, ConflictException, HttpException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Pedido } from '../entities/pedido.entity';
@@ -8,45 +7,29 @@ import { PromocionAplicada } from '../entities/promocion-aplicada.entity';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { CartService } from './cart.service';
+import { ServiceHttpClient } from '../../common/http/service-http-client.service';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
-
-  private maskToken(token?: string) {
-    if (!token) return 'none';
-    try {
-      if (token.length <= 8) return '****';
-      return token.slice(0, 4) + '...' + token.slice(-4);
-    } catch {
-      return '****';
-    }
-  }
   constructor(
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
-    private readonly configService: ConfigService,
-  ) {}
+    private readonly serviceHttp: ServiceHttpClient,
+  ) { }
 
   // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
   private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
     if (!campaniaId) return false;
     // Preferir llamada al servicio Catalog si está disponible
-    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-    const url = base.replace(/\/+$/, '') + '/promociones/' + campaniaId + '/productos';
     try {
-      const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-      const fetchFn = (globalThis as any).fetch;
-      if (typeof fetchFn === 'function') {
-        const apiUrl = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api') + '/promociones/' + campaniaId + '/productos';
-        const resp: any = await fetchFn(apiUrl, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
-        if (!resp || !resp.ok) return false;
-        const data = await resp.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-        return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
-      }
-      return false;
+      const data = await this.serviceHttp.get<any>(
+        'catalog-service',
+        `/promociones/${campaniaId}/productos`,
+      );
+      const items = Array.isArray(data?.items) ? data.items : [];
+      return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
     } catch (err) {
       this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
       return false;
@@ -99,19 +82,12 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     // Variables que deben estar en scope para manejar compensación en catch
-    let fetchFn: any = (globalThis as any).fetch;
-    let serviceToken: string | undefined = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
     let reservationId: string | null = null;
 
     try {
       // Antes de calcular totales, obtener precios canónicos desde Catalog
-      const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-
       // Reserva síncrona en Warehouse (Camino Dorado)
-      let reservationId: string | null = null;
       try {
-        const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
-        const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
         const tempId = (globalThis as any).crypto && typeof (globalThis as any).crypto.randomUUID === 'function'
           ? (globalThis as any).crypto.randomUUID()
           : ('resv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
@@ -128,33 +104,23 @@ export class OrdersService {
           pedido_temp_id: tempId
         };
 
-        this.logger.debug('Attempting warehouse reservation', { url: apiBaseW + '/reservations', items: reservationBody.items?.length });
+        this.logger.debug('Attempting warehouse reservation', { items: reservationBody.items?.length });
         // Log payload to help debugging propagation of sku to Warehouse
         this.logger.debug('Reservation payload', { reservationBody });
-        if (typeof fetchFn === 'function') {
-          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-          const resp: any = await fetchFn(apiBaseW + '/reservations', { method: 'POST', headers: headersObj, body: JSON.stringify(reservationBody) });
-          if (!resp) throw new BadRequestException('No response from warehouse service');
-          if (resp.status === 409) {
-            // Stock insuficiente
-            throw new BadRequestException('Stock insuficiente para los items del pedido');
-          }
-          if (!resp.ok) {
-            const txt = await resp.text().catch(() => null);
-            this.logger.warn('Warehouse reservation failed', { status: resp.status, body: txt });
-            throw new InternalServerErrorException('Error reservando stock en Warehouse');
-          }
-          const data = await resp.json();
-          reservationId = data?.id ?? tempId;
-          this.logger.debug('Warehouse reservation created', { reservationId });
-        } else {
-          this.logger.warn('Fetch no disponible para reservar stock en Warehouse');
-          throw new InternalServerErrorException('Fetch no disponible');
-        }
+        const data = await this.serviceHttp.post<any>(
+          'warehouse-service',
+          '/reservations',
+          reservationBody,
+        );
+        reservationId = data?.id ?? tempId;
+        this.logger.debug('Warehouse reservation created', { reservationId });
       } catch (resErr) {
         this.logger.warn('Reservation error, aborting order create', { error: resErr?.message || resErr });
         // Exponer error hacia el cliente: stock insuficiente o warehouse caído
         if (resErr instanceof BadRequestException) throw resErr;
+        if (resErr instanceof HttpException && resErr.getStatus() === 409) {
+          throw new BadRequestException('Stock insuficiente para los items del pedido');
+        }
         throw new BadRequestException('Stock insuficiente o servicio de Warehouse no disponible');
       }
 
@@ -162,14 +128,13 @@ export class OrdersService {
         try {
           // 1) Intentar obtener la mejor promoción para el cliente
           let best: any = null;
-          if (typeof fetchFn === 'function') {
-            const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-            const promoUrl = apiBase + '/promociones/internal/mejor/producto/' + item.producto_id + '?cliente_id=' + createOrderDto.cliente_id;
-            const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-            this.logger.debug('Calling Catalog (promo) ' + promoUrl + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
-            const resp: any = await fetchFn(promoUrl, { headers: headersObj });
-            if (resp && resp.ok) best = await resp.json();
-            else this.logger.debug('Catalog promo call not ok', { promoUrl, status: resp?.status });
+          try {
+            best = await this.serviceHttp.get<any>(
+              'catalog-service',
+              `/promociones/internal/mejor/producto/${item.producto_id}?cliente_id=${createOrderDto.cliente_id}`,
+            );
+          } catch (err) {
+            this.logger.debug('Catalog promo call not ok', { producto_id: item.producto_id, error: err?.message || err });
           }
 
           if (best && best.precio_final != null) {
@@ -179,19 +144,11 @@ export class OrdersService {
             (item as any).campania_aplicada_id = best.campania_id ?? (item as any).campania_aplicada_id ?? null;
           } else {
             // 2) Fallback: solicitar precios desde /precios/producto/:id y escoger el menor
-            if (typeof fetchFn === 'function') {
-              const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-              const preciosUrl = apiBase + '/precios/internal/producto/' + item.producto_id;
-              const headersObj2 = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-              this.logger.debug('Calling Catalog (precios) ' + preciosUrl + ' auth=' + (headersObj2 ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
-              const resp2: any = await fetchFn(preciosUrl, { headers: headersObj2 });
-              if (!resp2 || !resp2.ok) {
-                let bodyText: string | null = null;
-                try { bodyText = resp2 ? await resp2.text() : null; } catch (e) { bodyText = null; }
-                this.logger.warn('Catalog precios call failed', { preciosUrl, status: resp2?.status, body: bodyText });
-                throw new BadRequestException('No se pudo obtener precio para producto ' + item.producto_id + (bodyText ? (' - ' + bodyText) : ''));
-              }
-              const precios = await resp2.json();
+            try {
+              const precios = await this.serviceHttp.get<any>(
+                'catalog-service',
+                `/precios/internal/producto/${item.producto_id}`,
+              );
               const arr = Array.isArray(precios) ? precios : (precios || []);
               if (arr.length) {
                 const min = Math.min(...arr.map((p: any) => Number(p.precio || p.price || 0)));
@@ -200,8 +157,9 @@ export class OrdersService {
               } else {
                 throw new BadRequestException('No hay precio disponible para el producto ' + item.producto_id);
               }
-            } else {
-              throw new BadRequestException('Fetch no disponible en runtime para obtener precios');
+            } catch (err) {
+              this.logger.warn('Catalog precios call failed', { producto_id: item.producto_id, error: err?.message || err });
+              throw new BadRequestException('No se pudo obtener precio para producto ' + item.producto_id);
             }
           }
         } catch (err) {
@@ -211,7 +169,7 @@ export class OrdersService {
       }
 
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
-      
+
       // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
       // descuento por item = (precio_original - precio_unitario) * cantidad
       const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
@@ -220,7 +178,7 @@ export class OrdersService {
         const descuentoLinea = precioOriginal > precioFinal ? (precioOriginal - precioFinal) * Number(item.cantidad) : 0;
         return acc + descuentoLinea;
       }, 0);
-      
+
       // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
       const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
@@ -231,27 +189,20 @@ export class OrdersService {
       if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
         // Si viene ubicación explícita en el DTO, usarla
         ubicacionPedido = { lng: createOrderDto.ubicacion.lng, lat: createOrderDto.ubicacion.lat };
-      } else if (typeof fetchFn === 'function') {
+      } else {
         try {
           // Intentar obtener ubicación desde Catalog (cliente o sucursal)
-          let urlUbicacion = '';
-          if (createOrderDto.sucursal_id) {
-            urlUbicacion = base.replace(/\/+$/, '') + '/internal/sucursales/' + createOrderDto.sucursal_id;
-          } else {
-            urlUbicacion = base.replace(/\/+$/, '') + '/internal/clients/' + createOrderDto.cliente_id;
-          }
-          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-          this.logger.debug('Fetching ubicación desde Catalog', { url: urlUbicacion });
-          const resp: any = await fetchFn(urlUbicacion, { headers: headersObj });
-          if (resp && resp.ok) {
-            const data = await resp.json();
-            const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
-            if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
-              // GeoJSON format: [lng, lat]
-              ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
-            } else if (data?.lat && data?.lng) {
-              ubicacionPedido = { lng: data.lng, lat: data.lat };
-            }
+          const path = createOrderDto.sucursal_id
+            ? `/internal/sucursales/${createOrderDto.sucursal_id}`
+            : `/internal/clients/${createOrderDto.cliente_id}`;
+          this.logger.debug('Fetching ubicaci▋ desde Catalog', { path });
+          const data = await this.serviceHttp.get<any>('catalog-service', path);
+          const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
+          if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
+            // GeoJSON format: [lng, lat]
+            ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
+          } else if (data?.lat && data?.lng) {
+            ubicacionPedido = { lng: data.lng, lat: data.lat };
           }
         } catch (err) {
           this.logger.debug('No se pudo obtener ubicación desde Catalog', { error: err?.message || err });
@@ -358,13 +309,8 @@ export class OrdersService {
       try {
         if (typeof reservationId !== 'undefined' && reservationId) {
           try {
-            const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
-            const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
-            const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-            if (typeof fetchFn === 'function') {
-              await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: headersObj });
+              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
               this.logger.debug('Released warehouse reservation after rollback', { reservationId });
-            }
           } catch (releaseErr) {
             this.logger.error('CRÍTICO: No se pudo liberar la reserva en Warehouse tras rollback', { reservationId, error: releaseErr?.message || releaseErr });
           }
@@ -399,7 +345,7 @@ export class OrdersService {
     // 2. Resolver cliente_id y vendedor_id según actor
     let clienteId = cart.cliente_id ?? null;
     let pedidoVendedorId: string | null = null;
-    
+
     if (actorRole === 'vendedor') {
       pedidoVendedorId = actorUserId ?? vendedorIdParam ?? null;
     }
@@ -408,23 +354,14 @@ export class OrdersService {
     if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
 
     // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
-    const base = this.configService.get<string>('CATALOG_SERVICE_URL') || process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-    const fetchFn = (globalThis as any).fetch;
     if (actorRole === 'cliente') {
       try {
-        if (typeof fetchFn === 'function') {
-          const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-          const url = apiBase + '/internal/clients/' + clienteId;
-          const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-          this.logger.debug('Calling Catalog (vendedor_asignado lookup) ' + url + ' auth=' + (headersObj ? ('Bearer ' + this.maskToken(serviceToken)) : 'none'));
-          const resp: any = await fetchFn(url, { headers: headersObj });
-          if (resp && resp.ok) {
-            const clientInfo = await resp.json();
-            pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
-            this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
-          }
-        }
+        const clientInfo = await this.serviceHttp.get<any>(
+          'catalog-service',
+          `/internal/clients/${clienteId}`,
+        );
+        pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
+        this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
       } catch (err) {
         this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
       }
@@ -444,32 +381,21 @@ export class OrdersService {
 
     // Intentar enriquecer items con datos del Catalog (codigo_sku, nombre_producto)
     try {
-      if (typeof fetchFn === 'function') {
-        const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-        const productIds = items.map(i => i.producto_id);
-        const productsUrl = apiBase + '/products/internal/batch';
-        const headersObj = serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined;
-        this.logger.debug('Fetching product details from Catalog batch endpoint', { url: productsUrl, count: productIds.length });
-        const resp: any = await fetchFn(productsUrl, {
-          method: 'POST',
-          headers: { ...headersObj, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: productIds, cliente_id: clienteId })
-        });
-        if (resp && resp.ok) {
-          const products = await resp.json();
-          const productMap = Array.isArray(products) 
-            ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
-            : {};
-          items = items.map(item => ({
-            ...item,
-            codigo_sku: productMap[item.producto_id]?.codigo_sku ?? item.codigo_sku,
-            nombre_producto: productMap[item.producto_id]?.nombre ?? item.nombre_producto,
-          }));
-          this.logger.debug('Enriquecidos items con datos del Catalog', { items_count: items.length });
-        } else {
-          this.logger.debug('Catalog batch endpoint no disponible, continuando con nulls');
-        }
-      }
+      const productIds = items.map(i => i.producto_id);
+      const products = await this.serviceHttp.post<any[]>(
+        'catalog-service',
+        '/products/internal/batch',
+        { ids: productIds, cliente_id: clienteId },
+      );
+      const productMap = Array.isArray(products)
+        ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
+        : {};
+      items = items.map(item => ({
+        ...item,
+        codigo_sku: productMap[item.producto_id]?.codigo_sku ?? item.codigo_sku,
+        nombre_producto: productMap[item.producto_id]?.nombre ?? item.nombre_producto,
+      }));
+      this.logger.debug('Enriquecidos items con datos del Catalog', { items_count: items.length });
     } catch (err) {
       this.logger.warn('No se pudieron obtener detalles de productos desde Catalog', { error: err?.message || err });
     }
@@ -533,6 +459,11 @@ export class OrdersService {
 
       const estadoAnterior = pedido.estado_actual;
 
+      // Validación: impedir pasar a EN_RUTA si el picking no fue completado (debe estar PREPARADO)
+      if (String(nuevoEstado).toUpperCase() === 'EN_RUTA' && String(estadoAnterior).toUpperCase() !== 'PREPARADO') {
+        throw new BadRequestException('No se puede cambiar a EN_RUTA: el picking no está completado o pedido no está PREPARADO');
+      }
+
       // 1. Actualizar cabecera del pedido
       pedido.estado_actual = nuevoEstado;
       await queryRunner.manager.save(pedido);
@@ -551,23 +482,18 @@ export class OrdersService {
       await queryRunner.commitTransaction();
       // If the pedido was set to ANULADO, attempt to release warehouse reservation
       try {
-        if (String(nuevoEstado).toUpperCase() === 'ANULADO') {
+        const estadoUpper = String(nuevoEstado).toUpperCase();
+        if (estadoUpper === 'ANULADO' || estadoUpper === 'RECHAZADO') {
           // try to obtain reservation_id
           try {
             const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
             const reservationId = res && res[0] ? res[0].reservation_id || null : null;
             if (reservationId) {
-              const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
-              const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
-              const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-              const fetchFn = (globalThis as any).fetch;
-              if (typeof fetchFn === 'function') {
-                await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
-                this.logger.debug('Released warehouse reservation after pedido ANULADO', { pedidoId, reservationId });
-              }
+              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+              this.logger.debug('Released warehouse reservation after pedido ' + estadoUpper, { pedidoId, reservationId });
             }
           } catch (err) {
-            this.logger.warn('Could not release warehouse reservation after pedido ANULADO', { pedidoId, error: err?.message || err });
+            this.logger.warn('Could not release warehouse reservation after pedido ' + estadoUpper, { pedidoId, error: err?.message || err });
           }
         }
       } catch (e) {
@@ -619,7 +545,7 @@ export class OrdersService {
 
     try {
       const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
-      
+
       if (!pedido) {
         throw new NotFoundException('Pedido no encontrado');
       }
@@ -648,7 +574,7 @@ export class OrdersService {
       await queryRunner.manager.save(historial);
 
       await queryRunner.commitTransaction();
-      
+
       this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
       // After successfully cancelling the pedido, attempt to release warehouse reservation if present
       try {
@@ -656,14 +582,8 @@ export class OrdersService {
           const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
           const reservationId = res && res[0] ? res[0].reservation_id || null : null;
           if (reservationId) {
-            const warehouseBase = this.configService.get<string>('WAREHOUSE_SERVICE_URL') || process.env.WAREHOUSE_SERVICE_URL || 'http://warehouse-service:3000';
-            const apiBaseW = warehouseBase.replace(/\/+$/, '') + (warehouseBase.includes('/api') ? '' : '/api');
-            const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-            const fetchFn = (globalThis as any).fetch;
-            if (typeof fetchFn === 'function') {
-              await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
-              this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
-            }
+            await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+            this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
           }
         } catch (err) {
           this.logger.warn('Could not release warehouse reservation after cancelOrder', { pedidoId, error: err?.message || err });
@@ -682,4 +602,7 @@ export class OrdersService {
     }
   }
 }
+
+
+
 

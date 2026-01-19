@@ -72,23 +72,38 @@ const HTTP_STATUS_MESSAGES: Record<number, string> = {
  * Patrones de mensajes de error del backend que deben ser traducidos
  */
 const BACKEND_MESSAGE_PATTERNS: Array<{ pattern: RegExp | string; message: string }> = [
+    // Errores de autenticación
     { pattern: /credenciales? (inválid|incorrect)/i, message: ERROR_MESSAGES.INVALID_CREDENTIALS },
     { pattern: /usuario desactivado/i, message: ERROR_MESSAGES.ACCOUNT_DISABLED },
-    { pattern: /email ya registrado/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
-    { pattern: /ya existe.*almac/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
-    { pattern: /codigo_ref/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
-    { pattern: /codigo_visual/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
-    { pattern: /ya existe.*ubicacion/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
-    { pattern: /lote/i, message: 'Este producto no tiene stock disponible en bodega.' },
-    { pattern: /stock insuficiente/i, message: 'No hay stock suficiente para completar la operacion.' },
     { pattern: /token (inválido|expirado|ilegible)/i, message: ERROR_MESSAGES.SESSION_EXPIRED },
     { pattern: /refresh token/i, message: ERROR_MESSAGES.SESSION_EXPIRED },
-    { pattern: /network|red|conexión/i, message: ERROR_MESSAGES.NETWORK_ERROR },
-    { pattern: /not found|no encontrado/i, message: ERROR_MESSAGES.NOT_FOUND },
-    { pattern: /forbidden|prohibido/i, message: ERROR_MESSAGES.FORBIDDEN },
-    { pattern: /unauthorized|no autorizado/i, message: ERROR_MESSAGES.UNAUTHORIZED },
-    { pattern: /timeout|tiempo agotado/i, message: ERROR_MESSAGES.TIMEOUT_ERROR },
     { pattern: 'SESSION_EXPIRED', message: ERROR_MESSAGES.SESSION_EXPIRED },
+    { pattern: /unauthorized|no autorizado/i, message: ERROR_MESSAGES.UNAUTHORIZED },
+    { pattern: /forbidden|prohibido/i, message: ERROR_MESSAGES.FORBIDDEN },
+
+    // Errores de duplicados - mensajes específicos
+    { pattern: /email ya registrado/i, message: 'Este correo electrónico ya está registrado.' },
+    { pattern: /duplicate.*codigo_ref|codigo_ref.*duplicate|ya existe.*codigo/i, message: 'Ya existe un registro con ese código de referencia.' },
+    { pattern: /duplicate.*codigo_visual|codigo_visual.*duplicate/i, message: 'Ya existe una ubicación con ese código visual.' },
+    { pattern: /duplicate.*nombre|nombre.*duplicate/i, message: 'Ya existe un registro con ese nombre.' },
+    { pattern: /ya existe.*almac/i, message: 'Ya existe un almacén con esos datos.' },
+    { pattern: /ya existe.*ubicacion/i, message: 'Ya existe una ubicación con esos datos.' },
+    { pattern: /ya existe.*lote/i, message: 'Ya existe un lote con ese número.' },
+    { pattern: /unique.*constraint|constraint.*unique|duplicate.*key|key.*duplicate/i, message: ERROR_MESSAGES.DUPLICATE_ENTRY },
+
+    // Errores de stock y bodega
+    { pattern: /no hay.*stock|stock.*insuficiente|insufficient.*stock/i, message: 'No hay stock suficiente para completar la operación.' },
+    { pattern: /lote.*no.*encontrado|no.*encontrado.*lote/i, message: 'El lote especificado no fue encontrado.' },
+    { pattern: /ubicacion.*no.*encontrada|no.*encontrada.*ubicacion/i, message: 'La ubicación especificada no fue encontrada.' },
+    { pattern: /picking.*no.*encontrad/i, message: 'La orden de picking no fue encontrada.' },
+    { pattern: /reserva.*no.*encontrad/i, message: 'La reserva no fue encontrada.' },
+    { pattern: /ya.*asignado|already.*assigned/i, message: 'Este picking ya está asignado a otro bodeguero.' },
+    { pattern: /ya.*en.*proceso|already.*in.*progress/i, message: 'Este picking ya está siendo procesado.' },
+
+    // Errores de red
+    { pattern: /network|red|conexión/i, message: ERROR_MESSAGES.NETWORK_ERROR },
+    { pattern: /timeout|tiempo agotado/i, message: ERROR_MESSAGES.TIMEOUT_ERROR },
+    { pattern: /not found|no encontrado/i, message: ERROR_MESSAGES.NOT_FOUND },
 ]
 
 /**

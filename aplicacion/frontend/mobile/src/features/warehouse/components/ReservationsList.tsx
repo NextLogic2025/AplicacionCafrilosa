@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../components/ui/Header'
-import { SearchBar } from '../../../components/ui/SearchBar'
-import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
 import { FeedbackModal } from '../../../components/ui/FeedbackModal'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { ReservationService, type Reservation } from '../../../services/api/ReservationService'
+import { CategoryFilter } from '../../../components/ui/CategoryFilter'
+import { ReservationService, type Reservation, type ReservationItem } from '../../../services/api/ReservationService'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type Props = {
     title?: string
@@ -24,6 +24,13 @@ const formatDate = (dateStr?: string) => {
     return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
+// Formatear cantidad - mostrar entero si es número redondo, sino 2 decimales
+const formatQuantity = (qty: number | undefined | null): string => {
+    if (qty === undefined || qty === null || !Number.isFinite(qty)) return '0'
+    const num = Number(qty)
+    return num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)
+}
+
 const getStatusConfig = (status: Reservation['status']) => {
     const configs = {
         ACTIVE: { label: 'Pendiente', variant: 'warning' as const, icon: 'time-outline' as const },
@@ -34,7 +41,6 @@ const getStatusConfig = (status: Reservation['status']) => {
 }
 
 export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate, onOpen, refreshToken }: Props) {
-    const [search, setSearch] = useState('')
     const [status, setStatus] = useState<string>('ACTIVE')
     const [loading, setLoading] = useState(false)
     const [reservations, setReservations] = useState<Reservation[]>([])
@@ -42,21 +48,30 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
         visible: false,
     })
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const data = await ReservationService.list()
             setReservations(Array.isArray(data) ? data : [])
         } catch (error) {
-            setReservations([])
+            console.error('Error loading reservations:', error)
+        }
+    }, [])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     React.useEffect(() => {
-        loadData()
-    }, [status, refreshToken])
+        loadDataWithLoading()
+    }, [status, refreshToken, loadDataWithLoading])
 
     const filters = useMemo(
         () => [
@@ -71,35 +86,45 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
     const filtered = useMemo(() => {
         let base = reservations
         if (status !== 'all') base = base.filter((r) => r.status === status)
-        if (!search) return base
-        const term = search.toLowerCase()
-        return base.filter((r) => [r.id, r.tempId].filter(Boolean).some((v) => String(v).toLowerCase().includes(term)))
-    }, [reservations, search, status])
+        return base
+    }, [reservations, status])
 
-    const totalItems = (reservation: Reservation) => {
-        return reservation.items?.reduce((acc, item) => acc + item.quantity, 0) || 0
+    // Helper para obtener el nombre del producto
+    const getItemName = (item: ReservationItem) => {
+        return item.nombreProducto || item.sku || `Producto ${item.productId?.slice(0, 8) || ''}`
+    }
+
+    // Helper para obtener info del cliente
+    const getClientInfo = (reservation: Reservation) => {
+        if (reservation.pedido?.clienteNombre) {
+            return reservation.pedido.clienteNombre
+        }
+        if (reservation.pedido?.numero) {
+            return `Pedido #${reservation.pedido.numero}`
+        }
+        return null
+    }
+
+    const totalItems = (reservation: Reservation): number => {
+        if (!reservation.items || reservation.items.length === 0) return 0
+        return reservation.items.reduce((acc, item) => {
+            const qty = Number(item.quantity) || 0
+            return acc + qty
+        }, 0)
     }
 
     return (
         <View className="flex-1 bg-neutral-50">
             <Header title={title} variant="standard" onBackPress={onBack} />
 
-            <View className="bg-white px-4 pb-4 pt-4 border-b border-neutral-100">
-                <SearchBar
-                    placeholder="Buscar por ID de reserva..."
-                    value={search}
-                    onChangeText={setSearch}
-                    onClear={() => setSearch('')}
-                />
-                <View className="-mx-4 mt-3">
-                    <CategoryFilter categories={filters} selectedId={status} onSelect={(id) => setStatus(String(id))} />
-                </View>
+            <View className="bg-white px-4 pb-2 pt-2 border-b border-neutral-100">
+                <CategoryFilter categories={filters} selectedId={status} onSelect={(id) => setStatus(String(id))} />
             </View>
 
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'layers-outline',
                     title: status === 'ACTIVE' ? 'Sin Reservas Pendientes' : 'Sin Reservas',
@@ -109,6 +134,7 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
                     const statusConfig = getStatusConfig(item.status)
                     const itemCount = item.items?.length || 0
                     const totalQty = totalItems(item)
+                    const clientInfo = getClientInfo(item)
 
                     return (
                         <Pressable
@@ -131,9 +157,16 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
                                         </View>
                                         <View className="flex-1">
                                             <Text className="text-base font-bold text-neutral-900">
-                                                Reserva #{item.id.slice(0, 8).toUpperCase()}
+                                                {item.pedido?.numero
+                                                    ? `Pedido #${item.pedido.numero}`
+                                                    : `Reserva #${item.id.slice(0, 8).toUpperCase()}`}
                                             </Text>
-                                            <Text className="text-xs text-neutral-500 mt-0.5">
+                                            {clientInfo && (
+                                                <Text className="text-sm text-neutral-600 mt-0.5" numberOfLines={1}>
+                                                    {clientInfo}
+                                                </Text>
+                                            )}
+                                            <Text className="text-xs text-neutral-400 mt-0.5">
                                                 {formatDate(item.createdAt)}
                                             </Text>
                                         </View>
@@ -151,7 +184,7 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
                                     <View className="flex-row items-center bg-neutral-100 px-3 py-1.5 rounded-full">
                                         <Ionicons name="layers-outline" size={14} color="#6B7280" />
                                         <Text className="text-xs font-semibold text-neutral-600 ml-1">
-                                            {totalQty} unidades
+                                            {formatQuantity(totalQty)} unidades
                                         </Text>
                                     </View>
                                 </View>
@@ -161,16 +194,16 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
                                         {item.items.slice(0, 2).map((it, idx) => (
                                             <View key={idx} className="flex-row items-center justify-between py-1">
                                                 <Text className="text-sm text-neutral-700 flex-1" numberOfLines={1}>
-                                                    {it.sku || `Producto ${idx + 1}`}
+                                                    {getItemName(it)}
                                                 </Text>
                                                 <Text className="text-sm font-semibold text-neutral-900 ml-2">
-                                                    x{it.quantity}
+                                                    x{formatQuantity(it.quantity)}
                                                 </Text>
                                             </View>
                                         ))}
                                         {item.items.length > 2 && (
                                             <Text className="text-xs text-neutral-400 mt-1">
-                                                +{item.items.length - 2} mas...
+                                                +{item.items.length - 2} más...
                                             </Text>
                                         )}
                                     </View>
@@ -185,11 +218,15 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
             <FeedbackModal
                 visible={detailModal.visible}
                 type="info"
-                title={`Reserva #${detailModal.reservation?.id?.slice(0, 8).toUpperCase() || ''}`}
+                title={
+                    detailModal.reservation?.pedido?.numero
+                        ? `Pedido #${detailModal.reservation.pedido.numero}`
+                        : `Reserva #${detailModal.reservation?.id?.slice(0, 8).toUpperCase() || ''}`
+                }
                 message={
                     detailModal.reservation?.items?.length
                         ? detailModal.reservation.items
-                              .map((item, idx) => `${idx + 1}. ${item.sku || 'Producto'} - Cantidad: ${item.quantity}`)
+                              .map((item, idx) => `${idx + 1}. ${getItemName(item)} - Cantidad: ${formatQuantity(item.quantity)}`)
                               .join('\n')
                         : 'No hay productos en esta reserva.'
                 }

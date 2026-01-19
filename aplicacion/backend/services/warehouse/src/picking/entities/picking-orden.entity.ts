@@ -9,6 +9,9 @@ export class PickingOrden {
     @Column({ name: 'pedido_id', type: 'uuid', unique: true })
     pedidoId: string;
 
+    @Column({ name: 'reservation_id', type: 'uuid', nullable: true })
+    reservationId?: string;
+
     @Column({ name: 'bodeguero_asignado_id', type: 'uuid', nullable: true })
     bodegueroAsignadoId: string;
 

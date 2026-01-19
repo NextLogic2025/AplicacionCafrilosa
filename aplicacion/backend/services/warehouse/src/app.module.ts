@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { HttpModule } from '@nestjs/axios';
 
 import { ConfigModule } from './config/config.module';
+import { ServiceHttpModule } from './common/http/service-http.module';
 import { HealthModule } from './health/health.module';
 import { AlmacenesModule } from './almacenes/almacenes.module';
 import { UbicacionesModule } from './ubicaciones/ubicaciones.module';
@@ -29,6 +30,7 @@ import { DevolucionRecibida } from './devoluciones/entities/devolucion-recibida.
 @Module({
     imports: [
         ConfigModule,
+        ServiceHttpModule,
         HttpModule,
         TypeOrmModule.forRoot({
             type: 'postgres',

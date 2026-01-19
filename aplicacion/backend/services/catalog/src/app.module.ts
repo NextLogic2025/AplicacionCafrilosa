@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from './config/config.module';
+import { ServiceHttpModule } from './common/http/service-http.module';
 
 import { Product } from './products/entities/product.entity';
 import { Category } from './categories/entities/category.entity';
@@ -33,6 +34,7 @@ import { EventsGateway } from './events/events.gateway';
 @Module({
   imports: [
     ConfigModule,
+    ServiceHttpModule,
     HttpModule,
     TypeOrmModule.forRoot({
       type: 'postgres',

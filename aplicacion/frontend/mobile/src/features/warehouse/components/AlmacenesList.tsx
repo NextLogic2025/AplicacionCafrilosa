@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { View, Text, Pressable, Alert } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -11,6 +11,7 @@ import { ToggleSwitch } from '../../../components/ui/ToggleSwitch'
 import { AlmacenService, type Almacen } from '../../../services/api/AlmacenService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type Props = {
     title?: string
@@ -40,11 +41,19 @@ export function AlmacenesList({
     }>({ visible: false, type: 'info', title: '', message: '' })
     const [togglingId, setTogglingId] = useState<number | null>(null)
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const data = await AlmacenService.list()
             setItems(Array.isArray(data) ? data : [])
+        } catch (error) {
+            console.error('Error loading almacenes:', error)
+        }
+    }, [])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
         } catch (error) {
             setModalState({
                 visible: true,
@@ -55,12 +64,14 @@ export function AlmacenesList({
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     useEffect(() => {
-        loadData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshToken])
+        loadDataWithLoading()
+    }, [refreshToken, loadDataWithLoading])
 
     const filtered = useMemo(() => {
         if (!search) return items
@@ -143,7 +154,7 @@ export function AlmacenesList({
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'business-outline',
                     title: 'No hay almacenes',

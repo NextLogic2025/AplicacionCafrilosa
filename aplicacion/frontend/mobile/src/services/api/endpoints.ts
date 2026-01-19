@@ -90,6 +90,7 @@ export const endpoints = {
     pickingMis: '/api/picking/mis-ordenes',
     pickingConfirm: '/api/picking/confirm',
     pickingAssign: (id: string) => `/api/picking/${id}/asignar`,
+    pickingTomar: (id: string) => `/api/picking/${id}/tomar`,
     pickingStart: (id: string) => `/api/picking/${id}/iniciar`,
     pickingComplete: (id: string) => `/api/picking/${id}/completar`,
     pickingPickItem: (id: string, itemId: string) => `/api/picking/${id}/items/${itemId}/pickear`,

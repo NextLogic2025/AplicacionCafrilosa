@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,9 +9,10 @@ import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { PickingService, type Picking } from '../../../services/api/PickingService'
+import { PickingService, type Picking, type PickingItem } from '../../../services/api/PickingService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type Props = {
     title?: string
@@ -28,6 +29,18 @@ const formatDate = (dateStr?: string) => {
     if (!dateStr) return ''
     const date = new Date(dateStr)
     return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+// Formatear cantidad - mostrar entero si es número redondo, sino 2 decimales
+const formatQuantity = (qty: number | undefined | null): string => {
+    if (qty === undefined || qty === null || !Number.isFinite(Number(qty))) return '0'
+    const num = Number(qty)
+    return num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)
+}
+
+// Helper para obtener el nombre del producto
+const getItemName = (item: PickingItem): string => {
+    return item.nombreProducto || item.sku || `Producto ${item.productoId?.slice(0, 8) || ''}`
 }
 
 const getEstadoConfig = (estado?: string) => {
@@ -62,13 +75,21 @@ export function PickingList({
         message: '',
     })
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const data = mine
-            ? await PickingService.listMine()
-            : await PickingService.list(estado !== 'all' ? estado : undefined, { all: showAll })
+                ? await PickingService.listMine()
+                : await PickingService.list(estado !== 'all' ? estado : undefined, { all: showAll })
             setItems(Array.isArray(data) ? data : [])
+        } catch (error) {
+            console.error('Error loading pickings:', error)
+        }
+    }, [mine, estado, showAll])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
         } catch (error) {
             setModalState({
                 visible: true,
@@ -79,11 +100,14 @@ export function PickingList({
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     React.useEffect(() => {
-        loadData()
-    }, [estado, refreshToken])
+        loadDataWithLoading()
+    }, [estado, refreshToken, loadDataWithLoading])
 
     const filters = useMemo(
         () => [
@@ -128,15 +152,37 @@ export function PickingList({
         }
     }
 
-    const getTotalItems = (picking: Picking) => {
-        return picking.items?.reduce((acc, item) => acc + (item.cantidadSolicitada || 0), 0) || 0
+    const getTotalItems = (picking: Picking): number => {
+        if (!picking.items || picking.items.length === 0) return 0
+        return picking.items.reduce((acc, item) => {
+            const qty = Number(item.cantidadSolicitada) || 0
+            return acc + qty
+        }, 0)
     }
 
-    const getProgress = (picking: Picking) => {
+    const getProgress = (picking: Picking): number => {
         if (!picking.items?.length) return 0
-        const total = picking.items.reduce((acc, item) => acc + (item.cantidadSolicitada || 0), 0)
-        const picked = picking.items.reduce((acc, item) => acc + (item.cantidadPickeada || 0), 0)
+        const total = picking.items.reduce((acc, item) => acc + (Number(item.cantidadSolicitada) || 0), 0)
+        const picked = picking.items.reduce((acc, item) => acc + (Number(item.cantidadPickeada) || 0), 0)
         return total > 0 ? Math.round((picked / total) * 100) : 0
+    }
+
+    // Helper para obtener el nombre del bodeguero
+    const getBodegueroName = (picking: Picking): string | null => {
+        if (picking.bodegueroNombre) return picking.bodegueroNombre
+        if (picking.bodegueroAsignado?.nombreCompleto) return picking.bodegueroAsignado.nombreCompleto
+        return null
+    }
+
+    // Helper para obtener título del picking
+    const getPickingTitle = (picking: Picking): string => {
+        if (picking.pedido?.numero) return `Pedido #${picking.pedido.numero}`
+        return `Picking #${picking.id.slice(0, 8).toUpperCase()}`
+    }
+
+    // Helper para obtener info del cliente
+    const getClientInfo = (picking: Picking): string | null => {
+        return picking.pedido?.clienteNombre || null
     }
 
     return (
@@ -178,7 +224,7 @@ export function PickingList({
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'clipboard-outline',
                     title: mine ? 'Sin Ordenes Asignadas' : 'Sin Ordenes de Picking',
@@ -192,6 +238,8 @@ export function PickingList({
                     const totalQty = getTotalItems(item)
                     const progress = getProgress(item)
                     const canTake = showTakeButton && !item.bodegueroId && item.estado === 'PENDIENTE'
+                    const bodegueroName = getBodegueroName(item)
+                    const clientInfo = getClientInfo(item)
 
                     return (
                         <Pressable
@@ -210,9 +258,14 @@ export function PickingList({
                                         </View>
                                         <View className="flex-1">
                                             <Text className="text-base font-bold text-neutral-900">
-                                                Picking #{item.id.slice(0, 8).toUpperCase()}
+                                                {getPickingTitle(item)}
                                             </Text>
-                                            <Text className="text-xs text-neutral-500 mt-0.5">
+                                            {clientInfo && (
+                                                <Text className="text-sm text-neutral-600 mt-0.5" numberOfLines={1}>
+                                                    {clientInfo}
+                                                </Text>
+                                            )}
+                                            <Text className="text-xs text-neutral-400 mt-0.5">
                                                 {formatDate(item.createdAt)}
                                             </Text>
                                         </View>
@@ -230,10 +283,17 @@ export function PickingList({
                                     <View className="flex-row items-center bg-neutral-100 px-3 py-1.5 rounded-full">
                                         <Ionicons name="layers-outline" size={14} color="#6B7280" />
                                         <Text className="text-xs font-semibold text-neutral-600 ml-1">
-                                            {totalQty} unidades
+                                            {formatQuantity(totalQty)} unidades
                                         </Text>
                                     </View>
-                                    {item.bodegueroId ? (
+                                    {bodegueroName ? (
+                                        <View className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full">
+                                            <Ionicons name="person" size={14} color="#2563EB" />
+                                            <Text className="text-xs font-semibold text-blue-700 ml-1" numberOfLines={1}>
+                                                {bodegueroName}
+                                            </Text>
+                                        </View>
+                                    ) : item.bodegueroId ? (
                                         <View className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full">
                                             <Ionicons name="person" size={14} color="#2563EB" />
                                             <Text className="text-xs font-semibold text-blue-700 ml-1">Asignado</Text>
@@ -266,16 +326,16 @@ export function PickingList({
                                         {item.items.slice(0, 2).map((it, idx) => (
                                             <View key={idx} className="flex-row items-center justify-between py-1">
                                                 <Text className="text-sm text-neutral-700 flex-1" numberOfLines={1}>
-                                                    {it.nombreProducto || `Producto ${idx + 1}`}
+                                                    {getItemName(it)}
                                                 </Text>
                                                 <Text className="text-sm font-semibold text-neutral-900 ml-2">
-                                                    x{it.cantidadSolicitada}
+                                                    x{formatQuantity(it.cantidadSolicitada)}
                                                 </Text>
                                             </View>
                                         ))}
                                         {item.items.length > 2 && (
                                             <Text className="text-xs text-neutral-400 mt-1">
-                                                +{item.items.length - 2} productos mas...
+                                                +{item.items.length - 2} productos más...
                                             </Text>
                                         )}
                                     </View>

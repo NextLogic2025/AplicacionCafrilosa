@@ -3,21 +3,43 @@ import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
 
+export type ReservationStatus = 'ACTIVE' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | string
+
+// Item de reserva con campos enriquecidos del backend
 export type ReservationItem = {
-    id?: string
+    id?: string | number
     productId: string
     sku?: string | null
     quantity: number
     stockUbicacionId?: string
+    // Campos enriquecidos
+    nombreProducto?: string
+    descripcion?: string
+    unidad?: string
+    ubicacionCodigo?: string
+    ubicacionNombre?: string
+    loteNumero?: string
+    cantidadDisponible?: number
+    cantidadReservada?: number
 }
 
+// Información del pedido enriquecida
+export type PedidoReservationInfo = {
+    numero?: string | number
+    clienteNombre?: string
+    referenciaComercial?: string
+}
+
+// Reserva con campos enriquecidos del backend
 export type Reservation = {
     id: string
     tempId?: string | null
-    status: 'ACTIVE' | 'CONFIRMED' | 'CANCELLED'
-    items?: ReservationItem[]
+    status: ReservationStatus
     createdAt?: string
     updatedAt?: string
+    // Campos enriquecidos
+    pedido?: PedidoReservationInfo
+    items?: ReservationItem[]
 }
 
 export type CreateReservationPayload = {
@@ -28,11 +50,21 @@ export type CreateReservationPayload = {
 const warehouse = (path: string) => `${env.api.warehouseUrl}${path}`
 
 export const ReservationService = {
-    async list(): Promise<Reservation[]> {
+    async list(status?: ReservationStatus): Promise<Reservation[]> {
         try {
-            return await apiRequest<Reservation[]>(warehouse(endpoints.warehouse.reservations))
+            const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+            return await apiRequest<Reservation[]>(warehouse(endpoints.warehouse.reservations + qs))
         } catch (error) {
-            logErrorForDebugging(error, 'ReservationService.list')
+            logErrorForDebugging(error, 'ReservationService.list', { status })
+            throw error
+        }
+    },
+
+    async getById(id: string): Promise<Reservation> {
+        try {
+            return await apiRequest<Reservation>(warehouse(endpoints.warehouse.reservationById(id)))
+        } catch (error) {
+            logErrorForDebugging(error, 'ReservationService.getById', { id })
             throw error
         }
     },

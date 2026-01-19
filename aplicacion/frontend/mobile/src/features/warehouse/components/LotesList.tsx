@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { View, Pressable, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -13,6 +13,7 @@ import { LoteService, type Lote } from '../../../services/api/LoteService'
 import { CatalogService, type Product } from '../../../services/api/CatalogService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type EnrichedLote = Lote & { productName?: string; isExpired: boolean; isBlocked: boolean }
 
@@ -46,8 +47,7 @@ export function LotesList({
         message: '',
     })
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const [lotes, products] = await Promise.all([LoteService.list(), CatalogService.getProducts()])
             const productMap = new Map<string, Product>()
@@ -66,6 +66,15 @@ export function LotesList({
             })
             setItems(mapped)
         } catch (error) {
+            console.error('Error loading lotes:', error)
+        }
+    }, [])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
+        } catch (error) {
             setModalState({
                 visible: true,
                 type: 'error',
@@ -75,12 +84,14 @@ export function LotesList({
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     React.useEffect(() => {
-        loadData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshToken])
+        loadDataWithLoading()
+    }, [refreshToken, loadDataWithLoading])
 
     const filters = useMemo(
         () => [
@@ -178,7 +189,7 @@ export function LotesList({
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'business-outline',
                     title: 'Sin lotes',

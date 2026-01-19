@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { View, Pressable } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -13,6 +13,7 @@ import { AlmacenService, type Almacen } from '../../../services/api/AlmacenServi
 import { UbicacionService, type Ubicacion } from '../../../services/api/UbicacionService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+import { usePolling } from '../../../hooks/useRealtimeSync'
 
 type Props = {
     title?: string
@@ -43,8 +44,7 @@ export function UbicacionesList({
         message: string
     }>({ visible: false, type: 'info', title: '', message: '' })
 
-    const loadData = async () => {
-        setLoading(true)
+    const loadData = useCallback(async () => {
         try {
             const targetAlmacen =
                 activeTab !== 'all' && Number.isFinite(Number(activeTab))
@@ -57,6 +57,15 @@ export function UbicacionesList({
             setUbicaciones(Array.isArray(ubicacionesData) ? ubicacionesData : [])
             setAlmacenes(Array.isArray(almacenesData) ? almacenesData : [])
         } catch (error) {
+            console.error('Error loading ubicaciones:', error)
+        }
+    }, [activeTab, initialAlmacenId])
+
+    const loadDataWithLoading = useCallback(async () => {
+        setLoading(true)
+        try {
+            await loadData()
+        } catch (error) {
             setModalState({
                 visible: true,
                 type: 'error',
@@ -66,12 +75,14 @@ export function UbicacionesList({
         } finally {
             setLoading(false)
         }
-    }
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     React.useEffect(() => {
-        loadData()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, refreshToken])
+        loadDataWithLoading()
+    }, [activeTab, refreshToken, loadDataWithLoading])
 
     const selectedAlmacenId = useMemo(() => {
         if (activeTab !== 'all' && !Number.isNaN(Number(activeTab))) return Number(activeTab)
@@ -142,7 +153,7 @@ export function UbicacionesList({
             <GenericList
                 items={filtered}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: 'business-outline',
                     title: 'Sin ubicaciones',

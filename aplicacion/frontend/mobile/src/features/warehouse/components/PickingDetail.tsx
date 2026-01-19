@@ -26,6 +26,18 @@ const formatDate = (dateStr?: string) => {
     return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// Formatear cantidad - mostrar entero si es número redondo, sino 2 decimales
+const formatQuantity = (qty: number | undefined | null): string => {
+    if (qty === undefined || qty === null || !Number.isFinite(Number(qty))) return '0'
+    const num = Number(qty)
+    return num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)
+}
+
+// Helper para obtener el nombre del producto
+const getItemName = (item: PickingItem): string => {
+    return item.nombreProducto || item.sku || `Producto ${item.productoId?.slice(0, 8) || ''}`
+}
+
 const getEstadoConfig = (estado?: string) => {
     const configs: Record<string, { label: string; variant: 'warning' | 'info' | 'success' | 'error'; color: string; bg: string }> = {
         PENDIENTE: { label: 'Pendiente', variant: 'warning', color: '#D97706', bg: '#FEF3C7' },
@@ -178,9 +190,16 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                 <View className="flex-row items-start justify-between mb-3">
                                     <View className="flex-1">
                                         <Text className="text-xl font-bold text-neutral-900">
-                                            Picking #{picking.id.slice(0, 8).toUpperCase()}
+                                            {picking.pedido?.numero
+                                                ? `Pedido #${picking.pedido.numero}`
+                                                : `Picking #${picking.id.slice(0, 8).toUpperCase()}`}
                                         </Text>
-                                        <Text className="text-sm text-neutral-500 mt-1">
+                                        {picking.pedido?.clienteNombre && (
+                                            <Text className="text-sm text-neutral-600 mt-0.5" numberOfLines={1}>
+                                                {picking.pedido.clienteNombre}
+                                            </Text>
+                                        )}
+                                        <Text className="text-sm text-neutral-400 mt-1">
                                             Creado: {formatDate(picking.createdAt)}
                                         </Text>
                                     </View>
@@ -194,7 +213,14 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                             {picking.items?.length || 0} productos
                                         </Text>
                                     </View>
-                                    {picking.bodegueroId ? (
+                                    {picking.bodegueroNombre || picking.bodegueroAsignado?.nombreCompleto ? (
+                                        <View className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full">
+                                            <Ionicons name="person" size={14} color="#2563EB" />
+                                            <Text className="text-xs font-semibold text-blue-700 ml-1" numberOfLines={1}>
+                                                {picking.bodegueroNombre || picking.bodegueroAsignado?.nombreCompleto}
+                                            </Text>
+                                        </View>
+                                    ) : picking.bodegueroId ? (
                                         <View className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full">
                                             <Ionicons name="person" size={14} color="#2563EB" />
                                             <Text className="text-xs font-semibold text-blue-700 ml-1">Asignado</Text>
@@ -268,16 +294,19 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                             </View>
                                             <View className="flex-1">
                                                 <Text className="text-base font-bold text-neutral-900" numberOfLines={2}>
-                                                    {item.nombreProducto || `Producto ${index + 1}`}
+                                                    {getItemName(item)}
                                                 </Text>
+                                                {item.sku && item.nombreProducto && (
+                                                    <Text className="text-xs text-neutral-400 mt-0.5">SKU: {item.sku}</Text>
+                                                )}
                                                 <View className="flex-row items-center mt-2 gap-3">
                                                     <View className="flex-row items-center">
                                                         <Text className="text-xs text-neutral-500">Solicitado:</Text>
-                                                        <Text className="text-xs font-bold text-neutral-700 ml-1">{item.cantidadSolicitada}</Text>
+                                                        <Text className="text-xs font-bold text-neutral-700 ml-1">{formatQuantity(item.cantidadSolicitada)}</Text>
                                                     </View>
                                                     <View className="flex-row items-center">
                                                         <Text className="text-xs text-neutral-500">Preparado:</Text>
-                                                        <Text className="text-xs font-bold text-neutral-700 ml-1">{item.cantidadPickeada || 0}</Text>
+                                                        <Text className="text-xs font-bold text-neutral-700 ml-1">{formatQuantity(item.cantidadPickeada)}</Text>
                                                     </View>
                                                 </View>
                                             </View>
@@ -286,18 +315,31 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                                 {!isComplete && (
                                                     <View className="flex-row items-center mt-2">
                                                         <Text className="text-xs text-neutral-400">Faltan</Text>
-                                                        <Text className="text-sm font-bold ml-1" style={{ color: BRAND_COLORS.red }}>{remaining}</Text>
+                                                        <Text className="text-sm font-bold ml-1" style={{ color: BRAND_COLORS.red }}>{formatQuantity(remaining)}</Text>
                                                     </View>
                                                 )}
                                             </View>
                                         </View>
 
-                                        {item.loteSugerido && (
-                                            <View className="flex-row items-center mt-3 pt-3 border-t border-neutral-100">
-                                                <Ionicons name="pricetag-outline" size={14} color="#6B7280" />
-                                                <Text className="text-xs text-neutral-500 ml-1">
-                                                    Lote sugerido: <Text className="font-semibold">{item.loteSugerido.slice(0, 8)}</Text>
-                                                </Text>
+                                        {(item.loteSugerido || item.loteInfo?.numeroLote || item.ubicacionSugerida?.codigoVisual) && (
+                                            <View className="mt-3 pt-3 border-t border-neutral-100">
+                                                {(item.loteInfo?.numeroLote || item.loteSugerido) && (
+                                                    <View className="flex-row items-center mb-1">
+                                                        <Ionicons name="pricetag-outline" size={14} color="#6B7280" />
+                                                        <Text className="text-xs text-neutral-500 ml-1">
+                                                            Lote: <Text className="font-semibold">{item.loteInfo?.numeroLote || item.loteSugerido?.slice(0, 8)}</Text>
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                                {item.ubicacionSugerida?.codigoVisual && (
+                                                    <View className="flex-row items-center">
+                                                        <Ionicons name="location-outline" size={14} color="#6B7280" />
+                                                        <Text className="text-xs text-neutral-500 ml-1">
+                                                            Ubicación: <Text className="font-semibold">{item.ubicacionSugerida.codigoVisual}</Text>
+                                                            {item.ubicacionSugerida.nombre && ` - ${item.ubicacionSugerida.nombre}`}
+                                                        </Text>
+                                                    </View>
+                                                )}
                                             </View>
                                         )}
                                     </Pressable>

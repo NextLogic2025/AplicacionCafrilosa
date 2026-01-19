@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
+import { usePolling } from '../../../../hooks/useRealtimeSync'
 import { GenericTabs } from '../../../../components/ui/GenericTabs'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
@@ -58,11 +59,10 @@ export function WarehousePickingListScreen() {
             // Pickings pendientes sin asignar (disponibles para cualquier bodeguero)
             const data = await PickingService.list('PENDIENTE', { all: true })
             // Filtrar solo los que no tienen bodeguero asignado
-            const sinAsignar = data.filter(p => !p.bodegueroId)
+            const sinAsignar = data.filter(p => !p.bodegueroId && !p.bodegueroAsignadoId)
             setDisponibles(sinAsignar)
         } catch (error) {
             console.error('Error loading disponibles:', error)
-            setDisponibles([])
         }
     }, [])
 
@@ -75,24 +75,30 @@ export function WarehousePickingListScreen() {
             setMisPickings(activos)
         } catch (error) {
             console.error('Error loading mis pickings:', error)
-            setMisPickings([])
         }
     }, [])
 
     const loadData = useCallback(async () => {
+        await Promise.all([loadDisponibles(), loadMisPickings()])
+    }, [loadDisponibles, loadMisPickings])
+
+    const loadDataWithLoading = useCallback(async () => {
         setLoading(true)
         try {
-            await Promise.all([loadDisponibles(), loadMisPickings()])
+            await loadData()
         } finally {
             setLoading(false)
         }
-    }, [loadDisponibles, loadMisPickings])
+    }, [loadData])
+
+    // Polling cada 5 segundos para sincronización en tiempo real
+    usePolling(loadData, 5000, true)
 
     useFocusEffect(
         useCallback(() => {
-            loadData()
+            loadDataWithLoading()
             return () => {}
-        }, [loadData]),
+        }, [loadDataWithLoading]),
     )
 
     const currentItems = activeTab === 'disponibles' ? disponibles : misPickings
@@ -106,7 +112,8 @@ export function WarehousePickingListScreen() {
     const handleTakeOrder = async (pickingId: string) => {
         setTakingId(pickingId)
         try {
-            await PickingService.start(pickingId)
+            // Usar el método 'take' para tomar la orden (POST /picking/:id/tomar)
+            await PickingService.take(pickingId)
             setModalState({
                 visible: true,
                 type: 'success',
@@ -139,17 +146,47 @@ export function WarehousePickingListScreen() {
         return total > 0 ? Math.round((picked / total) * 100) : 0
     }
 
+    // Helper para obtener el título del picking con info del pedido
+    const getPickingTitle = (item: Picking) => {
+        if (item.pedido?.numero) {
+            return `Pedido #${item.pedido.numero}`
+        }
+        if (item.pedidoId) {
+            return `Pedido #${item.pedidoId.slice(0, 8).toUpperCase()}`
+        }
+        return `Picking #${item.id.slice(0, 8).toUpperCase()}`
+    }
+
+    // Helper para obtener el nombre del cliente
+    const getClientName = (item: Picking) => {
+        return item.pedido?.clienteNombre || null
+    }
+
+    // Helper para mostrar el bodeguero
+    const getBodegueroDisplay = (item: Picking) => {
+        if (item.bodegueroAsignado?.nombreCompleto) {
+            return item.bodegueroAsignado.nombreCompleto
+        }
+        if (item.bodegueroNombre) {
+            return item.bodegueroNombre
+        }
+        if (item.bodegueroId || item.bodegueroAsignadoId) {
+            const id = item.bodegueroId || item.bodegueroAsignadoId || ''
+            return `ID: ${id.slice(0, 8)}`
+        }
+        return null
+    }
+
     const renderPickingCard = (item: Picking) => {
         const estadoConfig = getEstadoConfig(item.estado)
         const itemCount = item.items?.length || 0
         const totalQty = getTotalItems(item)
         const progress = getProgress(item)
-        const canTake = activeTab === 'disponibles' && !item.bodegueroId && item.estado === 'PENDIENTE'
+        const canTake = activeTab === 'disponibles' && !item.bodegueroId && !item.bodegueroAsignadoId && item.estado === 'PENDIENTE'
         const isEnProceso = item.estado === 'EN_PROCESO'
         const isAsignado = item.estado === 'ASIGNADO' || item.estado === 'EN_PROCESO'
-
-        // Mostrar nombre del bodeguero si está asignado (usar bodegueroNombre si existe, sino bodegueroId)
-        const bodegueroDisplay = item.bodegueroNombre || (item.bodegueroId ? `ID: ${item.bodegueroId.slice(0, 8)}` : null)
+        const bodegueroDisplay = getBodegueroDisplay(item)
+        const clientName = getClientName(item)
 
         return (
             <Pressable
@@ -169,8 +206,13 @@ export function WarehousePickingListScreen() {
                             </View>
                             <View className="flex-1">
                                 <Text className="text-base font-bold text-neutral-900">
-                                    Picking #{item.id.slice(0, 8).toUpperCase()}
+                                    {getPickingTitle(item)}
                                 </Text>
+                                {clientName && (
+                                    <Text className="text-sm text-neutral-600 mt-0.5" numberOfLines={1}>
+                                        {clientName}
+                                    </Text>
+                                )}
                                 <Text className="text-xs text-neutral-500 mt-0.5">
                                     {formatDate(item.createdAt)}
                                 </Text>
@@ -178,16 +220,6 @@ export function WarehousePickingListScreen() {
                         </View>
                         <StatusBadge label={estadoConfig.label} variant={estadoConfig.variant} size="sm" />
                     </View>
-
-                    {/* Pedido reference */}
-                    {item.pedidoId && (
-                        <View className="mt-2 flex-row items-center">
-                            <Ionicons name="document-text-outline" size={14} color="#6B7280" />
-                            <Text className="text-xs text-neutral-500 ml-1">
-                                Pedido #{item.pedidoId.slice(0, 8).toUpperCase()}
-                            </Text>
-                        </View>
-                    )}
 
                     {/* Tags */}
                     <View className="flex-row flex-wrap mt-3 gap-2">
@@ -207,11 +239,11 @@ export function WarehousePickingListScreen() {
                         {isAsignado && bodegueroDisplay ? (
                             <View className="flex-row items-center bg-blue-50 px-3 py-1.5 rounded-full">
                                 <Ionicons name="person" size={14} color="#2563EB" />
-                                <Text className="text-xs font-semibold text-blue-700 ml-1">
+                                <Text className="text-xs font-semibold text-blue-700 ml-1" numberOfLines={1}>
                                     {bodegueroDisplay}
                                 </Text>
                             </View>
-                        ) : !item.bodegueroId ? (
+                        ) : !item.bodegueroId && !item.bodegueroAsignadoId ? (
                             <View className="flex-row items-center bg-amber-50 px-3 py-1.5 rounded-full">
                                 <Ionicons name="alert-circle-outline" size={14} color="#D97706" />
                                 <Text className="text-xs font-semibold text-amber-700 ml-1">Sin asignar</Text>
@@ -241,7 +273,7 @@ export function WarehousePickingListScreen() {
                             {item.items.slice(0, 2).map((it, idx) => (
                                 <View key={it.id || idx} className="flex-row items-center justify-between py-1">
                                     <Text className="text-sm text-neutral-700 flex-1" numberOfLines={1}>
-                                        {it.nombreProducto || `Producto ${idx + 1}`}
+                                        {it.nombreProducto || it.sku || `Producto ${idx + 1}`}
                                     </Text>
                                     <Text className="text-sm font-semibold text-neutral-900 ml-2">
                                         x{it.cantidadSolicitada}
@@ -328,7 +360,7 @@ export function WarehousePickingListScreen() {
             <GenericList
                 items={currentItems}
                 isLoading={loading}
-                onRefresh={loadData}
+                onRefresh={loadDataWithLoading}
                 emptyState={{
                     icon: activeTab === 'disponibles' ? 'clipboard-outline' : 'person-outline',
                     title: activeTab === 'disponibles' ? 'Sin Pickings Disponibles' : 'Sin Pickings Asignados',
