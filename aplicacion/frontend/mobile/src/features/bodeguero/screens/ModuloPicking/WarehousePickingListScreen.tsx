@@ -15,6 +15,7 @@ export function WarehousePickingListScreen() {
         <PickingList
             title="Ordenes de Picking"
             showTakeButton
+            showAll
             onBack={() => navigation.goBack()}
             onOpen={(id) => navigation.navigate('WarehousePickingDetail', { pickingId: id })}
             refreshToken={refreshToken}

@@ -95,12 +95,6 @@ export function WarehouseHomeScreen() {
             onPress: () => navigation.navigate('WarehouseStock')
         },
         {
-            icon: 'clipboard-outline',
-            label: 'Picking',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehousePickingList')
-        },
-        {
             icon: 'lock-closed-outline',
             label: 'Reservas',
             // @ts-expect-error - Navigation is typed but routes are dynamic

@@ -31,13 +31,20 @@ export type CreatePickingPayload = {
 
 const warehouse = (path: string) => `${env.api.warehouseUrl}${path}`
 
+export type PickingListOptions = {
+    all?: boolean
+}
+
 export const PickingService = {
-    async list(estado?: string): Promise<Picking[]> {
+    async list(estado?: string, options?: PickingListOptions): Promise<Picking[]> {
         try {
-            const qs = estado ? `?estado=${estado}` : ''
+            const queryParts: string[] = []
+            if (estado) queryParts.push(`estado=${encodeURIComponent(estado)}`)
+            if (options?.all) queryParts.push('all=1')
+            const qs = queryParts.length ? `?${queryParts.join('&')}` : ''
             return await apiRequest<Picking[]>(warehouse(endpoints.warehouse.picking + qs))
         } catch (error) {
-            logErrorForDebugging(error, 'PickingService.list', { estado })
+            logErrorForDebugging(error, 'PickingService.list', { estado, options })
             throw error
         }
     },

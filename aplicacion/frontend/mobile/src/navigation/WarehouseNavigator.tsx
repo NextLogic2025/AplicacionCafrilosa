@@ -7,7 +7,6 @@ import { BRAND_COLORS } from '../shared/types'
 // Screens
 // Screens
 import { WarehouseHomeScreen } from '../features/bodeguero/screens/ModuloInicio/WarehouseHomeScreen'
-import { WarehouseOrdersScreen } from '../features/bodeguero/screens/ModuloPedidos/WarehouseOrdersScreen'
 import { WarehouseInventoryScreen } from '../features/bodeguero/screens/ModuloInventario/WarehouseInventoryScreen'
 import { WarehouseProfileScreen } from '../features/bodeguero/screens/ModuloPerfil/WarehouseProfileScreen'
 
@@ -50,11 +49,11 @@ function WarehouseTabs() {
                 }}
             />
             <Tab.Screen
-                name="WarehouseOrders"
-                component={WarehouseOrdersScreen}
+                name="WarehousePicking"
+                component={WarehousePickingListScreen}
                 options={{
-                    tabBarLabel: 'Pedidos',
-                    tabBarIcon: ({ color, size }) => <Ionicons name="download" size={size} color={color} />
+                    tabBarLabel: 'Picking',
+                    tabBarIcon: ({ color, size }) => <Ionicons name="clipboard-outline" size={size} color={color} />
                 }}
             />
             <Tab.Screen

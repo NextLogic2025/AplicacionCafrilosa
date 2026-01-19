@@ -17,6 +17,7 @@ type Props = {
     title?: string
     mine?: boolean
     showTakeButton?: boolean
+    showAll?: boolean
     onBack?: () => void
     onCreate?: () => void
     onOpen?: (id: string) => void
@@ -39,7 +40,16 @@ const getEstadoConfig = (estado?: string) => {
     return configs[estado || 'PENDIENTE'] || configs.PENDIENTE
 }
 
-export function PickingList({ title = 'Ordenes de Picking', mine = false, showTakeButton = false, onBack, onCreate, onOpen, refreshToken }: Props) {
+export function PickingList({
+    title = 'Ordenes de Picking',
+    mine = false,
+    showTakeButton = false,
+    showAll = false,
+    onBack,
+    onCreate,
+    onOpen,
+    refreshToken,
+}: Props) {
     const [search, setSearch] = useState('')
     const [estado, setEstado] = useState<string>('all')
     const [loading, setLoading] = useState(false)
@@ -56,8 +66,8 @@ export function PickingList({ title = 'Ordenes de Picking', mine = false, showTa
         setLoading(true)
         try {
             const data = mine
-                ? await PickingService.listMine()
-                : await PickingService.list(estado !== 'all' ? estado : undefined)
+            ? await PickingService.listMine()
+            : await PickingService.list(estado !== 'all' ? estado : undefined, { all: showAll })
             setItems(Array.isArray(data) ? data : [])
         } catch (error) {
             setModalState({

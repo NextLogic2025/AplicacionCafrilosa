@@ -9,12 +9,15 @@ interface KpiCardProps {
     icon: string
     color: string
     fullWidth?: boolean
+    columns?: 2 | 3
 }
 
-export function KpiCard({ label, value, icon, color, fullWidth = false }: KpiCardProps) {
+export function KpiCard({ label, value, icon, color, fullWidth = false, columns = 2 }: KpiCardProps) {
+    const widthClass = fullWidth ? 'w-full' : columns === 3 ? 'w-[31%]' : 'w-[48%]'
+
     return (
         <View
-            className={`bg-white p-4 rounded-xl border border-neutral-200 mb-3 shadow-sm ${fullWidth ? 'w-full' : 'w-[48%]'}`}
+            className={`bg-white p-4 rounded-xl border border-neutral-200 mb-3 shadow-sm ${widthClass}`}
         >
             <View className="flex-row justify-between items-start mb-2">
                 <View className="p-2 rounded-lg bg-neutral-50" style={{ backgroundColor: `${color}15` }}>

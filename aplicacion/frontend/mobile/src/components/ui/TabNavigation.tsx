@@ -33,8 +33,8 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         // Bodeguero Routes
         case 'WarehouseHome':
             return isFocused ? 'home' : 'home-outline'
-        case 'WarehouseOrders':
-            return isFocused ? 'receipt' : 'receipt-outline'
+        case 'WarehousePicking':
+            return isFocused ? 'clipboard' : 'clipboard-outline'
         case 'WarehouseInventory':
             return isFocused ? 'cube' : 'cube-outline'
         case 'WarehouseProfile':
