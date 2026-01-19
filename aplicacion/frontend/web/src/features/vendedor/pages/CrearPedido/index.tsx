@@ -1,28 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHero } from '../../../../components/ui/PageHero'
-import { ActionButton } from '../../../../components/ui/ActionButton'
-import { EmptyContent } from '../../../../components/ui/EmptyContent'
-import { ShoppingCart, Users, Package, Trash2, Plus, Minus, ArrowLeft } from 'lucide-react'
+import { SectionHeader } from '../../../../components/ui/SectionHeader'
+import { Alert } from '../../../../components/ui/Alert'
+import { ShoppingCart, Users, Package, Trash2, Plus, Minus, ArrowLeft, CheckCircle2, Info, Building2 } from 'lucide-react'
 import { getClientesAsignados } from '../../services/vendedorApi'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 import type { Producto } from '../../../cliente/types'
-import { Alert } from '../../../../components/ui/Alert'
+import { httpOrders, httpCatalogo } from '../../../../services/api/http'
+import { fetchSucursalesByCliente } from '../../../cliente/pages/sucursal/sucursalesApi'
 
 interface CartItem {
   producto: Producto
   cantidad: number
 }
 
+interface SucursalCliente {
+  id: string
+  nombre_sucursal: string
+  direccion_entrega?: string
+  contacto_nombre?: string
+  contacto_telefono?: string
+  zona_nombre?: string
+  // Alias para compatibilidad
+  nombre?: string
+  direccion?: string
+  ciudad?: string
+  estado?: string
+}
+
+interface ClienteDetalle extends Omit<Cliente, 'limite_credito' | 'saldo_actual' | 'deuda_actual' | 'dias_plazo' | 'direccion_texto'> {
+  creditLimit?: number
+  currentDebt?: number
+  limite_credito?: string | number
+  saldo_actual?: string | number
+  deuda_actual?: string | number
+  dias_plazo?: number
+  direccion?: string
+  direccion_texto?: string
+  ciudad?: string
+  estado?: string
+}
+
 export default function VendedorCrearPedido() {
   const navigate = useNavigate()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
+  const [clienteDetalle, setClienteDetalle] = useState<ClienteDetalle | null>(null)
+  const [sucursales, setSucursales] = useState<SucursalCliente[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [isLoadingClientes, setIsLoadingClientes] = useState(false)
-  const [condicionPago, setCondicionPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Estado para destino del pedido
+  const [destinoTipo, setDestinoTipo] = useState<'cliente' | 'sucursal'>('cliente')
+  const [selectedSucursalId, setSelectedSucursalId] = useState<string | null>(null)
+  const [invalidSucursalMessage, setInvalidSucursalMessage] = useState<string | null>(null)
+
+  // Estado para condición de pago manual
+  const [condicionPagoManual, setCondicionPagoManual] = useState<'CONTADO' | 'CREDITO'>('CREDITO')
 
   // Cargar clientes y carrito desde backend
   useEffect(() => {
@@ -38,66 +75,125 @@ export default function VendedorCrearPedido() {
       setClienteSeleccionado(savedCliente)
       // Cargar carrito desde backend
       loadCartFromBackend(savedCliente)
+      // Cargar detalles del cliente (crédito)
+      loadClienteDetalle(savedCliente)
+      // Cargar sucursales del cliente
+      loadSucursales(savedCliente)
     }
   }, [])
 
   const loadCartFromBackend = async (clienteId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const cartData = await httpOrders<any>(`/orders/cart/client/${clienteId}`)
+      console.log('Cart from backend:', cartData)
 
-      if (response.ok) {
-        const cartData = await response.json()
-        console.log('Cart from backend:', cartData)
+      // El backend devuelve: { id, usuario_id, vendedor_id, items: [...] }
+      if (cartData.items && Array.isArray(cartData.items)) {
+        console.log('Cart items from backend:', cartData.items)
 
-        // El backend devuelve: { id, usuario_id, vendedor_id, items: [...] }
-        if (cartData.items && Array.isArray(cartData.items)) {
-          // Necesitamos obtener los detalles de los productos para cada item
-          const cartItems: CartItem[] = []
+        // Necesitamos obtener los detalles de los productos para cada item
+        const cartItems: CartItem[] = []
 
-          for (const item of cartData.items) {
-            try {
-              // Obtener detalles del producto desde el catálogo
-              const productResponse = await fetch(`${import.meta.env.VITE_CATALOGO_BASE_URL}/api/products/${item.producto_id}`, {
-                headers: {
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-              })
+        for (const item of cartData.items) {
+          console.log('Processing cart item:', item)
 
-              if (productResponse.ok) {
-                const productData = await productResponse.json()
+          try {
+            // Obtener detalles del producto desde el catálogo
+            const productData = await httpCatalogo<any>(`/api/products/${item.producto_id}`)
 
-                // Mapear a nuestro formato de Producto
-                const producto: Producto = {
-                  id: productData.id,
-                  name: productData.nombre,
-                  description: productData.descripcion || '',
-                  price: item.precio_unitario || productData.precio_base || 0,
-                  image: productData.imagen_url || '',
-                  category: productData.categoria?.nombre || '',
-                  inStock: productData.activo,
-                  rating: 0,
-                  reviews: 0
-                }
+            // Determinar el precio correcto - el backend usa precio_oferta o precio_original
+            const precioFinal = item.precio_unitario
+              || productData.precio_oferta
+              || productData.precio_original
+              || productData.precio_base
+              || productData.precio
+              || productData.precioBase
+              || productData.price
+              || 0
 
-                cartItems.push({
-                  producto,
-                  cantidad: item.cantidad
-                })
-              }
-            } catch (err) {
-              console.error(`Error loading product ${item.producto_id}:`, err)
+            console.log('Product data:', {
+              productId: item.producto_id,
+              nombre: productData.nombre,
+              itemPrice: item.precio_unitario,
+              precioOferta: productData.precio_oferta,
+              precioOriginal: productData.precio_original,
+              productBasePrice: productData.precio_base,
+              finalPrice: precioFinal
+            })
+
+            // Mapear a nuestro formato de Producto
+            const producto: Producto = {
+              id: productData.id,
+              name: productData.nombre,
+              description: productData.descripcion || '',
+              price: precioFinal,
+              image: productData.imagen_url || '',
+              category: productData.categoria?.nombre || '',
+              inStock: productData.activo,
+              rating: 0,
+              reviews: 0
             }
-          }
 
-          setCart(cartItems)
+            console.log('Cart item cantidad:', item.cantidad)
+
+            cartItems.push({
+              producto,
+              cantidad: item.cantidad || 1  // Asegurar que siempre haya una cantidad
+            })
+          } catch (err) {
+            console.error(`Error loading product ${item.producto_id}:`, err)
+          }
         }
+
+        console.log('Final cart items:', cartItems)
+        setCart(cartItems)
       }
     } catch (error) {
       console.error('Error loading cart:', error)
+    }
+  }
+
+  const loadClienteDetalle = async (clienteId: string) => {
+    try {
+      const cliente = await httpCatalogo<ClienteDetalle>(`/api/clientes/${clienteId}`)
+      console.log('=== CLIENTE DETALLE ===')
+      console.log('Cliente completo:', cliente)
+      console.log('Credit fields:', {
+        creditLimit: cliente?.creditLimit,
+        currentDebt: cliente?.currentDebt,
+        limite_credito: (cliente as any)?.limite_credito,
+        deuda_actual: (cliente as any)?.deuda_actual,
+        credito_disponible: (cliente as any)?.credito_disponible
+      })
+      setClienteDetalle(cliente)
+
+      // Auto-seleccionar condición de pago basado en crédito
+      const limite = parseFloat(`${cliente?.creditLimit || (cliente as any)?.limite_credito || 0}`)
+      const deuda = parseFloat(`${cliente?.currentDebt || (cliente as any)?.deuda_actual || (cliente as any)?.saldo_actual || 0}`)
+      const creditoDisponible = Math.max(limite - deuda, 0)
+
+      console.log('Crédito disponible calculado:', { limite, deuda, creditoDisponible })
+
+      if (creditoDisponible <= 0) {
+        console.log('Sin crédito disponible, seleccionando CONTADO automáticamente')
+        setCondicionPagoManual('CONTADO')
+      } else {
+        // Si tiene crédito, por defecto CREDITO
+        setCondicionPagoManual('CREDITO')
+      }
+    } catch (error) {
+      console.error('Error loading client details:', error)
+    }
+  }
+
+  const loadSucursales = async (clienteId: string) => {
+    try {
+      const sucursalesData = await fetchSucursalesByCliente(clienteId)
+      console.log('Sucursales loaded:', sucursalesData)
+      setSucursales(Array.isArray(sucursalesData) ? sucursalesData : [])
+    } catch (error) {
+      console.error('Error loading sucursales:', error)
+      setSucursales([])
     }
   }
 
@@ -111,21 +207,13 @@ export default function VendedorCrearPedido() {
 
     try {
       // Actualizar en el backend
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteSeleccionado}`, {
+      await httpOrders(`/orders/cart/client/${clienteSeleccionado}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
+        body: {
           producto_id: productoId,
           cantidad: newQuantity
-        })
+        }
       })
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar cantidad')
-      }
 
       // Actualizar estado local
       setCart(prev => prev.map(item =>
@@ -142,24 +230,35 @@ export default function VendedorCrearPedido() {
   const removeItem = async (productoId: string) => {
     if (!clienteSeleccionado) return
 
-    try {
-      // Eliminar del backend
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteSeleccionado}/item/${productoId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+    console.log('=== REMOVING ITEM ===')
+    console.log('Cliente ID:', clienteSeleccionado)
+    console.log('Producto ID:', productoId)
+    console.log('Endpoint:', `/orders/cart/client/${clienteSeleccionado}/item/${productoId}`)
 
-      if (!response.ok) {
-        throw new Error('Error al eliminar producto')
-      }
+    try {
+      // Usar el patrón estándar del cart service
+      const endpoint = `/orders/cart/client/${clienteSeleccionado}/item/${productoId}`
+      const result = await httpOrders(endpoint, { method: 'DELETE' })
+
+      console.log('DELETE successful:', result)
 
       // Actualizar estado local
       setCart(prev => prev.filter(item => item.producto.id !== productoId))
-    } catch (error) {
-      console.error('Error removing item:', error)
-      setError('Error al eliminar el producto')
+    } catch (error: any) {
+      console.error('=== ERROR REMOVING ITEM ===')
+      console.error('Error completo:', error)
+      console.error('Error message:', error?.message)
+      console.error('Error status:', error?.status)
+
+      // Si el carrito no existe (404), simplemente eliminamos del estado local
+      if (error?.message?.includes('no encontrado') || error?.message?.includes('404')) {
+        console.log('⚠️ Cart not found in backend (404)')
+        console.log('Esto significa que el carrito no existe en la base de datos')
+        console.log('Verifica que el carrito se haya creado correctamente al agregar productos')
+      }
+
+      // Siempre eliminamos del estado local
+      setCart(prev => prev.filter(item => item.producto.id !== productoId))
     }
   }
 
@@ -167,17 +266,9 @@ export default function VendedorCrearPedido() {
     if (!clienteSeleccionado) return
 
     try {
-      // Limpiar en el backend
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteSeleccionado}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al limpiar carrito')
-      }
+      // Usar el patrón estándar del cart service
+      const endpoint = `/orders/cart/client/${clienteSeleccionado}`
+      await httpOrders(endpoint, { method: 'DELETE' })
 
       // Actualizar estado local
       setCart([])
@@ -193,6 +284,51 @@ export default function VendedorCrearPedido() {
     navigate('/vendedor/productos')
   }
 
+  const isUuid = useCallback((value: string | null | undefined) => {
+    if (!value) return false
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  }, [])
+
+  const selectedSucursal = useMemo(() => sucursales.find(s => s.id === selectedSucursalId) ?? null, [sucursales, selectedSucursalId])
+
+  useEffect(() => {
+    if (destinoTipo !== 'sucursal') {
+      setInvalidSucursalMessage(null)
+      return
+    }
+    if (!selectedSucursalId) {
+      setInvalidSucursalMessage('Selecciona una sucursal disponible para enviar el pedido.')
+      return
+    }
+    const stillExists = sucursales.some(s => s.id === selectedSucursalId)
+    if (!stillExists) {
+      setSelectedSucursalId(null)
+      setInvalidSucursalMessage('La sucursal seleccionada ya no está disponible, elige otra opción.')
+      return
+    }
+    setInvalidSucursalMessage(isUuid(selectedSucursalId) ? null : 'Esta sucursal no cuenta con un identificador compatible con el servicio de pedidos.')
+  }, [selectedSucursalId, sucursales, isUuid, destinoTipo])
+
+  useEffect(() => {
+    if (destinoTipo === 'sucursal' && !selectedSucursalId && sucursales.length > 0) {
+      setSelectedSucursalId(sucursales[0].id)
+    }
+    if (destinoTipo === 'sucursal' && sucursales.length === 0) {
+      setDestinoTipo('cliente')
+      setSelectedSucursalId(null)
+    }
+  }, [destinoTipo, selectedSucursalId, sucursales])
+
+  const handleDestinoTipoChange = (tipo: 'cliente' | 'sucursal') => {
+    if (tipo === 'sucursal' && sucursales.length === 0) return
+    setDestinoTipo(tipo)
+    if (tipo === 'cliente') {
+      setSelectedSucursalId(null)
+    } else if (!selectedSucursalId && sucursales.length > 0) {
+      setSelectedSucursalId(sucursales[0].id)
+    }
+  }
+
   const handleSubmitOrder = async () => {
     if (!clienteSeleccionado) {
       setError('Debe seleccionar un cliente')
@@ -204,39 +340,40 @@ export default function VendedorCrearPedido() {
       return
     }
 
+    if (superaCredito && condicionPagoManual === 'CREDITO') {
+      setError('El total excede el crédito disponible del cliente. Seleccione pago al Contado.')
+      return
+    }
+
+    const wantsSucursal = destinoTipo === 'sucursal'
+    const sucursalIdForApi = wantsSucursal && selectedSucursalId && isUuid(selectedSucursalId) ? selectedSucursalId : undefined
+
+    if (wantsSucursal && !selectedSucursalId) {
+      setInvalidSucursalMessage('Selecciona una sucursal para poder enviar el pedido a esa ubicación.')
+      return
+    }
+    if (wantsSucursal && selectedSucursalId && !sucursalIdForApi) {
+      setInvalidSucursalMessage('La sucursal seleccionada no tiene un identificador válido.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setError(null)
 
-      // Preparar los items del pedido
-      const items = cart.map(item => ({
-        producto_id: item.producto.id,
-        cantidad: item.cantidad,
-        precio_unitario: item.producto.price
-      }))
-
-      // Llamar al endpoint del backend
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/from-cart/client/${clienteSeleccionado}`, {
+      // Llamar al endpoint del backend usando httpOrders
+      const pedido = await httpOrders<any>(`/orders/from-cart/client/${clienteSeleccionado}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          items,
-          condicionPago
-        })
+        body: {
+          condicion_pago: condicionPagoManual,
+          sucursal_id: sucursalIdForApi
+        }
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error al crear el pedido' }))
-        throw new Error(errorData.message || 'Error al crear el pedido')
-      }
-
-      const pedido = await response.json()
-
-      // Limpiar carrito y localStorage
-      clearCart()
+      // Limpiar carrito local
+      setCart([])
+      localStorage.removeItem('vendedor_cart')
+      localStorage.removeItem('vendedor_cliente_seleccionado')
 
       // Mostrar mensaje de éxito
       alert(`¡Pedido creado exitosamente! ID: ${pedido.id}`)
@@ -251,8 +388,21 @@ export default function VendedorCrearPedido() {
     }
   }
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.producto.price * item.cantidad), 0)
+  const total = cart.reduce((sum, item) => sum + (item.producto.price * item.cantidad), 0)
   const totalItems = cart.reduce((sum, item) => sum + item.cantidad, 0)
+
+  const limiteCredito = parseFloat(`${clienteDetalle?.creditLimit || clienteDetalle?.limite_credito || 0}`)
+  const deudaActual = parseFloat(`${clienteDetalle?.currentDebt || clienteDetalle?.deuda_actual || clienteDetalle?.saldo_actual || 0}`)
+  const creditoDisponible = Math.max(limiteCredito - deudaActual, 0)
+
+  const superaCredito = total > creditoDisponible
+  const condicionComercial = superaCredito ? 'Contado' : 'Crédito'
+  const condicionPagoApi = superaCredito ? 'CONTADO' : 'CREDITO'
+  const destinoDescripcion = destinoTipo === 'cliente'
+    ? 'Cliente principal'
+    : selectedSucursal
+      ? `${selectedSucursal.nombre_sucursal || selectedSucursal.nombre}${selectedSucursal.zona_nombre ? ` · ${selectedSucursal.zona_nombre}` : ''}`
+      : 'Selecciona una sucursal'
 
   const clienteInfo = clientes.find(c => c.id === clienteSeleccionado)
 
@@ -276,208 +426,240 @@ export default function VendedorCrearPedido() {
         />
       )}
 
-      {/* Información del cliente */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4 flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Cliente Seleccionado
-        </h3>
-
-        {clienteInfo ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="font-semibold text-blue-900">{clienteInfo.razon_social || clienteInfo.nombre_comercial}</p>
-            <p className="text-sm text-blue-700">ID: {clienteInfo.identificacion || 'N/A'}</p>
-          </div>
-        ) : (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <p className="text-orange-800">No hay cliente seleccionado</p>
-            <button
-              onClick={goBackToProducts}
-              className="mt-2 text-sm text-orange-600 hover:text-orange-800 font-medium"
-            >
-              ← Volver a Productos para seleccionar cliente
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* Condición de Pago */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <h3 className="text-lg font-bold text-neutral-950 mb-4">Condición de Pago</h3>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="condicionPago"
-              value="CONTADO"
-              checked={condicionPago === 'CONTADO'}
-              onChange={(e) => setCondicionPago(e.target.value as 'CONTADO' | 'CREDITO')}
-              className="h-4 w-4 text-brand-red focus:ring-brand-red"
-            />
-            <span className="text-sm font-medium text-gray-900">Contado</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="condicionPago"
-              value="CREDITO"
-              checked={condicionPago === 'CREDITO'}
-              onChange={(e) => setCondicionPago(e.target.value as 'CONTADO' | 'CREDITO')}
-              className="h-4 w-4 text-brand-red focus:ring-brand-red"
-            />
-            <span className="text-sm font-medium text-gray-900">Crédito</span>
-          </label>
-        </div>
-      </section>
-
-      {/* Productos en el carrito */}
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-neutral-950 flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Productos Seleccionados ({totalItems})
-          </h3>
-          {cart.length > 0 && (
-            <button
-              onClick={clearCart}
-              className="text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-1"
-            >
-              <Trash2 className="h-4 w-4" />
-              Limpiar carrito
-            </button>
-          )}
-        </div>
+      <div className="space-y-4">
+        <SectionHeader
+          title="Carrito de compras"
+          rightSlot={
+            cart.length > 0 ? (
+              <button
+                type="button"
+                onClick={clearCart}
+                className="text-sm font-semibold text-brand-red underline-offset-2 hover:underline"
+              >
+                Vaciar carrito
+              </button>
+            ) : null
+          }
+        />
 
         {cart.length === 0 ? (
-          <div className="py-12">
-            <EmptyContent
-              icon={<Package className="h-16 w-16" />}
-              title="No hay productos seleccionados"
-              description="Ve a la página de Productos para agregar items al pedido"
-            />
-            <div className="flex justify-center mt-4">
-              <button
-                onClick={goBackToProducts}
-                className="flex items-center gap-2 px-6 py-3 bg-brand-red text-white rounded-lg hover:bg-red-700 transition"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                Ir a Productos
-              </button>
-            </div>
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-600">
+            El carrito está vacío.
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Tabla de productos */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Producto</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900">Precio Unit.</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900">Cantidad</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900">Subtotal</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {cart.map((item) => (
-                    <tr key={item.producto.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          {item.producto.image && (
-                            <img
-                              src={item.producto.image}
-                              alt={item.producto.name}
-                              className="h-12 w-12 rounded object-cover"
-                            />
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900">{item.producto.name}</p>
-                            <p className="text-sm text-gray-500">{item.producto.category}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="font-medium text-gray-900">${item.producto.price.toFixed(2)}</span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => updateQuantity(item.producto.id, item.cantidad - 1)}
-                            className="p-1 rounded hover:bg-gray-200 transition"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          <span className="w-12 text-center font-semibold">{item.cantidad}</span>
-                          <button
-                            onClick={() => updateQuantity(item.producto.id, item.cantidad + 1)}
-                            className="p-1 rounded hover:bg-gray-200 transition"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <span className="font-bold text-gray-900">
-                          ${(item.producto.price * item.cantidad).toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <button
-                          onClick={() => removeItem(item.producto.id)}
-                          className="text-red-600 hover:text-red-800 transition"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid gap-4 lg:grid-cols-3 items-start">
+            <div className="lg:col-span-2 space-y-3 max-h-[60vh] overflow-auto pr-2">
+              {cart.map(item => (
+                <div key={item.producto.id} className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-neutral-900">{item.producto.name}</p>
+                    <p className="text-xs text-neutral-500">Precio unitario: ${item.producto.price.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label="Disminuir"
+                      onClick={() => updateQuantity(item.producto.id, Math.max(item.cantidad - 1, 0))}
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-semibold">{item.cantidad}</span>
+                    <button
+                      type="button"
+                      aria-label="Aumentar"
+                      onClick={() => updateQuantity(item.producto.id, item.cantidad + 1)}
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="w-24 text-right text-sm font-bold text-neutral-900">
+                    ${(item.producto.price * item.cantidad).toFixed(2)}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Eliminar"
+                    onClick={() => removeItem(item.producto.id)}
+                    className="rounded-lg bg-red-50 p-2 text-brand-red hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
 
-            {/* Resumen del pedido */}
-            <div className="border-t border-gray-200 pt-4 mt-6">
-              <div className="flex justify-end">
-                <div className="w-full max-w-sm space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total de items:</span>
-                    <span className="font-semibold">{totalItems}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
-                    <span>Total:</span>
-                    <span className="text-brand-red">${subtotal.toFixed(2)}</span>
-                  </div>
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-700">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-neutral-500" />
+                  <span>Stock sujeto a disponibilidad. El pedido será validado.</span>
                 </div>
               </div>
             </div>
 
-            {/* Botones de acción */}
-            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
-              <button
-                onClick={goBackToProducts}
-                className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
-              >
-                ← Agregar más productos
-              </button>
-              <button
-                onClick={handleSubmitOrder}
-                disabled={!clienteSeleccionado || isSubmitting}
-                className="px-6 py-3 bg-brand-red text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    Creando pedido...
-                  </>
-                ) : (
-                  'Crear Pedido'
+            <div className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm lg:col-span-1 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-700">Total de ítems</p>
+                <p className="text-sm font-semibold text-neutral-900">{totalItems}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-700">Total</p>
+                <p className="text-xl font-bold text-neutral-900">${total.toFixed(2)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-700">Crédito disponible</p>
+                <p className={`text-sm font-semibold ${superaCredito ? 'text-brand-red' : 'text-emerald-700'}`}>${creditoDisponible.toFixed(2)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-neutral-700">Condición comercial</p>
+                <p className="text-sm font-semibold text-neutral-900">{condicionComercial}</p>
+              </div>
+              {superaCredito ? (
+                <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+                  El total excede el crédito disponible.
+                </div>
+              ) : (
+                <div className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800">
+                  <CheckCircle2 className="mr-1 inline h-4 w-4" /> Cumple con crédito disponible.
+                </div>
+              )}
+
+              {/* Sección de selección de condición de pago */}
+              <div className="rounded-2xl border border-neutral-200 px-3 py-3">
+                <p className="text-sm font-semibold text-neutral-900 mb-2">Condición de Pago</p>
+                <div className="space-y-2">
+                  <label className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${condicionPagoManual === 'CONTADO' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                    <input
+                      type="radio"
+                      name="condicionPago"
+                      value="CONTADO"
+                      checked={condicionPagoManual === 'CONTADO'}
+                      onChange={(e) => setCondicionPagoManual(e.target.value as 'CONTADO' | 'CREDITO')}
+                    />
+                    <span className="font-medium">Contado</span>
+                  </label>
+                  <label className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${condicionPagoManual === 'CREDITO' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'} ${superaCredito ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <input
+                      type="radio"
+                      name="condicionPago"
+                      value="CREDITO"
+                      checked={condicionPagoManual === 'CREDITO'}
+                      onChange={(e) => setCondicionPagoManual(e.target.value as 'CONTADO' | 'CREDITO')}
+                      disabled={superaCredito}
+                    />
+                    <span className="font-medium">Crédito</span>
+                  </label>
+                </div>
+              </div>
+              {/* Sección de destino del pedido - siempre visible */}
+              <div className="rounded-2xl border border-neutral-200 px-3 py-3">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+                  <Building2 className="h-4 w-4 text-brand-red" /> Destino del pedido
+                </div>
+                <p className="text-xs text-neutral-500">
+                  {sucursales.length > 0
+                    ? 'Si el cliente tiene sucursales, puedes enviar este pedido directamente a una de ellas.'
+                    : 'El pedido se enviará a la dirección principal del cliente.'}
+                </p>
+                <div className="mt-3 space-y-2">
+                  <label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${destinoTipo === 'cliente' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                    <input
+                      type="radio"
+                      name="destinoPedido"
+                      checked={destinoTipo === 'cliente'}
+                      onChange={() => handleDestinoTipoChange('cliente')}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-semibold text-neutral-900">Cliente principal</p>
+                      <p className="text-xs text-neutral-500">
+                        {clienteDetalle?.direccion_texto || clienteDetalle?.direccion
+                          ? `${clienteDetalle.direccion_texto || clienteDetalle.direccion}${clienteDetalle.ciudad ? ` · ${clienteDetalle.ciudad}` : ''}${clienteDetalle.estado ? ` · ${clienteDetalle.estado}` : ''}`
+                          : 'Usaremos la dirección registrada del cliente.'}
+                      </p>
+                    </div>
+                  </label>
+                  {sucursales.length > 0 && (
+                    <label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${destinoTipo === 'sucursal' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'}`}>
+                      <input
+                        type="radio"
+                        name="destinoPedido"
+                        checked={destinoTipo === 'sucursal'}
+                        onChange={() => handleDestinoTipoChange('sucursal')}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-semibold text-neutral-900">Sucursal</p>
+                        <p className="text-xs text-neutral-500">
+                          Selecciona una de las sucursales registradas.
+                        </p>
+                      </div>
+                    </label>
+                  )}
+                </div>
+                {destinoTipo === 'sucursal' && sucursales.length > 0 && (
+                  <div className="mt-3 space-y-2 rounded-xl border border-dashed border-brand-red/40 bg-brand-red/5 px-3 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-red">Selecciona la sucursal</p>
+                    <div className="space-y-2">
+                      {sucursales.map(sucursal => (
+                        <label
+                          key={sucursal.id}
+                          className={`flex cursor-pointer items-start gap-2 rounded-xl border bg-white px-3 py-2 text-sm ${selectedSucursalId === sucursal.id ? 'border-brand-red/60 shadow-sm' : 'border-brand-red/10 hover:border-brand-red/40'}`}
+                        >
+                          <input
+                            type="radio"
+                            name="destinoSucursal"
+                            checked={selectedSucursalId === sucursal.id}
+                            onChange={() => setSelectedSucursalId(sucursal.id)}
+                            className="mt-1"
+                          />
+                          <div>
+                            <p className="font-semibold text-neutral-900">{sucursal.nombre_sucursal || sucursal.nombre}</p>
+                            <p className="text-xs text-neutral-500">
+                              {[sucursal.direccion_entrega || sucursal.direccion, sucursal.zona_nombre, sucursal.contacto_telefono].filter(Boolean).join(' · ') || 'Sin dirección registrada'}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </button>
+                <div className="mt-3 rounded-xl bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+                  Destino actual: {destinoDescripcion}
+                </div>
+                {invalidSucursalMessage ? (
+                  <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {invalidSucursalMessage}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={goBackToProducts}
+                  className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
+                >
+                  ← Agregar más productos
+                </button>
+                <button
+                  type="button"
+                  disabled={cart.length === 0 || (superaCredito && condicionPagoManual === 'CREDITO') || isSubmitting}
+                  onClick={handleSubmitOrder}
+                  className="rounded-xl bg-brand-red px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Creando pedido...
+                    </>
+                  ) : (
+                    'Confirmar pedido'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </section>
+      </div>
     </div>
   )
 }

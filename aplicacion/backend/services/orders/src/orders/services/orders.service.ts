@@ -27,7 +27,7 @@ export class OrdersService {
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
   private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
@@ -211,7 +211,7 @@ export class OrdersService {
       }
 
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
-      
+
       // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
       // descuento por item = (precio_original - precio_unitario) * cantidad
       const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
@@ -220,7 +220,7 @@ export class OrdersService {
         const descuentoLinea = precioOriginal > precioFinal ? (precioOriginal - precioFinal) * Number(item.cantidad) : 0;
         return acc + descuentoLinea;
       }, 0);
-      
+
       // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
       const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
@@ -399,7 +399,7 @@ export class OrdersService {
     // 2. Resolver cliente_id y vendedor_id según actor
     let clienteId = cart.cliente_id ?? null;
     let pedidoVendedorId: string | null = null;
-    
+
     if (actorRole === 'vendedor') {
       pedidoVendedorId = actorUserId ?? vendedorIdParam ?? null;
     }
@@ -457,7 +457,7 @@ export class OrdersService {
         });
         if (resp && resp.ok) {
           const products = await resp.json();
-          const productMap = Array.isArray(products) 
+          const productMap = Array.isArray(products)
             ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
             : {};
           items = items.map(item => ({
@@ -619,7 +619,7 @@ export class OrdersService {
 
     try {
       const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
-      
+
       if (!pedido) {
         throw new NotFoundException('Pedido no encontrado');
       }
@@ -648,7 +648,7 @@ export class OrdersService {
       await queryRunner.manager.save(historial);
 
       await queryRunner.commitTransaction();
-      
+
       this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
       // After successfully cancelling the pedido, attempt to release warehouse reservation if present
       try {

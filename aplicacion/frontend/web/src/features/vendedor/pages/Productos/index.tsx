@@ -12,6 +12,7 @@ import type { Producto } from '../../../cliente/types'
 import { getAllCategories } from '../../../supervisor/services/catalogApi'
 import { useMemo } from 'react'
 import ProductDetailModal from '../../../cliente/components/ProductDetailModal'
+import { httpOrders } from '../../../../services/api/http'
 
 
 export default function VendedorProductos() {
@@ -151,23 +152,24 @@ export default function VendedorProductos() {
     }
 
     try {
-      // Llamar al backend para agregar al carrito
-      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteSeleccionado}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          producto_id: producto.id,
-          cantidad: 1,
-          precioUnitario: producto.price
-        })
+      // Verificar si el producto ya está en el carrito local
+      const existingItem = cart.find(item => item.producto.id === producto.id)
+      const newQuantity = existingItem ? existingItem.cantidad + 1 : 1
+
+      console.log('Adding to cart:', {
+        productoId: producto.id,
+        existingQuantity: existingItem?.cantidad || 0,
+        newQuantity
       })
 
-      if (!response.ok) {
-        throw new Error('Error al agregar producto al carrito')
-      }
+      // Llamar al backend para agregar/actualizar el carrito usando httpOrders
+      await httpOrders(`/orders/cart/client/${clienteSeleccionado}`, {
+        method: 'POST',
+        body: {
+          producto_id: producto.id,
+          cantidad: newQuantity  // Enviar la cantidad total, no solo +1
+        }
+      })
 
       // Actualizar estado local
       setCart(prev => {

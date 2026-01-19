@@ -1,14 +1,15 @@
-import { httpAuth, httpCatalogo } from '../../../services/api/http'
+import { httpAuth, httpCatalogo, httpOrders } from '../../../services/api/http'
 import type { Cliente } from '../../supervisor/services/clientesApi'
-import type {
-  PerfilCliente,
-  Pedido,
-  Factura,
-  Entrega,
-  Producto,
-  Notificacion,
-  Conversacion,
-  Ticket,
+import {
+  type PerfilCliente,
+  type Pedido,
+  type Factura,
+  type Entrega,
+  type Producto,
+  type Notificacion,
+  type Conversacion,
+  type Ticket,
+  EstadoPedido,
 } from '../../cliente/types'
 
 export type { Producto }
@@ -22,11 +23,53 @@ export async function getPerfilVendedor(): Promise<PerfilCliente | null> {
 }
 
 export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: number; totalPages: number }> {
-  return await httpCatalogo<{ items: Pedido[]; page: number; totalPages: number }>(`/vendedor/pedidos?page=${page}`).catch(() => ({
-    items: [],
-    page,
-    totalPages: 1,
-  }))
+  try {
+    // El backend devuelve Pedido[] (array plano)
+    // Endpoint: /orders/user/history (devuelve pedidos asociados al usuario como cliente o vendedor)
+    const rawOrders = await httpOrders<any[]>('/orders/user/history')
+
+    // Mapear respuesta del backend al formato del frontend
+    const mappedOrders: Pedido[] = rawOrders.map(order => ({
+      id: order.id,
+      orderNumber: order.id.split('-')[0].toUpperCase(), // Usar primeros 8 chars del UUID como número
+      createdAt: order.created_at,
+      totalAmount: parseFloat(order.total_final),
+      status: mapBackendStatusToFrontend(order.estado_actual),
+      items: (order.detalles || []).map((d: any) => ({
+        id: d.id,
+        productName: d.nombre_producto || 'Producto sin nombre',
+        quantity: d.cantidad,
+        unit: d.unidad_medida || 'UN',
+        unitPrice: parseFloat(d.precio_final),
+        subtotal: parseFloat(d.precio_final) * d.cantidad
+      }))
+    }))
+
+    // Simular paginación frontend (ya que el backend devuelve todo)
+    return {
+      items: mappedOrders,
+      page: 1,
+      totalPages: 1,
+    }
+  } catch (error) {
+    console.warn('Error fetching vendor orders:', error)
+    return {
+      items: [],
+      page,
+      totalPages: 1,
+    }
+  }
+}
+
+function mapBackendStatusToFrontend(status: string): EstadoPedido {
+  const s = status.toUpperCase()
+  if (s === 'PENDIENTE') return EstadoPedido.PENDING
+  if (s === 'APROBADO') return EstadoPedido.APPROVED
+  if (s === 'EN_PREPARACION') return EstadoPedido.IN_PREPARATION
+  if (s === 'EN_RUTA') return EstadoPedido.IN_TRANSIT
+  if (s === 'ENTREGADO') return EstadoPedido.DELIVERED
+  if (s === 'ANULADO' || s === 'RECHAZADO') return EstadoPedido.CANCELLED
+  return EstadoPedido.PENDING
 }
 
 export async function getFacturas(): Promise<Factura[]> {
