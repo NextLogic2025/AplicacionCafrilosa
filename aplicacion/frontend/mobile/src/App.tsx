@@ -7,7 +7,7 @@ import { Platform } from 'react-native'
 import * as NavigationBar from 'expo-navigation-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { jwtDecode } from 'jwt-decode'
-import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context'
 
 import '../global.css'
 
@@ -79,7 +79,7 @@ export default function App() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <CartProvider>
-                <SafeAreaProvider>
+                <SafeAreaProvider initialMetrics={initialWindowMetrics}>
                     <NotificationProvider>
                         <ToastProvider>
                             <NavigationContainer ref={navigationRef}>

@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BRAND_COLORS } from '../../shared/types'
+import { useStableInsets } from '../../hooks/useStableInsets'
 
 const ACTION_ITEM_SPACING = 62
 
@@ -19,7 +19,7 @@ type Props = {
 }
 
 export function ExpandableFab({ actions }: Props) {
-    const insets = useSafeAreaInsets()
+    const insets = useStableInsets()
     const [isOpen, setIsOpen] = React.useState(false)
     const animation = React.useRef(new Animated.Value(0)).current
     const fabBottom = React.useMemo(() => {

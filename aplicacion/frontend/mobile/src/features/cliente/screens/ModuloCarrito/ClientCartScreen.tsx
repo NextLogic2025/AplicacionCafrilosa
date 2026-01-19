@@ -2,18 +2,18 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { Ionicons } from '@expo/vector-icons'
 import * as React from 'react'
 import { FlatList, Text, View, Image, TouchableOpacity } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal' // # Importar FeedbackModal
 import { useCart } from '../../../../context/CartContext'
+import { useStableInsets } from '../../../../hooks/useStableInsets'
 
 export function ClientCartScreen() {
   const navigation = useNavigation()
   const { cart, items, updateQuantity, removeItem, totalItems, clearCart } = useCart()
-  const insets = useSafeAreaInsets()
+  const insets = useStableInsets()
   const priceSummaryHeight = 280
   const listPaddingBottom = priceSummaryHeight + insets.bottom + 24
   const [isProcessing, setIsProcessing] = React.useState(false)

@@ -311,7 +311,7 @@ export function SupervisorRouteScheduleScreen() {
             days={DAYS}
             selectedDays={selectedDays}
             onToggleDay={toggleDay}
-            title={<><Text className="text-red-500">2.</Text> Días de visita</>}
+            title={<Text className="text-lg font-bold text-neutral-900"><Text className="text-red-500">2.</Text> Días de visita</Text>}
             summaryText={selectedDays.length > 0 ? `✓ ${selectedDays.length} día(s) • ${totalRoutes} ruta(s) a crear` : undefined}
           />
 

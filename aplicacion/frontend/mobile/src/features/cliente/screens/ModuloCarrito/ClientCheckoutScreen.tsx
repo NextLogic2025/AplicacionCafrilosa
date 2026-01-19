@@ -3,7 +3,6 @@ import {
     View, Text, ScrollView, TouchableOpacity,
     ActivityIndicator, Alert
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -14,6 +13,7 @@ import { ClientService, ClientBranch, Client } from '../../../../services/api/Cl
 import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
 import { BRAND_COLORS } from '../../../../shared/types'
+import { useStableInsets } from '../../../../hooks/useStableInsets'
 
 type DeliveryOption = 'MATRIZ' | string // MATRIZ or Branch ID
 
@@ -29,7 +29,7 @@ export function ClientCheckoutScreen() {
     // Note: For ClientCheckoutScreen, we ALWAYS use 'me' endpoint since the client is making their own order
     // The isVendorMode flag is not used here because this screen is only for clients
     const { cart, clearCart, userId } = useCart()
-    const insets = useSafeAreaInsets()
+    const insets = useStableInsets()
     const footerBottomSpacing = insets.bottom + 16
     const scrollPaddingBottom = footerBottomSpacing + 140
 

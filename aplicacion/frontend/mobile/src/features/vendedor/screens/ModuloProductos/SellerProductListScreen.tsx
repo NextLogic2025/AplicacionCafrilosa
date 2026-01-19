@@ -23,7 +23,7 @@ import { useToast } from '../../../../context/ToastContext'
 
 export function SellerProductListScreen() {
     const navigation = useNavigation()
-    const { addToCart, cart, setClient: setCartClient } = useCart()
+    const { addToCart, cart, setClient: setCartClient, currentClient, currentBranch } = useCart()
     const { showToast } = useToast()
 
     const [selectedClient, setSelectedClient] = useState<Client | null>(null)
@@ -44,6 +44,16 @@ export function SellerProductListScreen() {
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(1)
     const [hasMore, setHasMore] = useState(true)
+
+    // Sincronizar cliente del carrito con estado local
+    // Esto permite que cuando el vendedor selecciona un cliente desde otra pantalla,
+    // el estado local se actualice automáticamente
+    useEffect(() => {
+        if (currentClient && currentClient.id !== selectedClient?.id) {
+            setSelectedClient(currentClient)
+            setViewingFullCatalog(false)
+        }
+    }, [currentClient])
 
     useEffect(() => {
         loadPriceLists()

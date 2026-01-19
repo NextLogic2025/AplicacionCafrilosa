@@ -81,7 +81,7 @@ export function RouteDetailVisitDetailsCard({
                   frequency === freq.id ? 'bg-blue-500' : 'bg-neutral-100'
                 }`}
               >
-                <Ionicons name={freq.icon} size={16} color={frequency === freq.id ? 'white' : '#6B7280'} />
+                <Ionicons name="repeat" size={16} color={frequency === freq.id ? 'white' : '#6B7280'} />
                 <Text className={`text-xs font-medium ml-1 ${frequency === freq.id ? 'text-white' : 'text-neutral-600'}`}>{freq.label}</Text>
               </TouchableOpacity>
             ))}

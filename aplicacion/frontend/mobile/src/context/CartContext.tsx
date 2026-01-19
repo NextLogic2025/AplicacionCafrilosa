@@ -104,12 +104,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentBranch, setCurrentBranch] = useState<ClientBranch | null>(null)
     const [loading, setLoading] = useState(false)
 
-    // isVendorMode: true only when a vendor is actively managing a client's cart
     const isVendorMode = isVendorRole(userRole) && currentClient !== null
 
-    // Helper to get the correct client identifier for API calls
-    // Uses usuario_principal_id if available, otherwise falls back to client.id
-    // This is needed because the backend cart endpoints expect usuario_id, not cliente_id
     const getClientIdentifier = (): string => {
         if (!currentClient) return ''
         return currentClient.usuario_principal_id || currentClient.id
@@ -149,7 +145,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setLoading(true)
         try {
-            // Use client endpoint only when vendor is managing a client's cart
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
@@ -338,7 +333,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addToCart = async (product: any, quantity: number = 1) => {
         let currentUserId = userId
 
-        // Lazy load user if not present (fixes "Debes iniciar sesion" bug when context is stale)
         if (!currentUserId) {
             try {
                 console.log('CartContext: userId missing in addToCart, attempting to fetch profile...')
@@ -359,7 +353,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         try {
-            // Server Call First
             const payload: AddToCartPayload = {
                 producto_id: product.id || product.producto_id,
                 cantidad: quantity,
@@ -367,7 +360,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 motivo_descuento: product.motivo_descuento
             }
 
-            // Use client endpoint only when vendor is managing a client's cart
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
@@ -420,14 +412,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const removeFromCart = async (productId: string) => {
         if (!userId) return
 
-        // Optimistic UI update
         setCart(prev => ({
             ...prev,
             items: prev.items.filter(i => i.producto_id !== productId)
         }))
 
         try {
-            // Use client endpoint only when vendor is managing a client's cart
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
@@ -448,7 +438,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateQuantity = async (productId: string, quantity: number) => {
         if (!userId || quantity <= 0) return
 
-        // Optimistic
         setCart(prev => ({
             ...prev,
             items: prev.items.map(i => i.producto_id === productId
@@ -461,7 +450,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 producto_id: productId,
                 cantidad: quantity
             }
-            // Use client endpoint only when vendor is managing a client's cart
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
@@ -478,7 +466,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!userId) return
         setCart({ items: [], total_estimado: 0 })
         try {
-            // Use client endpoint only when vendor is managing a client's cart
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
@@ -489,7 +476,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const getItemCount = () => cart.items.reduce((acc, item) => acc + item.cantidad, 0)
 
     const validatePriceList = (listId: number) => true
-    const recalculatePrices = () => { } // Placeholder
+    const recalculatePrices = () => { } 
 
     const value: CartContextValue = {
         userId,

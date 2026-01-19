@@ -2,9 +2,9 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Header } from '../../../../components/ui/Header'
+import { useStableInsets } from '../../../../hooks/useStableInsets'
 import { GenericTabs } from '../../../../components/ui/GenericTabs'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
@@ -39,7 +39,7 @@ const formatDate = (dateStr?: string) => {
 
 export function WarehousePickingListScreen() {
     const navigation = useNavigation<any>()
-    const insets = useSafeAreaInsets()
+    const insets = useStableInsets()
 
     const [activeTab, setActiveTab] = useState<TabKey>('disponibles')
     const [loading, setLoading] = useState(false)

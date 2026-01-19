@@ -1,9 +1,9 @@
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Text, View, Pressable, Platform } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../shared/types'
 import { useCartOptional } from '../../context/CartContext'
+import { useStableInsets } from '../../hooks/useStableInsets'
 
 const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionicons.glyphMap => {
     switch (routeName) {
@@ -70,7 +70,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
 }
 
 export function TabNavigation({ state, descriptors, navigation }: BottomTabBarProps) {
-    const insets = useSafeAreaInsets()
+    const insets = useStableInsets()
 
     // useCartOptional retorna null si no está dentro de CartProvider
     // Esto permite que TabNavigation funcione en todos los navegadores

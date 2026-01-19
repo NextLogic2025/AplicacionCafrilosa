@@ -109,6 +109,7 @@ export function SellerNavigator() {
             <Stack.Screen name="SellerNotifications" component={SellerNotificationsScreen} />
             <Stack.Screen name="SellerRoute" component={SellerRouteScreen} />
             <Stack.Screen name="SellerRouteMap" component={SellerRouteMapScreen} />
+            <Stack.Screen name="SellerOrder" component={SellerOrderScreen} />
         </Stack.Navigator>
     )
 }

@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../shared/types'
 import React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { navigationRef } from '../../navigation/navigationRef'
 import { useNotificationsOptional } from '../../context/NotificationContext'
+import { useStableInsets } from '../../hooks/useStableInsets'
 
 type HeaderProps = {
   userName?: string
@@ -48,7 +48,7 @@ export function Header({
   notificationRoute,
   rightAction
 }: HeaderProps) {
-  const insets = useSafeAreaInsets()
+  const insets = useStableInsets()
   const notificationsCtx = useNotificationsOptional()
 
   const isStandard = variant === 'standard' || !!title
