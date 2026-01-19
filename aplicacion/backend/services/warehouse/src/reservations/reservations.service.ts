@@ -4,67 +4,35 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationItem } from './entities/reservation-item.entity';
 import { StockUbicacion } from '../stock/entities/stock-ubicacion.entity';
+import { ServiceHttpClient } from '../common/http/service-http-client.service';
 
 @Injectable()
 export class ReservationsService {
   private readonly logger = new Logger(ReservationsService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly serviceHttp: ServiceHttpClient,
+  ) {}
 
   private async fetchProductInfo(productId: string) {
     try {
-      const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-      const api = base.replace(/\/+$/, '');
-      const fetchFn = (globalThis as any).fetch;
-      if (typeof fetchFn !== 'function') return null;
-
-      const serviceToken = process.env.SERVICE_TOKEN;
-      if (serviceToken) {
-        try {
-          this.logger.debug(`Calling catalog internal batch for product ${productId}`);
-          const resp: any = await fetchFn(`${api}/api/products/internal/batch`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` },
-            body: JSON.stringify({ ids: [productId] }),
-          });
-          if (resp && resp.ok) {
-            const arr = await resp.json().catch(() => null);
-            if (Array.isArray(arr) && arr.length) {
-              const body = arr[0];
-              const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
-              const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
-              const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
-              const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
-              this.logger.debug(`Catalog internal batch returned for ${productId}: nombre=${nombre}, sku=${sku}`);
-              return { nombre, descripcion, unidad, sku };
-            }
-            this.logger.debug(`Catalog internal batch returned empty for ${productId}`);
-          }
-        } catch (e) {
-          this.logger.warn(`Error calling catalog internal batch for ${productId}: ${e?.message || e}`);
-          // fallback
-        }
+      this.logger.debug(`Calling catalog internal batch for product ${productId}`);
+      const arr = await this.serviceHttp.post<any[]>(
+        'catalog-service',
+        '/products/internal/batch',
+        { ids: [productId] },
+      );
+      if (Array.isArray(arr) && arr.length) {
+        const body = arr[0];
+        const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+        const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+        const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+        const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+        this.logger.debug(`Catalog internal batch returned for ${productId}: nombre=${nombre}, sku=${sku}`);
+        return { nombre, descripcion, unidad, sku };
       }
-
-      // fallback to public endpoints
-      const attempts = [`${api}/api/products/${productId}`, `${api}/products/${productId}`, `${api}/productos/${productId}`];
-      for (const url of attempts) {
-        try {
-          this.logger.debug(`Calling catalog public endpoint ${url} for product ${productId}`);
-          const resp: any = await fetchFn(url);
-          if (!resp || !resp.ok) continue;
-          const body = await resp.json().catch(() => null);
-          if (!body) continue;
-          const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
-          const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
-          const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
-          const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
-          this.logger.debug(`Catalog public endpoint returned for ${productId}: nombre=${nombre}, sku=${sku}`);
-          return { nombre, descripcion, unidad, sku };
-        } catch (e) {
-          continue;
-        }
-      }
+      this.logger.debug(`Catalog internal batch returned empty for ${productId}`);
     } catch (e) {
       this.logger.debug('fetchProductInfo error ' + (e?.message || e));
     }
@@ -73,14 +41,10 @@ export class ReservationsService {
 
   private async fetchOrderInfo(pedidoId: string) {
     try {
-      const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
-      const api = base.replace(/\/+$/, '');
-      const fetchFn = (globalThis as any).fetch;
-      if (typeof fetchFn !== 'function') return null;
-      const resp: any = await fetchFn(`${api}/orders/${pedidoId}`);
-      if (!resp || !resp.ok) return null;
-      const body = await resp.json().catch(() => null);
-      if (!body) return null;
+      const body = await this.serviceHttp.get<any>(
+        'orders-service',
+        `/orders/${pedidoId}`,
+      );
       return {
         numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
         clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,

@@ -95,7 +95,7 @@ services:
       - JWT_SECRET=MiSecretoSuperSeguro2025
       # Conexiones Salientes
       - USUARIOS_SERVICE_URL=http://usuarios-service:3000
-      # Seguridad interna S2S (Para validarse y para llamar a otros)
+      # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
     depends_on:
       - database

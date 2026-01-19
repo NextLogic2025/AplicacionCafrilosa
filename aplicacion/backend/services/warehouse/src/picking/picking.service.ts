@@ -10,6 +10,7 @@ import { Lote } from '../lotes/entities/lote.entity';
 import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { ReservationItem } from '../reservations/entities/reservation-item.entity';
+import { ServiceHttpClient } from '../common/http/service-http-client.service';
 
 @Injectable()
 export class PickingService {
@@ -26,60 +27,27 @@ export class PickingService {
         private readonly loteRepo: Repository<Lote>,
         @InjectRepository(KardexMovimiento)
         private readonly kardexRepo: Repository<KardexMovimiento>,
-            @InjectRepository(Reservation)
-            private readonly reservationRepo: Repository<Reservation>,
-            @InjectRepository(ReservationItem)
-            private readonly reservationItemRepo: Repository<ReservationItem>,
+        @InjectRepository(Reservation)
+        private readonly reservationRepo: Repository<Reservation>,
+        @InjectRepository(ReservationItem)
+        private readonly reservationItemRepo: Repository<ReservationItem>,
+        private readonly serviceHttp: ServiceHttpClient,
     ) { }
 
     private async fetchProductInfo(productId: string) {
         try {
-            const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-            const apiBase = base.replace(/\/+$/, '');
-            const fetchFn = (globalThis as any).fetch;
-            if (typeof fetchFn !== 'function') return null;
-
-            // Prefer internal batch S2S endpoint with SERVICE_TOKEN
-            const serviceToken = process.env.SERVICE_TOKEN;
-            if (serviceToken) {
-                try {
-                    const resp: any = await fetchFn(`${apiBase}/api/products/internal/batch`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` },
-                        body: JSON.stringify({ ids: [productId] }),
-                    });
-                    if (resp && resp.ok) {
-                        const arr = await resp.json().catch(() => null);
-                        if (Array.isArray(arr) && arr.length) {
-                            const body = arr[0];
-                            const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
-                            const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
-                            const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
-                            const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
-                            return { nombre, descripcion, unidad, sku };
-                        }
-                    }
-                } catch (e) {
-                    // ignore and fallback to public endpoints
-                }
-            }
-
-            // Fallback to public endpoints (may require JWT)
-            const attempts = [`${apiBase}/api/products/${productId}`, `${apiBase}/products/${productId}`, `${apiBase}/productos/${productId}`];
-            for (const url of attempts) {
-                try {
-                    const resp: any = await fetchFn(url);
-                    if (!resp || !resp.ok) continue;
-                    const body = await resp.json().catch(() => null);
-                    if (!body) continue;
-                    const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
-                    const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
-                    const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
-                    const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
-                    return { nombre, descripcion, unidad, sku };
-                } catch (e) {
-                    continue;
-                }
+            const arr = await this.serviceHttp.post<any[]>(
+                'catalog-service',
+                '/products/internal/batch',
+                { ids: [productId] },
+            );
+            if (Array.isArray(arr) && arr.length) {
+                const body = arr[0];
+                const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+                const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+                const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+                const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+                return { nombre, descripcion, unidad, sku };
             }
         } catch (e) {
             this.logger.debug('fetchProductInfo error ' + (e?.message || e));
@@ -89,14 +57,10 @@ export class PickingService {
 
     private async fetchOrderInfo(pedidoId: string) {
         try {
-            const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
-            const apiBase = base.replace(/\/+$/, '');
-            const fetchFn = (globalThis as any).fetch;
-            if (typeof fetchFn !== 'function') return null;
-            const resp: any = await fetchFn(`${apiBase}/orders/${pedidoId}`);
-            if (!resp || !resp.ok) return null;
-            const body = await resp.json().catch(() => null);
-            if (!body) return null;
+            const body = await this.serviceHttp.get<any>(
+                'orders-service',
+                `/orders/${pedidoId}`,
+            );
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
                 clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
@@ -110,44 +74,17 @@ export class PickingService {
 
     private async fetchUserInfo(userId: string) {
         try {
-            const base = process.env.USERS_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://usuarios-service:3000';
-            const apiBase = base.replace(/\/+$/, '');
-            const fetchFn = (globalThis as any).fetch;
-            if (typeof fetchFn !== 'function') return null;
-
-            // Use internal batch endpoint which is unguarded for service-to-service lookups
-            const url = `${apiBase}/usuarios/batch/internal`;
-            try {
-                const resp: any = await fetchFn(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: [userId] }),
-                });
-                if (!resp || !resp.ok) return null;
-                const body = await resp.json().catch(() => null);
-                if (!Array.isArray(body) || body.length === 0) return null;
-                const u = body[0];
-                return {
-                    nombreCompleto: u.nombre_completo || u.nombreCompleto || u.name || u.nombre || null,
-                    email: u.email || null,
-                };
-            } catch (e) {
-                // fallback to simple GET attempts if batch fails
-            }
-
-            // Fallback: try single GET endpoints
-            const attempts = [`${apiBase}/usuarios/${userId}`, `${apiBase}/users/${userId}`];
-            for (const uurl of attempts) {
-                try {
-                    const r: any = await fetchFn(uurl);
-                    if (!r || !r.ok) continue;
-                    const b = await r.json().catch(() => null);
-                    if (!b) continue;
-                    return { nombreCompleto: b.nombre_completo || b.nombre || b.name || null, email: b.email || null };
-                } catch (e) {
-                    continue;
-                }
-            }
+            const body = await this.serviceHttp.post<any[]>(
+                'usuarios-service',
+                '/usuarios/batch/internal',
+                { ids: [userId] },
+            );
+            if (!Array.isArray(body) || body.length === 0) return null;
+            const u = body[0];
+            return {
+                nombreCompleto: u.nombre_completo || u.nombreCompleto || u.name || u.nombre || null,
+                email: u.email || null,
+            };
         } catch (e) {
             this.logger.debug('fetchUserInfo error ' + (e?.message || e));
         }
@@ -398,26 +335,13 @@ export class PickingService {
         try {
             const pedidoId = (orden as any).pedidoId;
             if (pedidoId) {
-                const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
-                const apiBase = base.replace(/\/+$/, '');
-                const url = apiBase + '/orders/' + pedidoId + '/status';
-
-                const fetchFn = (globalThis as any).fetch;
-                if (typeof fetchFn === 'function') {
-                    const serviceToken = process.env.SERVICE_TOKEN;
-                    const headersObj: any = { 'Content-Type': 'application/json' };
-                    // Prefer forwarding the user's JWT so Orders validates role (bodeguero)
-                    if (authHeader) headersObj.Authorization = authHeader;
-                    else if (serviceToken) headersObj.Authorization = 'Bearer ' + serviceToken;
-
-                    const resp: any = await fetchFn(url, { method: 'PATCH', headers: headersObj, body: JSON.stringify({ status: 'EN_PREPARACION' }) });
-                    if (!resp || !resp.ok) {
-                        const txt = resp ? await resp.text().catch(() => null) : null;
-                        this.logger.warn('Could not update order status in Orders service', { pedidoId, status: resp?.status, body: txt });
-                    }
-                } else {
-                    this.logger.warn('Global fetch not available: cannot notify Orders service', {});
-                }
+                const headers = authHeader ? { Authorization: authHeader } : undefined;
+                await this.serviceHttp.patch(
+                    'orders-service',
+                    `/orders/${pedidoId}/status`,
+                    { status: 'EN_PREPARACION' },
+                    { headers },
+                );
             }
         } catch (err) {
             this.logger.error('Error while notifying Orders service about picking assignment', err?.message || err);

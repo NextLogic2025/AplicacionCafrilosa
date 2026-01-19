@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { ServiceHttpClient } from '../common/http/service-http-client.service';
 
 import { ZonaComercial } from '../zonas/entities/zona.entity';
 import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
@@ -25,8 +24,6 @@ export class ClientesService {
   // Cache simple
   private readonly _cache = new Map<string, { ts: number; value: Cliente | null }>();
   private readonly _cacheTtl = Number(process.env.CLIENTE_CACHE_TTL_MS || '300000');
-  private readonly usuariosServiceUrl = process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3000';
-  
   constructor(
     @InjectRepository(Cliente)
     private repo: Repository<Cliente>,
@@ -34,7 +31,7 @@ export class ClientesService {
     private zonaRepo: Repository<ZonaComercial>,
     @InjectRepository(AsignacionVendedores)
     private asignRepo: Repository<AsignacionVendedores>,
-    private httpService: HttpService,
+    private readonly serviceHttp: ServiceHttpClient,
   ) {}
 
   async findAll() {
@@ -145,10 +142,11 @@ export class ClientesService {
     
     try {
       // Llamada S2S segura usando el token interno si está configurado en el HttpModule
-      const response = await firstValueFrom(
-        this.httpService.post<UsuarioExterno[]>(`${this.usuariosServiceUrl}/usuarios/batch/internal`, { ids: usuarioIds })
+      const usuarios = await this.serviceHttp.post<UsuarioExterno[]>(
+        'usuarios-service',
+        '/usuarios/batch/internal',
+        { ids: usuarioIds },
       );
-      const usuarios = response.data || [];
       const usuarioMap = new Map(
         usuarios.map(u => [u.id, {
           nombre: (u.nombreCompleto ?? u.nombre) || u.email,
@@ -172,10 +170,11 @@ export class ClientesService {
     if (!vendedorIds.length) return clientes;
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post<UsuarioExterno[]>(`${this.usuariosServiceUrl}/usuarios/batch/internal`, { ids: vendedorIds })
+      const usuarios = await this.serviceHttp.post<UsuarioExterno[]>(
+        'usuarios-service',
+        '/usuarios/batch/internal',
+        { ids: vendedorIds },
       );
-      const usuarios = response.data || [];
       const vendedorMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
 
       return clientes.map(c => ({
