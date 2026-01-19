@@ -84,6 +84,11 @@ export interface Order {
         nombre_comercial?: string
         identificacion: string
     }
+    sucursal?: {
+        id: string
+        nombre: string
+        direccion?: string
+    }
 
     status?: 'pending' | 'processing' | 'shipped' | 'delivered'
     clientName?: string
@@ -180,10 +185,10 @@ export const OrderService = {
             (order.estado_actual === 'ENTREGADO'
                 ? 'delivered'
                 : order.estado_actual === 'EN_RUTA'
-                  ? 'shipped'
-                  : order.estado_actual === 'EN_PREPARACION'
-                    ? 'processing'
-                    : 'pending')
+                    ? 'shipped'
+                    : order.estado_actual === 'EN_PREPARACION'
+                        ? 'processing'
+                        : 'pending')
 
         return {
             ...order,

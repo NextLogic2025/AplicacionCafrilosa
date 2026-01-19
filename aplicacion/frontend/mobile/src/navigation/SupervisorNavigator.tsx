@@ -8,6 +8,7 @@ import { TabNavigation } from '../components/ui/TabNavigation'
 
 import { SupervisorDashboardScreen } from '../features/supervisor/screens/SupervisorDashboardScreen'
 import { SupervisorOrdersScreen } from '../features/supervisor/screens/ModuloOrders/SupervisorOrdersScreen'
+import { SupervisorOrderDetailScreen } from '../features/supervisor/screens/ModuloOrders/SupervisorOrderDetailScreen'
 import { SupervisorDeliveriesScreen } from '../features/supervisor/screens/ModuloDeliveries/SupervisorDeliveriesScreen'
 import { SupervisorTeamScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamScreen'
 import { SupervisorTeamDetailScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamDetailScreen'
@@ -119,6 +120,7 @@ export function SupervisorNavigator() {
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="SupervisorTabs" component={SupervisorTabs} />
+            <Stack.Screen name="SupervisorOrderDetail" component={SupervisorOrderDetailScreen} />
             <Stack.Screen name="SupervisorClients" component={SupervisorClientsScreen} />
             <Stack.Screen name="SupervisorClientDetail" component={SupervisorClientDetailScreen} />
             <Stack.Screen name="SupervisorClientForm" component={SupervisorClientFormScreen} />
