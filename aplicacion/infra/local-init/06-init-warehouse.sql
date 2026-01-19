@@ -76,6 +76,7 @@
     CREATE TABLE picking_ordenes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         pedido_id UUID UNIQUE NOT NULL,         -- referencia lógica a orders_db.pedidos
+        reservation_id UUID,
         bodeguero_asignado_id UUID,             -- referencia lógica a auth_db.usuarios
         prioridad INT DEFAULT 1,
         estado VARCHAR(20) DEFAULT 'ASIGNADO',
@@ -295,7 +296,7 @@
     CREATE TABLE IF NOT EXISTS reservations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         temp_id VARCHAR(100),
-        status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','CONFIRMED','CANCELLED')),
+        status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','CONFIRMED','CANCELLED','COMPLETED')),
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
     );

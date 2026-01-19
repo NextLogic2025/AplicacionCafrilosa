@@ -93,7 +93,8 @@ export class PickingController {
     @Roles('bodeguero')
     tomar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
-        return this.service.asignarBodeguero(id, usuarioId);
+        const authHeader = req.headers?.authorization || null;
+        return this.service.asignarBodeguero(id, usuarioId, authHeader);
     }
 
     @Post(':id/iniciar')

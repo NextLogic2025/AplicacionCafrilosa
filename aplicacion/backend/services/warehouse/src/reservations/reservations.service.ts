@@ -11,6 +11,87 @@ export class ReservationsService {
 
   constructor(private readonly dataSource: DataSource) {}
 
+  private async fetchProductInfo(productId: string) {
+    try {
+      const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+      const api = base.replace(/\/+$/, '');
+      const fetchFn = (globalThis as any).fetch;
+      if (typeof fetchFn !== 'function') return null;
+
+      const serviceToken = process.env.SERVICE_TOKEN;
+      if (serviceToken) {
+        try {
+          this.logger.debug(`Calling catalog internal batch for product ${productId}`);
+          const resp: any = await fetchFn(`${api}/api/products/internal/batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` },
+            body: JSON.stringify({ ids: [productId] }),
+          });
+          if (resp && resp.ok) {
+            const arr = await resp.json().catch(() => null);
+            if (Array.isArray(arr) && arr.length) {
+              const body = arr[0];
+              const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+              const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+              const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+              const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+              this.logger.debug(`Catalog internal batch returned for ${productId}: nombre=${nombre}, sku=${sku}`);
+              return { nombre, descripcion, unidad, sku };
+            }
+            this.logger.debug(`Catalog internal batch returned empty for ${productId}`);
+          }
+        } catch (e) {
+          this.logger.warn(`Error calling catalog internal batch for ${productId}: ${e?.message || e}`);
+          // fallback
+        }
+      }
+
+      // fallback to public endpoints
+      const attempts = [`${api}/api/products/${productId}`, `${api}/products/${productId}`, `${api}/productos/${productId}`];
+      for (const url of attempts) {
+        try {
+          this.logger.debug(`Calling catalog public endpoint ${url} for product ${productId}`);
+          const resp: any = await fetchFn(url);
+          if (!resp || !resp.ok) continue;
+          const body = await resp.json().catch(() => null);
+          if (!body) continue;
+          const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+          const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+          const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+          const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+          this.logger.debug(`Catalog public endpoint returned for ${productId}: nombre=${nombre}, sku=${sku}`);
+          return { nombre, descripcion, unidad, sku };
+        } catch (e) {
+          continue;
+        }
+      }
+    } catch (e) {
+      this.logger.debug('fetchProductInfo error ' + (e?.message || e));
+    }
+    return null;
+  }
+
+  private async fetchOrderInfo(pedidoId: string) {
+    try {
+      const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
+      const api = base.replace(/\/+$/, '');
+      const fetchFn = (globalThis as any).fetch;
+      if (typeof fetchFn !== 'function') return null;
+      const resp: any = await fetchFn(`${api}/orders/${pedidoId}`);
+      if (!resp || !resp.ok) return null;
+      const body = await resp.json().catch(() => null);
+      if (!body) return null;
+      return {
+        numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
+        clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
+        referenciaComercial: body.referenciaComercial || body.referencia_comercial || body.referencia || null,
+      };
+    } catch (e) {
+      this.logger.debug('fetchOrderInfo error ' + (e?.message || e));
+      return null;
+    }
+  }
+
   async create(dto: CreateReservationDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -96,12 +177,68 @@ export class ReservationsService {
   async findAll(status?: string) {
     const where: any = {};
     if (status) where.status = status;
-    return this.dataSource.manager.find(Reservation, { where, relations: ['items'], order: { createdAt: 'DESC' } });
+    const results = await this.dataSource.manager.find(Reservation, { where, relations: ['items'], order: { createdAt: 'DESC' } });
+    // Enrich each reservation with human-friendly fields
+    return Promise.all(results.map((r) => this._enrichReservation(r)));
   }
 
   async findOne(id: string) {
     const res = await this.dataSource.manager.findOne(Reservation, { where: { id }, relations: ['items'] });
     if (!res) throw new NotFoundException('Reserva no encontrada');
-    return res;
+    return this._enrichReservation(res);
+  }
+
+  private async _enrichReservation(reservation: Reservation) {
+    const enriched: any = { ...reservation } as any;
+
+    // Attach pedido info if tempId looks like an order id
+    enriched.pedido = null;
+    if (reservation.tempId) {
+      try {
+        const info = await this.fetchOrderInfo(reservation.tempId);
+        if (info) enriched.pedido = info;
+      } catch (e) {
+        this.logger.debug('Could not fetch order for reservation ' + reservation.id);
+      }
+    }
+
+    // Enrich items
+    enriched.items = await Promise.all((reservation.items || []).map(async (it: ReservationItem) => {
+      const out: any = { ...it };
+      // stock/ubicacion/lote
+      if (it.stockUbicacionId) {
+        try {
+          const stock = await this.dataSource.manager.findOne(StockUbicacion, { where: { id: it.stockUbicacionId }, relations: ['ubicacion', 'lote'] });
+          if (stock) {
+            out.ubicacionCodigo = stock.ubicacion?.codigoVisual || null;
+            out.ubicacionNombre = `Almacen ${stock.ubicacion?.almacenId || ''}`;
+            out.loteNumero = stock.lote?.numeroLote || null;
+            out.cantidadDisponible = Number(stock.cantidadFisica) - Number(stock.cantidadReservada);
+            out.cantidadReservada = Number(stock.cantidadReservada || 0);
+          }
+        } catch (e) {
+          this.logger.debug('Error enriching reservation stock ' + (e?.message || e));
+        }
+      }
+
+      // product info via catalog
+      try {
+        const prod = await this.fetchProductInfo(it.productId);
+        if (prod) {
+          out.nombreProducto = prod.nombre;
+          out.descripcion = prod.descripcion;
+          out.unidad = prod.unidad;
+          out.sku = out.sku || prod.sku;
+        } else {
+          this.logger.warn(`No product info for reservation ${reservation.id} item ${it.id} product ${it.productId}`);
+        }
+      } catch (e) {
+        this.logger.warn(`Error fetching product info for reservation ${reservation.id} item ${it.id} product ${it.productId}: ${e?.message || e}`);
+      }
+
+      return out;
+    }));
+
+    return enriched;
   }
 }

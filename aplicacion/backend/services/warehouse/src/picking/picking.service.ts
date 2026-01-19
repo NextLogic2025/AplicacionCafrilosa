@@ -32,10 +32,215 @@ export class PickingService {
             private readonly reservationItemRepo: Repository<ReservationItem>,
     ) { }
 
+    private async fetchProductInfo(productId: string) {
+        try {
+            const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
+            const apiBase = base.replace(/\/+$/, '');
+            const fetchFn = (globalThis as any).fetch;
+            if (typeof fetchFn !== 'function') return null;
+
+            // Prefer internal batch S2S endpoint with SERVICE_TOKEN
+            const serviceToken = process.env.SERVICE_TOKEN;
+            if (serviceToken) {
+                try {
+                    const resp: any = await fetchFn(`${apiBase}/api/products/internal/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceToken}` },
+                        body: JSON.stringify({ ids: [productId] }),
+                    });
+                    if (resp && resp.ok) {
+                        const arr = await resp.json().catch(() => null);
+                        if (Array.isArray(arr) && arr.length) {
+                            const body = arr[0];
+                            const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+                            const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+                            const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+                            const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+                            return { nombre, descripcion, unidad, sku };
+                        }
+                    }
+                } catch (e) {
+                    // ignore and fallback to public endpoints
+                }
+            }
+
+            // Fallback to public endpoints (may require JWT)
+            const attempts = [`${apiBase}/api/products/${productId}`, `${apiBase}/products/${productId}`, `${apiBase}/productos/${productId}`];
+            for (const url of attempts) {
+                try {
+                    const resp: any = await fetchFn(url);
+                    if (!resp || !resp.ok) continue;
+                    const body = await resp.json().catch(() => null);
+                    if (!body) continue;
+                    const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
+                    const descripcion = body.descripcion || body.description || body.descripcion_producto || body.details || null;
+                    const unidad = body.unidad_medida || body.unit || body.unidad || body.unidadMedida || null;
+                    const sku = body.codigo_sku || body.sku || body.codigoSku || body.sku_codigo || null;
+                    return { nombre, descripcion, unidad, sku };
+                } catch (e) {
+                    continue;
+                }
+            }
+        } catch (e) {
+            this.logger.debug('fetchProductInfo error ' + (e?.message || e));
+        }
+        return null;
+    }
+
+    private async fetchOrderInfo(pedidoId: string) {
+        try {
+            const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
+            const apiBase = base.replace(/\/+$/, '');
+            const fetchFn = (globalThis as any).fetch;
+            if (typeof fetchFn !== 'function') return null;
+            const resp: any = await fetchFn(`${apiBase}/orders/${pedidoId}`);
+            if (!resp || !resp.ok) return null;
+            const body = await resp.json().catch(() => null);
+            if (!body) return null;
+            return {
+                numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
+                clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
+                referenciaComercial: body.referenciaComercial || body.referencia_comercial || body.referencia || null,
+            };
+        } catch (e) {
+            this.logger.debug('fetchOrderInfo error ' + (e?.message || e));
+            return null;
+        }
+    }
+
+    private async fetchUserInfo(userId: string) {
+        try {
+            const base = process.env.USERS_SERVICE_URL || process.env.AUTH_SERVICE_URL || 'http://usuarios-service:3000';
+            const apiBase = base.replace(/\/+$/, '');
+            const fetchFn = (globalThis as any).fetch;
+            if (typeof fetchFn !== 'function') return null;
+
+            // Use internal batch endpoint which is unguarded for service-to-service lookups
+            const url = `${apiBase}/usuarios/batch/internal`;
+            try {
+                const resp: any = await fetchFn(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [userId] }),
+                });
+                if (!resp || !resp.ok) return null;
+                const body = await resp.json().catch(() => null);
+                if (!Array.isArray(body) || body.length === 0) return null;
+                const u = body[0];
+                return {
+                    nombreCompleto: u.nombre_completo || u.nombreCompleto || u.name || u.nombre || null,
+                    email: u.email || null,
+                };
+            } catch (e) {
+                // fallback to simple GET attempts if batch fails
+            }
+
+            // Fallback: try single GET endpoints
+            const attempts = [`${apiBase}/usuarios/${userId}`, `${apiBase}/users/${userId}`];
+            for (const uurl of attempts) {
+                try {
+                    const r: any = await fetchFn(uurl);
+                    if (!r || !r.ok) continue;
+                    const b = await r.json().catch(() => null);
+                    if (!b) continue;
+                    return { nombreCompleto: b.nombre_completo || b.nombre || b.name || null, email: b.email || null };
+                } catch (e) {
+                    continue;
+                }
+            }
+        } catch (e) {
+            this.logger.debug('fetchUserInfo error ' + (e?.message || e));
+        }
+        return null;
+    }
+
+    private async _enrichPicking(orden: PickingOrden) {
+        const base: any = { ...orden } as any;
+
+        // attach pedido summary
+        try {
+            const pedido = await this.fetchOrderInfo((orden as any).pedidoId);
+            base.pedido = pedido || null;
+        } catch (e) {
+            base.pedido = null;
+        }
+
+        // bodeguero asignado object
+        base.bodegueroAsignado = null;
+        if ((orden as any).bodegueroAsignadoId) {
+            base.bodegueroAsignado = { id: (orden as any).bodegueroAsignadoId, nombreCompleto: null };
+            try {
+                const u = await this.fetchUserInfo((orden as any).bodegueroAsignadoId);
+                if (u && u.nombreCompleto) base.bodegueroAsignado.nombreCompleto = u.nombreCompleto;
+            } catch (e) {
+                // keep placeholder if user service unreachable
+            }
+        }
+
+        // load items with relations if not present
+        let items: PickingItem[] = [] as any;
+        try {
+            items = await this.itemRepo.find({ where: { pickingId: orden.id }, relations: ['ubicacionSugerida', 'lote'] });
+        } catch (e) {
+            items = [] as any;
+        }
+
+        base.items = await Promise.all(items.map(async (it) => {
+            const out: any = { ...it };
+            // product info
+            try {
+                const prod = await this.fetchProductInfo(it.productoId);
+                if (prod) {
+                    out.nombreProducto = prod.nombre;
+                    out.sku = prod.sku;
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            // ubicacion sugerida
+            out.ubicacionSugerida = out.ubicacionSugerida || null;
+            if (out.ubicacionSugerida) {
+                out.ubicacionSugerida = {
+                    id: out.ubicacionOrigenSugerida,
+                    codigoVisual: (it as any).ubicacionSugerida?.codigoVisual || null,
+                };
+            }
+
+            // lote sugerido
+            out.loteSugerido = out.loteSugerido || null;
+            if ((it as any).lote) {
+                out.loteSugerido = {
+                    id: it.loteSugerido,
+                    numeroLote: (it as any).lote?.numeroLote || null,
+                };
+            }
+
+            // stock availability for suggested ubicacion/lote
+            try {
+                if (it.ubicacionOrigenSugerida && (it.loteConfirmado || it.loteSugerido)) {
+                    const loteId = it.loteConfirmado || it.loteSugerido;
+                    const stock = await this.stockRepo.findOne({ where: { ubicacionId: it.ubicacionOrigenSugerida, loteId } });
+                    if (stock) {
+                        out.cantidadDisponible = Number(stock.cantidadFisica) - Number(stock.cantidadReservada);
+                        out.cantidadReservada = Number(stock.cantidadReservada || 0);
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            return out;
+        }));
+
+        return base;
+    }
+
     findAll(estado?: string) {
         const qb = this.ordenRepo.createQueryBuilder('p').where('p.deleted_at IS NULL');
         if (estado) qb.andWhere('p.estado = :estado', { estado });
-        return qb.orderBy('p.prioridad', 'DESC').addOrderBy('p.created_at', 'ASC').getMany();
+        return qb.orderBy('p.prioridad', 'DESC').addOrderBy('p.created_at', 'ASC').getMany()
+            .then((rows) => Promise.all(rows.map((r) => this._enrichPicking(r))));
     }
 
     findByBodeguero(bodegueroId: string) {
@@ -43,7 +248,7 @@ export class PickingService {
         return this.ordenRepo.find({
             where: { bodegueroAsignadoId: bodegueroId, deletedAt: IsNull() },
             order: { prioridad: 'DESC', createdAt: 'ASC' },
-        });
+        }).then(rows => Promise.all(rows.map(r => this._enrichPicking(r))));
     }
 
     findAvailable() {
@@ -55,20 +260,14 @@ export class PickingService {
             .andWhere("p.estado != 'COMPLETADO'")
             .orderBy('p.prioridad', 'DESC')
             .addOrderBy('p.created_at', 'ASC')
-            .getMany();
+            .getMany()
+            .then(rows => Promise.all(rows.map(r => this._enrichPicking(r))));
     }
 
     async findOne(id: string) {
         const orden = await this.ordenRepo.findOne({ where: { id, deletedAt: IsNull() } });
         if (!orden) throw new NotFoundException('Orden de picking no encontrada');
-
-        const items = await this.itemRepo.find({
-            where: { pickingId: id },
-            relations: ['ubicacionSugerida', 'lote'],
-            order: { createdAt: 'ASC' },
-        });
-
-        return { ...orden, items };
+        return this._enrichPicking(orden);
     }
 
     async create(dto: { pedidoId: string; items: any[]; estado?: string }) {
@@ -180,7 +379,7 @@ export class PickingService {
         await this.stockRepo.save(stock);
     }
 
-    async asignarBodeguero(id: string, bodegueroId: string) {
+    async asignarBodeguero(id: string, bodegueroId: string, authHeader?: string | null) {
         const orden = await this.findOne(id);
         if (orden.estado === 'COMPLETADO') throw new BadRequestException('Orden ya fue completada');
 
@@ -194,6 +393,35 @@ export class PickingService {
             estado: orden.estado === 'PENDIENTE' ? 'ASIGNADO' : orden.estado,
             updatedAt: new Date(),
         } as any);
+
+        // Notify Orders service: change pedido status to EN_PREPARACION when a bodeguero takes the picking
+        try {
+            const pedidoId = (orden as any).pedidoId;
+            if (pedidoId) {
+                const base = process.env.ORDERS_SERVICE_URL || 'http://orders-service:3000';
+                const apiBase = base.replace(/\/+$/, '');
+                const url = apiBase + '/orders/' + pedidoId + '/status';
+
+                const fetchFn = (globalThis as any).fetch;
+                if (typeof fetchFn === 'function') {
+                    const serviceToken = process.env.SERVICE_TOKEN;
+                    const headersObj: any = { 'Content-Type': 'application/json' };
+                    // Prefer forwarding the user's JWT so Orders validates role (bodeguero)
+                    if (authHeader) headersObj.Authorization = authHeader;
+                    else if (serviceToken) headersObj.Authorization = 'Bearer ' + serviceToken;
+
+                    const resp: any = await fetchFn(url, { method: 'PATCH', headers: headersObj, body: JSON.stringify({ status: 'EN_PREPARACION' }) });
+                    if (!resp || !resp.ok) {
+                        const txt = resp ? await resp.text().catch(() => null) : null;
+                        this.logger.warn('Could not update order status in Orders service', { pedidoId, status: resp?.status, body: txt });
+                    }
+                } else {
+                    this.logger.warn('Global fetch not available: cannot notify Orders service', {});
+                }
+            }
+        } catch (err) {
+            this.logger.error('Error while notifying Orders service about picking assignment', err?.message || err);
+        }
 
         return this.findOne(id);
     }
@@ -293,6 +521,18 @@ export class PickingService {
 
         await this.ordenRepo.update(id, updatePayload as any);
 
+        // If this picking was created from a reservation, mark that reservation as COMPLETED
+        try {
+            const ordenRecord: any = await this.ordenRepo.findOne({ where: { id } });
+            const reservationId = ordenRecord?.reservationId || (orden as any).reservationId || null;
+            if (reservationId) {
+                await this.reservationRepo.update(reservationId, { status: 'COMPLETED' } as any);
+                this.logger.log(`Reserva ${reservationId} marcada como COMPLETED por picking ${id}`);
+            }
+        } catch (e) {
+            this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
+        }
+
         return this.findOne(id);
     }
 
@@ -348,6 +588,16 @@ export class PickingService {
 
         // Mark reservation as CONFIRMED
         await this.reservationRepo.update(reservationId, { status: 'CONFIRMED' } as any);
+
+        // Persist mapping between picking and reservation so completarPicking can update it later
+        try {
+            const pickingId = (picking as any)?.id || (picking && (picking as any).id);
+            if (pickingId) {
+                await this.ordenRepo.update(pickingId, { reservationId } as any);
+            }
+        } catch (e) {
+            this.logger.warn('No se pudo guardar reservationId en picking_ordenes', { err: e?.message || e });
+        }
 
         return picking;
     }
