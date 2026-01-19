@@ -51,18 +51,26 @@ export function WarehouseHomeScreen() {
         }, [])
     )
 
+    // Acciones ordenadas por flujo de trabajo:
+    // Picking → Preparación/Empaque → Despacho
     const fabActions: FabAction[] = [
         {
-            icon: 'business-outline',
-            label: 'Almacenes',
+            icon: 'lock-closed-outline',
+            label: 'Reservas',
             // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehouseAlmacenes')
+            onPress: () => navigation.navigate('WarehouseReservations')
         },
         {
-            icon: 'notifications-outline',
-            label: 'Notificaciones',
+            icon: 'checkbox-outline',
+            label: 'Empaque',
             // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehouseNotifications')
+            onPress: () => navigation.navigate('WarehousePreparation')
+        },
+        {
+            icon: 'send-outline',
+            label: 'Despachos',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseDispatch')
         },
         {
             icon: 'refresh-circle-outline',
@@ -71,34 +79,28 @@ export function WarehouseHomeScreen() {
             onPress: () => navigation.navigate('WarehouseReturns')
         },
         {
-            icon: 'bus-outline',
-            label: 'Despachos',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehouseDispatch')
-        },
-        {
-            icon: 'cube-outline',
-            label: 'Preparación',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehousePreparation')
-        },
-        {
-            icon: 'warning-outline',
-            label: 'Lotes / Vencimientos',
-            // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehouseLots')
-        },
-        {
             icon: 'analytics-outline',
             label: 'Stock',
             // @ts-expect-error - Navigation is typed but routes are dynamic
             onPress: () => navigation.navigate('WarehouseStock')
         },
         {
-            icon: 'lock-closed-outline',
-            label: 'Reservas',
+            icon: 'warning-outline',
+            label: 'Lotes',
             // @ts-expect-error - Navigation is typed but routes are dynamic
-            onPress: () => navigation.navigate('WarehouseReservations')
+            onPress: () => navigation.navigate('WarehouseLots')
+        },
+        {
+            icon: 'business-outline',
+            label: 'Almacenes',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseAlmacenes')
+        },
+        {
+            icon: 'notifications-outline',
+            label: 'Alertas',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseNotifications')
         }
     ]
 

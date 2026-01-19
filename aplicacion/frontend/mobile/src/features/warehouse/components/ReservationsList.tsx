@@ -6,11 +6,9 @@ import { Header } from '../../../components/ui/Header'
 import { SearchBar } from '../../../components/ui/SearchBar'
 import { CategoryFilter } from '../../../components/ui/CategoryFilter'
 import { GenericList } from '../../../components/ui/GenericList'
-import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
+import { FeedbackModal } from '../../../components/ui/FeedbackModal'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { ReservationService, type Reservation } from '../../../services/api/ReservationService'
-import { getUserFriendlyMessage } from '../../../utils/errorMessages'
-import { BRAND_COLORS } from '../../../shared/types'
 
 type Props = {
     title?: string
@@ -40,16 +38,6 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
     const [status, setStatus] = useState<string>('ACTIVE')
     const [loading, setLoading] = useState(false)
     const [reservations, setReservations] = useState<Reservation[]>([])
-    const [modalState, setModalState] = useState<{ visible: boolean; type: FeedbackType; title: string; message: string }>({
-        visible: false,
-        type: 'info',
-        title: '',
-        message: '',
-    })
-    const [confirmModal, setConfirmModal] = useState<{ visible: boolean; mode: 'confirm' | 'cancel'; id?: string }>({
-        visible: false,
-        mode: 'confirm',
-    })
     const [detailModal, setDetailModal] = useState<{ visible: boolean; reservation?: Reservation }>({
         visible: false,
     })
@@ -87,39 +75,6 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
         const term = search.toLowerCase()
         return base.filter((r) => [r.id, r.tempId].filter(Boolean).some((v) => String(v).toLowerCase().includes(term)))
     }, [reservations, search, status])
-
-    const handleCancel = (id: string) => {
-        setConfirmModal({ visible: true, mode: 'cancel', id })
-    }
-
-    const handleConfirm = (id: string) => {
-        setConfirmModal({ visible: true, mode: 'confirm', id })
-    }
-
-    const executeAction = async (mode: 'confirm' | 'cancel', id?: string) => {
-        if (!id) return
-        setConfirmModal((prev) => ({ ...prev, visible: false }))
-        setLoading(true)
-        try {
-            if (mode === 'confirm') {
-                await ReservationService.confirm(id)
-                setModalState({ visible: true, type: 'success', title: 'Reserva Confirmada', message: 'El picking ha sido generado automaticamente. El bodeguero puede comenzar a preparar el pedido.' })
-            } else {
-                await ReservationService.cancel(id)
-                setModalState({ visible: true, type: 'success', title: 'Reserva Cancelada', message: 'El stock ha sido liberado y esta disponible nuevamente.' })
-            }
-            await loadData()
-        } catch (error) {
-            setModalState({
-                visible: true,
-                type: 'error',
-                title: mode === 'confirm' ? 'Error al Confirmar' : 'Error al Cancelar',
-                message: getUserFriendlyMessage(error, mode === 'confirm' ? 'UPDATE_ERROR' : 'DELETE_ERROR'),
-            })
-        } finally {
-            setLoading(false)
-        }
-    }
 
     const totalItems = (reservation: Reservation) => {
         return reservation.items?.reduce((acc, item) => acc + item.quantity, 0) || 0
@@ -222,52 +177,9 @@ export function ReservationsList({ title = 'Reservas de Stock', onBack, onCreate
                                 )}
                             </View>
 
-                            {item.status === 'ACTIVE' && (
-                                <View className="flex-row border-t border-neutral-100">
-                                    <Pressable
-                                        className="flex-1 flex-row items-center justify-center py-3 border-r border-neutral-100"
-                                        onPress={() => handleCancel(item.id)}
-                                    >
-                                        <Ionicons name="close-circle-outline" size={18} color="#6B7280" />
-                                        <Text className="text-sm font-semibold text-neutral-600 ml-2">Cancelar</Text>
-                                    </Pressable>
-                                    <Pressable
-                                        className="flex-1 flex-row items-center justify-center py-3"
-                                        style={{ backgroundColor: '#059669' }}
-                                        onPress={() => handleConfirm(item.id)}
-                                    >
-                                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                                        <Text className="text-sm font-bold text-white ml-2">Confirmar</Text>
-                                    </Pressable>
-                                </View>
-                            )}
                         </Pressable>
                     )
                 }}
-            />
-
-            <FeedbackModal
-                visible={modalState.visible}
-                type={modalState.type}
-                title={modalState.title}
-                message={modalState.message}
-                onClose={() => setModalState((prev) => ({ ...prev, visible: false }))}
-            />
-
-            <FeedbackModal
-                visible={confirmModal.visible}
-                type="warning"
-                title={confirmModal.mode === 'confirm' ? 'Confirmar Reserva' : 'Cancelar Reserva'}
-                message={
-                    confirmModal.mode === 'confirm'
-                        ? 'Al confirmar, se generara automaticamente una orden de picking para que el bodeguero prepare los productos.'
-                        : 'Al cancelar, el stock reservado sera liberado y estara disponible para otros pedidos.'
-                }
-                showCancel
-                cancelText="Volver"
-                confirmText={confirmModal.mode === 'confirm' ? 'Si, Confirmar' : 'Si, Cancelar'}
-                onClose={() => setConfirmModal((prev) => ({ ...prev, visible: false }))}
-                onConfirm={() => executeAction(confirmModal.mode, confirmModal.id)}
             />
 
             <FeedbackModal

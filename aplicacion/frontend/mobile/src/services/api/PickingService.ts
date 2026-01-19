@@ -19,6 +19,7 @@ export type Picking = {
     pedidoId?: string
     estado: PickingEstado
     bodegueroId?: string | null
+    bodegueroNombre?: string | null
     items?: PickingItem[]
     createdAt?: string
     updatedAt?: string
