@@ -12,25 +12,49 @@ export function QuickActionsGrid() {
             label: 'Aprobar Pedidos',
             icon: 'checkmark-done-circle-outline',
             color: '#10B981',
-            onPress: () => navigation.navigate('Pedidos')
+            onPress: () => navigation.navigate('Pedidos'),
         },
         {
-            label: 'Crear Promo',
-            icon: 'pricetag-outline',
-            color: '#F59E0B',
-            onPress: () => navigation.navigate('SupervisorPromotions')
+            label: 'Almacenes',
+            icon: 'business-outline',
+            color: '#EF4444',
+            onPress: () => navigation.navigate('SupervisorAlmacenes'),
         },
         {
             label: 'Reporte',
             icon: 'stats-chart-outline',
             color: '#6366F1',
-            onPress: () => navigation.navigate('SupervisorReports')
-        }
+            onPress: () => navigation.navigate('SupervisorReports'),
+        },
+        {
+            label: 'Lotes',
+            icon: 'cube-outline',
+            color: '#F97316',
+            onPress: () => navigation.navigate('SupervisorLotes'),
+        },
+        {
+            label: 'Stock',
+            icon: 'analytics-outline',
+            color: '#0EA5E9',
+            onPress: () => navigation.navigate('SupervisorStock'),
+        },
+        {
+            label: 'Picking',
+            icon: 'clipboard-outline',
+            color: '#22C55E',
+            onPress: () => navigation.navigate('SupervisorPickingList'),
+        },
+        {
+            label: 'Reservas',
+            icon: 'lock-closed-outline',
+            color: '#F59E0B',
+            onPress: () => navigation.navigate('SupervisorReservations'),
+        },
     ]
 
     return (
         <View className="mb-6">
-            <Text className="text-lg font-bold text-neutral-800 mb-3 px-1">Accesos Rápidos</Text>
+            <Text className="text-lg font-bold text-neutral-800 mb-3 px-1">Accesos Rapidos</Text>
             <View className="flex-row flex-wrap justify-between">
                 {actions.map((action, index) => (
                     <TouchableOpacity
@@ -38,7 +62,6 @@ export function QuickActionsGrid() {
                         className="bg-white p-3 rounded-xl border border-neutral-200 mb-3 shadow-sm items-center justify-center w-[31%]"
                         onPress={action.onPress}
                         activeOpacity={0.7}
-                        // Aspect ratio 1 ensures square shape (same width and height)
                         style={{ aspectRatio: 1 }}
                     >
                         <View
@@ -47,9 +70,7 @@ export function QuickActionsGrid() {
                         >
                             <Ionicons name={action.icon as any} size={24} color={action.color} />
                         </View>
-                        <Text className="text-xs text-center font-bold text-neutral-700 leading-tight">
-                            {action.label}
-                        </Text>
+                        <Text className="text-xs text-center font-bold text-neutral-700 leading-tight">{action.label}</Text>
                     </TouchableOpacity>
                 ))}
             </View>

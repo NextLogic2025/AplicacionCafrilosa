@@ -1,4 +1,4 @@
-import { delay } from '../../utils/delay'
+import { loadNotifications, saveNotifications, clearNotifications } from '../../storage/notificationStorage'
 
 export interface Notification {
     id: string
@@ -6,13 +6,39 @@ export interface Notification {
     message: string
     date: string
     read: boolean
-    type?: 'order_status' | 'general'
+    type?: 'order_status' | 'general' | string
+    data?: any
+}
+
+const persist = async (items: Notification[]) => {
+    await saveNotifications(items)
+    return items
 }
 
 export const NotificationService = {
     async getNotifications(): Promise<Notification[]> {
-        await delay(500)
-        // Clean functionality: return empty array by default to avoid hardcoded data
-        return []
-    }
+        return await loadNotifications()
+    },
+
+    async addNotification(notification: Notification): Promise<Notification[]> {
+        const existing = await loadNotifications()
+        const updated = [notification, ...existing]
+        return persist(updated)
+    },
+
+    async markAsRead(id: string): Promise<Notification[]> {
+        const existing = await loadNotifications()
+        const updated = existing.map((n) => (n.id === id ? { ...n, read: true } : n))
+        return persist(updated)
+    },
+
+    async markAllRead(): Promise<Notification[]> {
+        const existing = await loadNotifications()
+        const updated = existing.map((n) => ({ ...n, read: true }))
+        return persist(updated)
+    },
+
+    async clearAll(): Promise<void> {
+        await clearNotifications()
+    },
 }

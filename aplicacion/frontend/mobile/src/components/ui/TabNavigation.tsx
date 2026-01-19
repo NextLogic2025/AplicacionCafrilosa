@@ -1,11 +1,10 @@
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Text, View, Pressable, Platform } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../shared/types'
 import { useCartOptional } from '../../context/CartContext'
+import { useStableInsets } from '../../hooks/useStableInsets'
 
-// Mapeo de rutas a iconos
 const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionicons.glyphMap => {
     switch (routeName) {
         case 'Inicio':
@@ -34,8 +33,8 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         // Bodeguero Routes
         case 'WarehouseHome':
             return isFocused ? 'home' : 'home-outline'
-        case 'WarehouseOrders':
-            return isFocused ? 'receipt' : 'receipt-outline'
+        case 'WarehousePicking':
+            return isFocused ? 'clipboard' : 'clipboard-outline'
         case 'WarehouseInventory':
             return isFocused ? 'cube' : 'cube-outline'
         case 'WarehouseProfile':
@@ -71,7 +70,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
 }
 
 export function TabNavigation({ state, descriptors, navigation }: BottomTabBarProps) {
-    const insets = useSafeAreaInsets()
+    const insets = useStableInsets()
 
     // useCartOptional retorna null si no está dentro de CartProvider
     // Esto permite que TabNavigation funcione en todos los navegadores
@@ -82,10 +81,11 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
         <View
             className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-100 rounded-t-[24px] shadow-lg shadow-black/10"
             style={{
-                paddingBottom: (insets.bottom || 16) + 12, // Add extra buffer for aesthetics and safety
+                paddingBottom: Math.max(insets.bottom, 16) + 14,
                 paddingTop: 12,
+                paddingHorizontal: 6,
                 elevation: 12,
-                zIndex: 50, // Reducido para permitir que el backdrop del FAB lo cubra (zIndex: 9998)
+                zIndex: 50, 
             }}
         >
             <View className="flex-row items-center justify-around w-full">

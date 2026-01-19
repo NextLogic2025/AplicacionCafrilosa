@@ -1,5 +1,6 @@
-import { env } from '../../config/env'
 import { apiRequest } from './client'
+import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface Client {
     id: string
@@ -11,8 +12,8 @@ export interface Client {
     lista_precios_id: number | null
     zona_comercial_id?: number | null
     tiene_credito: boolean
-    limite_credito: string  // Decimal de PostgreSQL devuelto como string
-    saldo_actual: string    // Decimal de PostgreSQL devuelto como string
+    limite_credito: string
+    saldo_actual: string
     dias_plazo: number
     bloqueado: boolean
     direccion_texto?: string | null
@@ -24,7 +25,6 @@ export interface Client {
     created_at?: string
     updated_at?: string
     deleted_at?: string | null
-    // Campos enriquecidos por el backend
     usuario_principal_nombre?: string | null
     vendedor_nombre?: string | null
     zona_comercial_nombre?: string | null
@@ -50,16 +50,15 @@ export interface CommercialZone {
     }
 }
 
-// Interfaz para Sucursales del Cliente
 export interface ClientBranch {
     id: string
     cliente_id: string
     nombre_sucursal: string
     direccion_entrega: string
-    zona_id?: number  // Zona de la sucursal (puede ser diferente a la zona del cliente)
+    zona_id?: number
     ubicacion_gps?: {
         type: 'Point'
-        coordinates: [number, number] // [lng, lat]
+        coordinates: [number, number]
     } | null
     contacto_nombre?: string
     contacto_telefono?: string
@@ -85,152 +84,125 @@ export interface CreateClientPayload {
 
 export const ClientService = {
     getClients: async (): Promise<Client[]> => {
-        return apiRequest<Client[]>('/api/clientes')
+        return apiRequest<Client[]>(endpoints.catalog.clientes)
     },
 
     getClient: async (id: string): Promise<Client> => {
-        return apiRequest<Client>(`/api/clientes/${id}`)
+        return apiRequest<Client>(endpoints.catalog.clienteById(id))
     },
 
     createClient: async (client: CreateClientPayload): Promise<Client> => {
-        return apiRequest<Client>('/api/clientes', {
+        return apiRequest<Client>(endpoints.catalog.clientes, {
             method: 'POST',
             body: JSON.stringify(client)
         })
     },
 
     updateClient: async (id: string, client: Partial<Client>): Promise<Client> => {
-        return apiRequest<Client>(`/api/clientes/${id}`, {
+        return apiRequest<Client>(endpoints.catalog.clienteById(id), {
             method: 'PUT',
             body: JSON.stringify(client)
         })
     },
 
     deleteClient: async (id: string): Promise<void> => {
-        return apiRequest<void>(`/api/clientes/${id}`, {
+        return apiRequest<void>(endpoints.catalog.clienteById(id), {
             method: 'DELETE'
         })
     },
 
     unblockClient: async (id: string): Promise<void> => {
-        return apiRequest<void>(`/api/clientes/${id}/desbloquear`, {
+        return apiRequest<void>(endpoints.catalog.clienteDesbloquear(id), {
             method: 'PUT'
         })
     },
 
     getBlockedClients: async (): Promise<Client[]> => {
-        return apiRequest<Client[]>('/api/clientes/bloqueados')
+        return apiRequest<Client[]>(endpoints.catalog.clientesBloqueados)
     },
 
     getMyClientData: async (): Promise<Client | null> => {
         try {
-            // For 'cliente' role, the backend automatically searches by usuario_principal_id
-            // when using GET /api/clientes/:id. Using 'me' as a placeholder ID.
-            // The controller intercepts cliente role and fetches by authenticated user's ID.
-            return await apiRequest<Client>('/api/clientes/me')
+            return await apiRequest<Client>(endpoints.catalog.clienteById('me'))
         } catch (error: any) {
-            console.error('Error fetching client data:', error)
+            logErrorForDebugging(error, 'ClientService.getMyClientData')
             return null
         }
     },
 
-    /**
-     * Obtiene los clientes asignados al vendedor autenticado
-     * 
-     * Endpoint: GET /api/clientes/mis
-     * Roles permitidos: vendedor, admin, supervisor
-     */
     getMyClients: async (): Promise<Client[]> => {
         try {
-            return await apiRequest<Client[]>(`${env.api.catalogUrl}/api/clientes/mis`)
+            return await apiRequest<Client[]>(endpoints.catalog.clientesMis)
         } catch (error) {
-            console.error('Error fetching my clients:', error)
+            logErrorForDebugging(error, 'ClientService.getMyClients')
             return []
         }
     },
 
     getPriceLists: async (): Promise<PriceList[]> => {
         try {
-            return await apiRequest<PriceList[]>(`${env.api.catalogUrl}/api/precios/listas`)
+            return await apiRequest<PriceList[]>(endpoints.catalog.preciosListas)
         } catch (error) {
-            console.error('Error fetching price lists:', error)
+            logErrorForDebugging(error, 'ClientService.getPriceLists')
             return []
         }
     },
 
     getCommercialZones: async (silent = false): Promise<CommercialZone[]> => {
         try {
-            return await apiRequest<CommercialZone[]>(`${env.api.catalogUrl}/api/zonas`, { silent })
+            return await apiRequest<CommercialZone[]>(endpoints.catalog.zonas, { silent })
         } catch (error) {
-            if (!silent) console.error('Error fetching commercial zones:', error)
+            if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZones')
             return []
         }
     },
 
     getCommercialZoneById: async (id: number, silent = false): Promise<CommercialZone | null> => {
         try {
-            return await apiRequest<CommercialZone>(`${env.api.catalogUrl}/api/zonas/${id}`, { silent })
+            return await apiRequest<CommercialZone>(endpoints.catalog.zonaById(id), { silent })
         } catch (error) {
-            if (!silent) console.error(`Error fetching commercial zone ${id}:`, error)
+            if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZoneById', { id })
             return null
         }
     },
 
-    /**
-     * Obtiene las sucursales activas de un cliente
-     *
-     * Endpoint: GET /api/clientes/:clienteId/sucursales
-     * Roles permitidos: admin, supervisor, cliente, vendedor
-     */
     getClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
         try {
-            return await apiRequest<ClientBranch[]>(`${env.api.catalogUrl}/api/clientes/${clientId}/sucursales`)
+            return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesByClienteId(clientId))
         } catch (error) {
-            console.error('Error fetching client branches:', error)
+            logErrorForDebugging(error, 'ClientService.getClientBranches', { clientId })
             return []
         }
     },
 
     createClientBranch: async (clientId: string, branch: Partial<ClientBranch>): Promise<ClientBranch> => {
-        return apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/clientes/${clientId}/sucursales`, {
+        return apiRequest<ClientBranch>(endpoints.catalog.sucursalesByClienteId(clientId), {
             method: 'POST',
             body: JSON.stringify(branch)
         })
     },
 
-    /**
-     * Obtiene las sucursales desactivadas (soft-deleted) de un cliente
-     * Endpoint: GET /api/clientes/:clienteId/sucursales/desactivadas
-     */
     getDeactivatedClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
         try {
-            return await apiRequest<ClientBranch[]>(`${env.api.catalogUrl}/api/clientes/${clientId}/sucursales/desactivadas`)
+            return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesDesactivadasByClienteId(clientId))
         } catch (error) {
-            console.error('Error fetching deactivated branches:', error)
+            logErrorForDebugging(error, 'ClientService.getDeactivatedClientBranches', { clientId })
             return []
         }
     },
 
-    /**
-     * Actualiza una sucursal existente (permitiendo desactivarla con envio de { activo: false })
-     * Endpoint: PUT /api/sucursales/:id
-     */
     updateClientBranch: async (branchId: string, updates: Partial<ClientBranch>): Promise<ClientBranch> => {
-        return apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/sucursales/${branchId}`, {
+        return apiRequest<ClientBranch>(endpoints.catalog.sucursalById(branchId), {
             method: 'PUT',
             body: JSON.stringify(updates)
         })
     },
 
-    /**
-     * Obtiene una sucursal específica por ID (Activa o Inactiva)
-     * Endpoint: GET /api/sucursales/:id
-     */
     getClientBranchById: async (branchId: string): Promise<ClientBranch | null> => {
         try {
-            return await apiRequest<ClientBranch>(`${env.api.catalogUrl}/api/sucursales/${branchId}`)
+            return await apiRequest<ClientBranch>(endpoints.catalog.sucursalById(branchId))
         } catch (error) {
-            console.error('Error fetching branch details:', error)
+            logErrorForDebugging(error, 'ClientService.getClientBranchById', { branchId })
             return null
         }
     }

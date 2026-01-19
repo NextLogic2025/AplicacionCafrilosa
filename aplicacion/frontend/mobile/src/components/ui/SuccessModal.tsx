@@ -14,12 +14,6 @@ interface SuccessModalProps {
     onSecondaryPress?: () => void
 }
 
-/**
- * SuccessModal - Modal de éxito con diseño moderno
- * 
- * Reemplaza los Alert nativos feos con un modal
- * más profesional y personalizable
- */
 export function SuccessModal({
     visible,
     onClose,

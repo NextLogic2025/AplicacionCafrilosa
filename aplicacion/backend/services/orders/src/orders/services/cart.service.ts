@@ -168,9 +168,6 @@ export class CartService {
         return cart;
     }
 
-        return cart;
-    }
-
     /**
      * Lógica de Upsert: Si el producto existe en el carrito, actualiza cantidad;
      * de lo contrario, agrega uno nuevo.

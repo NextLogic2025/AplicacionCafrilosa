@@ -49,7 +49,6 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
                     key={item.id || `temp-${index}`}
                     className={`bg-white rounded-2xl mb-4 overflow-hidden shadow-md border ${item.id.startsWith('temp') ? 'border-dashed border-neutral-300 opacity-90' : 'border-neutral-100'}`}
                 >
-                    {/* Header Section with Order Number */}
                     <View className="bg-red-50 px-4 py-3 border-b border-neutral-100">
                         <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center flex-1">
@@ -80,18 +79,16 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
                         </View>
                     </View>
 
-                    {/* Content Section */}
                     <TouchableOpacity
                         onPress={() => onEdit(item)}
                         className="px-4 py-3"
                         activeOpacity={0.7}
                     >
-                        {/* Address Section */}
                         <View className="flex-row items-start mb-3">
-                            <Ionicons name="location" size={16} color="#DC2626" style={{ marginTop: 2 }} />
+                                    <Ionicons name="location" size={16} color="#DC2626" style={{ marginTop: 2 }} />
                             <View className="flex-1 ml-2">
                                 <Text className="text-neutral-700 text-sm" numberOfLines={2}>
-                                    {item._cliente?.direccion || 'Sin dirección registrada'}
+                                    {item._cliente?.direccion_texto || 'Sin dirección registrada'}
                                 </Text>
                                 {item._cliente?.identificacion && (
                                     <Text className="text-neutral-400 text-xs mt-1">
@@ -101,7 +98,6 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
                             </View>
                         </View>
 
-                        {/* Badges Section */}
                         <View className="flex-row flex-wrap gap-2 mb-2">
                             <StatusBadge
                                 label={item.prioridad_visita}
@@ -126,7 +122,6 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
                             )}
                         </View>
 
-                        {/* Edit Hint */}
                         <View className="flex-row items-center justify-center py-2 mt-1 border-t border-neutral-100">
                             <Ionicons name="create-outline" size={14} color="#9CA3AF" />
                             <Text className="text-neutral-400 text-xs ml-1 font-medium">
@@ -135,7 +130,6 @@ export function RoutePlanningList({ routes, onReorder, onEdit, onRemove }: Props
                         </View>
                     </TouchableOpacity>
 
-                    {/* Reorder Controls */}
                     <View className="flex-row border-t border-neutral-100 bg-neutral-50">
                         <TouchableOpacity
                             onPress={() => index > 0 && onReorder(index, index - 1)}

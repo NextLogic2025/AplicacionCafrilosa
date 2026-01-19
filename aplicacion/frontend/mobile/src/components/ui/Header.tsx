@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../shared/types'
 import React from 'react'
 import { Image, Pressable, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { navigationRef } from '../../navigation/navigationRef'
+import { useNotificationsOptional } from '../../context/NotificationContext'
+import { useStableInsets } from '../../hooks/useStableInsets'
 
 type HeaderProps = {
   userName?: string
@@ -11,6 +12,7 @@ type HeaderProps = {
   role?: string
   showNotification?: boolean
   notificationCount?: number
+  useGlobalNotifications?: boolean
   onNotificationPress?: () => void
   showCart?: boolean
   cartCount?: number
@@ -32,7 +34,8 @@ export function Header({
   userImage,
   role,
   showNotification = true,
-  notificationCount = 0,
+  notificationCount,
+  useGlobalNotifications = true,
   onNotificationPress,
   showCart = false,
   cartCount = 0,
@@ -45,10 +48,8 @@ export function Header({
   notificationRoute,
   rightAction
 }: HeaderProps) {
-  const insets = useSafeAreaInsets()
-
-  // Removed unsafe useNavigation hook usage which caused crashes when context was lost/unavailable.
-  // We now use global navigationRef for navigation actions, or the onBackPress prop.
+  const insets = useStableInsets()
+  const notificationsCtx = useNotificationsOptional()
 
   const isStandard = variant === 'standard' || !!title
 
@@ -60,7 +61,12 @@ export function Header({
         navigationRef.navigate(notificationRoute as never);
       }
     }
+    notificationsCtx?.markAllRead()
   }
+
+  const effectiveNotificationCount = useGlobalNotifications
+    ? (notificationCount ?? notificationsCtx?.badgeCount ?? 0)
+    : (notificationCount ?? 0)
 
   return (
     <View
@@ -72,7 +78,6 @@ export function Header({
     >
       <View className="flex-row items-center justify-between">
 
-        {/* IZQUIERDA: Título o Info de Usuario */}
         {isStandard ? (
           <View className="flex-row items-center flex-1">
             {onBackPress && (
@@ -120,9 +125,7 @@ export function Header({
           </View>
         )}
 
-        {/* DERECHA: Acciones */}
         <View className="flex-row items-center">
-          {/* Solo mostrar carrito en Home si se pide explicitamente (aunque ahora está en Tabs) */}
           {showCart && (
             <Pressable
               onPress={onCartPress}
@@ -141,7 +144,7 @@ export function Header({
               className="h-10 w-10 bg-white/10 rounded-full items-center justify-center active:bg-white/20 mr-3"
             >
               <Ionicons name="notifications-outline" size={22} color="white" />
-              {notificationCount > 0 && (
+              {effectiveNotificationCount > 0 && (
                 <View className="absolute top-2 right-2 h-2.5 w-2.5 bg-brand-gold rounded-full border border-brand-red" />
               )}
             </Pressable>

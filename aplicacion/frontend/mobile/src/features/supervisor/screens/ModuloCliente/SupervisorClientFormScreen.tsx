@@ -10,11 +10,13 @@ import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { ZoneService, Zone } from '../../../../services/api/ZoneService'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { SucursalService, Sucursal } from '../../../../services/api/SucursalService'
+import { BRAND_COLORS } from '../../../../shared/types'
 
 import { WizardProgress } from '../../components/WizardProgress'
 import { ClientWizardStep1 } from '../../components/ClientWizardStep1'
 import { ClientWizardStep2 } from '../../components/ClientWizardStep2'
 import { ClientWizardStep3 } from '../../components/ClientWizardStep3'
+import { GenericTabs } from '../../../../components/ui/GenericTabs'
 
 export function SupervisorClientFormScreen() {
     const navigation = useNavigation()
@@ -23,6 +25,7 @@ export function SupervisorClientFormScreen() {
     const client: Client | undefined = route.params?.client
 
     const [currentStep, setCurrentStep] = useState(1)
+    const [activeTab, setActiveTab] = useState<'datos' | 'ubicacion' | 'sucursales'>('datos')
     const [loading, setLoading] = useState(false)
 
     // Dependencies
@@ -293,6 +296,110 @@ export function SupervisorClientFormScreen() {
         setFeedbackVisible(true)
     }
 
+    const handleEditSubmit = () => {
+        if (!validateStep1()) {
+            setActiveTab('datos')
+            return
+        }
+        if (!clientData.ubicacion_gps) {
+            Alert.alert('Ubicación faltante', 'No has definido la ubicación GPS.', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Continuar', onPress: () => handleFinalSubmit() }
+            ])
+            return
+        }
+        handleFinalSubmit()
+    }
+
+    const editTabs = [
+        { key: 'datos', label: 'Datos' },
+        { key: 'ubicacion', label: 'Ubicación' },
+        { key: 'sucursales', label: 'Sucursales' },
+    ]
+
+    const renderEditContent = () => (
+        <>
+            <GenericTabs tabs={editTabs} activeTab={activeTab} onTabChange={(k) => setActiveTab(k as any)} />
+            <View className="flex-1">
+                {activeTab === 'datos' && (
+                    <ClientWizardStep1
+                        userData={userData} setUserData={setUserData}
+                        clientData={clientData} setClientData={setClientData}
+                        zones={zones} priceLists={priceLists}
+                        isEditing={isEditing}
+                        onNext={() => setActiveTab('ubicacion')}
+                        showNav={false}
+                    />
+                )}
+                {activeTab === 'ubicacion' && (
+                    <ClientWizardStep2
+                        clientData={clientData} setClientData={setClientData}
+                        zones={zones}
+                        onNext={() => setActiveTab('sucursales')}
+                        onBack={() => setActiveTab('datos')}
+                        showNav={false}
+                    />
+                )}
+                {activeTab === 'sucursales' && (
+                    <ClientWizardStep3
+                        branches={branches} setBranches={setBranches}
+                        loading={loading}
+                        onSubmit={handleEditSubmit}
+                        onBack={() => setActiveTab('ubicacion')}
+                        zones={zones}
+                        clientData={clientData}
+                        showNav={false}
+                    />
+                )}
+            </View>
+            <View className="px-5 pb-6 pt-4">
+                <TouchableOpacity
+                    className={`w-full py-4 rounded-xl items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
+                    style={{ backgroundColor: BRAND_COLORS.red }}
+                    onPress={handleEditSubmit}
+                    disabled={loading}
+                >
+                    <Text className="text-white font-bold text-lg">Guardar Cambios</Text>
+                </TouchableOpacity>
+            </View>
+        </>
+    )
+
+    const renderCreateContent = () => (
+        <View className="mt-2 flex-1">
+            <WizardProgress currentStep={currentStep} />
+            <View className="flex-1">
+                {currentStep === 1 && (
+                    <ClientWizardStep1
+                        userData={userData} setUserData={setUserData}
+                        clientData={clientData} setClientData={setClientData}
+                        zones={zones} priceLists={priceLists}
+                        isEditing={isEditing}
+                        onNext={() => { if (validateStep1()) setCurrentStep(2) }}
+                    />
+                )}
+                {currentStep === 2 && (
+                    <ClientWizardStep2
+                        clientData={clientData} setClientData={setClientData}
+                        zones={zones}
+                        onNext={() => { if (validateStep2()) setCurrentStep(3) }}
+                        onBack={() => setCurrentStep(1)}
+                    />
+                )}
+                {currentStep === 3 && (
+                    <ClientWizardStep3
+                        branches={branches} setBranches={setBranches}
+                        loading={loading}
+                        onSubmit={handleFinalSubmit}
+                        onBack={() => setCurrentStep(2)}
+                        zones={zones}
+                        clientData={clientData}
+                    />
+                )}
+            </View>
+        </View>
+    )
+
     return (
         <View className="flex-1 bg-neutral-50">
             <Header
@@ -301,7 +408,6 @@ export function SupervisorClientFormScreen() {
                 onBackPress={() => navigation.goBack()}
             />
 
-            {/* Status Switch Card for Edit Mode */}
             {isEditing && (
                 <View className="px-5 mt-4">
                     <View className="bg-white p-4 rounded-xl shadow-sm border border-neutral-100 flex-row items-center justify-between">
@@ -310,7 +416,7 @@ export function SupervisorClientFormScreen() {
                                 <Ionicons name="power" size={20} color={!client?.bloqueado ? '#16A34A' : '#EF4444'} />
                             </View>
                             <View>
-                                <Text className="text;base font-bold text-neutral-900">Estado de Cuenta</Text>
+                                <Text className="text-base font-bold text-neutral-900">Estado de Cuenta</Text>
                                 <Text className="text-xs text-neutral-500">
                                     {client?.bloqueado ? 'Cuenta suspendida' : 'Acceso habilitado'}
                                 </Text>
@@ -326,42 +432,7 @@ export function SupervisorClientFormScreen() {
                 </View>
             )}
 
-            <View className="mt-2 flex-1">
-                <WizardProgress currentStep={currentStep} />
-
-                {/* Wrapper to fix addViewAt crash */}
-                <View className="flex-1">
-                    {currentStep === 1 && (
-                        <ClientWizardStep1
-                            userData={userData} setUserData={setUserData}
-                            clientData={clientData} setClientData={setClientData}
-                            zones={zones} priceLists={priceLists}
-                            isEditing={isEditing}
-                            onNext={() => { if (validateStep1()) setCurrentStep(2) }}
-                        />
-                    )}
-
-                    {currentStep === 2 && (
-                        <ClientWizardStep2
-                            clientData={clientData} setClientData={setClientData}
-                            zones={zones}
-                            onNext={() => { if (validateStep2()) setCurrentStep(3) }}
-                            onBack={() => setCurrentStep(1)}
-                        />
-                    )}
-
-                    {currentStep === 3 && (
-                        <ClientWizardStep3
-                            branches={branches} setBranches={setBranches}
-                            loading={loading}
-                            onSubmit={handleFinalSubmit}
-                            onBack={() => setCurrentStep(2)}
-                            zones={zones}
-                            clientData={clientData}
-                        />
-                    )}
-                </View>
-            </View>
+            {isEditing ? renderEditContent() : renderCreateContent()}
 
             <FeedbackModal
                 visible={feedbackVisible}

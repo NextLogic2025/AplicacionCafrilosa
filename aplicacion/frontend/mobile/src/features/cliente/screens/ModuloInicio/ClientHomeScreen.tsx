@@ -10,16 +10,6 @@ import { getUserName } from '../../../../storage/authStorage'
 
 import { ExpandableFab, type FabAction } from '../../../../components/ui/ExpandableFab'
 
-/**
- * ClientHomeScreen - Pantalla de Inicio del Cliente
- *
- * Muestra el dashboard del cliente con:
- * - Resumen de cuenta (saldo pendiente)
- * - Estadísticas rápidas (pedidos, facturas, entregas)
- * - Actividad reciente
- *
- * Incluye el FAB (ExpandableFab) con acciones rápidas.
- */
 export function ClientHomeScreen() {
     const navigation = useNavigation()
     const [userName, setUserName] = React.useState('Cliente')

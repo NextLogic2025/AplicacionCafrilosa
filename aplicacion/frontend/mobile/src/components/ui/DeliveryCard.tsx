@@ -32,11 +32,7 @@ export interface DeliveryCardProps {
     showActionButton?: boolean
 }
 
-/**
- * Generic Delivery Card Component
- * Used in Orders and Deliveries screens
- * Displays delivery information with status and actions
- */
+
 export function DeliveryCard({ delivery, onPress, showActionButton = true }: DeliveryCardProps) {
     const statusColor = STATUS_COLORS[delivery.status] || STATUS_COLORS.pending
     const statusLabel = STATUS_LABELS[delivery.status] || 'Desconocido'

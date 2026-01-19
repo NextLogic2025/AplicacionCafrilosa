@@ -8,5 +8,5 @@ export type RootStackParamList = {
   Vendedor: undefined
   Transportista: undefined
   Bodeguero: undefined
-  SupervisorProductForm: { product?: any }
+  SupervisorProductForm: { product?: import('../services/api/CatalogService').Product }
 }

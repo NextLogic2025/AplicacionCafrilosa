@@ -1,10 +1,13 @@
 import { apiRequest } from './client'
 import { env } from '../../config/env'
+import { endpoints } from './endpoints'
+import { isApiError } from './ApiError'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
-/**
- * Estados de Pedido
- * Basados en la tabla estados_pedido del backend
- */
+function ordersEndpoint(path: string) {
+    return `${env.api.ordersUrl}${path}`
+}
+
 export type OrderStatus =
     | 'PENDIENTE'
     | 'APROBADO'
@@ -15,23 +18,17 @@ export type OrderStatus =
     | 'ANULADO'
     | 'RECHAZADO'
 
-/**
- * Mapeo de estados a colores para UI
- */
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-    PENDIENTE: '#F59E0B',        // Amber
-    APROBADO: '#3B82F6',         // Blue
-    EN_PREPARACION: '#8B5CF6',   // Purple
-    FACTURADO: '#06B6D4',        // Cyan
-    EN_RUTA: '#6366F1',          // Indigo
-    ENTREGADO: '#10B981',        // Green
-    ANULADO: '#6B7280',          // Gray
-    RECHAZADO: '#EF4444'         // Red
+    PENDIENTE: '#F59E0B',
+    APROBADO: '#3B82F6',
+    EN_PREPARACION: '#8B5CF6',
+    FACTURADO: '#06B6D4',
+    EN_RUTA: '#6366F1',
+    ENTREGADO: '#10B981',
+    ANULADO: '#6B7280',
+    RECHAZADO: '#EF4444'
 }
 
-/**
- * Mapeo de estados a nombres legibles
- */
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
     PENDIENTE: 'Pendiente',
     APROBADO: 'Aprobado',
@@ -43,9 +40,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
     RECHAZADO: 'Rechazado'
 }
 
-/**
- * Detalle de Pedido (Items)
- */
 export interface OrderDetail {
     id: string
     pedido_id: string
@@ -63,9 +57,6 @@ export interface OrderDetail {
     updated_at: string
 }
 
-/**
- * Pedido (Order)
- */
 export interface Order {
     id: string
     codigo_visual: number
@@ -86,7 +77,6 @@ export interface Order {
     updated_at: string
     deleted_at?: string
 
-    // Relaciones (cuando se incluyen)
     detalles?: OrderDetail[]
     cliente?: {
         id: string
@@ -94,11 +84,22 @@ export interface Order {
         nombre_comercial?: string
         identificacion: string
     }
+    sucursal?: {
+        id: string
+        nombre: string
+        direccion?: string
+    }
+
+    status?: 'pending' | 'processing' | 'shipped' | 'delivered'
+    clientName?: string
+    address?: string
+    itemsCount?: number
+    priority?: string
+    numero?: number
+    fecha_creacion?: string
+    total?: number
 }
 
-/**
- * Payload para crear un pedido
- */
 export interface CreateOrderPayload {
     cliente_id: string
     vendedor_id: string
@@ -125,6 +126,15 @@ export interface CreateOrderPayload {
     descuento_total?: number
 }
 
+export type TrackingInfo = {
+    id: string | number
+    status: 'pending' | 'shipped' | 'delivered'
+    carrier?: string
+    estimatedDelivery?: string
+    evidence?: { photo?: string; signature?: string }
+    dates: { confirmed?: string; shipped?: string; delivered?: string }
+}
+
 
 
 export interface OrderFilters {
@@ -137,39 +147,65 @@ export interface OrderFilters {
     offset?: number
 }
 
-/**
- * OrderService
- *
- * Servicio para manejar pedidos (orders)
- */
+function applyOrderFilters(orders: Order[], filters?: OrderFilters) {
+    let result = orders
+
+    if (filters?.vendedor_id) result = result.filter(o => o.vendedor_id === filters.vendedor_id)
+    if (filters?.cliente_id) result = result.filter(o => o.cliente_id === filters.cliente_id)
+    if (filters?.estado_actual) result = result.filter(o => o.estado_actual === filters.estado_actual)
+
+    const fromMs = filters?.fecha_desde ? new Date(filters.fecha_desde).getTime() : null
+    const toMs = filters?.fecha_hasta ? new Date(filters.fecha_hasta).getTime() : null
+    if (Number.isFinite(fromMs as number)) result = result.filter(o => new Date(o.created_at).getTime() >= (fromMs as number))
+    if (Number.isFinite(toMs as number)) result = result.filter(o => new Date(o.created_at).getTime() <= (toMs as number))
+
+    result = result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    const offset = Math.max(0, filters?.offset ?? 0)
+    const limit = filters?.limit
+    if (typeof limit === 'number' && Number.isFinite(limit)) {
+        return result.slice(offset, offset + Math.max(0, limit))
+    }
+    if (offset > 0) return result.slice(offset)
+    return result
+}
+
 export const OrderService = {
-    /**
-     * Servicio: Crear un nuevo pedido desde la vista del cliente o vendedor
-     * Envía los items del carrito y datos del cliente al backend
-     */
-    createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
-        try {
-            return await apiRequest<Order>(`${env.api.ordersUrl}/orders`, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-        } catch (error) {
-            console.error('Error creating order:', error)
-            throw error
+    normalizeOrder: (order: Order): Order => {
+        const clientName =
+            order.clientName ?? order.cliente?.nombre_comercial ?? order.cliente?.razon_social
+
+        const itemsCount = order.itemsCount ?? order.detalles?.length
+        const total = order.total ?? order.total_final
+        const numero = order.numero ?? order.codigo_visual
+        const fecha_creacion = order.fecha_creacion ?? order.created_at
+
+        const status: Order['status'] =
+            order.status ??
+            (order.estado_actual === 'ENTREGADO'
+                ? 'delivered'
+                : order.estado_actual === 'EN_RUTA'
+                    ? 'shipped'
+                    : order.estado_actual === 'EN_PREPARACION'
+                        ? 'processing'
+                        : 'pending')
+
+        return {
+            ...order,
+            clientName,
+            itemsCount,
+            total,
+            numero,
+            fecha_creacion,
+            status
         }
     },
 
-    /**
-     * Crear pedido desde el carrito (Server-side cart)
-     * 
-     * El backend crea el pedido desde el carrito almacenado en servidor.
-     * Solo requiere condicion_pago y sucursal_id opcional.
-     * El backend calcula precios, impuestos y totales automáticamente.
-     * 
-     * Endpoints:
-     * - Cliente: POST /orders/from-cart/me
-     * - Vendedor: POST /orders/from-cart/client/:clienteId
-     */
+    createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
+        void payload
+        throw new Error('CREATE_ORDER_NOT_SUPPORTED')
+    },
+
     createOrderFromCart: async (
         target: { type: 'me' } | { type: 'client', clientId: string },
         options?: {
@@ -178,95 +214,139 @@ export const OrderService = {
         }
     ): Promise<Order> => {
         try {
-            const endpoint = target.type === 'client'
-                ? `${env.api.ordersUrl}/orders/from-cart/client/${target.clientId}`
-                : `${env.api.ordersUrl}/orders/from-cart/me`
+            const endpoint =
+                target.type === 'client'
+                    ? ordersEndpoint(endpoints.orders.orderFromCartClient(target.clientId))
+                    : ordersEndpoint(endpoints.orders.orderFromCartMe)
 
             const payload = {
                 condicion_pago: options?.condicion_pago || 'CONTADO',
                 ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
             }
 
-            return await apiRequest<Order>(endpoint, {
+            const order = await apiRequest<Order>(endpoint, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })
+            return OrderService.normalizeOrder(order)
         } catch (error) {
-            console.error('Error creating order from cart:', error)
+            logErrorForDebugging(error, 'OrderService.createOrderFromCart', { target })
             throw error
         }
     },
 
-    /**
-     * Servicio: Obtener historial de pedidos del usuario autenticado (Personal)
-     * Endpoint: GET /orders/user/history
-     */
     getOrderHistory: async (): Promise<Order[]> => {
         try {
-            const orders = await apiRequest<Order[]>(`${env.api.ordersUrl}/orders/user/history`)
-            // Ordenar por fecha (más reciente primero)
-            return orders.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
+            const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
+            return orders
+                .map(OrderService.normalizeOrder)
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         } catch (error) {
-            console.error('Error fetching order history:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderHistory')
             throw error
         }
     },
 
-    /**
-     * Servicio: Obtener pedidos de un cliente específico para la vista "Mis Pedidos"
-     * Retorna el historial de pedidos ordenado por fecha (más reciente primero)
-     */
     getClientOrders: async (userId: string): Promise<Order[]> => {
         try {
-            const orders = await apiRequest<Order[]>(`${env.api.ordersUrl}/orders/client/${userId}`)
-            // Ordenar por fecha (más reciente primero)
-            return orders.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
+            const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersByClientId(userId)))
+            return orders.map(OrderService.normalizeOrder).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         } catch (error) {
-            console.error('Error fetching client orders:', error)
+            logErrorForDebugging(error, 'OrderService.getClientOrders', { userId })
             throw error
         }
     },
 
-    /**
-     * Obtener lista de pedidos (General)
-     */
     getOrders: async (filters?: OrderFilters): Promise<Order[]> => {
+        const baseUrl = ordersEndpoint(endpoints.orders.orders)
+
+        if (filters?.cliente_id && !filters.vendedor_id) {
+            const orders = await OrderService.getClientOrders(filters.cliente_id)
+            return applyOrderFilters(orders, filters)
+        }
+
+        const params = new URLSearchParams()
+        if (filters?.vendedor_id) params.append('vendedor_id', filters.vendedor_id)
+        if (filters?.cliente_id) params.append('cliente_id', filters.cliente_id)
+        if (filters?.estado_actual) params.append('estado', filters.estado_actual)
+        if (filters?.fecha_desde) params.append('fecha_desde', filters.fecha_desde)
+        if (filters?.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta)
+        if (filters?.limit) params.append('limit', filters.limit.toString())
+        if (filters?.offset) params.append('offset', filters.offset.toString())
+
+        const queryString = params.toString()
+        const url = `${baseUrl}${queryString ? `?${queryString}` : ''}`
+
         try {
-            // Construir query params
-            const params = new URLSearchParams()
-
-            if (filters?.vendedor_id) params.append('vendedor_id', filters.vendedor_id)
-            if (filters?.cliente_id) params.append('cliente_id', filters.cliente_id)
-            if (filters?.estado_actual) params.append('estado', filters.estado_actual)
-            if (filters?.fecha_desde) params.append('fecha_desde', filters.fecha_desde)
-            if (filters?.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta)
-            if (filters?.limit) params.append('limit', filters.limit.toString())
-            if (filters?.offset) params.append('offset', filters.offset.toString())
-
-            const queryString = params.toString()
-            const url = `${env.api.ordersUrl}/orders${queryString ? `?${queryString}` : ''}`
-
-            const orders = await apiRequest<Order[]>(url, {
-                method: 'GET'
-            })
-
-            // Ordenar por fecha de creación (más reciente primero)
-            return orders.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
+            const orders = await apiRequest<Order[]>(url, { method: 'GET' })
+            return applyOrderFilters(orders.map(OrderService.normalizeOrder), filters)
         } catch (error) {
-            console.error('Error fetching orders:', error)
+            if (isApiError(error) && (error.status === 403 || error.status === 404)) {
+                const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
+                return applyOrderFilters(orders.map(OrderService.normalizeOrder), filters)
+            }
+            logErrorForDebugging(error, 'OrderService.getOrders', { filters })
             throw error
         }
     },
 
-    /**
-     * Obtener pedidos del vendedor autenticado
-     */
+    getOrdersByClient: async (clientId: string): Promise<Order[]> => {
+        return OrderService.getClientOrders(clientId)
+    },
+
+    getTrackingInfo: async (orderId?: string): Promise<TrackingInfo | null> => {
+        if (!orderId) return null
+        const order = await OrderService.getOrderById(orderId)
+
+        try {
+            const tracking = await apiRequest<{
+                orderId: string
+                currentStatus: string
+                lastUpdate: string
+                timeline: { status: string; time: string; message?: string }[]
+            }>(ordersEndpoint(endpoints.orders.orderTracking(orderId)))
+
+            const timeline = Array.isArray(tracking.timeline) ? tracking.timeline : []
+            const statusRaw = tracking.currentStatus || order.estado_actual
+            const status: TrackingInfo['status'] =
+                statusRaw === 'ENTREGADO' ? 'delivered' : statusRaw === 'EN_RUTA' ? 'shipped' : 'pending'
+
+            const confirmed = timeline[0]?.time ?? order.created_at
+            const shipped = timeline.find(t => t.status === 'EN_RUTA')?.time
+            const delivered = timeline.find(t => t.status === 'ENTREGADO')?.time
+
+            const result: TrackingInfo = {
+                id: order.codigo_visual ?? order.id,
+                status,
+                carrier: undefined as string | undefined,
+                estimatedDelivery: order.fecha_entrega_solicitada ?? 'N/A',
+                evidence: undefined as { photo?: string; signature?: string } | undefined,
+                dates: { confirmed, shipped, delivered }
+            }
+            return result
+        } catch (error) {
+            if (isApiError(error) && error.status !== 0 && error.status !== 404) throw error
+
+            const normalized = OrderService.normalizeOrder(order)
+            const status: TrackingInfo['status'] =
+                normalized.status === 'delivered' ? 'delivered' : normalized.status === 'shipped' ? 'shipped' : 'pending'
+
+            const result: TrackingInfo = {
+                id: normalized.codigo_visual ?? normalized.id,
+                status,
+                carrier: undefined as string | undefined,
+                estimatedDelivery: normalized.fecha_entrega_solicitada ?? 'N/A',
+                evidence: undefined as { photo?: string; signature?: string } | undefined,
+                dates: {
+                    confirmed: normalized.created_at,
+                    shipped: normalized.estado_actual === 'EN_RUTA' || normalized.estado_actual === 'ENTREGADO' ? normalized.updated_at : undefined,
+                    delivered: normalized.estado_actual === 'ENTREGADO' ? normalized.updated_at : undefined,
+                }
+            }
+            return result
+        }
+    },
+
     getMyOrders: async (vendedorId: string, filters?: Omit<OrderFilters, 'vendedor_id'>): Promise<Order[]> => {
         return OrderService.getOrders({
             ...filters,
@@ -274,95 +354,87 @@ export const OrderService = {
         })
     },
 
-    /**
-     * Obtener detalles de un pedido específico
-     */
     getOrderById: async (orderId: string): Promise<Order> => {
         try {
-            const order = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}`, {
+            const order = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderById(orderId)), {
                 method: 'GET'
             })
-            return order
+            return OrderService.normalizeOrder(order)
         } catch (error) {
-            console.error('Error fetching order details:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderById', { orderId })
             throw error
         }
     },
 
-    /**
-     * Obtener detalles (items) de un pedido
-     */
     getOrderDetails: async (orderId: string): Promise<OrderDetail[]> => {
         try {
-            // Primero intenta obtener el pedido completo
-            const order = await OrderService.getOrderById(orderId)
+            const detail = await apiRequest<{
+                id: string
+                detalles: { producto_id: string; cantidad: number; precio_unitario: number; subtotal: number }[]
+                fecha_creacion?: string
+            }>(ordersEndpoint(endpoints.orders.orderDetail(orderId)))
 
-            // Si el pedido incluye detalles, retornarlos
-            if (order.detalles && order.detalles.length > 0) {
-                return order.detalles
-            }
+            const createdAt = detail.fecha_creacion ?? new Date().toISOString()
+            const detalles = Array.isArray(detail.detalles) ? detail.detalles : []
 
-            // Por ahora retornar array vacío
-            console.warn(`No details found for order ${orderId}. Backend endpoint may not be implemented.`)
-            return []
+            return detalles.map((item, index) => ({
+                id: `${orderId}:${item.producto_id}:${index}`,
+                pedido_id: orderId,
+                producto_id: item.producto_id,
+                cantidad: item.cantidad,
+                es_bonificacion: false,
+                precio_lista: item.precio_unitario,
+                precio_final: item.precio_unitario,
+                subtotal_linea: item.subtotal,
+                created_at: createdAt,
+                updated_at: createdAt,
+            }))
         } catch (error) {
-            console.error('Error fetching order details:', error)
+            logErrorForDebugging(error, 'OrderService.getOrderDetails', { orderId })
             throw error
         }
     },
 
-    /**
-     * Cancelar un pedido (solo si está en estado PENDIENTE)
-     */
     cancelOrder: async (orderId: string): Promise<Order> => {
         try {
-            const cancelledOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}/cancel`, {
+            const cancelledOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderCancel(orderId)), {
                 method: 'PATCH'
             })
-            return cancelledOrder
+            return OrderService.normalizeOrder(cancelledOrder)
         } catch (error) {
-            console.error('Error cancelling order:', error)
+            logErrorForDebugging(error, 'OrderService.cancelOrder', { orderId })
             throw error
         }
     },
 
-    /**
-     * Cambiar estado de un pedido (supervisor, bodeguero, admin)
-     * Endpoint: PATCH /orders/:id/status
-     * Roles: admin, supervisor, bodeguero
-     */
     changeOrderStatus: async (orderId: string, newStatus: OrderStatus): Promise<Order> => {
         try {
-            const updatedOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}/status`, {
+            const updatedOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderStatus(orderId)), {
                 method: 'PATCH',
                 body: JSON.stringify({ status: newStatus })
             })
-            return updatedOrder
+            return OrderService.normalizeOrder(updatedOrder)
         } catch (error) {
-            console.error('Error updating order:', error)
+            logErrorForDebugging(error, 'OrderService.changeOrderStatus', { orderId, newStatus })
             throw error
         }
     },
 
-    /**
-     * Actualizar un pedido
-     */
+    confirmPicking: async (orderId: string) => {
+        await OrderService.changeOrderStatus(orderId, 'EN_PREPARACION')
+    },
+
+    confirmDispatch: async (orderId: string, _carrierId?: string, _guideNumber?: string) => {
+        await OrderService.changeOrderStatus(orderId, 'EN_RUTA')
+    },
+
     updateOrder: async (orderId: string, data: Partial<Order>): Promise<Order> => {
-        try {
-            const updatedOrder = await apiRequest<Order>(`${env.api.ordersUrl}/orders/${orderId}`, {
-                method: 'PATCH',
-                body: JSON.stringify(data)
-            })
-            return updatedOrder
-        } catch (error) {
-            console.error('Error updating order:', error)
-            throw error
+        if (typeof data.estado_actual === 'string') {
+            return OrderService.changeOrderStatus(orderId, data.estado_actual as OrderStatus)
         }
+        throw new Error('UPDATE_ORDER_NOT_SUPPORTED')
     },
 
-    /**
-     * Formatear fecha para mostrar
-     */
     formatOrderDate: (dateString: string): string => {
         const date = new Date(dateString)
         const options: Intl.DateTimeFormatOptions = {
@@ -375,9 +447,6 @@ export const OrderService = {
         return date.toLocaleDateString('es-EC', options)
     },
 
-    /**
-     * Formatear solo fecha (sin hora)
-     */
     formatOrderDateShort: (dateString: string): string => {
         const date = new Date(dateString)
         const options: Intl.DateTimeFormatOptions = {
@@ -388,9 +457,6 @@ export const OrderService = {
         return date.toLocaleDateString('es-EC', options)
     },
 
-    /**
-     * Obtener estadísticas de pedidos
-     */
     getOrderStats: (orders: Order[]) => {
         const total = orders.length
         const porEstado = orders.reduce((acc, order) => {

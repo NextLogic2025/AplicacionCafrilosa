@@ -38,7 +38,6 @@ export function SupervisorWarehouseScreen() {
                     <RefreshControl refreshing={isLoading} onRefresh={loadData} colors={[BRAND_COLORS.red]} />
                 }
             >
-                {/* Pending Orders Section */}
                 <View className="bg-white p-4 rounded-xl border border-neutral-200 mb-4 shadow-sm">
                     <View className="flex-row items-center mb-3">
                         <Ionicons name="time" size={20} color={BRAND_COLORS.gold} />
@@ -56,7 +55,6 @@ export function SupervisorWarehouseScreen() {
                     )}
                 </View>
 
-                {/* Prep Times Section */}
                 <View className="bg-white p-4 rounded-xl border border-neutral-200 mb-4 shadow-sm">
                     <View className="flex-row items-center mb-3">
                         <Ionicons name="stopwatch" size={20} color="#3B82F6" />
@@ -74,7 +72,6 @@ export function SupervisorWarehouseScreen() {
                     )}
                 </View>
 
-                {/* Stock Rejections Section */}
                 <View className="bg-white p-4 rounded-xl border border-neutral-200 mb-4 shadow-sm">
                     <View className="flex-row items-center mb-3">
                         <Ionicons name="alert-circle" size={20} color={BRAND_COLORS.red} />

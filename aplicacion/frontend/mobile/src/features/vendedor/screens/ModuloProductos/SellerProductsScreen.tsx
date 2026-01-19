@@ -14,10 +14,11 @@ type ClientSelection = {
     cliente: Client
     sucursal?: ClientBranch
 }
-import { CatalogService, type Product } from '../../../../services/api/CatalogService'
+import { CatalogService, type Product, type ProductsResponse } from '../../../../services/api/CatalogService'
 import { ClientService, type Client, type ClientBranch } from '../../../../services/api/ClientService'
 import { useCart } from '../../../../context/CartContext'
 import { useToast } from '../../../../context/ToastContext'
+import { PriceService, type PriceListProduct, type PriceListProductPromotion } from '../../../../services/api/PriceService'
 
 /**
  * SellerProductsScreen - Catálogo de productos para vendedores
@@ -43,6 +44,48 @@ export function SellerProductsScreen() {
     const safeNumber = (value: any): number => {
         const num = Number(value)
         return isNaN(num) || !isFinite(num) ? 0 : num
+    }
+
+    const pickBestPromotion = (promotions?: PriceListProductPromotion[]) => {
+        if (!Array.isArray(promotions) || promotions.length === 0) return null
+        return promotions.reduce<PriceListProductPromotion | null>((best, promo) => {
+            const price = Number(promo?.precio_oferta)
+            if (!Number.isFinite(price) || price <= 0) return best
+            if (!best) return promo
+            const bestPrice = Number(best.precio_oferta)
+            return price < bestPrice ? promo : best
+        }, null)
+    }
+
+    const mapPriceListItemToProduct = (item: PriceListProduct): Product => {
+        const priceListValue = Number(item.precio_lista ?? 0)
+        const bestPromo = pickBestPromotion(item.promociones)
+        const precioOferta = bestPromo?.precio_oferta
+        const ahorroRaw = precioOferta != null && priceListValue > precioOferta
+            ? priceListValue - precioOferta
+            : undefined
+
+        const mappedPromotions = (item.promociones || []).map(promo => ({
+            campana_id: promo.campana_id ?? 0,
+            precio_oferta: promo.precio_oferta ?? null,
+            tipo_descuento: promo.tipo_descuento ?? null,
+            valor_descuento: promo.valor_descuento ?? null,
+        }))
+
+        return {
+            id: item.id,
+            codigo_sku: item.codigo_sku,
+            nombre: item.nombre,
+            unidad_medida: item.unidad_medida || 'UN',
+            imagen_url: undefined,
+            activo: true,
+            precio_original: priceListValue,
+            precio_oferta: Number.isFinite(Number(precioOferta)) ? precioOferta : undefined,
+            ahorro: (ahorroRaw && ahorroRaw > 0) ? Number(ahorroRaw.toFixed(2)) : undefined,
+            campania_aplicada_id: bestPromo?.campana_id,
+            motivo_descuento: bestPromo?.campana_nombre ?? undefined,
+            promociones: mappedPromotions,
+        }
     }
 
     // Estado de productos
@@ -84,12 +127,34 @@ export function SellerProductsScreen() {
 
         setLoading(true)
         try {
-            const response = await CatalogService.getProductsPaginated(
-                pageNum,
-                20,
-                search || undefined,
-                selectedClient.id // Filtrar por lista de precios del cliente
-            )
+            const priceListId = selectedClient.lista_precios_id ?? 0
+            let response: {
+                metadata: ProductsResponse['metadata']
+                items: Product[]
+            }
+
+            if (priceListId > 0) {
+                const priceResponse = await PriceService.getProductsForList(
+                    priceListId,
+                    pageNum,
+                    20,
+                    search || undefined
+                )
+
+                response = {
+                    metadata: priceResponse.metadata,
+                    items: priceResponse.items.map(mapPriceListItemToProduct)
+                }
+            } else {
+                const catalogResponse = await CatalogService.getProductsPaginated(
+                    pageNum,
+                    20,
+                    search || undefined,
+                    selectedClient.id
+                )
+
+                response = catalogResponse
+            }
 
             if (reset) {
                 setProducts(response.items)
@@ -132,6 +197,12 @@ export function SellerProductsScreen() {
         if (!selectedClient) {
             Alert.alert('Selecciona un cliente', 'Debes seleccionar un cliente antes de agregar productos')
             setShowClientModal(true)
+            return
+        }
+
+        const priceForCheck = safeNumber(product.precio_oferta ?? product.precio_original ?? (product.precios && product.precios[0]?.precio))
+        if (priceForCheck <= 0) {
+            showToast('Este producto no tiene precio asignado para el cliente', 'warning')
             return
         }
 

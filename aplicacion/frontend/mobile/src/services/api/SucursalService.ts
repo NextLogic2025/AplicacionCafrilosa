@@ -1,4 +1,3 @@
-
 import { apiRequest } from './client'
 
 export interface Sucursal {
@@ -8,11 +7,11 @@ export interface Sucursal {
     direccion_entrega?: string
     ubicacion_gps?: {
         type: 'Point'
-        coordinates: [number, number] // [lng, lat]
+        coordinates: [number, number]
     } | null
     contacto_nombre?: string
     contacto_telefono?: string
-    zona_id?: number  // Zona comercial de la sucursal
+    zona_id?: number
     activo: boolean
 }
 
@@ -22,8 +21,8 @@ export interface CreateSucursalPayload {
     ubicacion_gps?: any
     contacto_nombre?: string
     contacto_telefono?: string
-    zona_id?: number  // Zona comercial de la sucursal (diferente a la del cliente)
-    cliente_id?: string // Added to satisfy backend DTO
+    zona_id?: number
+    cliente_id?: string
 }
 
 export interface UpdateSucursalPayload {
@@ -32,17 +31,15 @@ export interface UpdateSucursalPayload {
     ubicacion_gps?: any
     contacto_nombre?: string
     contacto_telefono?: string
-    zona_id?: number  // Zona comercial de la sucursal
+    zona_id?: number
     activo?: boolean
 }
 
 export const SucursalService = {
-    // List by Client
     getSucursalesByClient: async (clienteId: string): Promise<Sucursal[]> => {
         return apiRequest<Sucursal[]>(`/api/clientes/${clienteId}/sucursales`)
     },
 
-    // Create for Client
     createSucursal: async (clienteId: string, data: CreateSucursalPayload): Promise<Sucursal> => {
         return apiRequest<Sucursal>(`/api/clientes/${clienteId}/sucursales`, {
             method: 'POST',
@@ -50,7 +47,6 @@ export const SucursalService = {
         })
     },
 
-    // Update
     updateSucursal: async (id: string, data: UpdateSucursalPayload): Promise<Sucursal> => {
         return apiRequest<Sucursal>(`/api/sucursales/${id}`, {
             method: 'PUT',
@@ -58,7 +54,6 @@ export const SucursalService = {
         })
     },
 
-    // Delete (Soft)
     deleteSucursal: async (id: string): Promise<void> => {
         return apiRequest<void>(`/api/sucursales/${id}`, {
             method: 'DELETE'

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { ToastNotification, ToastType } from '../components/ui/ToastNotification';
+import { registerToastHandler, unregisterToastHandler } from '../utils/toastService';
 
 interface ToastContextType {
     showToast: (message: string, type?: ToastType, duration?: number) => void;
@@ -17,6 +18,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     const hideToast = useCallback(() => {
         setToast(null);
     }, []);
+
+    useEffect(() => {
+        registerToastHandler(showToast);
+        return () => unregisterToastHandler();
+    }, [showToast]);
 
     return (
         <ToastContext.Provider value={{ showToast }}>

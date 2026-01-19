@@ -9,8 +9,6 @@ import { Button } from '../../components/ui/Button'
 import { TextField } from '../../components/ui/TextField'
 import { useAuth } from '../../hooks/useAuth'
 import { signInWithPassword } from '../../services/auth/authApi'
-import { setSelectedRole } from '../../services/storage/roleStorage'
-import { APP_ROLES } from '../../types/roles'
 
 function IconMail(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -87,12 +85,9 @@ export function LoginPage() {
   const onSubmit = handleSubmit(async (values) => {
     try {
       setServerError(null)
-      const { token, role } = await signInWithPassword(values.email, values.password)
+      const { token } = await signInWithPassword(values.email, values.password)
       auth.signIn(token, { persist: Boolean(values.remember) })
-
-      const target = APP_ROLES.find((r) => r.key === role)?.path ?? '/cliente'
-      if (role) setSelectedRole(role)
-      navigate(target, { replace: true })
+      navigate('/cliente', { replace: true })
     } catch (e) {
       setServerError(e instanceof Error ? e.message : 'No se pudo iniciar sesión')
     }

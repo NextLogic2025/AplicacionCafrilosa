@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Alert } from 'react-native'
 import { CartService, CartItem as CartItemDto, AddToCartPayload } from '../services/api/CartService'
+import { getUserFriendlyMessage } from '../utils/errorMessages'
 import { UserService } from '../services/api/UserService'
 import { CatalogService } from '../services/api/CatalogService'
 import { Client, ClientBranch } from '../services/api/ClientService'
+import { isApiError } from '../services/api/ApiError'
 
-// Define types locally or import
 export interface CartItem {
     id: string
     producto_id: string
@@ -17,7 +18,6 @@ export interface CartItem {
     subtotal: number
     imagen_url?: string
     codigo_sku?: string
-    // Promotion details
     motivo_descuento?: string
     campania_aplicada_id?: number
     tiene_promocion?: boolean
@@ -39,11 +39,12 @@ interface Cart {
 
 interface CartContextValue {
     userId: string | null
+    userRole: string | null
     cart: Cart
     currentClient: Client | null
-    // Legacy support aliases
     items: CartItem[]
     totalItems: number
+    isVendorMode: boolean // True when a vendor is managing a client's cart
 
     addToCart: (product: {
         id?: string
@@ -76,22 +77,40 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined)
 
+const emptyCartState: Cart = {
+    items: [],
+    total_estimado: 0,
+    subtotal: 0,
+    descuento_total: 0,
+    impuestos_total: 0,
+    total_final: 0
+}
+
+const canUseCart = (role?: string | null) => {
+    const normalized = role?.toLowerCase()
+    return normalized === 'cliente' || normalized === 'vendedor'
+}
+
+const isVendorRole = (role?: string | null) => {
+    const normalized = role?.toLowerCase()
+    return normalized === 'vendedor'
+}
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [userId, setUserId] = useState<string | null>(null)
     const [userRole, setUserRole] = useState<string | null>(null)
-    const [cart, setCart] = useState<Cart>({
-        items: [],
-        total_estimado: 0,
-        subtotal: 0,
-        descuento_total: 0,
-        impuestos_total: 0,
-        total_final: 0
-    })
+    const [cart, setCart] = useState<Cart>(emptyCartState)
     const [currentClient, setCurrentClient] = useState<Client | null>(null)
     const [currentBranch, setCurrentBranch] = useState<ClientBranch | null>(null)
     const [loading, setLoading] = useState(false)
 
-    // Load User ID and Role on Mount
+    const isVendorMode = isVendorRole(userRole) && currentClient !== null
+
+    const getClientIdentifier = (): string => {
+        if (!currentClient) return ''
+        return currentClient.usuario_principal_id || currentClient.id
+    }
+
     useEffect(() => {
         const initCart = async () => {
             try {
@@ -107,23 +126,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initCart()
     }, [])
 
-    // Load Cart from Server when userId changes
     useEffect(() => {
         if (!userId) {
-            setCart({ items: [], total_estimado: 0 })
+            setCart(emptyCartState)
             return
         }
+
+        if (!canUseCart(userRole)) {
+            setCart(emptyCartState)
+            return
+        }
+
         loadCart(userId)
-    }, [userId])
+    }, [userId, userRole])
 
     const loadCart = async (uid: string) => {
+        if (!canUseCart(userRole)) return
+
         setLoading(true)
         try {
-            // CRITICAL: Only vendors can use 'client' endpoint
-            // If user is a client (not vendor), always use 'me' endpoint
-            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
-            const target = (currentClient && isVendor)
-                ? { type: 'client' as const, clientId: currentClient.id }
+            const target = isVendorMode
+                ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
 
             const serverCart = await CartService.getCart(target)
@@ -131,7 +154,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCart(mappedCart)
         } catch (error) {
             console.warn('Error loading cart from server', error)
-            // Establecer carrito vacío con estructura válida
             setCart({
                 items: [],
                 total_estimado: 0,
@@ -154,17 +176,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const items: CartItem[] = []
 
-        // STRATEGY: Enrich cart items with product details
-        // CLIENTES: Use getClientProducts (filtered by client's price list)
-        // VENDEDORES: Use getProductsPaginated (general catalog)
+        const normalizePrice = (value: unknown) => {
+            if (value === undefined || value === null) return null
+            const numeric = Number(value)
+            return Number.isFinite(numeric) ? numeric : null
+        }
+
+        const resolvePrice = (candidates: unknown[]) => {
+            for (const candidate of candidates) {
+                const price = normalizePrice(candidate)
+                if (price !== null) return price
+            }
+            return 0
+        }
+
         let productsMap = new Map<string, any>()
         try {
             if (userRole?.toLowerCase() === 'cliente') {
-                // Client-specific endpoint with their price list
                 const productsResponse = await CatalogService.getClientProducts(1, 1000)
                 productsResponse.items.forEach(p => productsMap.set(p.id, p))
             } else {
-                // General catalog for vendedores/otros roles
                 const productsResponse = await CatalogService.getProductsPaginated(1, 1000)
                 productsResponse.items.forEach(p => productsMap.set(p.id, p))
             }
@@ -174,16 +205,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         for (const item of serverCart.items) {
             try {
-                // Get product details from the map
                 const productDetails = productsMap.get(item.producto_id)
 
-                // --- SNAPSHOT STRATEGY ---
-                // Usar precios del snapshot del carrito (backend ya incluye toda la info necesaria)
-                const precioLista = Number(item.precio_original_snapshot || 0)
+                
+                const precioLista = resolvePrice([
+                    item.precio_original_snapshot,
+                    item.precio_lista,
+                    productDetails?.precio_original,
+                    productDetails?.precio,
+                    productDetails?.precio_oferta
+                ])
 
-                const precioFinal = Number(item.precio_unitario_ref || 0)
+                let precioFinal = resolvePrice([
+                    item.precio_unitario_ref,
+                    item.precio_unitario,
+                    item.precio_final,
+                    item.precio,
+                    productDetails?.precio_oferta,
+                    productDetails?.precio_original,
+                    productDetails?.precio
+                ])
+                if (precioFinal === 0 && precioLista > 0) {
+                    precioFinal = precioLista
+                }
 
-                // Calculate Promotion Status
                 const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id
                 let descuentoPorcentaje = 0
                 if (tienePromocion && precioLista > 0) {
@@ -211,7 +256,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 })
             } catch (err) {
                 console.error(`Error processing cart item ${item.producto_id}`, err)
-                // Agregar item con valores mínimos para evitar perder datos
                 items.push({
                     id: item.id,
                     producto_id: item.producto_id,
@@ -232,7 +276,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
-        // Calculate Discount Total: Sum of (List Price - Final Price) * Quantity
         const descuento_total = items.reduce((acc, curr) => {
             const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
             return acc + (discountPerUnit * curr.cantidad)
@@ -259,7 +302,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentClient(client)
         setCurrentBranch(branch || null)
 
-        // Actualizar info del cliente en el carrito
         if (client) {
             setCart(prev => ({
                 ...prev,
@@ -269,13 +311,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sucursal_nombre: branch?.nombre_sucursal
             }))
 
-            // IMPORTANTE: Cambiar el contexto del userId al usuario_principal_id del cliente
-            // Esto permite que el vendedor opere el carrito del cliente
+
             if (client.usuario_principal_id) {
                 setUserId(client.usuario_principal_id)
             }
         } else {
-            // Limpiar info del cliente
             setCart(prev => ({
                 ...prev,
                 cliente_id: undefined,
@@ -284,7 +324,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 sucursal_nombre: undefined
             }))
 
-            // Restaurar el userId al usuario logueado (vendedor)
             UserService.getProfile().then(p => {
                 if (p?.id) setUserId(p.id)
             }).catch(() => { })
@@ -294,7 +333,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addToCart = async (product: any, quantity: number = 1) => {
         let currentUserId = userId
 
-        // Lazy load user if not present (fixes "Debes iniciar sesión" bug when context is stale)
         if (!currentUserId) {
             try {
                 console.log('CartContext: userId missing in addToCart, attempting to fetch profile...')
@@ -310,12 +348,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (!currentUserId) {
-            Alert.alert('Error', 'Debes iniciar sesión para comprar')
+            Alert.alert('Error', 'Debes iniciar sesion para comprar')
             return
         }
 
         try {
-            // Server Call First
             const payload: AddToCartPayload = {
                 producto_id: product.id || product.producto_id,
                 cantidad: quantity,
@@ -323,20 +360,49 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 motivo_descuento: product.motivo_descuento
             }
 
-            // CRITICAL: Only vendors can use 'client' endpoint
-            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
-            const target = (currentClient && isVendor)
-                ? { type: 'client' as const, clientId: currentClient.id }
+            const target = isVendorMode
+                ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
 
             await CartService.addToCart(target, payload)
 
-            // Recargar carrito desde servidor para sincronizar precios calculados
+            // Optimistic merge
+            setCart(prev => {
+                const prodId = payload.producto_id
+                const priceFinal = Number(product.precio_final ?? product.precio_lista ?? 0)
+                const priceLista = Number(product.precio_lista ?? priceFinal)
+                const cantidad = quantity
+                const existing = prev.items.find(i => i.producto_id === prodId)
+                const updatedItem: CartItem = {
+                    id: existing?.id || prodId,
+                    producto_id: prodId,
+                    nombre_producto: product.nombre || product.nombre_producto || existing?.nombre_producto || 'Producto',
+                    codigo_sku: product.codigo_sku || existing?.codigo_sku || 'N/A',
+                    imagen_url: product.imagen_url || existing?.imagen_url,
+                    cantidad,
+                    unidad_medida: product.unidad_medida || existing?.unidad_medida || 'UN',
+                    precio_lista: priceLista,
+                    precio_final: priceFinal,
+                    subtotal: cantidad * priceFinal,
+                    campania_aplicada_id: payload.campania_aplicada_id ?? existing?.campania_aplicada_id,
+                    motivo_descuento: payload.motivo_descuento ?? existing?.motivo_descuento,
+                    tiene_promocion: (priceLista > priceFinal) || !!(payload.campania_aplicada_id || existing?.campania_aplicada_id),
+                    descuento_porcentaje: priceLista > 0 ? Math.round(Math.max(0, (priceLista - priceFinal) / priceLista) * 100) : 0
+                }
+
+                const items = existing
+                    ? prev.items.map(i => i.producto_id === prodId ? updatedItem : i)
+                    : prev.items.concat(updatedItem)
+
+                const total_estimado = items.reduce((acc, i) => acc + i.subtotal, 0)
+                return { ...prev, items, total_estimado }
+            })
+
             await loadCart(currentUserId)
 
         } catch (error) {
             console.error('Error adding to cart', error)
-            Alert.alert('Error', 'No se pudo agregar al carrito')
+            Alert.alert('Error', getUserFriendlyMessage(error, 'CART_ERROR'))
             await loadCart(currentUserId)
         }
     }
@@ -346,24 +412,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const removeFromCart = async (productId: string) => {
         if (!userId) return
 
-        // Optimistic UI update
         setCart(prev => ({
             ...prev,
             items: prev.items.filter(i => i.producto_id !== productId)
         }))
 
         try {
-            // CRITICAL: Only vendors can use 'client' endpoint
-            // When vendor is working with client cart, userId is already set to the client's usuario_principal_id
-            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
-            const target = (currentClient && isVendor)
-                ? { type: 'client' as const, clientId: userId }  // Use userId (usuario_principal_id)
+            const target = isVendorMode
+                ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
 
             await CartService.removeFromCart(target, productId)
             loadCart(userId)
         } catch (error) {
-            console.error('Error removing item', error)
+            const isNotFoundError = isApiError(error) && error.status === 404
+            if (!isNotFoundError) {
+                console.error('Error removing item', error)
+            } else {
+                console.warn('Intento de eliminar producto de carrito inexistente', { productId })
+            }
             loadCart(userId)
         }
     }
@@ -371,7 +438,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateQuantity = async (productId: string, quantity: number) => {
         if (!userId || quantity <= 0) return
 
-        // Optimistic
         setCart(prev => ({
             ...prev,
             items: prev.items.map(i => i.producto_id === productId
@@ -384,10 +450,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 producto_id: productId,
                 cantidad: quantity
             }
-            // CRITICAL: Only vendors can use 'client' endpoint
-            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
-            const target = (currentClient && isVendor)
-                ? { type: 'client' as const, clientId: currentClient.id }
+            const target = isVendorMode
+                ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
 
             await CartService.addToCart(target, payload)
@@ -402,10 +466,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!userId) return
         setCart({ items: [], total_estimado: 0 })
         try {
-            // CRITICAL: Only vendors can use 'client' endpoint
-            const isVendor = userRole === 'Vendedor' || userRole === 'vendedor'
-            const target = (currentClient && isVendor)
-                ? { type: 'client' as const, clientId: currentClient.id }
+            const target = isVendorMode
+                ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
             await CartService.clearCart(target)
         } catch (e) { console.warn(e) }
@@ -414,15 +476,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const getItemCount = () => cart.items.reduce((acc, item) => acc + item.cantidad, 0)
 
     const validatePriceList = (listId: number) => true
-    const recalculatePrices = () => { } // Placeholder
+    const recalculatePrices = () => { } 
 
     const value: CartContextValue = {
         userId,
+        userRole,
         cart,
         currentClient,
         currentBranch,
         items: cart.items,
         totalItems: getItemCount(),
+        isVendorMode,
         addToCart,
         removeFromCart,
         removeItem: removeFromCart,
@@ -452,6 +516,8 @@ export const useCartOptional = () => {
         cart: { items: [], total_estimado: 0 },
         getItemCount: () => 0,
         items: [],
-        totalItems: 0
+        totalItems: 0,
+        isVendorMode: false,
+        userRole: null
     }
 }

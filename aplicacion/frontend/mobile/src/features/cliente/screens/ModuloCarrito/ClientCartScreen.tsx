@@ -8,14 +8,17 @@ import { EmptyState } from '../../../../components/ui/EmptyState'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal' // # Importar FeedbackModal
 import { useCart } from '../../../../context/CartContext'
+import { useStableInsets } from '../../../../hooks/useStableInsets'
 
 export function ClientCartScreen() {
   const navigation = useNavigation()
   const { cart, items, updateQuantity, removeItem, totalItems, clearCart } = useCart()
+  const insets = useStableInsets()
+  const priceSummaryHeight = 280
+  const listPaddingBottom = priceSummaryHeight + insets.bottom + 24
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [showPriceDetails, setShowPriceDetails] = React.useState(true)
 
-  // # Estado para el modal de Feedback
   const [modalVisible, setModalVisible] = React.useState(false)
   const [modalConfig, setModalConfig] = React.useState<{
     type: FeedbackType
@@ -31,7 +34,6 @@ export function ClientCartScreen() {
     message: ''
   })
 
-  // # Función para manejar el vaciado del carrito con confirmación
   const handleClearCartPress = () => {
     setModalConfig({
       type: 'warning',
@@ -60,17 +62,14 @@ export function ClientCartScreen() {
     setModalVisible(true)
   }
 
-  // # Manejador para iniciar el proceso de checkout
   const handleCheckout = React.useCallback(() => {
     if (items.length === 0) return
     // @ts-ignore
     navigation.navigate('ClientCheckout')
   }, [items, navigation])
 
-  // # Renderizar cada item del carrito
   const renderCartItem = ({ item }: { item: typeof items[0] }) => (
     <View className="bg-white rounded-2xl p-4 mb-3 border border-neutral-100 shadow-sm">
-      {/* # Header del item: imagen, info y botón eliminar */}
       <View className="flex-row mb-3">
         {item.imagen_url ? (
           <Image
@@ -110,7 +109,6 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* # Footer del item: cantidad y precio */}
       <View className="flex-row justify-between items-center">
         <View className="flex-row items-center bg-neutral-50 rounded-xl border border-neutral-200 px-2">
           <TouchableOpacity
@@ -146,7 +144,6 @@ export function ClientCartScreen() {
     </View>
   )
 
-  // # Estado vacío: Mostrar mensaje si no hay items
   if (items.length === 0) {
     return (
       <View className="flex-1 bg-neutral-50">
@@ -159,7 +156,6 @@ export function ClientCartScreen() {
           onAction={() => (navigation as any).navigate('Productos')}
           style={{ marginTop: 60 }}
         />
-        {/* Modal necesario aunque esté vacío por si acaso */}
         <FeedbackModal
           visible={modalVisible}
           type={modalConfig.type}
@@ -179,7 +175,6 @@ export function ClientCartScreen() {
     <View className="flex-1 bg-neutral-50">
       <Header userName="Usuario" variant="standard" title="Mi Carrito" />
 
-      {/* # Header con contador y botón vaciar */}
       <View className="bg-white px-5 py-4 border-b border-neutral-100 flex-row justify-between items-center">
         <View className="flex-row items-center">
           <Ionicons name="bag-check-outline" size={24} color={BRAND_COLORS.red} />
@@ -194,7 +189,7 @@ export function ClientCartScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={handleClearCartPress} // Usar la nueva función con modal
+          onPress={handleClearCartPress}
           className="flex-row items-center px-3 py-1.5 rounded-lg bg-red-50"
         >
           <Ionicons name="trash-outline" size={16} color={BRAND_COLORS.red} />
@@ -202,18 +197,18 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* # Lista de items del carrito */}
       <FlatList
         data={items}
         keyExtractor={item => item.id}
         renderItem={renderCartItem}
-        contentContainerStyle={{ padding: 20, paddingBottom: 380 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: listPaddingBottom }}
         showsVerticalScrollIndicator={false}
       />
 
-      {/* # Resumen y totales - Panel flotante inferior */}
-      <View className="absolute bottom-20 left-0 right-0 bg-white p-5 pb-6 border-t border-neutral-200 shadow-lg rounded-t-3xl">
-        {/* Toggle para mostrar/ocultar detalles */}
+      <View
+        className="absolute left-0 right-0 bg-white p-5 border-t border-neutral-200 shadow-lg rounded-t-3xl"
+        style={{ bottom: insets.bottom + 20, paddingBottom: 20 + insets.bottom }}
+      >
         <TouchableOpacity
           className="flex-row justify-between items-center py-2 mb-2"
           onPress={() => setShowPriceDetails(!showPriceDetails)}
@@ -236,7 +231,6 @@ export function ClientCartScreen() {
           />
         </TouchableOpacity>
 
-        {/* # Desglose de precios (colapsable) */}
         {showPriceDetails && (
           <>
             <View className="flex-row justify-between mb-2.5">
@@ -266,7 +260,6 @@ export function ClientCartScreen() {
           </>
         )}
 
-        {/* # Total Final */}
         <View className="flex-row justify-between mb-4">
           <Text className="text-lg font-bold text-neutral-900">Total</Text>
           <Text className="text-[22px] font-extrabold text-brand-red">
@@ -274,7 +267,6 @@ export function ClientCartScreen() {
           </Text>
         </View>
 
-        {/* # Botón de checkout (Enviar Pedido) */}
         <TouchableOpacity
           className={`flex-row items-center justify-center py-4 rounded-xl shadow-md ${isProcessing ? 'bg-neutral-300' : 'bg-brand-red'
             }`}
@@ -297,7 +289,6 @@ export function ClientCartScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* # Modal Genérico de Feedback */}
       <FeedbackModal
         visible={modalVisible}
         type={modalConfig.type}

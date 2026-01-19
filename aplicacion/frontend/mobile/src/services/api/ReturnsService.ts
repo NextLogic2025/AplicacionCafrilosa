@@ -11,18 +11,17 @@ export interface ReturnRequest {
 }
 
 export const ReturnsService = {
-    async getReturns(page = 1): Promise<ReturnRequest[]> {
+    async getReturns(_page = 1): Promise<ReturnRequest[]> {
         await delay(500)
-        // Clean implementation: return empty array. Ready for API call.
         return []
     },
 
-    async createReturn(orderId: string, items: any[], reason: string): Promise<boolean> {
+    async createReturn(_orderId: string, _items: any[], _reason: string): Promise<boolean> {
         await delay(1000)
         return true
     },
 
-    async processReturn(returnId: string, action: 'reintegrate' | 'discard', notes?: string): Promise<boolean> {
+    async processReturn(_returnId: string, _action: 'reintegrate' | 'discard', _notes?: string): Promise<boolean> {
         await delay(1000)
         return true
     }

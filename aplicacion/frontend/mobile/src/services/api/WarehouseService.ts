@@ -18,7 +18,6 @@ export interface RecentActivity {
 export const WarehouseService = {
     async getDashboardStats(): Promise<WarehouseStats> {
         await delay(500)
-        // Clean start: 0 for all stats until backend is connected
         return {
             pendingOrders: 0,
             preparingOrders: 0,
@@ -30,7 +29,6 @@ export const WarehouseService = {
 
     async getRecentActivity(): Promise<RecentActivity[]> {
         await delay(500)
-        // Clean start: Empty array
         return []
     }
 }

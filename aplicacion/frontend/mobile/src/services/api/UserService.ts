@@ -1,5 +1,6 @@
 import { env } from '../../config/env'
 import { apiRequest } from './client'
+import { getUserFriendlyMessage, logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface UserProfile {
     id: string
@@ -15,7 +16,6 @@ export interface UserProfile {
 export const UserService = {
     getProfile: async (): Promise<UserProfile | null> => {
         try {
-            // Using usersUrl for user-related data
             const data = await apiRequest<any>(`${env.api.usersUrl}/usuarios/me`)
 
             return {
@@ -29,7 +29,7 @@ export const UserService = {
                 lastLogin: data.lastLogin
             }
         } catch (error) {
-            console.error('Error fetching profile:', error)
+            logErrorForDebugging(error, 'UserService.getProfile')
             return null
         }
     },
@@ -42,7 +42,7 @@ export const UserService = {
             })
             return true
         } catch (error) {
-            console.error('Error updating profile:', error)
+            logErrorForDebugging(error, 'UserService.updateProfile', { userId })
             return false
         }
     },
@@ -57,17 +57,16 @@ export const UserService = {
             return {
                 success: true,
                 message: 'Usuario creado exitosamente',
-                userId: response.id || response.userId // Handling potential response variations
+                userId: response.id || response.userId
             }
         } catch (error: any) {
-            console.error('Error creating user:', error)
-            return { success: false, message: error.message || 'Error de red al crear usuario' }
+            logErrorForDebugging(error, 'UserService.createUser', { email: userData.email })
+            return { success: false, message: getUserFriendlyMessage(error, 'CREATE_ERROR') }
         }
     },
 
     getUsers: async (): Promise<UserProfile[]> => {
         try {
-            // Users service endpoints
             const data = await apiRequest<any[]>(`${env.api.usersUrl}/usuarios`)
 
             return data.map((u: any) => ({
@@ -80,7 +79,7 @@ export const UserService = {
                 active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
-            console.error('Error fetching users:', error)
+            logErrorForDebugging(error, 'UserService.getUsers')
             return []
         }
     },
@@ -99,20 +98,18 @@ export const UserService = {
                 active: u.activo !== undefined ? u.activo : true
             }))
         } catch (error) {
-            console.error('Error fetching vendors:', error)
+            logErrorForDebugging(error, 'UserService.getVendors')
             return []
         }
     },
 
     updateUser: async (userId: string, data: Partial<{ nombre: string; activo: boolean; rolId: number }>): Promise<{ success: boolean; message?: string }> => {
         try {
-            // 1. Update basic info (Name, Role, etc.)
             await apiRequest(`${env.api.usersUrl}/usuarios/${userId}`, {
                 method: 'PUT',
                 body: JSON.stringify(data)
             })
 
-            // 2. Handle Activation/Deactivation Explicitly if provided
             if (data.activo !== undefined) {
                 const action = data.activo ? 'activar' : 'desactivar'
                 await apiRequest(`${env.api.usersUrl}/usuarios/${userId}/${action}`, {
@@ -122,8 +119,8 @@ export const UserService = {
 
             return { success: true, message: 'Usuario actualizado correctamente' }
         } catch (error: any) {
-            console.error('Error updating user:', error)
-            return { success: false, message: error.message || 'Error al actualizar usuario' }
+            logErrorForDebugging(error, 'UserService.updateUser', { userId })
+            return { success: false, message: getUserFriendlyMessage(error, 'UPDATE_ERROR') }
         }
     },
 
@@ -134,8 +131,8 @@ export const UserService = {
             })
             return { success: true, message: 'Usuario eliminado correctamente' }
         } catch (error: any) {
-            console.error('Error deleting user:', error)
-            return { success: false, message: error.message || 'Error al eliminar usuario' }
+            logErrorForDebugging(error, 'UserService.deleteUser', { userId })
+            return { success: false, message: getUserFriendlyMessage(error, 'DELETE_ERROR') }
         }
     }
 }

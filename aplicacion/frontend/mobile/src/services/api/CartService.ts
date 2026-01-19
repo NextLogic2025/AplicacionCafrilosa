@@ -1,30 +1,21 @@
 import { env } from '../../config/env'
 import { apiRequest } from './client'
+import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
-/**
- * Interfaz para items de carrito (entrada/salida backend)
- */
-/**
- * Interfaz para items de carrito (entrada/salida backend)
- */
 export interface CartItemDto {
     producto_id: string
     cantidad: number
-    precio_unitario_ref?: number // Precio final (snapshot)
-    precio_original_snapshot?: number // Precio lista (snapshot)
+    precio_unitario_ref?: number
+    precio_original_snapshot?: number
     campania_aplicada_id?: number
     motivo_descuento?: string
-    // Campos opcionales para la UI (enriquecimiento)
     codigo_sku?: string
     nombre_producto?: string
     imagen_url?: string
     uniad_medida?: string
 }
 
-/**
- * DTO para enviar al backend (POST /orders/cart/:userId)
- * Solo incluye los campos permitidos por el backend
- */
 export interface AddToCartPayload {
     producto_id: string
     cantidad: number
@@ -33,19 +24,14 @@ export interface AddToCartPayload {
     referido_id?: string
 }
 
-/**
- * Interfaz para un item del carrito (respuesta completa)
- */
 export interface CartItem {
     id: string
     producto_id: string
     cantidad: number
-    precio_unitario_ref: number // Precio pactado con el backend
+    precio_unitario_ref: number
     precio_original_snapshot?: number
     campania_aplicada_id?: number
     motivo_descuento?: string
-
-    // Campos enriquecidos (provienen de Producto o snapshot)
     codigo_sku: string
     nombre_producto: string
     imagen_url?: string
@@ -58,9 +44,6 @@ export interface CartItem {
     subtotal: number
 }
 
-/**
- * Interfaz para el carrito completo
- */
 export interface Cart {
     id?: string
     usuario_id?: string
@@ -69,97 +52,72 @@ export interface Cart {
     sucursal_id?: string
     sucursal_nombre?: string
     items: CartItem[]
-
-    // Totales calculados
     subtotal: number
     descuento_total: number
     impuestos_total: number
     total_final: number
-
-    // Warnings del backend (ej. precios actualizados)
     warnings?: any[]
 }
 
-/**
- * CartService - Servicio de gestión de carrito
- * 
- * Soporta dos flujos:
- * 1. Cliente: usa endpoints /orders/cart/me (carrito propio)
- * 2. Vendedor: usa endpoints /orders/cart/client/:clienteId (carrito del cliente)
- */
+type CartTarget = { type: 'me' } | { type: 'client', clientId: string }
+
 export const CartService = {
-    // Obtener carrito actual (personal o de cliente para vendedor)
-    getCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<any> => {
+    getCart: async (target: CartTarget): Promise<any> => {
         try {
-            const endpoint = target.type === 'client'
-                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}`
-                : `${env.api.ordersUrl}/orders/cart/me`
+            const endpoint =
+                target.type === 'client'
+                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
             return await apiRequest(endpoint)
         } catch (error) {
-            console.error('Error fetching cart:', error)
+            logErrorForDebugging(error, 'CartService.getCart', { target })
             throw error
         }
     },
 
-    // Agregar o actualizar item en el carrito
-    addToCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, item: AddToCartPayload): Promise<any> => {
+    addToCart: async (target: CartTarget, item: AddToCartPayload): Promise<any> => {
         try {
-            const endpoint = target.type === 'client'
-                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}`
-                : `${env.api.ordersUrl}/orders/cart/me`
+            const endpoint =
+                target.type === 'client'
+                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
-            console.log(`[CartService] Adding to ${target.type} cart:`, JSON.stringify(item, null, 2))
-
-            const response = await apiRequest(endpoint, {
+            return await apiRequest(endpoint, {
                 method: 'POST',
                 body: JSON.stringify(item)
             })
-            return response
         } catch (error) {
-            console.error('Error adding to cart:', error)
+            logErrorForDebugging(error, 'CartService.addToCart', { target, productId: item.producto_id })
             throw error
         }
     },
 
-    // Eliminar item del carrito
-    removeFromCart: async (target: { type: 'me' } | { type: 'client', clientId: string }, productId: string): Promise<void> => {
+    removeFromCart: async (target: CartTarget, productId: string): Promise<void> => {
         try {
-            const endpoint = target.type === 'client'
-                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}/item/${productId}`
-                : `${env.api.ordersUrl}/orders/cart/me/item/${productId}`
+            const endpoint =
+                target.type === 'client'
+                    ? `${env.api.ordersUrl}${endpoints.orders.cartClientItem(target.clientId, productId)}`
+                    : `${env.api.ordersUrl}${endpoints.orders.cartMeItem(productId)}`
 
-            await apiRequest(endpoint, {
-                method: 'DELETE'
-            })
+            await apiRequest(endpoint, { method: 'DELETE' })
         } catch (error) {
-            console.error('Error removing from cart:', error)
+            logErrorForDebugging(error, 'CartService.removeFromCart', { target, productId })
             throw error
         }
     },
 
-    // Vaciar carrito completo
-    clearCart: async (target: { type: 'me' } | { type: 'client', clientId: string }): Promise<void> => {
+    clearCart: async (target: CartTarget): Promise<void> => {
         try {
-            const endpoint = target.type === 'client'
-                ? `${env.api.ordersUrl}/orders/cart/client/${target.clientId}` // Assuming DELETE on root cart resource clears it
-                : `${env.api.ordersUrl}/orders/cart/me`
+            const endpoint =
+                target.type === 'client'
+                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
-            await apiRequest(endpoint, {
-                method: 'DELETE'
-            })
+            await apiRequest(endpoint, { method: 'DELETE' })
         } catch (error) {
-            console.error('Error clearing cart:', error)
+            logErrorForDebugging(error, 'CartService.clearCart', { target })
             throw error
         }
-    },
-
-    /**
-     * Asociar un cliente al carrito (para vendedores)
-     */
-    /*
-    // El backend actual no tiene endpoint para asociar cliente al carrito.
-    // La asociación se resuelve al crear la orden.
-    setCartClient: async (userId: string, clienteId: string): Promise<any> => { ... }
-    */
+    }
 }

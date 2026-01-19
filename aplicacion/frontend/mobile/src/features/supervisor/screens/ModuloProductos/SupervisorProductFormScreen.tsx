@@ -80,7 +80,7 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     weight: p.peso_unitario_kg?.toString() || '',
                     volume: p.volumen_m3?.toString() || '',
                     imageUrl: p.imagen_url || '',
-                    requiresCold: p.requiere_frio,
+                    requiresCold: p.requiere_frio ?? false,
                     active: p.activo
                 })
                 if (p.categoria?.nombre) {
@@ -274,12 +274,10 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     </View>
                 </View>
                 
-                {/* Botón de guardar con padding extra para evitar colisión con botones del sistema */}
                 <TouchableOpacity className="p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-4" onPress={handleSave} disabled={loading} style={{ backgroundColor: '#EF4444' }}>
                     {loading ? (<ActivityIndicator color="white" />) : (<Text className="text-white font-bold text-lg">{isEditing ? 'Guardar Cambios' : 'Crear Producto'}</Text>)}
                 </TouchableOpacity>
                 
-                {/* Espacio adicional para evitar colisión con la navegación del sistema */}
                 <View className="h-20" />
             </ScrollView>
             <GenericModal visible={categoryModalVisible} onClose={() => setCategoryModalVisible(false)} title="Seleccionar Categoría" height="70%">

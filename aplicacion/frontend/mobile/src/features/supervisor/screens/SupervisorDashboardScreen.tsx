@@ -45,6 +45,7 @@ export function SupervisorDashboardScreen() {
                 role="SUPERVISOR"
                 variant="home"
                 showNotification={true}
+                notificationRoute="SupervisorAlerts"
             />
 
             <ScrollView
@@ -54,7 +55,6 @@ export function SupervisorDashboardScreen() {
                     <RefreshControl refreshing={isLoading} onRefresh={loadData} colors={[BRAND_COLORS.red]} />
                 }
             >
-                {/* General Status - Monitor Real Time */}
                 <View className="bg-white p-4 rounded-xl border border-neutral-200 mb-6 shadow-sm flex-row items-center justify-between">
                     <View>
                         <Text className="text-lg font-bold text-neutral-800">Estado General</Text>
@@ -66,7 +66,6 @@ export function SupervisorDashboardScreen() {
                     </View>
                 </View>
 
-                {/* KPIs Grid */}
                 <View className="flex-row flex-wrap justify-between mb-4">
                     {kpis.map((kpi, index) => (
                         <KpiCard
@@ -80,10 +79,8 @@ export function SupervisorDashboardScreen() {
                     ))}
                 </View>
 
-                {/* Quick Actions */}
                 <QuickActionsGrid />
 
-                {/* Alerts Section */}
                 <View className="mb-24">
                     <Text className="text-lg font-bold text-neutral-800 mb-3 px-1">Alertas Recientes</Text>
                     {alerts.length > 0 ? (

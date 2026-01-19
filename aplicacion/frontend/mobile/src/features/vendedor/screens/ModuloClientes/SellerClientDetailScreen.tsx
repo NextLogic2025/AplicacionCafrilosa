@@ -1,17 +1,44 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Pressable, Alert, Linking, ActivityIndicator } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ClientService, type Client, type ClientBranch } from '../../../../services/api/ClientService'
-import { OrderService, type Order } from '../../../../services/api/OrderService'
+import { OrderService, type Order, ORDER_STATUS_LABELS } from '../../../../services/api/OrderService'
+import type { SellerStackParamList } from '../../../../navigation/SellerNavigator'
+import { useCart } from '../../../../context/CartContext'
+
+// Helper para formatear moneda de forma segura
+const formatCurrency = (value: number | string | undefined | null): string => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : (value ?? 0)
+    return isNaN(numValue) ? '$0.00' : `$${numValue.toFixed(2)}`
+}
+
+// Helper para obtener color del estado
+const getStatusStyle = (estado: string) => {
+    const styles: Record<string, { bg: string; text: string }> = {
+        PENDIENTE: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+        APROBADO: { bg: 'bg-blue-100', text: 'text-blue-700' },
+        EN_PREPARACION: { bg: 'bg-purple-100', text: 'text-purple-700' },
+        FACTURADO: { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+        EN_RUTA: { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+        ENTREGADO: { bg: 'bg-green-100', text: 'text-green-700' },
+        ANULADO: { bg: 'bg-neutral-100', text: 'text-neutral-700' },
+        RECHAZADO: { bg: 'bg-red-100', text: 'text-red-700' },
+    }
+    return styles[estado] || styles.PENDIENTE
+}
 
 export function SellerClientDetailScreen() {
-  const navigation = useNavigation()
-  const route = useRoute()
-  // @ts-ignore
-  const { clientId } = route.params || {}
+  type ScreenNavigation = NativeStackNavigationProp<SellerStackParamList, 'SellerClientDetail'>
+  type ScreenRoute = RouteProp<SellerStackParamList, 'SellerClientDetail'>
+
+  const navigation = useNavigation<ScreenNavigation>()
+  const route = useRoute<ScreenRoute>()
+  const { clientId } = route.params
+  const { setClient: setCartClient, currentClient } = useCart()
 
   const [client, setClient] = useState<Client | null>(null)
   const [branches, setBranches] = useState<ClientBranch[]>([])
@@ -215,11 +242,23 @@ export function SellerClientDetailScreen() {
         <View className="flex-row mx-4 mt-4 gap-3">
              {/* Main Action: New Order */}
             <Pressable
-                className="flex-1 bg-red-600 rounded-xl py-3 px-4 flex-row items-center justify-center gap-2 shadow-sm active:opacity-90"
-                onPress={() => navigation.navigate('SellerOrder', { preselectedClient: client })}
+                className={`flex-1 rounded-xl py-3 px-4 flex-row items-center justify-center gap-2 shadow-sm active:opacity-90 ${client?.bloqueado ? 'bg-neutral-300' : 'bg-red-600'}`}
+                disabled={client?.bloqueado}
+                onPress={() => {
+                    if (client) {
+                        // Seleccionar cliente en el carrito para modo vendedor
+                        setCartClient(client, branches[0] || null)
+                        // Navegar a productos para agregar items al carrito
+                        navigation.navigate('SellerTabs', {
+                            screen: 'SellerProductList'
+                        } as any)
+                    }
+                }}
             >
                 <Ionicons name="cart" size={22} color="#fff" />
-                <Text className="text-white font-bold text-lg">Nuevo Pedido</Text>
+                <Text className="text-white font-bold text-lg">
+                    {client?.bloqueado ? 'Cliente Bloqueado' : 'Hacer Pedido'}
+                </Text>
             </Pressable>
 
             {/* Square Action: Map */}
@@ -311,10 +350,10 @@ export function SellerClientDetailScreen() {
                <Pressable
                  key={branch.id}
                  className={`flex-row items-center justify-between p-4 active:bg-neutral-50 ${index !== branches.length - 1 ? 'border-b border-neutral-100' : ''}`}
-                 onPress={() => navigation.navigate('SellerBranchDetail', { branch, clientName: client.nombre_comercial })}
+                 onPress={() => navigation.navigate('SellerBranchDetail', { branch, clientName: client.nombre_comercial || client.razon_social })}
                >
                  <View className="flex-1 mr-2">
-                   <Text className="font-semibold text-neutral-800 text-base">{branch.nombre || 'Sucursal Principal'}</Text>
+                   <Text className="font-semibold text-neutral-800 text-base">{branch.nombre_sucursal || 'Sucursal Principal'}</Text>
                    <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={1}>{branch.direccion_entrega}</Text>
                  </View>
                  <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
@@ -341,22 +380,38 @@ export function SellerClientDetailScreen() {
                    <Text className="text-neutral-400">No hay pedidos recientes</Text>
                 </View>
             ) : (
-                orders.slice(0, 3).map((order, index) => (
-                    <View key={order.id} className={`flex-row items-center justify-between p-4 ${index !== Math.min(orders.length, 3) - 1 ? 'border-b border-neutral-100' : ''}`}>
-                        <View>
-                            <View className="flex-row items-center gap-2">
-                                <Text className="font-bold text-neutral-800">#{order.numero || order.id.slice(0,8)}</Text>
-                                <View className={`px-1.5 py-0.5 rounded text-[10px] ${order.estado_actual === 'ENTREGADO' ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                                    <Text className={`${order.estado_actual === 'ENTREGADO' ? 'text-green-700' : 'text-yellow-700'} font-bold text-[10px]`}>
-                                        {order.estado_actual}
-                                    </Text>
+                orders.slice(0, 5).map((order, index) => {
+                    const statusStyle = getStatusStyle(order.estado_actual)
+                    return (
+                        <Pressable
+                            key={order.id}
+                            className={`flex-row items-center justify-between p-4 active:bg-neutral-50 ${index !== Math.min(orders.length, 5) - 1 ? 'border-b border-neutral-100' : ''}`}
+                            onPress={() => navigation.navigate('SellerOrderDetail', { orderId: order.id })}
+                        >
+                            <View className="flex-1">
+                                <View className="flex-row items-center gap-2">
+                                    <Text className="font-bold text-neutral-800">#{order.codigo_visual || order.id.slice(0,8)}</Text>
+                                    <View className={`px-1.5 py-0.5 rounded ${statusStyle.bg}`}>
+                                        <Text className={`${statusStyle.text} font-bold text-[10px]`}>
+                                            {ORDER_STATUS_LABELS[order.estado_actual] || order.estado_actual}
+                                        </Text>
+                                    </View>
                                 </View>
+                                <Text className="text-xs text-neutral-500 mt-1">
+                                    {new Date(order.fecha_creacion ?? order.created_at).toLocaleDateString('es-EC', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                    })}
+                                </Text>
                             </View>
-                            <Text className="text-xs text-neutral-500 mt-1">{new Date(order.fecha_creacion).toLocaleDateString()}</Text>
-                        </View>
-                        <Text className="font-bold text-neutral-800 text-base">${order.total_final.toFixed(2)}</Text>
-                    </View>
-                ))
+                            <View className="flex-row items-center gap-2">
+                                <Text className="font-bold text-neutral-800 text-base">{formatCurrency(order.total_final)}</Text>
+                                <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+                            </View>
+                        </Pressable>
+                    )
+                })
             )}
         </View>
 

@@ -22,9 +22,7 @@ export function CartSummary({ totalItems, subtotal, discount = 0, tax = 0, shipp
       end={{ x: 0, y: 1 }}
       className="bg-white rounded-t-3xl border-t border-neutral-100 shadow-lg shadow-black/10 p-5 pt-4"
     >
-      {/* Detalle de precios */}
       <View className="space-y-2.5 mb-4">
-        {/* Subtotal */}
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-2">
             <Ionicons name="bag-outline" size={16} color="#64748B" />
@@ -33,7 +31,6 @@ export function CartSummary({ totalItems, subtotal, discount = 0, tax = 0, shipp
           <Text className="text-neutral-900 font-semibold">${subtotal.toFixed(2)}</Text>
         </View>
 
-        {/* Descuento */}
         {discount > 0 && (
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
@@ -44,7 +41,6 @@ export function CartSummary({ totalItems, subtotal, discount = 0, tax = 0, shipp
           </View>
         )}
 
-        {/* Impuesto */}
         {tax > 0 && (
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
@@ -55,7 +51,6 @@ export function CartSummary({ totalItems, subtotal, discount = 0, tax = 0, shipp
           </View>
         )}
 
-        {/* Envío */}
         {shipping > 0 && (
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
@@ -67,10 +62,8 @@ export function CartSummary({ totalItems, subtotal, discount = 0, tax = 0, shipp
         )}
       </View>
 
-      {/* Separador */}
       <View className="h-px bg-neutral-200 my-3" />
 
-      {/* Total */}
       <View className="flex-row items-baseline justify-between">
         <Text className="text-neutral-600 font-semibold text-sm">Total a pagar</Text>
         <View className="items-end">

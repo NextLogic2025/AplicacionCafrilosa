@@ -72,7 +72,6 @@ export function SupervisorDeliveriesScreen() {
                     <Text className="text-xs font-bold text-neutral-500 mb-1 uppercase">Evidencia</Text>
                     {item.evidence.notes && <Text className="text-sm text-neutral-800 italic mb-2">"{item.evidence.notes}"</Text>}
 
-                    {/* Placeholder for photos if URLs existed, mocking layout */}
                     <View className="flex-row gap-2">
                         {item.evidence.photoUrl && (
                             <View className="w-16 h-16 bg-neutral-200 rounded items-center justify-center">

@@ -14,12 +14,11 @@ export type Category = {
 export type Product = {
     id: string
     name: string
-    description?: string // Added for catalog view
+    description?: string
     price: number
     image?: string
     category: string
     code: string
-    // Bodeguero specifics
     stock?: number
     reservedStock?: number
     location?: string
@@ -38,7 +37,7 @@ export interface Lot {
 }
 
 export const ProductService = {
-    async getProducts(params?: ProductParams | string): Promise<Product[]> {
+    async getProducts(_params?: ProductParams | string): Promise<Product[]> {
         await delay(500)
         return []
     },
@@ -48,23 +47,22 @@ export const ProductService = {
         return []
     },
 
-    async blockLot(id: string): Promise<boolean> {
+    async blockLot(_id: string): Promise<boolean> {
         await delay(500)
         return true
     },
 
-    async adjustInventory(productId: string, type: 'merma' | 'damage' | 'difference', quantity: number, notes?: string): Promise<boolean> {
+    async adjustInventory(_productId: string, _type: 'merma' | 'damage' | 'difference', _quantity: number, _notes?: string): Promise<boolean> {
         await delay(1000)
         return true
     },
 
-    async getProductById(id: string): Promise<Product | null> {
+    async getProductById(_id: string): Promise<Product | null> {
         await delay(300)
         return null
     },
 
     async getCategories(): Promise<Category[]> {
-        // Return mostly static categories or fetch from backend
         return [
             { id: '1', name: 'Embutidos', icon: 'nutrition' },
             { id: '2', name: 'Carnes', icon: 'restaurant' },

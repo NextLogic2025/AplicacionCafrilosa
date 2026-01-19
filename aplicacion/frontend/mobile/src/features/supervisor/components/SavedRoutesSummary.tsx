@@ -15,7 +15,6 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
     const [loading, setLoading] = useState(true)
     const [summary, setSummary] = useState<any[]>([])
 
-    // Feedback Modal State
     const [feedbackModal, setFeedbackModal] = useState<{
         visible: boolean
         type: FeedbackType
@@ -41,7 +40,6 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
                 ZoneService.getZones()
             ])
 
-            // Group by Zone+Day
             const grouped: any = {}
 
             routes.forEach(r => {
@@ -121,7 +119,6 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
         <ScrollView className="flex-1 bg-neutral-50 p-4">
             {summary.map((item) => (
                 <View key={item.key} className="bg-white rounded-2xl mb-4 overflow-hidden shadow-md border border-neutral-100">
-                    {/* Header with gradient */}
                     <View className="bg-red-50 px-4 py-3 border-b border-red-100">
                         <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center flex-1">
@@ -136,9 +133,7 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
                         </View>
                     </View>
 
-                    {/* Content */}
                     <View className="px-4 py-3">
-                        {/* Info Row */}
                         <View className="flex-row items-center justify-between mb-4">
                             <View className="flex-row items-center gap-3">
                                 <StatusBadge
@@ -156,7 +151,6 @@ export function SavedRoutesSummary({ onSelectRoute }: Props) {
                             </View>
                         </View>
 
-                        {/* Action Buttons */}
                         <View className="flex-row gap-2">
                             <TouchableOpacity
                                 onPress={() => onSelectRoute(item.zona_id, item.dia_semana)}

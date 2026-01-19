@@ -10,14 +10,15 @@ import { z } from 'zod'
 
 import { PrimaryButton } from '../../../components/ui/PrimaryButton'
 import { TextField } from '../../../components/ui/TextField'
+import { ToastNotification } from '../../../components/ui/ToastNotification'
 import { requestPasswordReset } from '../../../services/auth/authClient'
+import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 
 type Props = {
   onBack: () => void
   onDone?: () => void
 }
 
-// Schema solo para este form
 const schema = z.object({
   email: emailSchema,
 })
@@ -46,11 +47,11 @@ export function ForgotPasswordScreen({ onBack }: Props) {
       await requestPasswordReset(email)
       setSuccess(true)
     } catch (e) {
-      setServerError(e instanceof Error ? e.message : 'Error al solicitar recuperación')
+      const friendlyMessage = getUserFriendlyMessage(e, 'PASSWORD_RESET_ERROR')
+      setServerError(friendlyMessage)
     }
   })
 
-  // Si se completa exitosamente, mostrar vista de éxito
   if (success) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center p-8">
@@ -75,6 +76,16 @@ export function ForgotPasswordScreen({ onBack }: Props) {
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
+
+      {serverError && (
+        <ToastNotification
+          message={serverError}
+          type="error"
+          duration={4000}
+          onHide={() => setServerError(null)}
+        />
+      )}
+
       <SafeAreaView className="flex-1">
         <View className="px-4 py-2">
           <Pressable
@@ -105,15 +116,6 @@ export function ForgotPasswordScreen({ onBack }: Props) {
               <Text className="text-neutral-500 text-base mb-10 leading-6">
                 Ingresa tu correo electrónico y te enviaremos instrucciones para restablecer tu contraseña.
               </Text>
-
-              {serverError && (
-                <View className="mb-6 flex-row items-center bg-red-50 border border-red-100 p-4 rounded-xl gap-3">
-                  <Ionicons name="alert-circle" size={20} color={BRAND_COLORS.red700} />
-                  <Text className="flex-1 text-red-700 text-sm font-medium">
-                    {serverError}
-                  </Text>
-                </View>
-              )}
 
               <View className="gap-6">
                 <Controller

@@ -1,174 +1,8 @@
-
-import { useEffect, useState, useCallback } from 'react'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
-import { ProductCard } from '../../../../components/ui/ProductCard'
-import { Package, Search, Filter, Users, Store } from 'lucide-react'
-import { getAllProducts, Product } from '../../../supervisor/services/productosApi'
-import { getClientesAsignados, getProductosPorCliente } from '../../services/vendedorApi'
-import type { Cliente } from '../../../supervisor/services/clientesApi'
-import type { Producto } from '../../../cliente/types'
-import { getAllCategories } from '../../../supervisor/services/catalogApi'
-import { useMemo } from 'react'
-import { CartProvider, useCart } from '../../../cliente/cart/CartContext'
-import CartQuickAction from '../../../cliente/components/CartQuickAction'
-
+import { Package, Search } from 'lucide-react'
 
 export default function VendedorProductos() {
-  const [productos, setProductos] = useState<Producto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [cargando, setCargando] = useState(true)
-  const [busqueda, setBusqueda] = useState('')
-  const [mostrarFiltros, setMostrarFiltros] = useState(false)
-  const [categoryId, setCategoryId] = useState<string>('')
-  const [filtros, setFiltros] = useState({ category: 'all', minPrice: 0, maxPrice: 10000, inStock: true })
-  const [categories, setCategories] = useState<{ id: number; nombre: string }[]>([])
-
-  // Nuevo estado para clientes
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
-  const [loadingClientes, setLoadingClientes] = useState(true)
-
-  // Función de mapeo unificada
-  const mapProductToFrontend = useCallback((items: any[]): Producto[] => {
-    const mapped = items
-      .map((p) => {
-        const anyP = p as any
-        // Gather possible price fields from different backend shapes
-        const maybeValues: Array<number | string | null | undefined> = [
-          anyP.precio_oferta,
-          anyP.promocion?.precio_final,
-          anyP.precio_lista,
-          anyP.precio_base,
-          anyP.precio,
-        ]
-
-        // also check precios array
-        if (Array.isArray(anyP.precios) && anyP.precios.length) {
-          for (const pr of anyP.precios) {
-            maybeValues.push(pr.precio ?? pr.price ?? null)
-          }
-        }
-
-        const parsed = maybeValues
-          .map(v => (v == null ? null : (typeof v === 'string' ? Number(v) : Number(v))))
-          .filter(v => Number.isFinite(v) && v > 0) as number[]
-
-        if (!parsed.length) return null
-        const price = parsed[0]
-
-        const precio_original = parsed.length > 1 ? parsed[1] : undefined
-
-        const name = anyP.nombre ?? anyP.name ?? anyP.titulo ?? String(anyP.id)
-        const description = anyP.descripcion ?? anyP.description ?? anyP.descripcion_corta ?? ''
-        const image = anyP.imagen_url ?? anyP.image ?? (anyP.imagenes && anyP.imagenes[0]?.url) ?? ''
-        const category = anyP.categoria?.nombre ?? anyP.categoria_nombre ?? ''
-        const inStock = anyP.activo === undefined ? true : Boolean(anyP.activo)
-
-        return {
-          id: p.id,
-          name,
-          description,
-          price,
-          precio_original,
-          precio_oferta: typeof anyP.precio_oferta === 'number' ? anyP.precio_oferta : undefined,
-          promociones: anyP.promociones || undefined,
-          image,
-          category,
-          inStock,
-          rating: 0,
-          reviews: 0,
-        } as Producto
-      })
-      .filter((x): x is Producto => Boolean(x))
-
-    return mapped
-  }, [])
-
-  // Cargar clientes asignados
-  useEffect(() => {
-    getClientesAsignados()
-      .then(data => setClientes(data))
-      .catch(() => setClientes([]))
-      .finally(() => setLoadingClientes(false))
-  }, [])
-
-  // Cargar productos (todos o por cliente)
-  useEffect(() => {
-    setLoading(true)
-    const fetchProductos = async () => {
-      try {
-        let items: any[] = []
-        if (clienteSeleccionado) {
-          // Si hay cliente seleccionado, usar endpoint específico (asumiendo que devuelve estructura similar)
-          // Nota: getProductosPorCliente en API devuelve Producto[], pero mapeamos manualmente para asegurar consistencia
-          // con la estructura que realmente llega del backend (que suele ser tipo Product)
-          const resp = await getProductosPorCliente(clienteSeleccionado)
-          // eslint-disable-next-line no-console
-          try {
-            console.log('[VendedorProductos] fetched raw items for cliente', clienteSeleccionado, resp?.length ?? 0, JSON.stringify(resp?.slice ? resp.slice(0, 5) : resp, null, 2))
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.log('[VendedorProductos] fetched raw items for cliente (raw)', clienteSeleccionado, resp?.length ?? 0, resp?.slice ? resp.slice(0, 5) : resp)
-          }
-          items = resp
-        } else {
-          items = await getAllProducts()
-        }
-        const mapped = mapProductToFrontend(items)
-        // eslint-disable-next-line no-console
-        try {
-          console.log('[VendedorProductos] mapped products', mapped.length, JSON.stringify(mapped.slice ? mapped.slice(0, 5) : mapped, null, 2))
-        } catch (e) {
-          // eslint-disable-next-line no-console
-          console.log('[VendedorProductos] mapped products (raw)', mapped.length, mapped.slice ? mapped.slice(0, 5) : mapped)
-        }
-        setProductos(mapped)
-      } catch (error) {
-        console.error('Error cargando productos:', error)
-        setProductos([])
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchProductos()
-  }, [clienteSeleccionado, mapProductToFrontend])
-
-  useEffect(() => {
-    const cargar = async () => {
-      setCargando(true)
-      setCargando(false)
-    }
-    cargar()
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-    getAllCategories()
-      .then(list => {
-        if (!mounted) return
-        setCategories(list.map(c => ({ id: c.id, nombre: c.nombre })))
-      })
-      .catch(() => { })
-    return () => { mounted = false }
-  }, [])
-
-  const productosFiltrados = useMemo(
-    () =>
-      productos.filter(producto => {
-        const coincideBusqueda =
-          producto.name.toLowerCase().includes(busqueda.toLowerCase()) ||
-          producto.description.toLowerCase().includes(busqueda.toLowerCase())
-        const coincideCategoria = filtros.category === 'all' || producto.category === filtros.category
-        const coincidePrecio = producto.price >= filtros.minPrice && producto.price <= filtros.maxPrice
-        const coincideStock = !filtros.inStock || producto.inStock
-        return coincideBusqueda && coincideCategoria && coincidePrecio && coincideStock
-      }),
-    [busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos],
-  )
-
-  // TODO: Implementar filtros si es necesario
-
   return (
     <div className="space-y-6">
       <PageHero
@@ -180,143 +14,57 @@ export default function VendedorProductos() {
         ]}
       />
 
-      {/* Selector de Cliente y Filtros */}
+      {/* Filtros */}
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
-        <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-gray-700">Seleccionar Cliente para ver precios específicos</label>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-              <Store size={18} />
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Buscar Producto
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Nombre o código..."
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent"
+              />
             </div>
-            <select
-              value={clienteSeleccionado}
-              onChange={(e) => setClienteSeleccionado(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-red-500 focus:ring-red-500 sm:max-w-md"
-              disabled={loadingClientes}
-            >
-              <option value="">-- Catálogo General --</option>
-              {clientes.map(cliente => (
-                <option key={cliente.id} value={cliente.id}>
-                  {cliente.razon_social || cliente.nombre_comercial} ({cliente.identificacion || 'Sin ID'})
-                </option>
-              ))}
+          </div>
+
+          <div className="w-48">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Categoría
+            </label>
+            <select className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent">
+              <option value="">Todas</option>
+              <option value="lacteos">Lácteos</option>
+              <option value="bebidas">Bebidas</option>
+              <option value="snacks">Snacks</option>
             </select>
-            {loadingClientes && <div className="absolute right-3 top-2.5 text-xs text-gray-400">Cargando...</div>}
+          </div>
+
+          <div className="w-48">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Presentación
+            </label>
+            <select className="w-full px-4 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent">
+              <option value="">Todas</option>
+              <option value="unidad">Unidad</option>
+              <option value="caja">Caja</option>
+              <option value="pallet">Pallet</option>
+            </select>
           </div>
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Nombre o código..."
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-          <button
-            onClick={() => setMostrarFiltros(!mostrarFiltros)}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 transition hover:bg-gray-50"
-          >
-            <Filter size={20} />
-            <span>Filtros</span>
-          </button>
-        </div>
-
-        {mostrarFiltros && (
-          <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 mt-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Categoría</label>
-              <select
-                value={categoryId || 'all'}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === 'all') {
-                    setCategoryId('')
-                    setFiltros({ ...filtros, category: 'all' })
-                    return
-                  }
-                  setCategoryId(val)
-                  const idNum = Number(val)
-                  const found = categories.find(c => c.id === idNum)
-                  setFiltros({ ...filtros, category: found ? found.nombre : 'all' })
-                }}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-red-500"
-              >
-                <option value="all">Todas las categorías</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={String(cat.id)}>{cat.nombre}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Precio: ${filtros.minPrice} - ${filtros.maxPrice}</label>
-              <input
-                type="range"
-                min="0"
-                max="10000"
-                step="10"
-                value={filtros.maxPrice}
-                onChange={e => setFiltros({ ...filtros, maxPrice: parseInt(e.target.value) })}
-                className="w-full"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="inStock"
-                checked={filtros.inStock}
-                onChange={e => setFiltros({ ...filtros, inStock: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <label htmlFor="inStock" className="text-sm text-gray-700">
-                Solo productos disponibles
-              </label>
-            </div>
-
-            <button
-              onClick={() => setMostrarFiltros(false)}
-              className="w-full rounded-lg bg-gray-200 px-4 py-2 text-sm transition hover:bg-gray-300"
-            >
-              Cerrar Filtros
-            </button>
-          </div>
-        )}
       </section>
 
       {/* Catálogo */}
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
         <h3 className="text-lg font-bold text-neutral-950 mb-4">Catálogo Completo</h3>
-        {loading ? (
-          <div className="flex justify-center items-center h-32">Cargando productos...</div>
-        ) : productos.length === 0 ? (
-          <EmptyContent
-            icon={<Package className="h-16 w-16" />}
-            title="No hay productos disponibles"
-            description="El catálogo de productos se cargará desde el backend"
-          />
-        ) : (
-          <div>
-            {productosFiltrados.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-600">No se encontraron productos con los filtros seleccionados.</div>
-            ) : clienteSeleccionado ? (
-              <CartProvider clienteId={clienteSeleccionado} storageKey="cafrilosa:cart:vendedor">
-                <CatalogWithCart productos={productosFiltrados} />
-                <CartQuickAction cartPath="/vendedor/carrito" />
-              </CartProvider>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {productosFiltrados.map((producto) => (
-                  <ProductCard key={producto.id} producto={producto} onAddToCart={() => { }} fetchPromos />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <EmptyContent
+          icon={<Package className="h-16 w-16" />}
+          title="No hay productos disponibles"
+          description="El catálogo de productos se cargará desde el backend"
+        />
       </section>
 
       {/* Información */}
@@ -332,26 +80,3 @@ export default function VendedorProductos() {
     </div>
   )
 }
-
-function CatalogWithCart({ productos }: { productos: Producto[] }) {
-  const { addItem } = useCart()
-
-  return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {productos.map(producto => (
-        <ProductCard
-          key={producto.id}
-          producto={producto}
-          onAddToCart={(item) => {
-            // ProductCard onAddToCart signature matches CartItem shape
-            addItem({ id: item.id, name: item.name, unitPrice: item.unitPrice, quantity: item.quantity })
-          }}
-          fetchPromos
-          showPriceFallback={false}
-        />
-      ))}
-    </div>
-  )
-}
-
-// hmr-ping: touch file to force Vite/HMR recompilation

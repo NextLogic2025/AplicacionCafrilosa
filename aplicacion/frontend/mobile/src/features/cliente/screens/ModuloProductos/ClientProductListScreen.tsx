@@ -12,11 +12,11 @@ import { useToast } from '../../../../context/ToastContext'
 
 
 export function ClientProductListScreen() {
-    const navigation = useNavigation()
+    const navigation = useNavigation<any>()
     const { addToCart } = useCart()
     const { showToast } = useToast()
+    const categoryFilterEnabled = false
 
-    // # Estado local del componente
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -27,19 +27,16 @@ export function ClientProductListScreen() {
     const [hasMore, setHasMore] = useState(true)
     const [showOnlyPromotions, setShowOnlyPromotions] = useState(false)
 
-    // # Cargar categorías al montar
     useEffect(() => {
         loadCategories()
     }, [])
 
-    // # Efecto: Recargar productos cuando filtrado cambia
     useFocusEffect(
         useCallback(() => {
             loadProducts(true)
         }, [selectedCategory, searchQuery])
     )
 
-    // # Función para obtener categorías del backend
     const loadCategories = async () => {
         try {
             const data = await CatalogService.getCategories()
@@ -49,7 +46,6 @@ export function ClientProductListScreen() {
         }
     }
 
-    // # Función principal de carga de productos (con paginación)
     const loadProducts = async (reset: boolean = false) => {
         if (loading) return
 
@@ -61,16 +57,12 @@ export function ClientProductListScreen() {
                 setPage(1)
             }
 
-            // ACTUALIZACIÓN: Usar nuevo endpoint específico para clientes
-            // Este endpoint usa el token JWT para filtrar productos según la lista de precios del cliente
-            // Nota: El filtro por categoría está temporalmente deshabilitado hasta que el backend lo soporte
             const response = await CatalogService.getClientProducts(
                 currentPage,
                 20,
                 searchQuery || undefined
             )
 
-            // Actualizar lista de productos
             if (reset) {
                 setProducts(response.items)
             } else {
@@ -87,34 +79,27 @@ export function ClientProductListScreen() {
         }
     }
 
-    // # Manejador de Pull-to-Refresh
     const handleRefresh = () => {
         setRefreshing(true)
         loadProducts(true)
     }
 
-    // # Cargar más productos al llegar al final (Infinite Scroll)
     const handleLoadMore = () => {
         if (!loading && hasMore) {
             loadProducts(false)
         }
     }
 
-    // # Navegar al detalle del producto
     const handleProductPress = (product: Product) => {
-        // @ts-ignore - navigation typing
-        navigation.navigate('ClientProductDetail', { productId: product.id })
+        navigation.navigate('ClientProductDetail', { productId: product.id, product })
     }
 
-    // # Seleccionar categoría
     const handleCategoryPress = (categoryId: number | null) => {
         setSelectedCategory(categoryId)
         setPage(1)
     }
 
-    // # Agregar producto al carrito directamente
     const handleAddToCart = (product: Product) => {
-        // Calcular precio final considerando ofertas
         const precioFinal = product.precio_oferta && product.precio_oferta < (product.precio_original ?? 0)
             ? product.precio_oferta
             : product.precio_original ?? 0
@@ -143,7 +128,6 @@ export function ClientProductListScreen() {
         showToast(`✓ ${product.nombre} agregado al carrito`, 'success')
     }
 
-    // # Filtrado local para mostrar solo productos con promoción
     const displayedProducts = showOnlyPromotions
         ? products.filter(product =>
             product.precio_oferta &&
@@ -156,7 +140,6 @@ export function ClientProductListScreen() {
         <View className="flex-1 bg-neutral-50">
             <Header title="Productos" variant="standard" />
 
-            {/* Barra de búsqueda + Filtro de Promociones */}
             <View className="bg-white px-5 pt-3 pb-4 border-b border-neutral-100 flex-row items-center gap-3">
                 <View className="flex-1">
                     <SearchBar
@@ -191,11 +174,7 @@ export function ClientProductListScreen() {
                 </View>
             </View>
 
-            {/* Pills de Categorías - TEMPORALMENTE DESHABILITADO
-                El nuevo endpoint /api/precios/cliente/productos aún no soporta filtro por categoría
-                Se habilitará cuando el backend agregue soporte para categoria_id
-            */}
-            {/* {categories.length > 0 && (
+            {categoryFilterEnabled && categories.length > 0 && (
                 <View className="bg-white py-3 border-b border-neutral-100">
                     <FlatList
                         data={[{ id: null, nombre: 'Todos' } as any, ...categories]}
@@ -221,10 +200,9 @@ export function ClientProductListScreen() {
                         }}
                     />
                 </View>
-            )} */}
+            )}
 
 
-            {/* Grid de Productos */}
             {loading && page === 1 ? (
                 <View className="flex-1 justify-center items-center">
                     <ActivityIndicator size="large" color="#DC2626" />

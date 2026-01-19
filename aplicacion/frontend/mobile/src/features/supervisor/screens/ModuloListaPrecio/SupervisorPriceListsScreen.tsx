@@ -11,21 +11,17 @@ import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 
 export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) {
-    // const navigation = useNavigation() // Switched to props for safety
     const [lists, setLists] = useState<PriceList[]>([])
     const [loading, setLoading] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
 
-    // Modal State
     const [modalVisible, setModalVisible] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [editingList, setEditingList] = useState<PriceList | null>(null)
 
-    // Form State
     const [listName, setListName] = useState('')
     const [isActive, setIsActive] = useState(true)
 
-    // Feedback State
     const [feedbackVisible, setFeedbackVisible] = useState(false)
     const [feedbackConfig, setFeedbackConfig] = useState<{
         type: FeedbackType
@@ -83,7 +79,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
         setProcessing(true)
         try {
             if (editingList) {
-                // Update
                 const updated = await PriceService.updateList(editingList.id, {
                     nombre: listName,
                     activa: isActive
@@ -94,7 +89,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                     showFeedback('success', 'Éxito', 'Lista actualizada correctamente')
                 }, 300)
             } else {
-                // Create
                 const newList = await PriceService.createList({
                     nombre: listName,
                     activa: isActive,
@@ -172,7 +166,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
         </TouchableOpacity>
     )
 
-    // Suggestions for new lists
     const SUGGESTIONS = ['Mayorista', 'Horeca', 'Minorista']
 
     return (
@@ -209,7 +202,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                 }}
             />
 
-            {/* Create/Edit Modal */}
             <GenericModal
                 visible={modalVisible}
                 onClose={() => setModalVisible(false)}
@@ -225,7 +217,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                         onChangeText={setListName}
                     />
 
-                    {/* Suggestions (Only show provided suggestions if creating or name is empty) */}
                     {!editingList && (
                         <View className="flex-row flex-wrap gap-2 mb-4">
                             {SUGGESTIONS.map((option) => (
@@ -274,7 +265,6 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                 </View>
             </GenericModal>
 
-            {/* Feedback Modal */}
             <FeedbackModal
                 visible={feedbackVisible}
                 type={feedbackConfig.type}

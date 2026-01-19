@@ -1,7 +1,3 @@
-import { Platform } from 'react-native'
-import { getValidToken } from '../auth/authClient'
-import { env } from '../../config/env'
-
 export interface KPI {
     label: string
     value: number | string
@@ -15,8 +11,6 @@ export interface Alert {
     message: string
     timestamp: string
 }
-
-// export interface SupervisorProfile removed - use UserService.UserProfile
 
 export interface SupervisorOrder {
     id: string
@@ -66,67 +60,6 @@ export interface SupervisorTeamMember {
     lastActivity: string
 }
 
-export const SupervisorService = {
-    getDashboardKPIs: async (): Promise<KPI[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    getDashboardAlerts: async (): Promise<Alert[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    // getProfile removed - use UserService.getProfile
-
-    getOrders: async (): Promise<SupervisorOrder[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    getDeliveries: async (): Promise<SupervisorDelivery[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    getTeamMembers: async (): Promise<SupervisorTeamMember[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    // --- FAB Modules ---
-
-    getClients: async (): Promise<SupervisorClient[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    getWarehouseData: async (): Promise<SupervisorWarehouseData> => {
-        // TODO: Integrate with backend API
-        return {
-            pendingOrders: [],
-            prepTimes: [],
-            stockRejections: []
-        }
-    },
-
-    getReturns: async (): Promise<SupervisorReturn[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    getReports: async (): Promise<SupervisorReport[]> => {
-        // TODO: Integrate with backend API
-        return []
-    },
-
-    // Explicit method for the full alerts screen if different from dashboard
-    getAllAlerts: async (): Promise<Alert[]> => {
-        // TODO: Integrate with backend API
-        return []
-    }
-}
-
 export interface SupervisorClient {
     id: string
     name: string
@@ -157,4 +90,50 @@ export interface SupervisorReport {
     type: 'sales' | 'zone' | 'product'
     date: string
     url: string
+}
+
+export const SupervisorService = {
+    getDashboardKPIs: async (): Promise<KPI[]> => {
+        return []
+    },
+
+    getDashboardAlerts: async (): Promise<Alert[]> => {
+        return []
+    },
+
+    getOrders: async (): Promise<SupervisorOrder[]> => {
+        return []
+    },
+
+    getDeliveries: async (): Promise<SupervisorDelivery[]> => {
+        return []
+    },
+
+    getTeamMembers: async (): Promise<SupervisorTeamMember[]> => {
+        return []
+    },
+
+    getClients: async (): Promise<SupervisorClient[]> => {
+        return []
+    },
+
+    getWarehouseData: async (): Promise<SupervisorWarehouseData> => {
+        return {
+            pendingOrders: [],
+            prepTimes: [],
+            stockRejections: []
+        }
+    },
+
+    getReturns: async (): Promise<SupervisorReturn[]> => {
+        return []
+    },
+
+    getReports: async (): Promise<SupervisorReport[]> => {
+        return []
+    },
+
+    getAllAlerts: async (): Promise<Alert[]> => {
+        return []
+    }
 }

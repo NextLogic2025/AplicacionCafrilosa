@@ -41,7 +41,6 @@ export function ClientInvoicesScreen() {
             <Header title="Mis Facturas" variant="standard" onBackPress={() => navigation.goBack()} />
 
             <View className="flex-1">
-                {/* Estadísticas de Deuda */}
                 <View className="flex-row px-5 py-4 gap-3 bg-white border-b border-neutral-100 z-10">
                     <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
                         <Text className="text-yellow-600 text-xs font-medium uppercase mb-1">Pendientes</Text>
@@ -53,7 +52,6 @@ export function ClientInvoicesScreen() {
                     </View>
                 </View>
 
-                {/* Info Pago */}
                 <View className="bg-blue-50 mx-5 mt-4 p-4 rounded-xl border border-blue-100 flex-row items-center gap-3">
                     <View className="bg-blue-100 p-2 rounded-full">
                         <Ionicons name="information-circle" size={20} color="#1E40AF" />

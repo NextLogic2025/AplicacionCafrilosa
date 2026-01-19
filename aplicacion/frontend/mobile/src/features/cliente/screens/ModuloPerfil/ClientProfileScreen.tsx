@@ -30,7 +30,8 @@ export function ClientProfileScreen() {
                         2: 'Mayorista',
                         3: 'Horeca'
                     }
-                    const priceListName = priceListNames[myClient.lista_precios_id] || `Lista #${myClient.lista_precios_id}`
+                    const listaId = myClient.lista_precios_id ?? 0
+                    const priceListName = priceListNames[listaId] || (listaId ? `Lista #${listaId}` : 'Sin lista')
 
                     // Usar el nombre de la zona que viene del backend (ya enriquecido)
                     const zoneName = myClient.zona_comercial_nombre ||
@@ -44,15 +45,15 @@ export function ClientProfileScreen() {
                         identificacion: myClient.identificacion,
                         tipo_identificacion: myClient.tipo_identificacion,
                         razon_social: myClient.razon_social,
-                        nombre_comercial: myClient.nombre_comercial,
+                        nombre_comercial: myClient.nombre_comercial ?? undefined,
                         lista_precios: priceListName,
                         vendedor_asignado: vendorName,
                         zona_comercial: zoneName,
                         tiene_credito: myClient.tiene_credito,
-                        limite_credito: myClient.limite_credito,
-                        saldo_actual: myClient.saldo_actual,
+                        limite_credito: Number.parseFloat(myClient.limite_credito || '0'),
+                        saldo_actual: Number.parseFloat(myClient.saldo_actual || '0'),
                         dias_plazo: myClient.dias_plazo,
-                        direccion: myClient.direccion_texto
+                        direccion: myClient.direccion_texto ?? undefined
                     })
                 }
             }

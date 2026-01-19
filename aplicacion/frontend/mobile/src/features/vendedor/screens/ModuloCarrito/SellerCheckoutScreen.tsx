@@ -100,17 +100,25 @@ export default function SellerCheckoutScreen() {
             return
         }
 
+        const hasZeroPrice = cart.items.some(i => (safeNumber(i.precio_final) <= 0) || (safeNumber(i.subtotal) <= 0))
+        if (hasZeroPrice || total <= 0) {
+            Alert.alert('Error', 'Hay productos sin precio válido. Verifica los precios antes de confirmar.')
+            return
+        }
+
         setLoading(true)
         try {
             // Payload for Backend
             const payload = {
-                condicion_pago: condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO',
+                condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
                 sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
             }
 
             // Vendedor crea pedido desde carrito del cliente
+            // Use usuario_principal_id if available, otherwise fall back to client.id
+            const clientIdentifier = currentClient.usuario_principal_id || currentClient.id
             const newOrder = await OrderService.createOrderFromCart(
-                { type: 'client', clientId: currentClient.id },
+                { type: 'client', clientId: clientIdentifier },
                 payload
             )
 
@@ -122,7 +130,8 @@ export default function SellerCheckoutScreen() {
 
         } catch (error: any) {
             console.error('Checkout error:', error)
-            let errorMessage = error.message || 'No se pudo procesar el pedido'
+            const backendMsg = error?.info?.backendMessage || error?.message
+            let errorMessage = backendMsg || 'No se pudo procesar el pedido'
 
             if (errorMessage.includes('500')) {
                 errorMessage = 'Error del servidor. Por favor verifica tu conexión.'

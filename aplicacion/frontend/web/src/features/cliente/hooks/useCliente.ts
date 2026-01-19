@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Conversacion, Entrega, EstadoPedido, Factura, Notificacion, Pedido, PerfilCliente, Producto, SucursalCliente, Ticket } from '../types'
-import * as api from '../services/clientApi'
-
-type CrearPedidoDesdeCarritoOptions = Parameters<typeof api.createPedidoFromCart>[0]
+import { Conversacion, Entrega, EstadoPedido, Factura, Notificacion, Pedido, PerfilCliente, Producto, Ticket } from '../types'
+import * as api from '../../../services/cliente'
 
 export function useCliente() {
   const [perfil, setPerfil] = useState<PerfilCliente | null>(null)
@@ -15,7 +13,6 @@ export function useCliente() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [conversaciones, setConversaciones] = useState<Conversacion[]>([])
   const [tickets, setTickets] = useState<Ticket[]>([])
-  const [sucursales, setSucursales] = useState<SucursalCliente[]>([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,31 +37,13 @@ export function useCliente() {
     setCargando(true)
     try {
       const res = await api.getPedidos(pagina)
-      const serverItems = (res.items ?? []) as Pedido[]
-      setPedidos(serverItems)
+      setPedidos(res.items ?? [])
       setPedidosPaginaActual(res.page ?? pagina)
       setPedidosTotalPaginas(res.totalPages ?? 1)
     } catch {
       setPedidos([])
       setPedidosPaginaActual(pagina)
       setPedidosTotalPaginas(1)
-    } finally {
-      setCargando(false)
-    }
-  }, [])
-
-  const obtenerPedidoPorId = useCallback(async (id: string) => {
-    if (!id) throw new Error('Pedido inválido')
-    return api.getPedidoDetalle(id)
-  }, [])
-
-  const fetchSucursales = useCallback(async () => {
-    setCargando(true)
-    try {
-      const listado = await api.getSucursalesCliente()
-      setSucursales(listado ?? [])
-    } catch {
-      setSucursales([])
     } finally {
       setCargando(false)
     }
@@ -94,10 +73,10 @@ export function useCliente() {
     }
   }, [])
 
-  const fetchProductos = useCallback(async (options?: { page?: number; per_page?: number; category?: string; categoryId?: number }) => {
+  const fetchProductos = useCallback(async () => {
     setCargando(true)
     try {
-      const res = await api.getProductos(options)
+      const res = await api.getProductos()
       setProductos(res ?? [])
     } catch {
       setProductos([])
@@ -142,19 +121,11 @@ export function useCliente() {
     }
   }, [])
 
-  const cancelarPedido = useCallback(async (id: string) => {
-    // Optimistically update UI
-    setPedidos(prev => prev.map(p => (p.id === id ? { ...p, status: EstadoPedido.CANCELLED } : p)))
-    try {
-      const ok = await api.deletePedido(id)
-      if (!ok) throw new Error('No se pudo cancelar el pedido')
-      // success: keep state as is (already marked cancelled)
-    } catch (err) {
-      // If server fails (404/500), keep optimistic cancel locally and show a non-blocking warning.
-      setError('Cancelado localmente (no confirmado por el servidor).')
-      // Do not reload list to avoid overwriting the optimistic state.
-    }
-  }, [fetchPedidos, pedidosPaginaActual])
+  const cancelarPedido = useCallback((id: string) => {
+    setPedidos(prev =>
+      prev.map(p => (p.id === id ? { ...p, status: EstadoPedido.CANCELLED } : p)),
+    )
+  }, [])
 
   const crearTicket = useCallback(async (nuevo: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>) => {
     try {
@@ -175,24 +146,6 @@ export function useCliente() {
 
   const limpiarError = useCallback(() => setError(null), [])
 
-  const crearPedidoDesdeCarrito = useCallback(
-    async (options?: CrearPedidoDesdeCarritoOptions) => {
-      try {
-        const nuevo = await api.createPedidoFromCart(options)
-        setPedidos(prev => [nuevo, ...prev])
-        try {
-          window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } }))
-        } catch {}
-        return nuevo
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'No se pudo crear el pedido'
-        setError(message)
-        throw err
-      }
-    },
-    [],
-  )
-
   return {
     perfil,
     pedidos,
@@ -204,7 +157,6 @@ export function useCliente() {
     notificaciones,
     conversaciones,
     tickets,
-    sucursales,
     unreadMessageCount,
     cargando,
     error,
@@ -216,13 +168,21 @@ export function useCliente() {
     fetchNotificaciones,
     fetchConversaciones,
     fetchTickets,
-    fetchSucursales,
     cancelarPedido,
     crearTicket,
     marcarNotificacionComoLeida,
     marcarTodasComoLeidas,
     limpiarError,
-    crearPedidoDesdeCarrito,
-    obtenerPedidoPorId,
+    crearPedidoDesdeCarrito: async (
+      items: { id: string; name: string; unitPrice: number; quantity: number }[],
+      total: number,
+    ) => {
+      try {
+        const nuevo = await api.createPedido(items, total)
+        setPedidos(prev => [nuevo, ...prev])
+      } catch {
+        // si falla la API, no generamos datos locales
+      }
+    },
   }
 }

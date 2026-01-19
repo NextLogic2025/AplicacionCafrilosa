@@ -10,7 +10,6 @@ import { Header } from '../../../../components/ui/Header'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 
-// Loja, Ecuador Default Coordinates
 const DEFAULT_LAT = -3.99313
 const DEFAULT_LNG = -79.20422
 const DEFAULT_DELTA = 0.04
@@ -33,14 +32,11 @@ export function CrearClienteSucursalesScreen() {
     const [zones, setZones] = useState<CommercialZone[]>([])
     const [showZonePicker, setShowZonePicker] = useState(false)
 
-    // Data State
     const [clientData, setClientData] = useState<any>(null)
     const [zone, setZone] = useState<CommercialZone | null>(null)
 
-    // Memoized Polygon using Shared Helper (Supervisor Pattern)
     const zonePolygon = useMemo(() => zone ? ZoneHelpers.parsePolygon(zone.poligono_geografico) : [], [zone])
 
-    // Initial Region
     const [region, setRegion] = useState({
         latitude: DEFAULT_LAT,
         longitude: DEFAULT_LNG,
@@ -57,7 +53,6 @@ export function CrearClienteSucursalesScreen() {
         longitud: DEFAULT_LNG
     })
 
-    // Modal State
     const [modalVisible, setModalVisible] = useState(false)
     const [modalConfig, setModalConfig] = useState<{
         type: FeedbackType
@@ -80,11 +75,9 @@ export function CrearClienteSucursalesScreen() {
     const loadData = async () => {
         setLoading(true)
         try {
-            // 1. Fetch ALL Zones first
             const allZones = await ClientService.getCommercialZones(true) // silent=true
             setZones(allZones)
 
-            // 2. Get Client Data
             const client = await ClientService.getMyClientData()
 
             if (client) {
@@ -103,7 +96,6 @@ export function CrearClienteSucursalesScreen() {
                             longitud: branch.ubicacion_gps?.coordinates[0] || DEFAULT_LNG
                         })
 
-                        // Focus Map on Branch
                         setRegion({
                             latitude: branch.ubicacion_gps?.coordinates[1] || DEFAULT_LAT,
                             longitude: branch.ubicacion_gps?.coordinates[0] || DEFAULT_LNG,
@@ -111,7 +103,6 @@ export function CrearClienteSucursalesScreen() {
                             longitudeDelta: 0.005
                         })
 
-                        // Initialize Zone
                         if (branch.zona_id) {
                             let assignedZone = allZones.find(z => z.id === branch.zona_id)
                             if (!assignedZone) {
@@ -121,15 +112,12 @@ export function CrearClienteSucursalesScreen() {
                         }
                     }
                 } else {
-                    // --- CREATE MODE ---
-                    // Pre-fill contact info from client
                     setForm(prev => ({
                         ...prev,
                         contacto_nombre: client.razon_social || '',
                         contacto_telefono: ''
                     }))
 
-                    // Determine initial zone
                     let initialZone: CommercialZone | undefined
                     if (client.zona_comercial_id) {
                         initialZone = allZones.find(z => z.id === client.zona_comercial_id)
@@ -161,12 +149,10 @@ export function CrearClienteSucursalesScreen() {
         }
     }
 
-    // # Manejador de selección de zona
     const handleSelectZone = (selectedZone: CommercialZone) => {
         setZone(selectedZone)
         setShowZonePicker(false)
 
-        // Actualizar mapa a la zona seleccionada
         const poly = ZoneHelpers.parsePolygon(selectedZone.poligono_geografico)
         if (poly.length > 0) {
             setRegion(prev => ({
@@ -176,7 +162,6 @@ export function CrearClienteSucursalesScreen() {
                 latitudeDelta: DEFAULT_DELTA,
                 longitudeDelta: DEFAULT_DELTA
             }))
-            // Resetear marcador al centro si es creación nueva
             if (!isEditing) {
                 setForm(prev => ({
                     ...prev,
@@ -187,7 +172,6 @@ export function CrearClienteSucursalesScreen() {
         }
     }
 
-    // # Utilidad: Verificar si punto está en polígono (Ray Casting)
     const isPointInPolygon = (point: { latitude: number, longitude: number }, polygon: { latitude: number, longitude: number }[]) => {
         let inside = false
         for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -200,9 +184,7 @@ export function CrearClienteSucursalesScreen() {
         return inside
     }
 
-    // # Manejo del envío del formulario (Crear/Editar)
     const handleSubmit = async () => {
-        // Validación de campos obligatorios
         if (!form.nombre_sucursal.trim()) {
             setModalConfig({
                 type: 'warning',
@@ -226,8 +208,6 @@ export function CrearClienteSucursalesScreen() {
             return
         }
 
-        // Validación: Punto dentro de Polígono
-        // Solo si tenemos zona y el polígono es válido
         if (zone && zonePolygon.length > 2) {
             const inside = isPointInPolygon({ latitude: form.latitud, longitude: form.longitud }, zonePolygon)
             if (!inside) {
@@ -268,7 +248,6 @@ export function CrearClienteSucursalesScreen() {
             }
 
             if (isEditing) {
-                // UPDATE
                 await ClientService.updateClientBranch(branchId!, {
                     nombre_sucursal: form.nombre_sucursal,
                     direccion_entrega: form.direccion_entrega,
@@ -291,7 +270,6 @@ export function CrearClienteSucursalesScreen() {
                 })
                 setModalVisible(true)
             } else {
-                // CREATE
                 await ClientService.createClientBranch(clientData.id, {
                     cliente_id: clientData.id,
                     nombre_sucursal: form.nombre_sucursal,
@@ -336,7 +314,6 @@ export function CrearClienteSucursalesScreen() {
             <Header title={isEditing ? "Editar Sucursal" : "Nueva Sucursal"} variant="standard" onBackPress={() => navigation.goBack()} />
 
             <ScrollView className="flex-1">
-                {/* Map Section */}
                 <View className="h-80 w-full relative border-b border-neutral-200 bg-neutral-100">
                     <MapView
                         ref={mapRef}
@@ -352,7 +329,6 @@ export function CrearClienteSucursalesScreen() {
                             })
                         }}
                     >
-                        {/* Zone Polygon (Visible if permission allowed) */}
                         {zonePolygon.length > 0 && (
                             <Polygon
                                 coordinates={zonePolygon}
@@ -362,7 +338,6 @@ export function CrearClienteSucursalesScreen() {
                             />
                         )}
 
-                        {/* Branch Marker (Draggable) */}
                         <Marker
                             coordinate={{ latitude: form.latitud, longitude: form.longitud }}
                             draggable
@@ -377,7 +352,6 @@ export function CrearClienteSucursalesScreen() {
                             title={isEditing ? "Ubicación Sucursal" : "Nueva Sucursal"}
                         />
 
-                        {/* Context: Client Home Marker (Matriz) - Supervisor Pattern */}
                         {clientData?.ubicacion_gps && (
                             <Marker
                                 coordinate={{
@@ -399,9 +373,7 @@ export function CrearClienteSucursalesScreen() {
                     </View>
                 </View>
 
-                {/* Form Section */}
                 <View className="p-4 space-y-4 pb-10">
-                    {/* Zone Info Card (Read Only) */}
                     <View className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex-row items-center">
                         <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center mr-3">
                             <Ionicons name="map" size={20} color="#2563EB" />
@@ -425,7 +397,6 @@ export function CrearClienteSucursalesScreen() {
                         </Text>
                     )}
 
-                    {/* Form Fields container */}
                     <View className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100">
                         <Text className="text-lg font-bold text-neutral-900 mb-4">Datos de la Sucursal</Text>
 
@@ -489,7 +460,6 @@ export function CrearClienteSucursalesScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Zone Picker Modal (Only for Create if needed) */}
             <GenericModal
                 visible={showZonePicker}
                 title="Seleccionar Zona"
