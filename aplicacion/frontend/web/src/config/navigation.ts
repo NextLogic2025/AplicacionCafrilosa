@@ -1,7 +1,7 @@
 import {
   Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw,
   BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart,
-  Percent, MessageCircle, Users, FileText, Map, Calendar, BookOpen, Route
+  Percent, MessageCircle, Users, FileText, Map, Calendar, BookOpen, Route, Archive
 } from 'lucide-react'
 import type { SidebarItem } from '../components/ui/SidebarNav'
 
@@ -40,6 +40,7 @@ export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
   { id: 'picking', label: 'Picking', to: '/bodeguero/picking', icon: Boxes },
   { id: 'stock', label: 'Stock', to: '/bodeguero/stock', icon: BarChart3 },
   { id: 'ubicaciones', label: 'Ubicaciones', to: '/bodeguero/ubicaciones', icon: Map },
+  { id: 'reservas', label: 'Reservas', to: '/bodeguero/reservas', icon: Archive },
   { id: 'notificaciones', label: 'Notificaciones', to: '/bodeguero/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/bodeguero/perfil', icon: User },
 ]

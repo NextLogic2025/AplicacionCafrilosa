@@ -1,18 +1,21 @@
 
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { EmptyContent } from '../../../../components/ui/EmptyContent'
 import { ProductCard } from '../../../../components/ui/ProductCard'
-import { Package, Search, Filter, Users, Store } from 'lucide-react'
+import { Package, Search, Filter, Users, Store, ShoppingCart, Plus, Minus } from 'lucide-react'
 import { getAllProducts, Product } from '../../../supervisor/services/productosApi'
 import { getClientesAsignados, getProductosPorCliente } from '../../services/vendedorApi'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 import type { Producto } from '../../../cliente/types'
 import { getAllCategories } from '../../../supervisor/services/catalogApi'
 import { useMemo } from 'react'
+import ProductDetailModal from '../../../cliente/components/ProductDetailModal'
 
 
 export default function VendedorProductos() {
+  const navigate = useNavigate()
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
   const [cargando, setCargando] = useState(true)
@@ -26,6 +29,17 @@ export default function VendedorProductos() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
   const [loadingClientes, setLoadingClientes] = useState(true)
+
+  // Estado para modal de detalles
+  const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  // Estado para carrito temporal
+  const [cart, setCart] = useState<Array<{ producto: Producto; cantidad: number }>>([])
+
+  // Estado para toast de confirmación
+  const [showToast, setShowToast] = useState(false)
+  const [lastAddedProduct, setLastAddedProduct] = useState<Producto | null>(null)
 
   // Función de mapeo unificada
   const mapProductToFrontend = useCallback((items: any[]): Producto[] => {
@@ -120,6 +134,101 @@ export default function VendedorProductos() {
     [busqueda, filtros.category, filtros.inStock, filtros.maxPrice, filtros.minPrice, productos],
   )
 
+  const openDetail = (producto: Producto) => {
+    setSelectedProducto(producto)
+    setIsDetailOpen(true)
+  }
+
+  const closeDetail = () => {
+    setIsDetailOpen(false)
+    setSelectedProducto(null)
+  }
+
+  const addToCart = async (producto: Producto) => {
+    if (!clienteSeleccionado) {
+      alert('Debe seleccionar un cliente primero')
+      return
+    }
+
+    try {
+      // Llamar al backend para agregar al carrito
+      const response = await fetch(`${import.meta.env.VITE_ORDERS_BASE_URL}/api/orders/cart/client/${clienteSeleccionado}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          producto_id: producto.id,
+          cantidad: 1,
+          precioUnitario: producto.price
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al agregar producto al carrito')
+      }
+
+      // Actualizar estado local
+      setCart(prev => {
+        const existing = prev.find(item => item.producto.id === producto.id)
+        if (existing) {
+          return prev.map(item =>
+            item.producto.id === producto.id
+              ? { ...item, cantidad: item.cantidad + 1 }
+              : item
+          )
+        }
+        return [...prev, { producto, cantidad: 1 }]
+      })
+
+      // Mostrar toast de confirmación
+      setLastAddedProduct(producto)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 3000)
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      alert('Error al agregar producto al carrito')
+    }
+  }
+
+  const goToCrearPedido = () => {
+    // Guardar en localStorage
+    localStorage.setItem('vendedor_cart', JSON.stringify(cart))
+    localStorage.setItem('vendedor_cliente_seleccionado', clienteSeleccionado)
+    navigate('/vendedor/crear-pedido')
+  }
+
+  // Cargar carrito desde localStorage al montar
+  useEffect(() => {
+    const savedCart = localStorage.getItem('vendedor_cart')
+    const savedCliente = localStorage.getItem('vendedor_cliente_seleccionado')
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart))
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (savedCliente) {
+      setClienteSeleccionado(savedCliente)
+    }
+  }, [])
+
+  // Guardar carrito en localStorage cuando cambie
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('vendedor_cart', JSON.stringify(cart))
+    }
+  }, [cart])
+
+  // Guardar cliente seleccionado cuando cambie
+  useEffect(() => {
+    if (clienteSeleccionado) {
+      localStorage.setItem('vendedor_cliente_seleccionado', clienteSeleccionado)
+    }
+  }, [clienteSeleccionado])
+
   // TODO: Implementar filtros si es necesario
 
   return (
@@ -132,6 +241,111 @@ export default function VendedorProductos() {
           { label: 'Precios base', variant: 'blue' },
         ]}
       />
+
+
+
+      {/* Toast de confirmación - estilo cliente */}
+      {showToast && lastAddedProduct && (
+        <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm transition-all duration-300 translate-y-0 opacity-100">
+          <div
+            className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl"
+            onMouseEnter={() => {
+              // Pausar auto-cierre al pasar el mouse
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-brand-red/10 p-2 text-brand-red">
+                <ShoppingCart size={18} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-neutral-900 flex items-center gap-1">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                  Producto agregado al carrito
+                </p>
+                <p className="text-sm text-neutral-600">{lastAddedProduct.name}</p>
+                <p className="text-xs text-neutral-500">
+                  Cantidad total: {cart.find(item => item.producto.id === lastAddedProduct.id)?.cantidad || 1}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={() => setShowToast(false)}
+                className="rounded-full p-1 text-neutral-500 hover:bg-neutral-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-neutral-200 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Disminuir"
+                  onClick={() => {
+                    const currentQty = cart.find(item => item.producto.id === lastAddedProduct.id)?.cantidad || 1
+                    if (currentQty > 1) {
+                      setCart(prev => prev.map(item =>
+                        item.producto.id === lastAddedProduct.id
+                          ? { ...item, cantidad: item.cantidad - 1 }
+                          : item
+                      ))
+                    } else {
+                      setCart(prev => prev.filter(item => item.producto.id !== lastAddedProduct.id))
+                      setShowToast(false)
+                    }
+                  }}
+                  className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-10 text-center text-sm font-semibold">
+                  {cart.find(item => item.producto.id === lastAddedProduct.id)?.cantidad || 1}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Aumentar"
+                  onClick={() => {
+                    setCart(prev => prev.map(item =>
+                      item.producto.id === lastAddedProduct.id
+                        ? { ...item, cantidad: item.cantidad + 1 }
+                        : item
+                    ))
+                  }}
+                  className="rounded-lg border border-neutral-200 bg-neutral-50 p-1 text-neutral-700 hover:bg-neutral-100"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="text-right text-sm">
+                <p className="font-semibold text-neutral-900">
+                  ${((cart.find(item => item.producto.id === lastAddedProduct.id)?.cantidad || 1) * lastAddedProduct.price).toFixed(2)}
+                </p>
+                <p className="text-xs text-neutral-500">
+                  Carrito: {cart.reduce((sum, item) => sum + item.cantidad, 0)} productos · ${cart.reduce((sum, item) => sum + (item.producto.price * item.cantidad), 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={goToCrearPedido}
+                className="rounded-xl bg-brand-red px-3 py-2 text-sm font-semibold text-white hover:brightness-90"
+              >
+                Ver carrito
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowToast(false)}
+                className="rounded-xl border border-neutral-200 px-3 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
+              >
+                Seguir comprando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selector de Cliente y Filtros */}
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
@@ -259,7 +473,13 @@ export default function VendedorProductos() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {productosFiltrados.map((producto) => (
-                  <ProductCard key={producto.id} producto={producto} onAddToCart={() => { }} fetchPromos />
+                  <ProductCard
+                    key={producto.id}
+                    producto={producto}
+                    onAddToCart={() => addToCart(producto)}
+                    onView={openDetail}
+                    fetchPromos
+                  />
                 ))}
               </div>
             )}
@@ -277,6 +497,16 @@ export default function VendedorProductos() {
           <li>✓ Los productos se usan al crear pedidos</li>
         </ul>
       </section>
+
+      {/* Modal de detalles del producto */}
+      {selectedProducto && (
+        <ProductDetailModal
+          producto={selectedProducto}
+          isOpen={isDetailOpen}
+          onClose={closeDetail}
+          onAddToCart={() => { }}
+        />
+      )}
     </div>
   )
 }

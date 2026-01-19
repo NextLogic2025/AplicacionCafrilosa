@@ -106,8 +106,22 @@ export class EventsGateway implements OnGatewayConnection {
     if (table === 'asignacion_vendedores' && action === 'INSERT') {
       this.server.to(`user:${data.vendedor_usuario_id}`).emit('notification', {
         type: 'ROUTE_UPDATE',
-        title: 'Nueva Ruta Asignada',
+        title: 'Nueva Zona Asignada',
         message: 'Se te ha asignado una nueva zona. Revisa tu planificación.',
+      });
+    }
+
+    // Notify vendor when a new route is created for them
+    if (table === 'rutero_planificado' && action === 'INSERT' && data.vendedor_usuario_id) {
+      this.logger.log(`Emitting route notification to vendedor=${data.vendedor_usuario_id}`);
+      this.server.to(`user:${data.vendedor_usuario_id}`).emit('notification', {
+        type: 'ROUTE_UPDATE',
+        title: 'Nueva Ruta Planificada',
+        message: `Se ha creado una nueva ruta para el ${data.dia_semana || 'día asignado'}. Revisa tus rutas.`,
+        data: {
+          ruteroId: data.id,
+          diaSemana: data.dia_semana,
+        }
       });
     }
 
@@ -134,7 +148,7 @@ export class EventsGateway implements OnGatewayConnection {
       if (data.alcance === 'GLOBAL') this.server.to('role:cliente').emit('notification', notif);
       if (data.alcance === 'POR_LISTA') this.server.to(`pricelist:${data.lista_precios_objetivo_id}`).emit('notification', notif);
     }
-    
+
     if (table === 'promociones_clientes_permitidos' && action === 'INSERT') {
       // data should contain: campaña_id, cliente_id
       try {

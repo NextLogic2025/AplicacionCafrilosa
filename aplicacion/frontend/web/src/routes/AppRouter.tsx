@@ -22,7 +22,8 @@ const NotificacionesBodegaPage = React.lazy(() => import('../features/bodeguero/
 const AlmacenesPage = React.lazy(() => import('../features/bodeguero/pages/Almacenes'))
 const PickingPage = React.lazy(() => import('../features/bodeguero/pages/Picking'))
 const StockPage = React.lazy(() => import('../features/bodeguero/pages/Stock'))
-const UbicacionPage = React.lazy(() => import('../features/bodeguero/pages/Ubicacion')) // Added import
+const UbicacionPage = React.lazy(() => import('../features/bodeguero/pages/Ubicacion'))
+const ReservasPage = React.lazy(() => import('../features/bodeguero/pages/Reservas'))
 
 import { RequireAuth } from './RequireAuth'
 
@@ -142,6 +143,7 @@ export default function AppRouter() {
           <Route path="picking" element={<PickingPage />} />
           <Route path="stock" element={<StockPage />} />
           <Route path="ubicaciones" element={<UbicacionPage />} />
+          <Route path="reservas" element={<ReservasPage />} />
           <Route path="perfil" element={<PerfilPage />} />
         </Route>
 

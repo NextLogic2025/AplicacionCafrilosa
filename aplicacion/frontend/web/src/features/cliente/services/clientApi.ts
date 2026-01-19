@@ -45,19 +45,43 @@ export async function getClienteContext(forceRefresh = false): Promise<ClienteCo
 
   contextPromise = (async () => {
     try {
-      const me = await httpUsuarios<Record<string, unknown>>('/usuarios/me').catch(() => null)
+      console.log('[clientApi] fetching /usuarios/me...')
+      const me = await httpUsuarios<Record<string, unknown>>('/usuarios/me').catch((e) => {
+        console.error('[clientApi] /usuarios/me failed', e)
+        return null
+      })
+      console.log('[clientApi] /usuarios/me result:', me)
+
+      // Log the token to see what user we have
+      const token = getToken()
+      if (token) {
+        try {
+          const parts = token.split('.')
+          if (parts.length >= 2) {
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+            console.log('[clientApi] Decoded JWT payload:', payload)
+          }
+        } catch (e) {
+          console.error('[clientApi] Failed to decode token', e)
+        }
+      }
+
       let usuarioId = typeof me?.id === 'string' ? (me.id as string) : null
       if (!usuarioId && typeof me?.sub === 'string') usuarioId = me.sub as string
       if (!usuarioId) usuarioId = decodeTokenSub()
 
       if (!usuarioId) {
+        console.warn('[clientApi] No usuarioId found')
         cachedContext = { usuarioId: null, clienteId: null, listaPreciosId: null, usuario: me }
         return cachedContext
       }
 
       let clienteId: string | null = null
       let listaPreciosId: number | null = null
-      const internal = await httpCatalogo<Record<string, unknown>>(`/internal/clients/by-user/${usuarioId}`).catch(() => null)
+      const internal = await httpCatalogo<Record<string, unknown>>(`/internal/clients/by-user/${usuarioId}`).catch((e) => {
+        console.error('[clientApi] internal/clients/by-user failed', e)
+        return null
+      })
       if (internal) {
         if (typeof internal.id === 'string') clienteId = internal.id
         if (internal.lista_precios_id != null) listaPreciosId = Number(internal.lista_precios_id)
@@ -69,6 +93,7 @@ export async function getClienteContext(forceRefresh = false): Promise<ClienteCo
         listaPreciosId,
         usuario: me,
       }
+      console.log('[clientApi] Context resolved:', context)
       cachedContext = context
       return context
     } finally {
@@ -122,8 +147,13 @@ export async function getPerfilCliente(): Promise<PerfilCliente | null> {
 }
 
 export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: number; totalPages: number }> {
+  console.log('[clientApi] getPedidos start')
   const ctx = await getClienteContext()
-  let data = await httpOrders<any[]>('/orders/user/history').catch(() => null)
+  console.log('[clientApi] getPedidos context:', ctx)
+  let data = await httpOrders<any[]>('/orders/user/history').catch((err) => {
+    console.error('[clientApi] /orders/user/history failed', err)
+    return null
+  })
   const fallbackId = ctx?.clienteId ?? ctx?.usuarioId
   const callFallback = async () => {
     if (!fallbackId) return null
@@ -213,7 +243,15 @@ export async function getProductos(options?: { page?: number; per_page?: number;
     url += `&category=${encodeURIComponent(options.category)}`
   }
 
-  const catalogResp = await httpCatalogo<{ metadata?: any; items?: any[] }>(url).catch(() => null)
+  console.log('[clientApi] getProductos - Calling URL:', url)
+  console.log('[clientApi] getProductos - Options:', options)
+
+  const catalogResp = await httpCatalogo<{ metadata?: any; items?: any[] }>(url).catch((err) => {
+    console.error('[clientApi] getProductos error', err)
+    return null
+  })
+
+  console.log('[clientApi] getProductos - Response:', catalogResp)
 
   if (catalogResp && Array.isArray(catalogResp.items)) {
     const mapped = catalogResp.items.map((p: any) => {

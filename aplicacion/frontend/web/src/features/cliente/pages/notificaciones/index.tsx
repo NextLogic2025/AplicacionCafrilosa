@@ -49,7 +49,13 @@ export default function NotificacionesClientePage() {
                   </div>
                   <p className="text-sm text-neutral-600">{notif.message}</p>
                   <span className="text-xs text-neutral-400 mt-2 block">
-                    Recibido: {new Date().toLocaleTimeString()}
+                    {notif.timestamp
+                      ? new Date(notif.timestamp).toLocaleString('es-ES', {
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                      })
+                      : 'Recién recibido'
+                    }
                   </span>
                 </div>
               </div>

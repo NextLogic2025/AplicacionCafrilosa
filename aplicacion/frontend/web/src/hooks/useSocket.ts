@@ -8,13 +8,42 @@ interface NotificationPayload {
     title: string
     message: string
     data?: any
+    timestamp?: number
+}
+
+const NOTIFICATIONS_STORAGE_KEY = 'cafrilosa:notifications'
+
+// Load notifications from localStorage
+function loadNotifications(): NotificationPayload[] {
+    try {
+        const stored = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY)
+        if (!stored) return []
+        const parsed = JSON.parse(stored)
+        return Array.isArray(parsed) ? parsed : []
+    } catch {
+        return []
+    }
+}
+
+// Save notifications to localStorage
+function saveNotifications(notifications: NotificationPayload[]) {
+    try {
+        localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications))
+    } catch (err) {
+        console.error('Failed to save notifications to localStorage', err)
+    }
 }
 
 export function useSocket() {
     const { token } = useAuth()
     const socketRef = useRef<Socket | null>(null)
-    const [notifications, setNotifications] = useState<NotificationPayload[]>([])
+    const [notifications, setNotifications] = useState<NotificationPayload[]>(() => loadNotifications())
     const [isConnected, setIsConnected] = useState(false)
+
+    // Persist notifications whenever they change
+    useEffect(() => {
+        saveNotifications(notifications)
+    }, [notifications])
 
     useEffect(() => {
         if (!token) return
@@ -50,7 +79,11 @@ export function useSocket() {
         // Listen for generic notification event
         socket.on('notification', (payload: NotificationPayload) => {
             console.log('Notification received:', payload)
-            setNotifications(prev => [payload, ...prev])
+            const notificationWithTimestamp = {
+                ...payload,
+                timestamp: Date.now()
+            }
+            setNotifications(prev => [notificationWithTimestamp, ...prev])
         })
 
         return () => {
@@ -66,6 +99,7 @@ export function useSocket() {
 
     const clearNotifications = () => {
         setNotifications([])
+        localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY)
     }
 
     return {

@@ -52,6 +52,10 @@ export default function PaginaProductos() {
     }, [fetchProductos, filtros.category, categoryId])
 
     useEffect(() => {
+        console.log('[PaginaProductos] Productos cargados:', productos)
+    }, [productos])
+
+    useEffect(() => {
         let mounted = true
         getAllCategories()
             .then(list => {
