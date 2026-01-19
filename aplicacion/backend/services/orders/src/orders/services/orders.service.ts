@@ -533,6 +533,11 @@ export class OrdersService {
 
       const estadoAnterior = pedido.estado_actual;
 
+      // Validación: impedir pasar a EN_RUTA si el picking no fue completado (debe estar PREPARADO)
+      if (String(nuevoEstado).toUpperCase() === 'EN_RUTA' && String(estadoAnterior).toUpperCase() !== 'PREPARADO') {
+        throw new BadRequestException('No se puede cambiar a EN_RUTA: el picking no está completado o pedido no está PREPARADO');
+      }
+
       // 1. Actualizar cabecera del pedido
       pedido.estado_actual = nuevoEstado;
       await queryRunner.manager.save(pedido);
@@ -551,7 +556,8 @@ export class OrdersService {
       await queryRunner.commitTransaction();
       // If the pedido was set to ANULADO, attempt to release warehouse reservation
       try {
-        if (String(nuevoEstado).toUpperCase() === 'ANULADO') {
+            const estadoUpper = String(nuevoEstado).toUpperCase();
+            if (estadoUpper === 'ANULADO' || estadoUpper === 'RECHAZADO') {
           // try to obtain reservation_id
           try {
             const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
@@ -563,11 +569,11 @@ export class OrdersService {
               const fetchFn = (globalThis as any).fetch;
               if (typeof fetchFn === 'function') {
                 await fetchFn(apiBaseW + '/reservations/' + reservationId, { method: 'DELETE', headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
-                this.logger.debug('Released warehouse reservation after pedido ANULADO', { pedidoId, reservationId });
+                    this.logger.debug('Released warehouse reservation after pedido ' + estadoUpper, { pedidoId, reservationId });
               }
             }
           } catch (err) {
-            this.logger.warn('Could not release warehouse reservation after pedido ANULADO', { pedidoId, error: err?.message || err });
+                this.logger.warn('Could not release warehouse reservation after pedido ' + estadoUpper, { pedidoId, error: err?.message || err });
           }
         }
       } catch (e) {

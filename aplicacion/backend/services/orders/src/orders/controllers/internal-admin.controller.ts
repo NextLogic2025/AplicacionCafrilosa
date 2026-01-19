@@ -1,4 +1,5 @@
-import { Controller, Post, Logger, Req, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Logger, Req, BadRequestException, UseGuards } from '@nestjs/common';
+import { ServiceAuthGuard } from '../../auth/guards/service-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
@@ -14,13 +15,8 @@ export class InternalAdminController {
   ) {}
 
   @Post('backfill-clients')
+  @UseGuards(ServiceAuthGuard)
   async backfillClientes(@Req() req: any) {
-    // Seguridad S2S: validar SERVICE_TOKEN
-    const serviceToken = this.configService.get<string>('SERVICE_TOKEN') || process.env.SERVICE_TOKEN;
-    const auth = (req.headers?.authorization || '').toString();
-    if (serviceToken && auth !== ('Bearer ' + serviceToken)) {
-      throw new BadRequestException('Unauthorized internal access');
-    }
 
     const carts = await this.cartRepo.find({ where: { cliente_id: null } });
     this.logger.debug(`Found ${carts.length} carts without cliente_id. Starting backfill.`);

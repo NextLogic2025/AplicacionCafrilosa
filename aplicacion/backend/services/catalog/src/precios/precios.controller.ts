@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -43,13 +44,8 @@ export class PreciosController {
 
   // Internal S2S endpoint: permite llamadas desde otros servicios con SERVICE_TOKEN
   @Get('internal/producto/:id')
+  @UseGuards(ServiceAuthGuard)
   async verPreciosInternal(@Param('id') id: string, @Req() req: any) {
-    const serviceToken = process.env.SERVICE_TOKEN;
-    const auth = (req.headers?.authorization || '').toString();
-    if (serviceToken) {
-      const expected = 'Bearer ' + serviceToken;
-      if (auth !== expected) throw new BadRequestException('Unauthorized internal access');
-    }
     return this.preciosService.obtenerPreciosDeProducto(id);
   }
 

@@ -1,11 +1,18 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { 
+  Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Req, ForbiddenException, HttpStatus, ParseUUIDPipe 
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { ClientesService } from './clientes.service';
+import { Cliente } from './entities/cliente.entity';
+import { CreateClienteDto, UpdateClienteDto } from './dto/create-cliente.dto';
 
+@ApiTags('Clientes')
+@ApiBearerAuth()
 @Controller('clientes')
 export class ClientesController {
   constructor(private svc: ClientesService) {}
@@ -13,6 +20,8 @@ export class ClientesController {
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'transportista')
+  @ApiOperation({ summary: 'Listar todos los clientes activos' })
+  @ApiResponse({ status: 200, description: 'Lista de clientes enriquecida.', type: [Cliente] })
   findAll() {
     return this.svc.findAll();
   }
@@ -62,14 +71,21 @@ export class ClientesController {
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  create(@Body() body: any) {
-    return this.svc.create(body);
+  @ApiOperation({ summary: 'Crear nuevo cliente' })
+  @ApiResponse({ status: 201, description: 'Cliente creado correctamente.', type: Cliente })
+  create(@Body() dto: CreateClienteDto) {
+    return this.svc.create(dto);
   }
 
   @Put(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
-  async update(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+  @ApiOperation({ summary: 'Actualizar datos de cliente' })
+  async update(
+      @Req() req: any, 
+      @Param('id', ParseUUIDPipe) id: string, 
+      @Body() dto: UpdateClienteDto
+  ) {
     const rawRole = req.user?.role;
     const roles = Array.isArray(rawRole)
       ? rawRole.map((r: any) => String(r).toLowerCase())
@@ -82,16 +98,16 @@ export class ClientesController {
       const cliente = await this.svc.findByUsuarioPrincipalId(userId);
       if (!cliente) throw new ForbiddenException('Cliente no encontrado');
       // Actualizar usando el id real del cliente
-      return this.svc.update(cliente.id, body);
+      return this.svc.update(cliente.id, dto);
     }
     
-    return this.svc.update(id, body);
+    return this.svc.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
-  async remove(@Req() req: any, @Param('id') id: string) {
+  async remove(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const rawRole = req.user?.role;
     const roles = Array.isArray(rawRole)
       ? rawRole.map((r: any) => String(r).toLowerCase())
