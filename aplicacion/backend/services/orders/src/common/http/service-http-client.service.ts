@@ -9,7 +9,7 @@ import {
   RequestTimeoutException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AxiosError, AxiosRequestConfig, Method } from 'axios';
+import { AxiosError, AxiosRequestConfig, AxiosResponse, Method } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { HttpClientOptions } from './interfaces/http-client-options.interface';
 
@@ -121,7 +121,9 @@ export class ServiceHttpClient {
     }
 
     try {
-      const response = await firstValueFrom(this.httpService.request<T>(config));
+      const response = (await firstValueFrom(
+        this.httpService.request<T>(config),
+      )) as AxiosResponse<T>;
       return response.data;
     } catch (error) {
       throw this.handleAxiosError(error, serviceName, normalizedPath);
