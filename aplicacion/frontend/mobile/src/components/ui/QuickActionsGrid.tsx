@@ -9,10 +9,10 @@ export function QuickActionsGrid() {
 
     const actions = [
         {
-            label: 'Aprobar Pedidos',
-            icon: 'checkmark-done-circle-outline',
-            color: '#10B981',
-            onPress: () => navigation.navigate('Pedidos'),
+            label: 'Reservas',
+            icon: 'lock-closed-outline',
+            color: '#F59E0B',
+            onPress: () => navigation.navigate('SupervisorReservations'),
         },
         {
             label: 'Almacenes',
@@ -43,12 +43,6 @@ export function QuickActionsGrid() {
             icon: 'clipboard-outline',
             color: '#22C55E',
             onPress: () => navigation.navigate('SupervisorPickingList'),
-        },
-        {
-            label: 'Reservas',
-            icon: 'lock-closed-outline',
-            color: '#F59E0B',
-            onPress: () => navigation.navigate('SupervisorReservations'),
         },
     ]
 

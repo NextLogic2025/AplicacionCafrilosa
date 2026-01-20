@@ -198,13 +198,18 @@ export function SupervisorClientFormScreen() {
             }
 
             // B. Create/Update Client
+            // Solo enviamos los campos que acepta el DTO del backend
             const payload: any = {
-                ...clientData,
+                identificacion: clientData.identificacion,
+                tipo_identificacion: clientData.tipo_identificacion,
+                razon_social: clientData.razon_social,
+                nombre_comercial: clientData.nombre_comercial || undefined,
                 usuario_principal_id: userId,
+                zona_comercial_id: clientData.zona_comercial_id ? Number(clientData.zona_comercial_id) : undefined,
+                direccion_texto: clientData.direccion_texto || undefined,
+                tiene_credito: clientData.tiene_credito,
                 limite_credito: parseFloat(clientData.limite_credito) || 0,
                 dias_plazo: parseInt(clientData.dias_plazo) || 0,
-                lista_precios_id: Number(clientData.lista_precios_id),
-                zona_comercial_id: Number(clientData.zona_comercial_id)
             }
 
             let savedClient: Client

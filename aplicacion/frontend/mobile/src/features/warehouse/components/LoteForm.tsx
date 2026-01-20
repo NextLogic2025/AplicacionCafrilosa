@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../components/ui/Header'
-import { TextField } from '../../../components/ui/TextField'
 import { PrimaryButton } from '../../../components/ui/PrimaryButton'
 import { PickerModal, type PickerOption } from '../../../components/ui/PickerModal'
 import { FeedbackModal, type FeedbackType } from '../../../components/ui/FeedbackModal'
@@ -12,6 +11,16 @@ import { CatalogService } from '../../../services/api/CatalogService'
 import { LoteService, type LotePayload } from '../../../services/api/LoteService'
 import { getUserFriendlyMessage } from '../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../shared/types'
+
+const LOTE_PREFIX = 'LOTE-'
+
+// Opciones de estado de calidad
+const ESTADOS_CALIDAD: PickerOption[] = [
+    { id: 'LIBERADO', label: 'Liberado', description: 'Producto aprobado para venta', icon: 'checkmark-circle' },
+    { id: 'RETENIDO', label: 'Retenido', description: 'En espera de revisión', icon: 'pause-circle' },
+    { id: 'RECHAZADO', label: 'Rechazado', description: 'No apto para venta', icon: 'close-circle' },
+    { id: 'EN_CUARENTENA', label: 'En Cuarentena', description: 'Aislado para análisis', icon: 'warning' },
+]
 
 type Props = {
     loteId?: string
@@ -24,13 +33,14 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
     const isEdit = Boolean(loteId)
 
     const [productoId, setProductoId] = useState<string>('')
-    const [numeroLote, setNumeroLote] = useState('')
+    const [numeroLoteSuffix, setNumeroLoteSuffix] = useState('')
     const [fechaFab, setFechaFab] = useState('')
     const [fechaVen, setFechaVen] = useState('')
-    const [estadoCalidad, setEstadoCalidad] = useState('')
+    const [estadoCalidad, setEstadoCalidad] = useState('LIBERADO')
 
     const [productOptions, setProductOptions] = useState<PickerOption[]>([])
     const [pickerVisible, setPickerVisible] = useState(false)
+    const [estadoPickerVisible, setEstadoPickerVisible] = useState(false)
     const [showFabPicker, setShowFabPicker] = useState(false)
     const [showVenPicker, setShowVenPicker] = useState(false)
 
@@ -42,6 +52,9 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
         title: '',
         message: '',
     })
+
+    // El número de lote completo es LOTE_PREFIX + numeroLoteSuffix
+    const getFullLoteNumber = () => `${LOTE_PREFIX}${numeroLoteSuffix}`
 
     useEffect(() => {
         loadProducts()
@@ -75,10 +88,16 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
         try {
             const lote = await LoteService.getById(id)
             setProductoId(String(lote.productoId))
-            setNumeroLote(lote.numeroLote || '')
+            // Si el lote tiene prefijo LOTE-, extraemos solo el sufijo
+            const rawNumero = lote.numeroLote || ''
+            if (rawNumero.startsWith(LOTE_PREFIX)) {
+                setNumeroLoteSuffix(rawNumero.replace(LOTE_PREFIX, ''))
+            } else {
+                setNumeroLoteSuffix(rawNumero)
+            }
             setFechaFab(lote.fechaFabricacion?.slice(0, 10) || '')
             setFechaVen(lote.fechaVencimiento?.slice(0, 10) || '')
-            setEstadoCalidad(lote.estadoCalidad || '')
+            setEstadoCalidad(lote.estadoCalidad || 'LIBERADO')
         } catch (error) {
             setFeedback({
                 visible: true,
@@ -99,7 +118,7 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
         return `${y}-${m}-${d}`
     }
 
-    const handleDateChange = (event: DateTimePickerEvent, date?: Date, type: 'fab' | 'ven') => {
+    const handleDateChange = (event: DateTimePickerEvent, date: Date | undefined, type: 'fab' | 'ven') => {
         if (event.type !== 'set' || !date) {
             type === 'fab' ? setShowFabPicker(false) : setShowVenPicker(false)
             return
@@ -119,8 +138,8 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
             setFeedback({ visible: true, type: 'warning', title: 'Selecciona un producto', message: 'Elige el producto del lote.' })
             return
         }
-        if (!numeroLote.trim()) {
-            setFeedback({ visible: true, type: 'warning', title: 'Numero requerido', message: 'Ingresa el numero de lote.' })
+        if (!numeroLoteSuffix.trim()) {
+            setFeedback({ visible: true, type: 'warning', title: 'Numero requerido', message: 'Ingresa el numero de lote (ej: 001).' })
             return
         }
         if (!fechaFab || !fechaVen) {
@@ -132,6 +151,8 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
             })
             return
         }
+
+        const fullLoteNumber = getFullLoteNumber()
 
         setSaving(true)
         try {
@@ -145,7 +166,7 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
             } else {
                 const payload: LotePayload = {
                     productoId,
-                    numeroLote: numeroLote.trim(),
+                    numeroLote: fullLoteNumber,
                     fechaFabricacion: fechaFab,
                     fechaVencimiento: fechaVen,
                     estadoCalidad: estadoCalidad || undefined,
@@ -156,8 +177,8 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
         } catch (error) {
             const raw = error instanceof Error ? error.message.toLowerCase() : ''
             let custom: string | undefined
-            if (raw.includes('numero_lote') || raw.includes('ya existe') || raw.includes('lote')) {
-                custom = 'Ya existe un lote con ese numero para el producto.'
+            if (raw.includes('numero_lote') || raw.includes('ya existe') || raw.includes('lote') || raw.includes('duplicad')) {
+                custom = `Ya existe un lote con el código ${fullLoteNumber}. Usa otro número.`
             }
             setFeedback({
                 visible: true,
@@ -197,6 +218,8 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
         ])
     }
 
+    const selectedEstado = ESTADOS_CALIDAD.find(e => e.id === estadoCalidad)
+
     return (
         <KeyboardAvoidingView className="flex-1 bg-neutral-50" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <Header title={isEdit ? 'Editar lote' : 'Nuevo lote'} variant="standard" onBackPress={onBack} />
@@ -221,13 +244,29 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
                         <Ionicons name="chevron-down" size={18} color="#6B7280" />
                     </TouchableOpacity>
 
-                    <TextField
-                        label="Numero de lote"
-                        placeholder="Ej. LOTE-001"
-                        value={numeroLote}
-                        onChangeText={setNumeroLote}
-                        editable={!isEdit}
-                    />
+                    {/* Campo de número de lote con prefijo quemado */}
+                    <View>
+                        <Text className="text-xs text-neutral-500 font-semibold uppercase mb-2">Número de lote</Text>
+                        <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-2xl overflow-hidden">
+                            <View className="bg-neutral-200 px-4 py-4">
+                                <Text className="text-base font-bold text-neutral-700">{LOTE_PREFIX}</Text>
+                            </View>
+                            <TextInput
+                                className="flex-1 px-4 py-4 text-base font-bold text-neutral-900"
+                                placeholder="001"
+                                value={numeroLoteSuffix}
+                                onChangeText={setNumeroLoteSuffix}
+                                editable={!isEdit}
+                                autoCapitalize="characters"
+                                placeholderTextColor="#9CA3AF"
+                            />
+                        </View>
+                        {numeroLoteSuffix ? (
+                            <Text className="text-xs text-neutral-400 mt-1 ml-1">
+                                Código completo: {getFullLoteNumber()}
+                            </Text>
+                        ) : null}
+                    </View>
 
                     <TouchableOpacity
                         className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50"
@@ -248,12 +287,20 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
                         <Text className="text-base font-bold text-neutral-900 mt-1">{fechaVen || 'Seleccionar'}</Text>
                     </TouchableOpacity>
 
-                    <TextField
-                        label="Estado de calidad"
-                        placeholder="LIBERADO, RETENIDO..."
-                        value={estadoCalidad}
-                        onChangeText={setEstadoCalidad}
-                    />
+                    {/* Selector de estado de calidad */}
+                    <TouchableOpacity
+                        className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50 flex-row items-center justify-between"
+                        onPress={() => setEstadoPickerVisible(true)}
+                        activeOpacity={0.7}
+                    >
+                        <View>
+                            <Text className="text-xs text-neutral-500 font-semibold uppercase">Estado de calidad</Text>
+                            <Text className="text-base font-bold text-neutral-900 mt-1">
+                                {selectedEstado?.label || 'Seleccionar'}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    </TouchableOpacity>
                 </View>
 
                 <PrimaryButton
@@ -287,6 +334,21 @@ export function LoteForm({ loteId, onBack, onSaved, allowDelete = false }: Props
                 onClose={() => setPickerVisible(false)}
                 infoText="Se muestran productos activos."
                 infoIcon="cube-outline"
+                infoColor={BRAND_COLORS.red}
+            />
+
+            <PickerModal
+                visible={estadoPickerVisible}
+                title="Selecciona estado de calidad"
+                options={ESTADOS_CALIDAD}
+                selectedId={estadoCalidad}
+                onSelect={(id) => {
+                    setEstadoCalidad(String(id))
+                    setEstadoPickerVisible(false)
+                }}
+                onClose={() => setEstadoPickerVisible(false)}
+                infoText="Define el estado del lote."
+                infoIcon="shield-checkmark-outline"
                 infoColor={BRAND_COLORS.red}
             />
 
