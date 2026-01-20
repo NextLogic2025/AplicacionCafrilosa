@@ -188,6 +188,69 @@ export const CatalogService = {
         }
     },
 
+    // ✅ NUEVO: Obtener productos para cliente (soporta tanto cliente directo como vendedor con cliente seleccionado)
+    getProductsForClient: async (
+        page: number = 1,
+        perPage: number = 20,
+        searchQuery?: string,
+        clientListId?: number  // Si se proporciona, usa endpoint de lista de precios (para vendedores)
+    ): Promise<ProductsResponse> => {
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                per_page: perPage.toString()
+            })
+
+            if (searchQuery) params.append('q', searchQuery)
+
+            let endpoint: string
+            if (clientListId) {
+                // Vendedor/Supervisor con cliente seleccionado: usar endpoint de lista de precios
+                endpoint = endpoints.catalog.preciosListaProductos(clientListId)
+            } else {
+                // Cliente directo: usar endpoint de cliente
+                endpoint = endpoints.catalog.preciosClienteProductos
+            }
+
+            const response: any = await apiRequest(`${endpoint}?${params.toString()}`)
+
+            const transformedItems = response.items.map((item: any) => {
+                const precioLista = Number(item.precio_lista || 0)
+                let precioOferta: number | undefined
+                let ahorro: number | undefined
+                let campaniaAplicadaId: number | undefined
+
+                if (item.promociones && Array.isArray(item.promociones) && item.promociones.length > 0) {
+                    const mejorPromo = item.promociones[0]
+                    precioOferta = Number(mejorPromo.precio_oferta || 0)
+                    ahorro = precioLista - precioOferta
+                    campaniaAplicadaId = mejorPromo.campana_id
+                }
+
+                return {
+                    ...item,
+                    codigo_sku: item.codigo_sku,
+                    precio_original: precioLista,
+                    precio_oferta: precioOferta,
+                    ahorro: ahorro,
+                    campania_aplicada_id: campaniaAplicadaId,
+                    promociones: item.promociones || []
+                }
+            })
+
+            return {
+                metadata: response.metadata,
+                items: transformedItems
+            }
+        } catch (error) {
+            logErrorForDebugging(error, 'CatalogService.getProductsForClient', { page, searchQuery, clientListId })
+            return {
+                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
+                items: []
+            }
+        }
+    },
+
     getProductsByCategory: async (
         categoryId: number,
         page: number = 1,

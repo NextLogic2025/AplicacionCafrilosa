@@ -126,6 +126,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initCart()
     }, [])
 
+    // ✅ MEJORADO: También recargar cuando cambia el cliente seleccionado (para vendedores)
     useEffect(() => {
         if (!userId) {
             setCart(emptyCartState)
@@ -138,7 +139,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         loadCart(userId)
-    }, [userId, userRole])
+    }, [userId, userRole, currentClient?.id]) // ✅ Añadido currentClient?.id
 
     const loadCart = async (uid: string) => {
         if (!canUseCart(userRole)) return
@@ -171,6 +172,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
+    // ✅ NUEVA FUNCIÓN: Recalcular totales del carrito localmente
+    const recalculateCartTotals = (items: CartItem[]): Pick<Cart, 'subtotal' | 'descuento_total' | 'impuestos_total' | 'total_final' | 'total_estimado'> => {
+        const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
+        const descuento_total = items.reduce((acc, curr) => {
+            const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
+            return acc + (discountPerUnit * curr.cantidad)
+        }, 0)
+        const impuestos_total = subtotal * 0.12 // IVA 12%
+        const total_final = subtotal + impuestos_total
+
+        return {
+            subtotal,
+            descuento_total,
+            impuestos_total,
+            total_final,
+            total_estimado: total_final
+        }
+    }
+
     const mapServerCartToState = async (serverCart: any): Promise<Cart> => {
         if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
 
@@ -192,13 +212,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         let productsMap = new Map<string, any>()
         try {
-            if (userRole?.toLowerCase() === 'cliente') {
-                const productsResponse = await CatalogService.getClientProducts(1, 1000)
-                productsResponse.items.forEach(p => productsMap.set(p.id, p))
-            } else {
-                const productsResponse = await CatalogService.getProductsPaginated(1, 1000)
-                productsResponse.items.forEach(p => productsMap.set(p.id, p))
+            // ✅ MEJORADO: Obtener lista_precios_id del cliente para vendedores
+            let clientListId: number | undefined
+            if (isVendorMode && currentClient) {
+                clientListId = currentClient.lista_precios_id ?? undefined
             }
+
+            // Usar método unificado que maneja tanto cliente directo como vendedor
+            const productsResponse = await CatalogService.getProductsForClient(1, 1000, undefined, clientListId)
+            productsResponse.items.forEach(p => productsMap.set(p.id, p))
         } catch (err) {
             console.warn('Could not fetch products for cart enrichment', err)
         }
@@ -207,7 +229,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const productDetails = productsMap.get(item.producto_id)
 
-                
+
                 const precioLista = resolvePrice([
                     item.precio_original_snapshot,
                     item.precio_lista,
@@ -412,10 +434,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const removeFromCart = async (productId: string) => {
         if (!userId) return
 
-        setCart(prev => ({
-            ...prev,
-            items: prev.items.filter(i => i.producto_id !== productId)
-        }))
+        // ✅ MEJORADO: Recalcular totales al remover item
+        setCart(prev => {
+            const updatedItems = prev.items.filter(i => i.producto_id !== productId)
+            const totals = recalculateCartTotals(updatedItems)
+            return {
+                ...prev,
+                items: updatedItems,
+                ...totals
+            }
+        })
 
         try {
             const target = isVendorMode
@@ -438,12 +466,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateQuantity = async (productId: string, quantity: number) => {
         if (!userId || quantity <= 0) return
 
-        setCart(prev => ({
-            ...prev,
-            items: prev.items.map(i => i.producto_id === productId
+        // ✅ MEJORADO: Recalcular totales al actualizar cantidad
+        setCart(prev => {
+            const updatedItems = prev.items.map(i => i.producto_id === productId
                 ? { ...i, cantidad: quantity, subtotal: quantity * i.precio_final }
                 : i)
-        }))
+            const totals = recalculateCartTotals(updatedItems)
+            return {
+                ...prev,
+                items: updatedItems,
+                ...totals
+            }
+        })
 
         try {
             const payload: AddToCartPayload = {
@@ -464,7 +498,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const clearCart = async () => {
         if (!userId) return
-        setCart({ items: [], total_estimado: 0 })
+        // ✅ MEJORADO: Incluir todos los campos al limpiar carrito
+        setCart({
+            items: [],
+            total_estimado: 0,
+            subtotal: 0,
+            descuento_total: 0,
+            impuestos_total: 0,
+            total_final: 0
+        })
         try {
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
@@ -476,7 +518,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const getItemCount = () => cart.items.reduce((acc, item) => acc + item.cantidad, 0)
 
     const validatePriceList = (listId: number) => true
-    const recalculatePrices = () => { } 
+    const recalculatePrices = () => { }
 
     const value: CartContextValue = {
         userId,
