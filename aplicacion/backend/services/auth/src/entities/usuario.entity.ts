@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Exclude } from 'class-transformer';
 
 import { Role } from './role.entity';
 
@@ -10,7 +11,12 @@ export class Usuario {
   @Column({ unique: true })
   email: string;
 
+  /**
+   * HALLAZGO #3: Password hash NUNCA debe ser expuesto en responses JSON
+   * El decorator @Exclude() junto con ClassSerializerInterceptor lo oculta automáticamente
+   */
   @Column({ name: 'password_hash' })
+  @Exclude()
   passwordHash: string;
 
   @Column({ name: 'nombre_completo' })

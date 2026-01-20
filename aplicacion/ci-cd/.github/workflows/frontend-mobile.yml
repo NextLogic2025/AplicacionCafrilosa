@@ -1,7 +1,0 @@
-name: frontend-mobile
-on: [push]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "TODO mobile pipeline"
