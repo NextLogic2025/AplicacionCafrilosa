@@ -211,6 +211,9 @@ export function SupervisorClientFormScreen() {
                 tiene_credito: clientData.tiene_credito,
                 limite_credito: parseFloat(clientData.limite_credito) || 0,
                 dias_plazo: parseInt(clientData.dias_plazo) || 0,
+                // Campos adicionales que el backend acepta
+                lista_precios_id: clientData.lista_precios_id ? Number(clientData.lista_precios_id) : undefined,
+                ubicacion_gps: clientData.ubicacion_gps || undefined,
             }
 
             let savedClient: Client
