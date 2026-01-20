@@ -121,7 +121,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
         try {
             const pickingJson = await this.serviceHttp.get<any>(
                 'warehouse-service',
-                `/picking/${pickingId}`,
+                `/picking/internal/${pickingId}`,
             );
 
             const pedidoId = pickingJson?.pedidoId || pickingJson?.pedido_id || pickingJson?.pedido || null;
