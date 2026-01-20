@@ -123,7 +123,12 @@ export const FeedbackModal = ({
                                 shadowRadius: 6,
                                 elevation: 6
                             }}
-                            onPress={onConfirm || onClose}
+                            onPress={() => {
+                                onClose()
+                                if (onConfirm) {
+                                    onConfirm()
+                                }
+                            }}
                             activeOpacity={0.8}
                         >
                             <Text className="text-white font-bold text-base">

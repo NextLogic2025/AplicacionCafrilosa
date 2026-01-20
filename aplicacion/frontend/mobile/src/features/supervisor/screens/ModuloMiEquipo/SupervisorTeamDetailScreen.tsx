@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { BRAND_COLORS } from '../../../../shared/types'
@@ -10,6 +10,7 @@ import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 
 export function SupervisorTeamDetailScreen() {
     const navigation = useNavigation()
@@ -51,10 +52,10 @@ export function SupervisorTeamDetailScreen() {
         message: '',
     })
     const [deleteModalVisible, setDeleteModalVisible] = useState(false)
+    const [pendingActiveState, setPendingActiveState] = useState<boolean | null>(null)
 
     // Roles map
     const roles = [
-        { id: '1', name: 'admin', label: 'Administrador' },
         { id: '2', name: 'supervisor', label: 'Supervisor' },
         { id: '3', name: 'bodeguero', label: 'Bodeguero' },
         { id: '4', name: 'vendedor', label: 'Vendedor' },
@@ -125,13 +126,13 @@ export function SupervisorTeamDetailScreen() {
         if (!name.trim() || !email.trim()) {
             return showFeedback('warning', 'Faltan datos', 'Por favor completa nombre y correo.')
         }
-        
+
         // Validar formato de email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email.trim())) {
             return showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo válido (ej: usuario@dominio.com)')
         }
-        
+
         if (!isEditing && !password) {
             return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
         }
@@ -367,10 +368,23 @@ export function SupervisorTeamDetailScreen() {
                                     <Text className="text-neutral-500 text-xs">Habilitar acceso al sistema</Text>
                                 </View>
                             </View>
-                            <Switch
-                                value={isActive}
-                                onValueChange={setIsActive}
-                                trackColor={{ false: "#d1d5db", true: "#22c55e" }}
+                            <ToggleSwitch
+                                checked={isActive}
+                                onToggle={() => {
+                                    const newState = !isActive
+                                    setPendingActiveState(newState)
+                                    showFeedback(
+                                        'warning',
+                                        `¿${newState ? 'Activar' : 'Desactivar'} empleado?`,
+                                        `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} el acceso al sistema para este empleado?`,
+                                        () => {
+                                            setIsActive(newState)
+                                            setPendingActiveState(null)
+                                        }
+                                    )
+                                }}
+                                colorOn="#22c55e"
+                                colorOff="#d1d5db"
                             />
                         </View>
                     )}

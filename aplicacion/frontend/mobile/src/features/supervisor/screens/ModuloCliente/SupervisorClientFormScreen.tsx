@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { View, Alert, TouchableOpacity, Text, Switch } from 'react-native'
+import { View, Alert, TouchableOpacity, Text } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { UserService, UserProfile } from '../../../../services/api/UserService'
 import { ClientService, Client } from '../../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
@@ -427,11 +428,11 @@ export function SupervisorClientFormScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <Switch
-                            value={!client?.bloqueado}
-                            onValueChange={() => handleToggleBlock()}
-                            trackColor={{ false: "#EF4444", true: "#16A34A" }}
-                            thumbColor={"#ffffff"}
+                        <ToggleSwitch
+                            checked={!client?.bloqueado}
+                            onToggle={() => handleToggleBlock()}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
                         />
                     </View>
                 </View>

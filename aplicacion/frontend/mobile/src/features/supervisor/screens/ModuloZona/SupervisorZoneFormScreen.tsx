@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Zone, ZoneService, ZoneHelpers, LatLng, ZoneEditState } from '../../../../services/api/ZoneService'
@@ -9,6 +9,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { Ionicons } from '@expo/vector-icons'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ECUADOR_LOCATIONS, type EcuadorCity } from '../../../../data/ecuadorLocations'
 
@@ -388,12 +389,19 @@ export function SupervisorZoneFormScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <Switch
-                            trackColor={{ false: '#767577', true: '#16A34A' }}
-                            thumbColor={zoneData.activo ? '#ffffff' : '#f4f3f4'}
-                            ios_backgroundColor="#3e3e3e"
-                            onValueChange={(val) => setZoneData(prev => ({ ...prev, activo: val }))}
-                            value={zoneData.activo}
+                        <ToggleSwitch
+                            checked={zoneData.activo}
+                            onToggle={() => {
+                                const newState = !zoneData.activo
+                                showFeedback(
+                                    'warning',
+                                    `¿${newState ? 'Activar' : 'Desactivar'} zona?`,
+                                    `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} esta zona?`,
+                                    () => setZoneData(prev => ({ ...prev, activo: newState }))
+                                )
+                            }}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
                         />
                     </View>
                 </View>
