@@ -126,6 +126,30 @@ services:
     networks:
       - app-network
 
+  # --- LOGISTICS SERVICE ---
+  logistics-service:
+    build:
+      context: ./backend/services/logistics
+      dockerfile: Dockerfile
+    container_name: logistics-service
+    restart: on-failure
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/logistics_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+      - catalog-service
+      - orders-service
+    networks:
+      - app-network
+      
   # --- WAREHOUSE SERVICE ---
   warehouse-service:
     build:
