@@ -1,8 +1,58 @@
 import { 
     IsString, IsNotEmpty, IsOptional, IsEmail, IsUUID, IsInt, 
-    IsBoolean, Min, MaxLength, Matches, IsNumber 
+    IsBoolean, Min, MaxLength, Matches, IsNumber, ValidateNested, IsArray
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+
+// Clase auxiliar para validar GeoJSON Point
+export class GeoPointDto {
+    @ApiProperty({ example: 'Point', default: 'Point' })
+    @IsString()
+    type: string;
+
+    @ApiProperty({ example: [-79.204, -3.993], description: '[Longitud, Latitud]' })
+    @IsNumber({}, { each: true })
+    coordinates: number[];
+}
+
+export class CreateSucursalDto {
+    @ApiProperty({ description: 'Nombre de la sucursal', required: false })
+    @IsOptional()
+    @IsString()
+    nombre_sucursal?: string;
+
+    @ApiProperty({ description: 'Dirección de la sucursal', required: false })
+    @IsOptional()
+    @IsString()
+    direccion_entrega?: string;
+
+    @ApiProperty({ description: 'Coordenadas GeoJSON de la sucursal', required: false })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => GeoPointDto)
+    ubicacion_gps?: GeoPointDto;
+
+    @ApiProperty({ description: 'Nombre de contacto', required: false })
+    @IsOptional()
+    @IsString()
+    contacto_nombre?: string;
+
+    @ApiProperty({ description: 'Teléfono de contacto', required: false })
+    @IsOptional()
+    @IsString()
+    contacto_telefono?: string;
+
+    @ApiProperty({ description: 'ID de la Zona Comercial', required: false })
+    @IsOptional()
+    @IsInt()
+    zona_id?: number;
+
+    @ApiProperty({ default: true, required: false })
+    @IsOptional()
+    @IsBoolean()
+    activo?: boolean;
+}
 
 export class CreateClienteDto {
     @ApiProperty({ description: 'Identificación (RUC o Cédula)', example: '1104567890001' })
@@ -44,6 +94,20 @@ export class CreateClienteDto {
     @IsString()
     direccion_texto?: string;
 
+    @ApiProperty({ description: 'ID de la lista de precios', required: false })
+    @IsOptional()
+    @IsInt()
+    lista_precios_id?: number;
+
+    @ApiProperty({ description: 'ID del vendedor asignado (UUID)', required: false })
+    @IsOptional()
+    @IsUUID()
+    vendedor_asignado_id?: string;
+
+    @ApiProperty({ description: 'Ubicación GPS (GeoJSON Point o cadena), required: false' })
+    @IsOptional()
+    ubicacion_gps?: any;
+
     // Campos financieros (Opcionales al crear, por defecto 0/false)
     
     @ApiProperty({ description: 'Tiene crédito habilitado', default: false })
@@ -63,6 +127,13 @@ export class CreateClienteDto {
     @IsInt()
     @Min(0)
     dias_plazo?: number;
+
+    @ApiProperty({ description: 'Sucursales del cliente', type: 'array', required: false })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CreateSucursalDto)
+    sucursales?: CreateSucursalDto[];
 }
 
 export class UpdateClienteDto extends PartialType(CreateClienteDto) {}

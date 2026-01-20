@@ -47,7 +47,8 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
+      - JWT_REFRESH_SECRET=MiRefreshSecretSuperSeguro2025ParaDesarrolloLocal
       - JWT_EXPIRES_IN=1h
       # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
@@ -69,7 +70,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
       # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
     depends_on:
@@ -90,7 +91,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
       # Conexiones Salientes
       - USUARIOS_SERVICE_URL=http://usuarios-service:3000
       # Seguridad interna S2S
@@ -113,7 +114,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/orders_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
       # Conexiones Salientes (A quién llama Orders)
       - CATALOG_SERVICE_URL=http://catalog-service:3000
       - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
@@ -126,6 +127,30 @@ services:
     networks:
       - app-network
 
+  # --- LOGISTICS SERVICE ---
+  logistics-service:
+    build:
+      context: ./backend/services/logistics
+      dockerfile: Dockerfile
+    container_name: logistics-service
+    restart: on-failure
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/logistics_db
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - SERVICE_TOKEN=MiTokenS2S123
+    depends_on:
+      - database
+      - catalog-service
+      - orders-service
+    networks:
+      - app-network
+      
   # --- WAREHOUSE SERVICE ---
   warehouse-service:
     build:
@@ -139,7 +164,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/warehouse_db
-      - JWT_SECRET=MiSecretoSuperSeguro2025
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
       # Conexiones Salientes (A quién llama Warehouse)
       - CATALOG_SERVICE_URL=http://catalog-service:3000
       - ORDERS_SERVICE_URL=http://orders-service:3000

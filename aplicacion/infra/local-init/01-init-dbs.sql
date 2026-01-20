@@ -1,12 +1,11 @@
 -- ============================================================
 -- CREACIÓN DE BASES DE DATOS
 -- ============================================================
-CREATE DATABASE ventas_db;
-CREATE DATABASE inventario_db;
 CREATE DATABASE usuarios_db;
 CREATE DATABASE orders_db;
 CREATE DATABASE catalog_db;
 CREATE DATABASE warehouse_db;
+CREATE DATABASE logistics_db;
 
 -- ============================================================
 -- CONECTARSE A usuarios_db E INICIALIZAR

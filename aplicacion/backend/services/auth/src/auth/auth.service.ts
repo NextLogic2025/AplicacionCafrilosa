@@ -49,6 +49,52 @@ export class AuthService {
     return parseInt(s, 10) || 600;
   }
 
+  /**
+   * Obtiene el secreto para refresh tokens (separado del access token)
+   * SEGURIDAD: Usar secretos diferentes previene que un access token comprometido
+   * pueda ser usado para generar refresh tokens y viceversa
+   */
+  private get refreshSecret(): string {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) {
+      throw new Error('JWT_REFRESH_SECRET no está configurado');
+    }
+    return secret;
+  }
+
+  /**
+   * Firma un refresh token usando JWT_REFRESH_SECRET
+   */
+  private signRefreshToken(payload: object, expiresIn: number): string {
+    return this.jwtService.sign(payload, {
+      secret: this.refreshSecret,
+      expiresIn,
+    });
+  }
+
+  /**
+   * Verifica y decodifica un refresh token usando JWT_REFRESH_SECRET
+   * @throws UnauthorizedException si el token es inválido o expirado
+   */
+  private verifyRefreshToken(token: string): any {
+    try {
+      return this.jwtService.verify(token, { secret: this.refreshSecret });
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token expirado');
+      }
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+  }
+
+  /**
+   * Decodifica un refresh token sin verificar la firma (para obtener el payload)
+   * Útil para extraer el usuario antes de buscar en BD
+   */
+  private decodeRefreshToken(token: string): any {
+    return this.jwtService.decode(token);
+  }
+
   async registro(dto: CreateUsuarioDto) {
     const existe = await this.usuarioRepo.findOne({ where: { email: dto.email } });
     if (existe) throw new ConflictException('Email ya registrado');
@@ -117,11 +163,11 @@ export class AuthService {
     const accessSeconds = this.parseDuration(accessTtl);
     const access_token = this.jwtService.sign(accessPayload, { expiresIn: accessSeconds });
 
-    // Generar Refresh Token
+    // Generar Refresh Token (usa JWT_REFRESH_SECRET separado)
     const refreshPayload = { sub: usuario.id, type: 'refresh' };
     const refreshTtl = process.env.REFRESH_TOKEN_TTL || '7d';
     const refreshSeconds = this.parseDuration(refreshTtl);
-    const refresh_token = this.jwtService.sign(refreshPayload, { expiresIn: refreshSeconds });
+    const refresh_token = this.signRefreshToken(refreshPayload, refreshSeconds);
 
     // Single Session Logic
     if (process.env.SINGLE_SESSION === 'true') {
@@ -252,8 +298,16 @@ export class AuthService {
   }
 
   async refreshTokens(providedRefreshToken: string, deviceId?: string, ip?: string, userAgent?: string) {
-    // OPTIMIZACIÓN: Decodificamos el token para sacar el ID del usuario y NO buscar en toda la tabla
-    const decoded = this.jwtService.decode(providedRefreshToken) as any;
+    // Primero verificamos la firma del token con JWT_REFRESH_SECRET
+    // Esto asegura que el token fue firmado por nosotros y no ha sido manipulado
+    let decoded: any;
+    try {
+      decoded = this.verifyRefreshToken(providedRefreshToken);
+    } catch (error) {
+      // Si falla la verificación, el token es inválido o expirado
+      throw error;
+    }
+
     if (!decoded || !decoded.sub) {
       throw new UnauthorizedException('Token ilegible');
     }
@@ -312,9 +366,10 @@ export class AuthService {
     const accessPayload = { sub: usuario.id, email: usuario.email, role: usuario.rol?.nombre };
     const access_token = this.jwtService.sign(accessPayload, { expiresIn: accessSeconds });
 
+    // Generar nuevo Refresh Token (usa JWT_REFRESH_SECRET separado)
     const refreshTtl = process.env.REFRESH_TOKEN_TTL || '7d';
     const refreshSeconds = this.parseDuration(refreshTtl);
-    const refresh_token = this.jwtService.sign({ sub: usuario.id, type: 'refresh' }, { expiresIn: refreshSeconds });
+    const refresh_token = this.signRefreshToken({ sub: usuario.id, type: 'refresh' }, refreshSeconds);
 
     // Guardar nuevo refresh token
     const tokenHash = await bcrypt.hash(refresh_token, 10);

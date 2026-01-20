@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
@@ -7,6 +7,7 @@ import { ZonaComercial } from '../zonas/entities/zona.entity';
 import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
 import { Cliente } from './entities/cliente.entity';
 import { CreateClienteDto, UpdateClienteDto } from './dto/create-cliente.dto';
+import { SucursalesService } from './sucursales/sucursales.service';
 
 // Interfaz interna para respuesta de Usuarios Service
 interface UsuarioExterno {
@@ -32,6 +33,8 @@ export class ClientesService {
     @InjectRepository(AsignacionVendedores)
     private asignRepo: Repository<AsignacionVendedores>,
     private readonly serviceHttp: ServiceHttpClient,
+    @Inject(forwardRef(() => SucursalesService))
+    private readonly sucursalesService: SucursalesService,
   ) {}
 
   async findAll() {
@@ -81,7 +84,32 @@ export class ClientesService {
         limite_credito: dto.limite_credito ? String(dto.limite_credito) : '0',
     } as any);
 
-    return this.repo.save(nuevoCliente);
+    const savedResult = await this.repo.save(nuevoCliente);
+    const saved = Array.isArray(savedResult) ? savedResult[0] : savedResult;
+
+    // Si vienen sucursales en el DTO, crear cada una vinculada al cliente.
+    if (dto.sucursales && Array.isArray(dto.sucursales) && dto.sucursales.length) {
+      for (const s of dto.sucursales) {
+        const createSucursal: any = {
+          cliente_id: saved.id,
+          nombre_sucursal: (s as any).nombre_sucursal || (s as any).nombre,
+          direccion_entrega: (s as any).direccion_entrega || (s as any).direccion_texto,
+          contacto_nombre: (s as any).contacto_nombre || (s as any).contacto,
+          contacto_telefono: (s as any).contacto_telefono || (s as any).telefono,
+          zona_id: (s as any).zona_id || (s as any).zona_comercial_id,
+          activo: (s as any).activo !== undefined ? (s as any).activo : true,
+          ubicacion_gps: (s as any).ubicacion_gps,
+        };
+
+        try {
+          await this.sucursalesService.create(createSucursal);
+        } catch (err) {
+          this.logger.warn(`Error creando sucursal para cliente ${saved.id}: ${err.message}`);
+        }
+      }
+    }
+
+    return this.findOne(saved.id);
   }
 
   /**
