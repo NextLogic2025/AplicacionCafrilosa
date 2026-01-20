@@ -8,7 +8,13 @@ import { ServiceHttpModule } from './common/http/service-http.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
+      autoLoadEntities: true,
+      synchronize: false,
+      logging: false,
+    }),
     ServiceHttpModule,
     DespachosModule,
     VehiculosModule,
