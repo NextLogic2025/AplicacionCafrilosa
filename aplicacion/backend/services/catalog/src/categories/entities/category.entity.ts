@@ -26,6 +26,9 @@ export class Category {
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   created_at: Date;
 
+  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  updated_at: Date;
+
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deleted_at: Date | null;
 }
