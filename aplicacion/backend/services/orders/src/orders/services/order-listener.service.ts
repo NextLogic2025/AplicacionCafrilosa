@@ -94,11 +94,11 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
                 if (err instanceof HttpException && err.getStatus() === 401) {
                     try {
                         this.logger.debug('Intentando endpoint interno /picking/internal/confirm-open por 401', { pedidoId: id });
+                        // No pasar encabezado Authorization vacío: permitir que ServiceHttpClient inyecte SERVICE_TOKEN
                         await this.serviceHttp.post(
                             'warehouse-service',
                             '/picking/internal/confirm-open',
                             bodyToSend,
-                            { headers: { Authorization: '' } },
                         );
                         this.logger.debug('Warehouse picking confirmed via internal endpoint', { pedidoId: id });
                     } catch (innerErr) {

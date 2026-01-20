@@ -59,7 +59,7 @@ export class PickingService {
         try {
             const body = await this.serviceHttp.get<any>(
                 'orders-service',
-                `/orders/${pedidoId}`,
+                `/internal/${pedidoId}`,
             );
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,

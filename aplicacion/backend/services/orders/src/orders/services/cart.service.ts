@@ -165,6 +165,33 @@ export class CartService {
             }
         }
 
+        // Enriquecer items con nombre_producto y codigo_sku desde Catalog (para la respuesta al cliente)
+        try {
+            if (cart && cart.items && cart.items.length) {
+                const ids = cart.items.map((it: any) => it.producto_id);
+                const products = await this.serviceHttp.post<any[]>(
+                    'catalog-service',
+                    '/products/internal/batch',
+                    { ids, cliente_id: cart.cliente_id ?? undefined },
+                );
+
+                const map = new Map<string, any>();
+                (products || []).forEach((p: any) => map.set(String(p.id), p));
+
+                for (const item of cart.items) {
+                    const prod = map.get(String(item.producto_id));
+                    if (prod) {
+                        (item as any).nombre_producto = prod.nombre ?? prod.nombre_producto ?? (item as any).nombre_producto ?? null;
+                        (item as any).codigo_sku = prod.codigo_sku ?? (item as any).codigo_sku ?? null;
+                    }
+                }
+            }
+        } catch (err) {
+            this.logger.warn('No se pudieron enriquecer los items del carrito desde Catalog', { cartId: cart?.id, error: err?.message || String(err) });
+            (cart as any).warnings = (cart as any).warnings || [];
+            (cart as any).warnings.push({ issue: 'catalog_enrich_error', message: err?.message || String(err) });
+        }
+
         return cart;
     }
 
@@ -195,8 +222,8 @@ export class CartService {
                 if (dto.motivo_descuento !== undefined) {
                     item.motivo_descuento = dto.motivo_descuento;
                 }
-            } else {
-                // Intentar obtener mejor promocion/precio desde Catalog y sobrescribir valores del cliente
+                } else {
+                    // Intentar obtener mejor promocion/precio desde Catalog y sobrescribir valores del cliente
                 let precioUnitarioRef = 0;
                 let precioOriginalSnapshot = null;
                 let campaniaAplicada = dto.campania_aplicada_id ?? null;
