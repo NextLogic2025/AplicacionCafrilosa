@@ -54,9 +54,14 @@ export class OrdersService {
 
   private async _reserveStockInWarehouse(createOrderDto: CreateOrderDto): Promise<string | null> {
     try {
-      const payload = { items: (createOrderDto.items || []).map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })), pedido_ref: null };
-      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservas/internal/bulk', payload);
-      return res?.reservationId ?? null;
+      // Map items to the Warehouse reservations contract (productId, quantity)
+      const payload = {
+        tempId: null,
+        items: (createOrderDto.items || []).map(i => ({ productId: (i as any).producto_id ?? (i as any).product_id, quantity: (i as any).cantidad ?? (i as any).quantity }))
+      };
+      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservations', payload);
+      // Warehouse returns { id }
+      return res?.id ?? null;
     } catch (err) {
       this.logger.warn('Error reserving stock in warehouse', { error: err?.message || err });
       throw new BadRequestException('No se pudo reservar stock para el pedido');
@@ -80,7 +85,8 @@ export class OrdersService {
   private async _rollbackReservation(reservationId: string | null) {
     if (!reservationId) return;
     try {
-      await this.serviceHttp.post('warehouse-service', `/reservas/${reservationId}/release`, {});
+      // The warehouse exposes DELETE /reservations/:id to cancel a reservation
+      await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
     } catch (e) {
       this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
     }
