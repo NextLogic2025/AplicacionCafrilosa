@@ -8,7 +8,9 @@ import { PickerModal, type PickerOption } from '../../../../components/ui/Picker
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
 import { ConductorService, type CreateConductorDto, type Conductor } from '../../../../services/api/ConductorService'
+import { UserService } from '../../../../services/api/UserService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
+import { validatePassword } from '../../../../utils/passwordValidation'
 import { BRAND_COLORS } from '../../../../shared/types'
 
 const TIPOS_LICENCIA: PickerOption[] = [
@@ -36,8 +38,13 @@ export function SupervisorConductorFormScreen() {
     const [loadingData, setLoadingData] = useState(isEditing)
     const [conductor, setConductor] = useState<Conductor | null>(null)
 
-    // Form state
-    const [nombreCompleto, setNombreCompleto] = useState('')
+    // Form state - Usuario (solo para creación)
+    const [nombreUsuario, setNombreUsuario] = useState('')
+    const [emailUsuario, setEmailUsuario] = useState('')
+    const [passwordUsuario, setPasswordUsuario] = useState('')
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+
+    // Form state - Conductor
     const [cedula, setCedula] = useState('')
     const [telefono, setTelefono] = useState('')
     const [tipoLicencia, setTipoLicencia] = useState('')
@@ -73,7 +80,7 @@ export function SupervisorConductorFormScreen() {
         try {
             const data = await ConductorService.getById(id)
             setConductor(data)
-            setNombreCompleto(data.nombre_completo)
+            setNombreUsuario(data.nombre_completo)
             setCedula(data.cedula)
             setTelefono(data.telefono || '')
             // Parse licencia like "B-LIC123" => tipo: B, numero: LIC123
@@ -103,10 +110,40 @@ export function SupervisorConductorFormScreen() {
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {}
 
-        if (!nombreCompleto.trim()) {
-            newErrors.nombreCompleto = 'El nombre completo es requerido'
-        } else if (nombreCompleto.trim().length < 3) {
-            newErrors.nombreCompleto = 'El nombre debe tener al menos 3 caracteres'
+        // Validación de usuario (solo si es creación)
+        if (!isEditing) {
+            if (!nombreUsuario.trim()) {
+                newErrors.nombreUsuario = 'El nombre del usuario es requerido'
+            }
+            if (!emailUsuario.trim()) {
+                newErrors.emailUsuario = 'El correo del usuario es requerido'
+            } else {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                if (!emailRegex.test(emailUsuario)) {
+                    newErrors.emailUsuario = 'Formato de correo inválido'
+                }
+            }
+            if (!passwordUsuario) {
+                newErrors.passwordUsuario = 'La contraseña es requerida'
+            } else {
+                const passwordValidation = validatePassword(passwordUsuario)
+                if (!passwordValidation.isValid) {
+                    setFeedbackModal({
+                        visible: true,
+                        type: 'warning',
+                        title: 'Contraseña Insegura',
+                        message: `La contraseña debe cumplir los siguientes requisitos:\n\n${passwordValidation.errors.join('\n')}`,
+                    })
+                    return false
+                }
+            }
+        }
+
+        // Validación de conductor (solo si está editando, porque en creación ya validamos nombreUsuario)
+        if (isEditing && !nombreUsuario.trim()) {
+            newErrors.nombreUsuario = 'El nombre completo es requerido'
+        } else if (isEditing && nombreUsuario.trim().length < 3) {
+            newErrors.nombreUsuario = 'El nombre debe tener al menos 3 caracteres'
         }
 
         if (!cedula.trim()) {
@@ -135,31 +172,57 @@ export function SupervisorConductorFormScreen() {
             return
         }
 
-        const formData: CreateConductorDto = {
-            nombre_completo: nombreCompleto.trim(),
-            cedula: cedula.trim(),
-            telefono: telefono.trim() || undefined,
-            licencia: tipoLicencia && numeroLicencia ? `${tipoLicencia}-${numeroLicencia.trim()}` : numeroLicencia.trim() || undefined,
-            activo,
-        }
-
         setLoading(true)
         try {
+            let usuarioId: string | undefined
+
+            // A. Crear Usuario primero (solo si es nuevo)
+            if (!isEditing) {
+                const userPayload = {
+                    nombre: nombreUsuario.trim(),
+                    email: emailUsuario.trim(),
+                    password: passwordUsuario,
+                    rolId: 5  // 5 = Transportista
+                }
+
+                const userResponse = await UserService.createUser(userPayload)
+                if (!userResponse.success || !userResponse.userId) {
+                    throw new Error(userResponse.message || 'Error al crear usuario')
+                }
+                usuarioId = userResponse.userId
+            }
+
+            // B. Crear/Actualizar Conductor
+            const formData: any = {
+                nombre_completo: nombreUsuario.trim(),
+                cedula: cedula.trim(),
+                telefono: telefono.trim() || undefined,
+                licencia: tipoLicencia && numeroLicencia
+                    ? `${tipoLicencia}-${numeroLicencia.trim()}`
+                    : numeroLicencia.trim() || undefined,
+                activo,
+            }
+
+            // Solo incluir usuario_id si se creó
+            if (usuarioId) {
+                formData.usuario_id = usuarioId
+            }
+
             if (isEditing && params.conductorId) {
                 await ConductorService.update(params.conductorId, formData)
                 setFeedbackModal({
                     visible: true,
                     type: 'success',
                     title: 'Conductor Actualizado',
-                    message: `${nombreCompleto} ha sido actualizado exitosamente.`,
+                    message: `${nombreUsuario} ha sido actualizado exitosamente.`,
                 })
             } else {
                 await ConductorService.create(formData)
                 setFeedbackModal({
                     visible: true,
                     type: 'success',
-                    title: 'Conductor Creado',
-                    message: `${nombreCompleto} ha sido registrado exitosamente.`,
+                    title: 'Conductor y Usuario Creados',
+                    message: `${nombreUsuario} ha sido registrado exitosamente con acceso a la app.`,
                 })
             }
 
@@ -202,32 +265,120 @@ export function SupervisorConductorFormScreen() {
                 contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
             >
                 <View className="mx-4 mt-4">
-                    {/* Información Personal */}
+                    {/* Sección de Usuario - Solo visible al crear */}
+                    {!isEditing && (
+                        <View className="bg-white rounded-2xl p-4 mb-4 border-2" style={{ elevation: 3, borderColor: BRAND_COLORS.red }}>
+                            <View className="flex-row items-center mb-4">
+                                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: BRAND_COLORS.red }}>
+                                    <Ionicons name="person-add" size={20} color="white" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-base font-bold text-neutral-900">Datos de Usuario</Text>
+                                    <Text className="text-xs text-neutral-600">Se creará una cuenta con acceso a la app</Text>
+                                </View>
+                            </View>
+
+                            {/* Nombre Completo */}
+                            <View className="mb-4">
+                                <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Nombre Completo *</Text>
+                                <TextInput
+                                    className="bg-neutral-50 p-4 rounded-xl border border-blue-200 text-neutral-900"
+                                    value={nombreUsuario}
+                                    onChangeText={(text) => {
+                                        setNombreUsuario(text)
+                                        if (errors.nombreUsuario) {
+                                            setErrors(prev => ({ ...prev, nombreUsuario: '' }))
+                                        }
+                                    }}
+                                    placeholder="Ej: Carlos Transportista"
+                                    editable={!loading}
+                                />
+                                {errors.nombreUsuario ? <Text className="text-red-600 text-xs mt-1">{errors.nombreUsuario}</Text> : null}
+                            </View>
+
+                            {/* Correo Electrónico */}
+                            <View className="mb-4">
+                                <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Correo Electrónico *</Text>
+                                <TextInput
+                                    className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
+                                    value={emailUsuario}
+                                    onChangeText={(text) => {
+                                        setEmailUsuario(text)
+                                        if (errors.emailUsuario) {
+                                            setErrors(prev => ({ ...prev, emailUsuario: '' }))
+                                        }
+                                    }}
+                                    placeholder="ejemplo@correo.com"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    editable={!loading}
+                                />
+                                {errors.emailUsuario ? <Text className="text-red-600 text-xs mt-1">{errors.emailUsuario}</Text> : null}
+                            </View>
+
+                            {/* Contraseña */}
+                            <View className="mb-4">
+                                <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Contraseña *</Text>
+                                <View className="flex-row items-center bg-neutral-50 rounded-xl border border-neutral-200">
+                                    <TextInput
+                                        className="flex-1 p-4 text-neutral-900"
+                                        value={passwordUsuario}
+                                        onChangeText={(text) => {
+                                            setPasswordUsuario(text)
+                                            if (errors.passwordUsuario) {
+                                                setErrors(prev => ({ ...prev, passwordUsuario: '' }))
+                                            }
+                                        }}
+                                        placeholder="********"
+                                        secureTextEntry={!isPasswordVisible}
+                                        editable={!loading}
+                                    />
+                                    <Pressable onPress={() => setIsPasswordVisible(!isPasswordVisible)} className="px-4">
+                                        <Ionicons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={24} color="#9ca3af" />
+                                    </Pressable>
+                                </View>
+                                {errors.passwordUsuario ? <Text className="text-red-600 text-xs mt-1">{errors.passwordUsuario}</Text> : null}
+                            </View>
+
+                            <View className="bg-red-50 p-3 rounded-xl border border-red-200">
+                                <View className="flex-row items-start">
+                                    <Ionicons name="information-circle" size={18} color={BRAND_COLORS.red} style={{ marginTop: 1, marginRight: 8 }} />
+                                    <Text className="text-red-700 text-xs flex-1">
+                                        El usuario será creado con rol Transportista y podrá acceder a la aplicación móvil.
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Sección de Conductor - Visible en edición (con nombre) o creación (sin nombre) */}
                     <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 2 }}>
                         <View className="flex-row items-center mb-4">
-                            <Ionicons name="person-outline" size={20} color={BRAND_COLORS.red} />
+                            <Ionicons name="car-sport" size={20} color={BRAND_COLORS.red} />
                             <Text className="text-base font-bold text-neutral-900 ml-2">
-                                Información Personal
+                                Datos del Conductor
                             </Text>
                         </View>
 
-                        {/* Nombre Completo */}
-                        <View className="mb-4">
-                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Nombre Completo *</Text>
-                            <TextInput
-                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
-                                value={nombreCompleto}
-                                onChangeText={(text) => {
-                                    setNombreCompleto(text)
-                                    if (errors.nombreCompleto) {
-                                        setErrors(prev => ({ ...prev, nombreCompleto: '' }))
-                                    }
-                                }}
-                                placeholder="Ej: Juan Pérez García"
-                                editable={!loading}
-                            />
-                            {errors.nombreCompleto ? <Text className="text-red-600 text-xs mt-1">{errors.nombreCompleto}</Text> : null}
-                        </View>
+                        {/* Nombre Completo - Solo visible al editar */}
+                        {isEditing && (
+                            <View className="mb-4">
+                                <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Nombre Completo *</Text>
+                                <TextInput
+                                    className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
+                                    value={nombreUsuario}
+                                    onChangeText={(text) => {
+                                        setNombreUsuario(text)
+                                        if (errors.nombreUsuario) {
+                                            setErrors(prev => ({ ...prev, nombreUsuario: '' }))
+                                        }
+                                    }}
+                                    placeholder="Ej: Juan Pérez García"
+                                    editable={!loading}
+                                />
+                                {errors.nombreUsuario ? <Text className="text-red-600 text-xs mt-1">{errors.nombreUsuario}</Text> : null}
+                            </View>
+                        )}
 
                         {/* Cédula */}
                         <View className="mb-4">
@@ -246,16 +397,6 @@ export function SupervisorConductorFormScreen() {
                                 editable={!loading}
                             />
                             {errors.cedula ? <Text className="text-red-600 text-xs mt-1">{errors.cedula}</Text> : null}
-                        </View>
-                    </View>
-
-                    {/* Información de Contacto */}
-                    <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 2 }}>
-                        <View className="flex-row items-center mb-4">
-                            <Ionicons name="call-outline" size={20} color={BRAND_COLORS.red} />
-                            <Text className="text-base font-bold text-neutral-900 ml-2">
-                                Información de Contacto
-                            </Text>
                         </View>
 
                         {/* Teléfono */}
@@ -277,12 +418,12 @@ export function SupervisorConductorFormScreen() {
                             {errors.telefono ? <Text className="text-red-600 text-xs mt-1">{errors.telefono}</Text> : null}
                         </View>
 
-                        {/* Licencia */}
-                        <View>
+                        {/* Tipo de Licencia */}
+                        <View className="mb-4">
                             <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Tipo de Licencia</Text>
                             <Pressable
                                 onPress={() => setShowLicenciaPicker(true)}
-                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-3 flex-row items-center justify-between"
+                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 flex-row items-center justify-between"
                             >
                                 <View className="flex-1">
                                     {tipoLicencia ? (
@@ -300,7 +441,10 @@ export function SupervisorConductorFormScreen() {
                                 </View>
                                 <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
                             </Pressable>
+                        </View>
 
+                        {/* Número de Licencia */}
+                        <View>
                             <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Número de Licencia</Text>
                             <TextInput
                                 className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
@@ -328,7 +472,7 @@ export function SupervisorConductorFormScreen() {
                             <Switch
                                 value={activo}
                                 onValueChange={setActivo}
-                                trackColor={{ false: '#D1D5DB', true: `${BRAND_COLORS.red} 50` }}
+                                trackColor={{ false: '#D1D5DB', true: '#FCA5A5' }}
                                 thumbColor={activo ? BRAND_COLORS.red : '#9CA3AF'}
                                 disabled={loading}
                             />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
@@ -11,7 +11,6 @@ import { FeedbackModal, type FeedbackType } from '../../../../components/ui/Feed
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal'
 import { VehicleCard } from '../../../../components/ui/VehicleCard'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
-import { usePolling } from '../../../../hooks/useRealtimeSync'
 import { VehicleService, type Vehicle, type VehicleEstado } from '../../../../services/api/VehicleService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../../shared/types'
@@ -34,6 +33,7 @@ export function SupervisorVehiclesListScreen() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos')
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
 
     const [feedbackModal, setFeedbackModal] = useState<{
         visible: boolean
@@ -48,15 +48,27 @@ export function SupervisorVehiclesListScreen() {
     })
 
     const fetchVehicles = async () => {
+        setLoading(true)
         try {
             const data = await VehicleService.list()
             setVehicles(data)
-        } catch (error) {
+        } catch (error: any) {
+            // Silenciar error 403 mientras el backend se configura
+            if (error?.message?.includes('403') || error?.message?.includes('permisos')) {
+                // No mostrar error de permisos en consola
+                return
+            }
             console.error('Error fetching vehicles:', error)
+        } finally {
+            setLoading(false)
         }
     }
 
-    usePolling(fetchVehicles, 10000, true)
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchVehicles()
+        }, [])
+    )
 
     const filteredVehicles = vehicles.filter((vehicle) => {
         const matchesSearch =
@@ -147,7 +159,7 @@ export function SupervisorVehiclesListScreen() {
                     />
                 )}
                 emptyState={{
-                    icon: 'car',
+                    icon: 'car-sport',
                     title: 'No hay vehículos',
                     message:
                         searchQuery || filterStatus !== 'todos'

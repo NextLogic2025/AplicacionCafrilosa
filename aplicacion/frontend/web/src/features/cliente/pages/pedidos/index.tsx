@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react'
-import { Plus, Eye, X, ClipboardList } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
-import { useCliente } from '../../hooks/useCliente'
-import { EstadoPedido, Pedido } from '../../types'
+import { useNavigate } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+
 import { SkeletonTable } from 'components/ui/LoadingSpinner'
 import { Alert } from 'components/ui/Alert'
-import { COLORES_MARCA } from '../../types'
-import { SectionHeader } from 'components/ui/SectionHeader'
 import { Pagination } from 'components/ui/Pagination'
 import { PageHero } from 'components/ui/PageHero'
-import { formatEstadoPedido, getEstadoPedidoColor } from 'utils/statusHelpers'
+import { COLORES_MARCA } from '../../types'
+
+import { usePedidosPage } from './hooks/usePedidosPage'
+import { OrdersHeader } from './components/OrdersHeader'
+import { OrdersTable } from './components/OrdersTable'
+import { OrderDetailsModal } from './components/OrderDetailsModal'
 
 export default function PaginaPedidos() {
 	const navigate = useNavigate()
@@ -19,19 +20,16 @@ export default function PaginaPedidos() {
 		pedidosTotalPaginas,
 		cargando,
 		error,
-		fetchPedidos,
-		cancelarPedido,
 		limpiarError,
-	} = useCliente()
-
-	const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null)
-	const [paginaActual, setPaginaActual] = useState(1)
-
-	useEffect(() => {
-		fetchPedidos(paginaActual)
-	}, [fetchPedidos, paginaActual])
-
-	const cambiarPagina = (pagina: number) => setPaginaActual(pagina)
+		successMessage,
+		setSuccessMessage,
+		pedidoSeleccionado,
+		setPedidoSeleccionado,
+		paginaActual,
+		cambiarPagina,
+		cancelarPedido,
+		obtenerPedidoPorId
+	} = usePedidosPage()
 
 	return (
 		<>
@@ -48,178 +46,57 @@ export default function PaginaPedidos() {
 			<div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
 				{error && <Alert type="error" title="Error" message={error} onClose={limpiarError} />}
 
-			<SectionHeader
-				title="Mis Pedidos"
-				subtitle="Gestiona y consulta tus pedidos"
-				rightSlot={
-					<div className="flex flex-wrap gap-2">
+				<OrdersHeader />
+
+				{cargando && !pedidos.length ? (
+					<SkeletonTable rows={5} />
+				) : pedidos.length === 0 ? (
+					<div className="py-12 text-center">
+						<p className="mb-4 text-gray-600">No tienes pedidos aún</p>
 						<button
 							onClick={() => navigate('/cliente/productos')}
-							className="inline-flex items-center gap-2 rounded-lg px-4 py-2 font-semibold text-white transition-colors"
+							className="inline-flex items-center gap-2 rounded-lg px-6 py-2 font-semibold text-white"
 							style={{ backgroundColor: COLORES_MARCA.red }}
 						>
 							<Plus className="h-5 w-5" />
-							Nuevo Pedido
-						</button>
-						<button
-							onClick={() => navigate('/cliente/carrito')}
-							className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 px-4 py-2 font-semibold text-neutral-800 transition-colors hover:bg-neutral-50"
-						>
-							Ver carrito
+							Crear tu primer pedido
 						</button>
 					</div>
-				}
-			/>
+				) : (
+					<>
+						{successMessage && (
+							<div className="mb-4">
+								<Alert type="success" title="Pedido creado" message={successMessage} onClose={() => setSuccessMessage(null)} />
+							</div>
+						)}
 
-			{cargando && !pedidos.length ? (
-				<SkeletonTable rows={5} />
-			) : pedidos.length === 0 ? (
-				<div className="py-12 text-center">
-					<p className="mb-4 text-gray-600">No tienes pedidos aún</p>
-					<button
-						onClick={() => navigate('/cliente/productos')}
-						className="inline-flex items-center gap-2 rounded-lg px-6 py-2 font-semibold text-white"
-						style={{ backgroundColor: COLORES_MARCA.red }}
-					>
-						<Plus className="h-5 w-5" />
-						Crear tu primer pedido
-					</button>
-				</div>
-			) : (
-				<>
-					<div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-						<table className="w-full">
-							<thead>
-								<tr className="border-b border-gray-200 bg-gray-50">
-									<th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Número</th>
-									<th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fecha</th>
-									<th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Total</th>
-									<th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-									<th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Acciones</th>
-								</tr>
-							</thead>
-							<tbody>
-								{pedidos.map(pedido => (
-									<tr key={pedido.id} className="border-b border-gray-100 hover:bg-gray-50">
-										<td className="px-4 py-3 text-sm font-medium text-gray-900">{pedido.orderNumber}</td>
-										<td className="px-4 py-3 text-sm text-gray-600">{new Date(pedido.createdAt).toLocaleDateString('es-ES')}</td>
-										<td className="px-4 py-3 text-sm font-semibold text-gray-900">${pedido.totalAmount.toFixed(2)}</td>
-										<td className="px-4 py-3">
-											<span
-												className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white"
-												style={{ backgroundColor: getEstadoPedidoColor(pedido.status) }}
-											>
-												{formatEstadoPedido(pedido.status)}
-											</span>
-										</td>
-										<td className="px-4 py-3 text-right">
-											<button
-												onClick={() => setPedidoSeleccionado(pedido)}
-												className="text-blue-600 transition-colors hover:text-blue-700"
-												title="Ver detalles"
-											>
-												<Eye className="h-5 w-5" />
-											</button>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
+						<OrdersTable
+							pedidos={pedidos}
+							onViewDetail={setPedidoSeleccionado}
+							onCancelOrder={cancelarPedido}
+						/>
 
-					<Pagination
-						currentPage={paginaActual}
-						totalPages={pedidosTotalPaginas}
-						onPageChange={cambiarPagina}
-						color={COLORES_MARCA.red}
+						<Pagination
+							currentPage={paginaActual}
+							totalPages={pedidosTotalPaginas}
+							onPageChange={cambiarPagina}
+							color={COLORES_MARCA.red}
+						/>
+					</>
+				)}
+
+				{pedidoSeleccionado && (
+					<OrderDetailsModal
+						pedido={pedidoSeleccionado}
+						onClose={() => setPedidoSeleccionado(null)}
+						onCancel={() => {
+							cancelarPedido(pedidoSeleccionado.id)
+							setPedidoSeleccionado(null)
+						}}
+						fetchDetallePedido={obtenerPedidoPorId}
 					/>
-				</>
-			)}
-
-			{pedidoSeleccionado && (
-				<ModalDetallePedido
-					pedido={pedidoSeleccionado}
-					onClose={() => setPedidoSeleccionado(null)}
-					onCancel={() => {
-						cancelarPedido(pedidoSeleccionado.id)
-						setPedidoSeleccionado(null)
-					}}
-				/>
-			)}
+				)}
 			</div>
 		</>
-	)
-}
-
-function ModalDetallePedido({ pedido, onClose, onCancel }: { pedido: Pedido; onClose: () => void; onCancel: () => void }) {
-	const puedeCancelar = pedido.status === EstadoPedido.PENDING
-
-	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-			<div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white">
-				<div className="flex items-center justify-between border-b border-gray-200 p-6">
-					<h2 className="text-xl font-bold text-gray-900">Detalles del Pedido</h2>
-					<button onClick={onClose} className="text-gray-500 transition-colors hover:text-gray-700">
-						<X className="h-6 w-6" />
-					</button>
-				</div>
-
-				<div className="space-y-6 p-6">
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<p className="text-xs uppercase text-gray-600">Número de Pedido</p>
-							<p className="text-lg font-semibold text-gray-900">{pedido.orderNumber}</p>
-						</div>
-						<div>
-							<p className="text-xs uppercase text-gray-600">Fecha</p>
-							<p className="text-lg font-semibold text-gray-900">{new Date(pedido.createdAt).toLocaleDateString('es-ES')}</p>
-						</div>
-					</div>
-
-					<div>
-						<h3 className="mb-4 font-semibold text-gray-900">Productos</h3>
-						<div className="space-y-2">
-							{pedido.items.map(item => (
-								<div key={item.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-									<div>
-										<p className="font-medium text-gray-900">{item.productName}</p>
-										<p className="text-sm text-gray-600">
-											{item.quantity} {item.unit} x ${item.unitPrice.toFixed(2)}
-										</p>
-									</div>
-									<p className="font-semibold text-gray-900">${item.subtotal.toFixed(2)}</p>
-								</div>
-							))}
-						</div>
-					</div>
-
-					<div className="border-t border-gray-200 pt-4">
-						<div className="flex items-center justify-between">
-							<p className="text-lg font-semibold text-gray-900">Total</p>
-							<p className="text-2xl font-bold" style={{ color: COLORES_MARCA.red }}>
-								${pedido.totalAmount.toFixed(2)}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<div className="flex gap-3 border-t border-gray-200 p-6">
-					<button
-						onClick={onClose}
-						className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-semibold text-gray-900 transition-colors hover:bg-gray-50"
-					>
-						Cerrar
-					</button>
-					{puedeCancelar && (
-						<button
-							onClick={onCancel}
-							className="flex-1 rounded-lg bg-brand-red px-4 py-2 font-semibold text-white transition-colors hover:bg-brand-red700"
-						>
-							Cancelar Pedido
-						</button>
-					)}
-				</div>
-			</div>
-		</div>
 	)
 }

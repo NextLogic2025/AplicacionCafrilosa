@@ -207,7 +207,7 @@ export function ClientCartScreen() {
 
       <View
         className="absolute left-0 right-0 bg-white p-5 border-t border-neutral-200 shadow-lg rounded-t-3xl"
-        style={{ bottom: insets.bottom + 20, paddingBottom: 20 + insets.bottom }}
+        style={{ bottom: insets.bottom + 80, paddingBottom: 20 + insets.bottom }}
       >
         <TouchableOpacity
           className="flex-row justify-between items-center py-2 mb-2"

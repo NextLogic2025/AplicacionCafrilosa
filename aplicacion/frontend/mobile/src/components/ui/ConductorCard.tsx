@@ -129,10 +129,10 @@ export function ConductorCard({
                         {onEdit && (
                             <Pressable
                                 onPress={onEdit}
-                                className="flex-row items-center px-3 py-2 mr-2 bg-blue-50 rounded-lg active:bg-blue-100"
+                                className="flex-row items-center px-3 py-2 mr-2 bg-neutral-100 rounded-lg active:bg-neutral-200"
                             >
-                                <Ionicons name="create-outline" size={18} color="#3B82F6" />
-                                <Text className="text-sm font-semibold text-blue-600 ml-1">
+                                <Ionicons name="create-outline" size={18} color="#374151" />
+                                <Text className="text-sm font-semibold text-neutral-700 ml-1">
                                     Editar
                                 </Text>
                             </Pressable>

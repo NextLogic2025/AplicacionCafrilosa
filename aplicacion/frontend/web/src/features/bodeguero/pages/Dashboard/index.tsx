@@ -1,4 +1,4 @@
-import { Package, Clock, Boxes, ListChecks, RefreshCw } from 'lucide-react'
+import { Package, Clock, Boxes, ListChecks, RefreshCw, Archive } from 'lucide-react'
 import { SectionHeader } from 'components/ui/SectionHeader'
 import { MetricCard, SectionCard, QuickActionButton, EmptyState } from 'components/ui/Cards'
 import { PageHero } from 'components/ui/PageHero'
@@ -89,6 +89,11 @@ export default function DashboardPage() {
               label="Nueva Recepción"
               icon={<Boxes className="h-4 w-4" />}
               onClick={() => window.location.href = '/bodeguero/recepciones'}
+            />
+            <QuickActionButton
+              label="Ver Reservas"
+              icon={<Archive className="h-4 w-4" />}
+              onClick={() => window.location.href = '/bodeguero/reservas'}
             />
           </div>
         </SectionCard>

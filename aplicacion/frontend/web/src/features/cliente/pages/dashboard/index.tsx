@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { EstadoFactura, EstadoPedido } from '../../types'
 import { useCliente } from '../../hooks/useCliente'
+import { useSocket } from '../../../../hooks/useSocket'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
 import { Alert } from 'components/ui/Alert'
 import { MetricCard, SectionCard, QuickActionButton, EmptyState } from 'components/ui/Cards'
@@ -27,7 +28,6 @@ export default function PaginaPanelCliente() {
 		pedidos,
 		facturas,
 		entregas,
-		notificaciones,
 		conversaciones,
 		error,
 		cargando,
@@ -35,19 +35,20 @@ export default function PaginaPanelCliente() {
 		fetchPedidos,
 		fetchFacturas,
 		fetchEntregas,
-		fetchNotificaciones,
 		fetchConversaciones,
 		limpiarError,
 	} = useCliente()
+
+	// Get real-time notifications from WebSocket
+	const { notifications } = useSocket()
 
 	useEffect(() => {
 		fetchPerfilCliente()
 		fetchPedidos(1)
 		fetchFacturas()
 		fetchEntregas()
-		fetchNotificaciones()
 		fetchConversaciones()
-	}, [fetchConversaciones, fetchEntregas, fetchFacturas, fetchNotificaciones, fetchPedidos, fetchPerfilCliente])
+	}, [fetchConversaciones, fetchEntregas, fetchFacturas, fetchPedidos, fetchPerfilCliente])
 
 	const creditoDisponible = useMemo(
 		() => Math.max((perfil?.creditLimit || 0) - (perfil?.currentDebt || 0), 0),
@@ -59,7 +60,10 @@ export default function PaginaPanelCliente() {
 	const facturasPendientes = facturas.filter(f => f.status === EstadoFactura.PENDING || f.status === EstadoFactura.OVERDUE)
 	const entregasEnRuta = entregas.filter(e => e.currentStatus === 'in_transit')
 	const conversacionesAbiertas = conversaciones.length
-	const notificacionesNoLeidas = notificaciones.filter(n => !n.read).length
+
+	// Filter notifications for client (PROMO and PROMO_PERSONAL types)
+	const clientNotifications = notifications.filter(n => n.type === 'PROMO' || n.type === 'PROMO_PERSONAL')
+	const notificacionesNoLeidas = clientNotifications.length
 
 	if (cargando && !perfil) {
 		return <LoadingSpinner text="Cargando tu panel..." />

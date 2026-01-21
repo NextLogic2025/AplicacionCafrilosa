@@ -1,0 +1,125 @@
+{
+    "Ecuador": {
+        "Costa": [
+            {
+                "provincia": "Esmeraldas",
+                "lat": 0.9592,
+                "lng": -79.6530
+            },
+            {
+                "provincia": "Santo Domingo de los Tsáchilas",
+                "lat": -0.2530,
+                "lng": -79.1754
+            },
+            {
+                "provincia": "Manabí",
+                "lat": -0.9677,
+                "lng": -80.7089
+            },
+            {
+                "provincia": "Los Ríos",
+                "lat": -1.8022,
+                "lng": -79.5344
+            },
+            {
+                "provincia": "Guayas",
+                "lat": -2.1894,
+                "lng": -79.8891
+            },
+            {
+                "provincia": "Santa Elena",
+                "lat": -2.2260,
+                "lng": -80.8580
+            },
+            {
+                "provincia": "El Oro",
+                "lat": -3.2581,
+                "lng": -79.9553
+            }
+        ],
+        "Sierra": [
+            {
+                "provincia": "Carchi",
+                "lat": 0.8140,
+                "lng": -77.6910
+            },
+            {
+                "provincia": "Imbabura",
+                "lat": 0.3517,
+                "lng": -78.1223
+            },
+            {
+                "provincia": "Pichincha",
+                "lat": -0.1807,
+                "lng": -78.4678
+            },
+            {
+                "provincia": "Cotopaxi",
+                "lat": -0.9333,
+                "lng": -78.6167
+            },
+            {
+                "provincia": "Tungurahua",
+                "lat": -1.2491,
+                "lng": -78.6168
+            },
+            {
+                "provincia": "Bolívar",
+                "lat": -1.7540,
+                "lng": -78.6330
+            },
+            {
+                "provincia": "Chimborazo",
+                "lat": -1.6708,
+                "lng": -78.6470
+            },
+            {
+                "provincia": "Cañar",
+                "lat": -2.5600,
+                "lng": -78.9400
+            },
+            {
+                "provincia": "Azuay",
+                "lat": -2.9006,
+                "lng": -79.0045
+            },
+            {
+                "provincia": "Loja",
+                "lat": -3.9931,
+                "lng": -79.2042
+            }
+        ],
+        "Amazonía": [
+            {
+                "provincia": "Sucumbíos",
+                "lat": 0.0920,
+                "lng": -76.8980
+            },
+            {
+                "provincia": "Napo",
+                "lat": -0.9896,
+                "lng": -77.8129
+            },
+            {
+                "provincia": "Orellana",
+                "lat": -0.4667,
+                "lng": -76.9833
+            },
+            {
+                "provincia": "Pastaza",
+                "lat": -1.4920,
+                "lng": -78.0020
+            },
+            {
+                "provincia": "Morona Santiago",
+                "lat": -2.3167,
+                "lng": -78.1167
+            },
+            {
+                "provincia": "Zamora Chinchipe",
+                "lat": -4.0692,
+                "lng": -78.9569
+            }
+        ]
+    }
+}

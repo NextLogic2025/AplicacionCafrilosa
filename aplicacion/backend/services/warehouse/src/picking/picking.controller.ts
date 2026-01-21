@@ -13,6 +13,13 @@ import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 export class PickingController {
     constructor(private readonly service: PickingService) { }
 
+    @Get('products/:productId/stocks')
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    @Roles('admin', 'supervisor', 'bodeguero')
+    getStocks(@Param('productId') productId: string) {
+        return this.service.findAlternativeStocks(productId);
+    }
+
     @Get()
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
@@ -128,8 +135,9 @@ export class PickingController {
     pickearItem(
         @Param('id') pickingId: string,
         @Param('itemId') itemId: string,
-        @Body() body: { cantidadPickeada: number; loteConfirmado?: string },
+        @Body() body: { cantidadPickeada: number; loteConfirmado?: string, motivo_desviacion?: string, nota_bodeguero?: string, ubicacion_confirmada?: string },
     ) {
-        return this.service.registrarPickeo(pickingId, itemId, body.cantidadPickeada, body.loteConfirmado);
+        console.log('PICKING CONTROLLER - pickearItem body:', body);
+        return this.service.registrarPickeo(pickingId, itemId, body.cantidadPickeada, body.loteConfirmado, body.motivo_desviacion, body.nota_bodeguero, body.ubicacion_confirmada);
     }
 }

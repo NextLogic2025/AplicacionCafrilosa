@@ -52,8 +52,9 @@ export class CreateOrderDto {
   @IsUUID()
   cliente_id: string;
 
+  @IsOptional()
   @IsUUID()
-  vendedor_id: string;
+  vendedor_id?: string;
 
   @IsOptional()
   @IsUUID()

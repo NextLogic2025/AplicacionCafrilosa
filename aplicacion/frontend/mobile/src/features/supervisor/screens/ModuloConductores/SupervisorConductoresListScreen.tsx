@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
@@ -11,7 +11,6 @@ import { FeedbackModal, type FeedbackType } from '../../../../components/ui/Feed
 import { ConfirmationModal } from '../../../../components/ui/ConfirmationModal'
 import { ConductorCard } from '../../../../components/ui/ConductorCard'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
-import { usePolling } from '../../../../hooks/useRealtimeSync'
 import { ConductorService, type Conductor } from '../../../../services/api/ConductorService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../../shared/types'
@@ -32,6 +31,7 @@ export function SupervisorConductoresListScreen() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('todos')
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
 
     const [feedbackModal, setFeedbackModal] = useState<{
         visible: boolean
@@ -46,15 +46,26 @@ export function SupervisorConductoresListScreen() {
     })
 
     const fetchConductores = async () => {
+        setLoading(true)
         try {
             const data = await ConductorService.list()
             setConductores(data)
-        } catch (error) {
+        } catch (error: any) {
+            // Silenciar error 403 mientras el backend se configura
+            if (error?.message?.includes('403') || error?.message?.includes('permisos')) {
+                return
+            }
             console.error('Error fetching conductores:', error)
+        } finally {
+            setLoading(false)
         }
     }
 
-    usePolling(fetchConductores, 10000, true)
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchConductores()
+        }, [])
+    )
 
     const filteredConductores = conductores.filter((conductor) => {
         const matchesSearch =

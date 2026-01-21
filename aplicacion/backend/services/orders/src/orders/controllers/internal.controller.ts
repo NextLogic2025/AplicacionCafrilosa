@@ -1,4 +1,4 @@
-import { Controller, Patch, Param, Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Patch, Param, Body, UseGuards, Get } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
 import { ServiceAuthGuard } from '../../auth/guards/service-auth.guard';
 
@@ -16,5 +16,11 @@ export class InternalController {
   @UseGuards(ServiceAuthGuard)
   async getOrderInternal(@Param('id') id: string) {
     return this.ordersService.findOne(id);
+  }
+
+  @Post(':id/apply-picking')
+  @UseGuards(ServiceAuthGuard)
+  async applyPickingInternal(@Param('id') id: string, @Body() body: any) {
+    return this.ordersService.applyPickingResult(id, body || {});
   }
 }

@@ -12,6 +12,7 @@ import { GenericModal } from '../../../../components/ui/GenericModal'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
+import { validatePassword } from '../../../../utils/passwordValidation'
 
 export function SupervisorTeamDetailScreen() {
     const navigation = useNavigation()
@@ -140,8 +141,20 @@ export function SupervisorTeamDetailScreen() {
             return showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo válido (ej: usuario@dominio.com)')
         }
 
-        if (!isEditing && !password) {
-            return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
+        if (!isEditing) {
+            if (!password) {
+                return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
+            }
+
+            // Validar seguridad de contraseña
+            const passwordValidation = validatePassword(password)
+            if (!passwordValidation.isValid) {
+                return showFeedback(
+                    'warning',
+                    'Contraseña Insegura',
+                    `La contraseña debe cumplir los siguientes requisitos:\n\n${passwordValidation.errors.join('\n')}`
+                )
+            }
         }
 
         setLoading(true)

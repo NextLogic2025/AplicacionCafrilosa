@@ -28,5 +28,6 @@ export const env = {
     ordersUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_ORDERS_API_URL') || 'http://10.0.2.2:3004'),
     warehouseUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_WAREHOUSE_API_URL') || 'http://10.0.2.2:3005'),
     logisticsUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_LOGISTICS_API_URL') || 'http://10.0.2.2:3006'),
+    financeUrl: normalizeBaseUrl(readEnv('EXPO_PUBLIC_FINANCE_API_URL') || 'http://10.0.2.2:3007'),
   },
 } as const

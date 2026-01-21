@@ -31,7 +31,7 @@ services:
       - app-network
 
   # =========================================
-  # 2. MICROSERVICIOS DE NEGOCIO
+  # 2. MICROSERVICIOS
   # =========================================
 
   # --- AUTH SERVICE ---
@@ -47,11 +47,18 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
       - JWT_REFRESH_SECRET=MiRefreshSecretSuperSeguro2025ParaDesarrolloLocal
       - JWT_EXPIRES_IN=1h
-      # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
     networks:
@@ -70,9 +77,16 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/usuarios_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
-      # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
     networks:
@@ -91,11 +105,16 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/catalog_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
+      - SERVICE_TOKEN=MiTokenS2S123
       # Conexiones Salientes
       - USUARIOS_SERVICE_URL=http://usuarios-service:3000
-      # Seguridad interna S2S
-      - SERVICE_TOKEN=MiTokenS2S123
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
     networks:
@@ -114,12 +133,16 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/orders_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
-      # Conexiones Salientes (A quién llama Orders)
-      - CATALOG_SERVICE_URL=http://catalog-service:3000
-      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
-      # Seguridad interna S2S
       - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
       - catalog-service
@@ -140,17 +163,52 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/logistics_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
+      - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
       - CATALOG_SERVICE_URL=http://catalog-service:3000
       - ORDERS_SERVICE_URL=http://orders-service:3000
-      - SERVICE_TOKEN=MiTokenS2S123
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
       - catalog-service
       - orders-service
     networks:
       - app-network
-      
+
+  # --- FINANCE SERVICE ---
+  finance-service:
+    build:
+      context: ./backend/services/finance
+      dockerfile: Dockerfile
+    container_name: finance-service
+    restart: on-failure
+    ports:
+      - "3007:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://admin:root@database:5432/finance_db
+      # Seguridad JWT
+      - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
+      - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
+      - CATALOG_SERVICE_URL=http://catalog-service:3000
+      - ORDERS_SERVICE_URL=http://orders-service:3000
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
+    depends_on:
+      - database
+      - orders-service
+    networks:
+      - app-network
+
   # --- WAREHOUSE SERVICE ---
   warehouse-service:
     build:
@@ -164,19 +222,22 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - DATABASE_URL=postgres://admin:root@database:5432/warehouse_db
+      # Seguridad JWT
       - JWT_SECRET=MiSecretoSuperSeguro2025ParaDesarrolloLocal
-      # Conexiones Salientes (A quién llama Warehouse)
+      - SERVICE_TOKEN=MiTokenS2S123
+      # Conexiones Salientes
+      - USUARIOS_SERVICE_URL=http://usuarios-service:3000
       - CATALOG_SERVICE_URL=http://catalog-service:3000
       - ORDERS_SERVICE_URL=http://orders-service:3000
-      # Seguridad interna S2S
-      - SERVICE_TOKEN=MiTokenS2S123
+      - FINANCE_SERVICE_URL=http://finance-service:3000
+      - WAREHOUSE_SERVICE_URL=http://warehouse-service:3000
+      - AUTH_SERVICE_URL=http://auth-service:3000
     depends_on:
       - database
     networks:
       - app-network
-    # Healthcheck para asegurar que responda
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

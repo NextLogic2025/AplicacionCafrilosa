@@ -6,6 +6,7 @@ import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { UserService, UserProfile } from '../../../../services/api/UserService'
+import { validatePassword } from '../../../../utils/passwordValidation'
 import { ClientService, Client } from '../../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { ZoneService, Zone } from '../../../../services/api/ZoneService'
@@ -163,6 +164,17 @@ export function SupervisorClientFormScreen() {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
             if (!emailRegex.test(userData.email)) {
                 showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).')
+                return false
+            }
+
+            // Password Security Validation
+            const passwordValidation = validatePassword(userData.password)
+            if (!passwordValidation.isValid) {
+                showFeedback(
+                    'warning',
+                    'Contraseña Insegura',
+                    `La contraseña debe cumplir los siguientes requisitos:\n\n${passwordValidation.errors.join('\n')}`
+                )
                 return false
             }
         }

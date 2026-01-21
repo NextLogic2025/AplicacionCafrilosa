@@ -31,7 +31,7 @@ export const endpoints = {
 
     precios: '/api/precios',
     preciosProducto: (productId: string) => `/api/precios/producto/${productId}`,
-    preciosClienteProductos: '/api/precios/cliente/productos',
+    preciosClienteProductos: '/api/precios/mis-precios/productos',
     preciosListas: '/api/precios/listas',
     preciosListaById: (id: number | string) => `/api/precios/listas/${id}`,
     preciosListaProductos: (id: number | string) => `/api/precios/lista/${id}/productos`,

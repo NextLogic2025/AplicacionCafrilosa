@@ -157,14 +157,14 @@ paths:
         allowOrigin: '*'
 
   # ==========================================
-  # SERVICIO: VENTAS (Reportes/Histórico)
+  # SERVICIO: FINANCE (Reportes/Histórico)
   # ==========================================
   /ventas:
     get:
       summary: Obtener ventas históricas
       operationId: getVentas
       x-google-backend:
-        address: ${backend_urls["ventas"]}/ventas
+        address: ${backend_urls["finance"]}/ventas
       responses:
         '200':
           description: OK
