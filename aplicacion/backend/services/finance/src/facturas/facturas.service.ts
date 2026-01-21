@@ -25,4 +25,8 @@ export class FacturasService {
     const factura = this.facturaRepo.create(data);
     return this.facturaRepo.save(factura);
   }
+
+  async findByPedidoId(pedidoId: string) {
+    return this.facturaRepo.findOne({ where: { pedidoId } });
+  }
 }

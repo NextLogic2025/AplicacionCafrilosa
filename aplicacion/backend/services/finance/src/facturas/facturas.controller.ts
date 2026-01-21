@@ -55,4 +55,13 @@ export class FacturasController {
   async createInternal(@Body() createDto: any) {
     return this.facturasService.create(createDto);
   }
+
+  // Internal: find factura by pedidoId
+  @Get('internal/pedido/:pedidoId')
+  @UseGuards(ServiceAuthGuard)
+  async findByPedidoInternal(@Param('pedidoId') pedidoId: string) {
+    const f = await this.facturasService.findByPedidoId(pedidoId);
+    if (!f) return null;
+    return f;
+  }
 }

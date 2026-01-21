@@ -680,11 +680,24 @@ export class OrdersService {
             })),
           };
 
-          const resp = await this.serviceHttp.post<any>('finance-service', '/api/facturas/internal', facturaPayload);
+          let resp: any = null;
+          try {
+            resp = await this.serviceHttp.post<any>('finance-service', '/api/facturas/internal', facturaPayload);
+          } catch (postErr) {
+            this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
+            // try to lookup existing factura by pedidoId as fallback
+            try {
+              resp = await this.serviceHttp.get<any>('finance-service', `/api/facturas/internal/pedido/${pedido.id}`);
+            } catch (getErr) {
+              this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
+              resp = null;
+            }
+          }
+
           if (resp && resp.id) {
             pedido.factura_id = resp.id;
-            pedido.factura_numero = resp.numero || resp.facturaNumero || null;
-            pedido.url_pdf_factura = resp.url_pdf_factura || resp.url || null;
+            pedido.factura_numero = resp.numeroCompleto || resp.numero || resp.facturaNumero || null;
+            pedido.url_pdf_factura = resp.urlPdf || resp.url_pdf || resp.url || null;
             pedido.estado_actual = 'FACTURADO';
             await queryRunner.manager.save(pedido);
           }
