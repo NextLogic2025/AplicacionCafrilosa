@@ -1,6 +1,6 @@
 import React from 'react'
 
-type Tone = 'red' | 'gold' | 'green' | 'blue'
+type Tone = 'red' | 'gold' | 'green' | 'blue' | 'neutral'
 
 export function MetricCard({
   title,
@@ -22,6 +22,7 @@ export function MetricCard({
     gold: { bg: 'bg-amber-50', text: 'text-amber-700' },
     green: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
     blue: { bg: 'bg-sky-50', text: 'text-sky-700' },
+    neutral: { bg: 'bg-gray-50', text: 'text-gray-700' },
   }
   const palette = palettes[tone]
 

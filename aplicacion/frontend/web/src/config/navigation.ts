@@ -51,6 +51,7 @@ export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
 export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/supervisor', icon: Home, end: true },
   { id: 'clientes', label: 'Clientes', to: '/supervisor/clientes', icon: Users },
+  { id: 'conductores', label: 'Conductores', to: '/supervisor/conductores', icon: Truck },
   { id: 'equipo', label: 'Equipo', to: '/supervisor/equipo', icon: Users },
   { id: 'catalogo', label: 'Catálogo', to: '/supervisor/catalogo', icon: BookOpen },
   { id: 'zonas', label: 'Zonas', to: '/supervisor/zonas', icon: Map },

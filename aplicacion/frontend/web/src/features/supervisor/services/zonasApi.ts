@@ -15,7 +15,7 @@ export async function obtenerZonas() {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data.zonas)) return data.zonas;
   return [];
-}import { httpCatalogo } from '../../../services/api/http'
+} import { httpCatalogo } from '../../../services/api/http'
 
 export interface ZonaComercial {
   id: number
@@ -70,10 +70,10 @@ export async function getZonasConVendedores(): Promise<ZonaComercial[]> {
       ...zona,
       vendedor_asignado: asignacion
         ? {
-            id: asignacion.id || 0,
-            vendedor_usuario_id: asignacion.vendedor_usuario_id,
-            nombre_vendedor_cache: asignacion.nombre_vendedor_cache || null,
-          }
+          id: asignacion.id || 0,
+          vendedor_usuario_id: asignacion.vendedor_usuario_id,
+          nombre_vendedor_cache: asignacion.nombre_vendedor_cache || null,
+        }
         : null,
     } as ZonaComercial
   })

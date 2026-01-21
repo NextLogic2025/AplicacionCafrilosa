@@ -83,6 +83,14 @@ export async function httpWarehouse<T>(path: string, options: HttpOptions = {}):
   return httpRequest<T>(env.api.warehouse, pathWithApi, options)
 }
 
+// Función para servicio de Logistics (puerto 3006 o integrado)
+export async function httpLogistics<T>(path: string, options: HttpOptions = {}): Promise<T> {
+  // Intentar usar variable de entorno, si no existe asumir localhost:3006 para desarrollo
+  const baseUrl = (env.api as any).logistics || 'http://localhost:3006'
+  const pathWithApi = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? '' : '/'}${path}`
+  return httpRequest<T>(baseUrl, pathWithApi, options)
+}
+
 // Exportar también la versión genérica (deprecada, usar las específicas)
 /** @deprecated Usa httpAuth, httpUsuarios o httpCatalogo según el servicio */
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {

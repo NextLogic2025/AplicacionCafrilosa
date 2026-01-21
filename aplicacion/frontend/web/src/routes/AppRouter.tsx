@@ -69,6 +69,7 @@ const TransportistaPerfil = React.lazy(() => import('../features/transportista/p
 
 const SupervisorDashboard = React.lazy(() => import('../features/supervisor/pages/Dashboard'))
 const SupervisorClientes = React.lazy(() => import('../features/supervisor/pages/Clientes'))
+const SupervisorConductores = React.lazy(() => import('../features/supervisor/pages/Conductores/conductores'))
 const SupervisorEquipo = React.lazy(() => import('../features/supervisor/pages/Equipo'))
 const SupervisorCatalogo = React.lazy(() => import('../features/supervisor/pages/Catalogo'))
 const SupervisorZonas = React.lazy(() => import('../features/supervisor/pages/Zonas'))
@@ -204,6 +205,7 @@ export default function AppRouter() {
         >
           <Route index element={<SupervisorDashboard />} />
           <Route path="clientes" element={<SupervisorClientes />} />
+          <Route path="conductores" element={<SupervisorConductores />} />
           <Route path="equipo" element={<SupervisorEquipo />} />
           <Route path="catalogo" element={<SupervisorCatalogo />} />
           <Route path="zonas" element={<SupervisorZonas />} />

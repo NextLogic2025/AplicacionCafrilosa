@@ -8,6 +8,7 @@ interface ZonaMapSelectorProps {
   apiKey: string | undefined
   polygon: google.maps.LatLngLiteral[]
   onPolygonChange: (path: google.maps.LatLngLiteral[]) => void
+  center?: google.maps.LatLngLiteral
 }
 
 const containerStyle = {
@@ -20,7 +21,7 @@ const defaultCenter: google.maps.LatLngLiteral = {
   lng: -79.20422,
 }
 
-export function ZonaMapSelector({ apiKey, polygon, onPolygonChange }: ZonaMapSelectorProps) {
+export function ZonaMapSelector({ apiKey, polygon, onPolygonChange, center }: ZonaMapSelectorProps) {
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: apiKey ?? '',
     libraries: GOOGLE_MAP_LIBRARIES,
@@ -91,7 +92,7 @@ export function ZonaMapSelector({ apiKey, polygon, onPolygonChange }: ZonaMapSel
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={containerStyle}
-            center={polygon[0] ?? defaultCenter}
+            center={center ?? polygon[0] ?? defaultCenter}
             zoom={polygon.length ? 13 : 12}
             options={{
               fullscreenControl: true,
