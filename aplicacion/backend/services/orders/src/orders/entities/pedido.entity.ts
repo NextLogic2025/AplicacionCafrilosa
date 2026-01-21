@@ -33,7 +33,6 @@ export class Pedido {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   total_final: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   // Facturación
   @Column({ type: 'uuid', nullable: true })
   factura_id: string | null;

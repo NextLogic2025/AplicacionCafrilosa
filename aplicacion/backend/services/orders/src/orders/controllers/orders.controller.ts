@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger, Query, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -111,6 +111,9 @@ export class OrdersController {
         const usuarioId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
         const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
+        if (!forma_pago_solicitada) {
+            throw new BadRequestException('Envíe la forma de pago en `forma_pago_solicitada` o `forma_pago`');
+        }
         const sucursal_id = body.sucursal_id;
         // Para carrito propio: usuario_id=<JWT>, vendedor_id=null
         return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, forma_pago_solicitada, null);
@@ -131,6 +134,9 @@ export class OrdersController {
         const vendedorId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
         const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
+        if (!forma_pago_solicitada) {
+            throw new BadRequestException('Envíe la forma de pago en `forma_pago_solicitada` o `forma_pago`');
+        }
         const sucursal_id = body.sucursal_id;
         // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
         return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, forma_pago_solicitada, vendedorId);
