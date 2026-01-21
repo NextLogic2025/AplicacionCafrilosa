@@ -68,9 +68,9 @@ export class CreateOrderDto {
   @IsString()
   observaciones_entrega?: string;
 
-  @IsString({ message: 'condicion_pago es requerido' })
-  @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], { message: 'condicion_pago debe ser: CONTADO, CREDITO, TRANSFERENCIA o CHEQUE' })
-  condicion_pago: string;
+  @IsString({ message: 'forma_pago_solicitada es requerido' })
+  @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], { message: 'forma_pago_solicitada debe ser: CONTADO, CREDITO, TRANSFERENCIA o CHEQUE' })
+  forma_pago_solicitada: string;
 
   @IsOptional()
   @IsDateString({}, { message: 'Fecha de entrega debe ser formato YYYY-MM-DD' })

@@ -25,21 +25,21 @@ export class ConductoresController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   create(@Body() dto: any) {
     return this.svc.create(dto);
   }
 
   @Put(':id')
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   update(@Param('id') id: string, @Body() dto: any) {
     return this.svc.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
   }

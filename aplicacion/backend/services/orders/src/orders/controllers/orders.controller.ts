@@ -110,10 +110,10 @@ export class OrdersController {
     ) {
         const usuarioId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
-        const condicion_pago = body.condicion_pago;
+        const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
         const sucursal_id = body.sucursal_id;
         // Para carrito propio: usuario_id=<JWT>, vendedor_id=null
-        return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, condicion_pago, null);
+        return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, forma_pago_solicitada, null);
     }
 
     /**
@@ -130,10 +130,10 @@ export class OrdersController {
     ) {
         const vendedorId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
-        const condicion_pago = body.condicion_pago;
+        const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
         const sucursal_id = body.sucursal_id;
         // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
-        return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, condicion_pago, vendedorId);
+        return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, forma_pago_solicitada, vendedorId);
     }
 
     @Get('user/history')

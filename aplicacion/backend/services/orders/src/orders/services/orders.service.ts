@@ -214,7 +214,7 @@ export class OrdersService {
         vendedor_id: createOrderDto.vendedor_id,
         sucursal_id: createOrderDto.sucursal_id || null,
         observaciones_entrega: createOrderDto.observaciones_entrega || null,
-        condicion_pago: createOrderDto.condicion_pago || 'CONTADO',
+        forma_pago_solicitada: createOrderDto.forma_pago_solicitada || 'CONTADO',
         fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
         origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
         subtotal,
@@ -332,7 +332,7 @@ export class OrdersService {
    * - Construye un CreateOrderDto mínimo
    * - Llama a `create()` para persistir
    */
-  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, condicion_pago?: string, vendedorIdParam?: string | null): Promise<Pedido> {
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, forma_pago_solicitada?: string, vendedorIdParam?: string | null): Promise<Pedido> {
     // 1. Obtener carrito EXACTO del actor
     // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
     // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
@@ -404,7 +404,7 @@ export class OrdersService {
       cliente_id: clienteId,
       vendedor_id: pedidoVendedorId,
       sucursal_id: sucursal_id || null,
-      condicion_pago: condicion_pago,
+      forma_pago_solicitada: forma_pago_solicitada,
       items,
       origen_pedido: 'FROM_CART',
       ubicacion: null,
