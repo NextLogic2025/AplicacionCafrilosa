@@ -210,7 +210,7 @@ export class AuthService {
     usuario.lastLogin = new Date();
     await this.usuarioRepo.save(usuario);
 
-    return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.rol?.nombre, rolId: usuario.rol?.id } };
+    return { access_token, refresh_token, usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, role: usuario.rol?.nombre } };
   }
 
   /**

@@ -134,6 +134,10 @@ export async function getPerfilCliente(): Promise<PerfilCliente | null> {
       contactName: (cliente.razon_social ?? cliente.nombre_comercial ?? ctx.usuario?.nombreCompleto ?? ctx.usuario?.email ?? '') as string,
       currentDebt: cliente.saldo_actual ? Number(cliente.saldo_actual) : 0,
       creditLimit: cliente.limite_credito ? Number(cliente.limite_credito) : 0,
+      direccion: cliente.direccion ?? cliente.direccion_entrega ?? undefined,
+      direccion_texto: cliente.direccion_texto ?? undefined,
+      ciudad: cliente.ciudad ?? cliente.municipio ?? undefined,
+      estado: cliente.estado ?? cliente.departamento ?? undefined,
     }
   }
 
@@ -234,7 +238,14 @@ export async function getProductos(options?: { page?: number; per_page?: number;
   const page = options?.page ?? 1
   const perPage = options?.per_page ?? 20
 
-  let url = `/api/precios/cliente/productos?page=${page}&per_page=${perPage}`
+  // Endpoint correcto: /precios/mis-precios/productos (el controller es 'precios', el método 'mis-precios/productos')
+  // Nota: httpCatalogo ya base, pero si requerimos /api/ explícito o no depende de main.ts. 
+  // La llamada anterior usaba /api/precios..., voy a asumir que se necesita /precios/mis-precios/productos
+  // Si el backend usa 'api' global prefix, podría ser /api/precios/mis-precios/productos via gateway o directo.
+  // El error 404 fue en /api/precios/cliente/productos.
+  // Probemos cambiar a /precios/mis-precios/productos asumiendo que el proxy maneja el base.
+  // O mantengamos /api si es necesario (el error mostrava /api).
+  let url = `/precios/mis-precios/productos?page=${page}&per_page=${perPage}`
 
   // Si hay categoryId, agregarlo como parámetro
   if (options?.categoryId != null) {
@@ -307,12 +318,28 @@ export async function getTickets(): Promise<Ticket[]> {
 }
 
 export async function getSucursalesCliente(): Promise<SucursalCliente[]> {
-  const ctx = await getClienteContext()
-  const clienteId = ctx?.clienteId ?? ctx?.usuarioId
-  if (!clienteId) return []
-  const data = await httpCatalogo<any[]>(`/clientes/${encodeURIComponent(clienteId)}/sucursales`).catch(() => [])
+  const perfil = await getPerfilCliente()
+  const clienteId = perfil?.id
+  console.log('[clientApi] getSucursalesCliente - Start', { perfil, clienteId })
+
+  if (!clienteId) {
+    console.warn('[clientApi] No clienteId found (via getPerfilCliente) for sucursales')
+    return []
+  }
+
+  const url = `/clientes/${encodeURIComponent(clienteId)}/sucursales`
+  console.log('[clientApi] Fetching sucursales from:', url)
+
+  const data = await httpCatalogo<any[]>(url).catch((err) => {
+    console.error('[clientApi] getSucursalesCliente error', err)
+    return []
+  })
+
+  console.log('[clientApi] Raw sucursales data:', data)
+
   if (!Array.isArray(data)) return []
-  return data
+
+  const mapped = data
     .map((sucursal): SucursalCliente | null => {
       const id = sucursal?.id ?? sucursal?.sucursal_id
       if (!id) return null
@@ -330,6 +357,9 @@ export async function getSucursalesCliente(): Promise<SucursalCliente[]> {
       }
     })
     .filter((s): s is SucursalCliente => s !== null)
+
+  console.log('[clientApi] Mapped sucursales:', mapped)
+  return mapped
 }
 
 export async function createTicket(_: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'messages'>): Promise<Ticket> {
@@ -385,10 +415,15 @@ export async function createPedidoFromCart(options?: { condicionPago?: Condicion
   }
 
   const condicionPago: CondicionPago = options?.condicionPago ?? 'CONTADO'
-  const payload: Record<string, unknown> = { condicion_pago: condicionPago }
+  const payload: Record<string, unknown> = { forma_pago_solicitada: condicionPago }
   if (options?.sucursalId) payload.sucursal_id = options.sucursalId
 
+  console.log('[clientApi] createPedidoFromCart - Payload:', payload)
+
   const backend = await httpOrders<any>('/orders/from-cart/me', { method: 'POST', body: payload }).catch((err) => {
+    console.error('[clientApi] createPedidoFromCart - Error:', err)
+    console.error('[clientApi] createPedidoFromCart - Error message:', err?.message)
+    console.error('[clientApi] createPedidoFromCart - Error response:', err?.response)
     if (err instanceof Error) throw new Error(err.message)
     throw new Error('Error al crear pedido en el servidor')
   })
@@ -397,6 +432,11 @@ export async function createPedidoFromCart(options?: { condicionPago?: Condicion
 }
 
 function mapPedidoFromBackend(raw: any): Pedido {
+  // DEBUG: Log raw backend response for order details
+  if (raw && raw.detalles && raw.detalles.length > 0) {
+    console.log('[clientApi] mapPedidoFromBackend - Raw Details Sample:', raw.detalles[0]);
+  }
+
   const detalles = Array.isArray(raw?.detalles) ? raw.detalles : []
   return {
     id: String(raw?.id ?? ''),
@@ -407,6 +447,10 @@ function mapPedidoFromBackend(raw: any): Pedido {
     items: detalles.map((detalle: any) => {
       const unitPrice = Number(detalle?.precio_final ?? detalle?.precio_unitario ?? 0)
       const quantity = Number(detalle?.cantidad ?? 0)
+
+      const cantidadSolicitada = detalle?.cantidad_solicitada ? Number(detalle.cantidad_solicitada) : null
+      const motivoAjuste = detalle?.motivo_ajuste ? String(detalle.motivo_ajuste) : null
+
       return {
         id: String(detalle?.id ?? detalle?.producto_id ?? ''),
         productName: String(detalle?.nombre_producto ?? detalle?.producto_id ?? ''),
@@ -414,6 +458,8 @@ function mapPedidoFromBackend(raw: any): Pedido {
         unit: String(detalle?.unidad_medida ?? 'UN'),
         unitPrice,
         subtotal: unitPrice * quantity,
+        cantidad_solicitada: cantidadSolicitada,
+        motivo_ajuste: motivoAjuste,
       }
     }),
   }

@@ -233,7 +233,7 @@ export default function ZonasPage() {
         title={modalMode === 'crear' ? 'Crear zona' : 'Editar zona'}
         onClose={handleCloseModal}
         headerGradient="red"
-        maxWidth="md"
+        maxWidth="lg"
       >
         <CrearZonaForm
           formData={formData}

@@ -2,8 +2,7 @@ import { TextField } from './TextField'
 import { GoogleMap, Polygon, Marker, useJsApiLoader } from '@react-google-maps/api'
 import { useMemo, useState, useEffect } from 'react'
 
-// Mantener librerías como constante estática para evitar recargas
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps'
 
 export type ClienteFormValues = {
   contacto_nombre: string
@@ -131,9 +130,9 @@ export function ClienteForm({
   const listaChips = listasPrecios.length > 0 ? listasPrecios : [{ id: 0, nombre: 'General' }]
 
   // Cargar Google Maps (hooks deben llamarse incondicionalmente)
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey,
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAP_LIBRARIES,
   })
 
@@ -420,8 +419,9 @@ export function ClienteForm({
 }
 
 // Componente para mostrar el mapa de la zona seleccionada
-const containerStyle = { width: '100%', height: '280px' }
+
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
+const containerStyle = { width: '100%', height: '400px' }
 
 function ZonaMapDisplay({
   zonaId,

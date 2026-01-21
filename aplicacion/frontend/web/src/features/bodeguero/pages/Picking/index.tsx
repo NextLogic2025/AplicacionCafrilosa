@@ -171,14 +171,28 @@ export default function PickingPage() {
                                 label: 'Acciones', key: 'id', render: (val, item) => (
                                     <div className="flex gap-2">
                                         {activeTab === 'MY_TASKS' ? (
-                                            <Button size="sm" variant="primary" onClick={() => setSelectedTaskId(val)}>Ver</Button>
+                                            <>
+                                                {item.estado === 'ASIGNADO' && (
+                                                    <Button size="sm" variant="primary" onClick={() => handleStart(val)}>Iniciar</Button>
+                                                )}
+                                                {item.estado === 'EN_PROCESO' && (
+                                                    <Button size="sm" variant="primary" onClick={() => setSelectedTaskId(val)}>Continuar</Button>
+                                                )}
+                                                {item.estado === 'COMPLETADO' && (
+                                                    <Button size="sm" variant="outline" onClick={() => setSelectedTaskId(val)}>Ver</Button>
+                                                )}
+                                                {/* Fallback for other statuses if any */}
+                                                {!['ASIGNADO', 'EN_PROCESO', 'COMPLETADO'].includes(item.estado) && (
+                                                    <Button size="sm" variant="outline" onClick={() => setSelectedTaskId(val)}>Ver</Button>
+                                                )}
+                                            </>
                                         ) : (
                                             <>
                                                 {(item.estado === 'ASIGNADO' || item.estado === 'PENDIENTE') && (
                                                     <Button size="sm" variant="primary" onClick={() => handleTomarPedido(val)}>Tomar</Button>
                                                 )}
                                                 {item.estado === 'EN_PROCESO' && (
-                                                    <Button size="sm" variant="primary" onClick={() => setSelectedTaskId(val)}>Continuar</Button>
+                                                    <span className="text-xs text-neutral-500 italic flex items-center">En curso</span>
                                                 )}
                                             </>
                                         )}

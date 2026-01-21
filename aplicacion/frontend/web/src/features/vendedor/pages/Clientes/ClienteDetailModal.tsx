@@ -9,7 +9,8 @@ import { obtenerSucursales, type Sucursal } from '../../../supervisor/services/s
 import { getSelectedRole } from '../../../../services/storage/roleStorage'
 import type { Cliente } from '../../../supervisor/services/clientesApi'
 
-const GOOGLE_MAP_LIBRARIES: Array<'drawing'> = ['drawing']
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
+
 const mapStyle = { width: '100%', height: '320px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
@@ -24,8 +25,11 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
   const [isLoadingSucursales, setIsLoadingSucursales] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || ''
-  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey, libraries: GOOGLE_MAP_LIBRARIES })
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES
+  })
 
   const modalTitle = getClienteDisplayName(cliente)
   const secondaryName = cliente ? getClienteSecondaryName(cliente, modalTitle) : null
@@ -109,6 +113,15 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
     ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
     : '0.00'
 
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente">
+        <div className="p-6 text-center text-red-600">
+          No se ha configurado la API Key de Google Maps
+        </div>
+      </Modal>
+    )
+  }
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} headerGradient="red" maxWidth="2xl">
       {!cliente && <p className="text-sm text-neutral-600">Selecciona un cliente para ver detalles.</p>}

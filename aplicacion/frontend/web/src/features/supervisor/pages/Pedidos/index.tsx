@@ -271,7 +271,7 @@ export default function PedidosPage() {
                         </button>
                         <button
                           onClick={() => handleCambiarEstado(pedido.id, 'APROBADO')}
-                          disabled={pedido.estado_actual === 'APROBADO' || pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION'}
+                          disabled={pedido.estado_actual === 'APROBADO' || pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION' || pedido.estado_actual === 'PREPARADO'}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Aprobar pedido"
                         >
@@ -280,7 +280,7 @@ export default function PedidosPage() {
                         </button>
                         <button
                           onClick={() => handleCambiarEstado(pedido.id, 'ANULADO')}
-                          disabled={pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION'}
+                          disabled={pedido.estado_actual === 'ANULADO' || pedido.estado_actual === 'EN_PREPARACION' || pedido.estado_actual === 'PREPARADO'}
                           className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Anular pedido"
                         >
@@ -406,7 +406,7 @@ export default function PedidosPage() {
                   handleCambiarEstado(pedidoDetalle.id, 'APROBADO')
                   setPedidoDetalle(null)
                 }}
-                disabled={pedidoDetalle.estado_actual === 'APROBADO' || pedidoDetalle.estado_actual === 'ANULADO'}
+                disabled={pedidoDetalle.estado_actual === 'APROBADO' || pedidoDetalle.estado_actual === 'ANULADO' || pedidoDetalle.estado_actual === 'PREPARADO'}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Check className="w-4 h-4" />
@@ -417,7 +417,7 @@ export default function PedidosPage() {
                   handleCambiarEstado(pedidoDetalle.id, 'ANULADO')
                   setPedidoDetalle(null)
                 }}
-                disabled={pedidoDetalle.estado_actual === 'ANULADO'}
+                disabled={pedidoDetalle.estado_actual === 'ANULADO' || pedidoDetalle.estado_actual === 'PREPARADO'}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <X className="w-4 h-4" />

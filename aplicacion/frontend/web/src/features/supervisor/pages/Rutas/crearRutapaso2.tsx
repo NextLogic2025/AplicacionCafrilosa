@@ -6,6 +6,7 @@ import { obtenerClientes } from '../../services/clientesApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Circle, X, ArrowLeft, Save, Plus } from 'lucide-react';
 import { GuardarRutasButton } from '../../components/GuardarRutasButton';
+import { crearRuta } from '../../services/ruteroApi';
 import { PageHero } from 'components/ui/PageHero';
 import { useState as useReactState } from 'react';
 
@@ -199,15 +200,8 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
             hora_estimada_arribo: destino.hora || null,
           };
           // POST a la API
-          await fetch('http://localhost:3003/api/rutero', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              // Si usas auth, añade el token aquí
-              // 'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-          });
+          // POST a la API
+          await crearRuta(body);
         }
         orden++;
       }

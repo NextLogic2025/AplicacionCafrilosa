@@ -25,6 +25,15 @@ export class DetallePedido {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   cantidad: number;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  cantidad_solicitada: number | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  motivo_ajuste: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  nota_al_cliente: string | null;
+
   @Column({ type: 'varchar', length: 20, nullable: true })
   unidad_medida: string | null;
 

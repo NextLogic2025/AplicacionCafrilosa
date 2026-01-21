@@ -70,7 +70,7 @@ export const pickingApi = {
         // `iniciar` is likely what the bodeguero uses to "take" the order if it's already assigned or if logic allows.
         // But the controller says `asignar` is for admin/supervisor.
         // Let's implement `asignar` generic and `iniciar` for bodeguero.
-        // The bodeguero can call `iniciar` which sets status to EN_PROCESO.
+        // The bodeguero can call `iniciar` which sets status to EN PROCESO.
         // Maybe "assignToMe" logic isn't directly supported for bodeguero role via `asignar` endpoint?
         // But let's follow the user's list.
         return httpWarehouse(`api/picking/${id}/asignar`, {
@@ -96,10 +96,14 @@ export const pickingApi = {
         return httpWarehouse(`/api/picking/${id}/completar`, { method: 'POST' })
     },
 
-    pickItem: async (id: number, itemId: number, data: { cantidadPickeada: number, loteConfirmado?: string }): Promise<void> => {
+    pickItem: async (id: number, itemId: number, data: { cantidadPickeada: number, loteConfirmado?: string, motivo_desviacion?: string, nota_bodeguero?: string, ubicacion_confirmada?: string }): Promise<void> => {
         return httpWarehouse(`/api/picking/${id}/items/${itemId}/pickear`, {
             method: 'POST',
             body: data
         })
+    },
+
+    getStocks: async (productId: number): Promise<{ ubicacion: any, lote: any, cantidadDisponible: number }[]> => {
+        return httpWarehouse<{ ubicacion: any, lote: any, cantidadDisponible: number }[]>(`/api/picking/products/${productId}/stocks`)
     }
 }

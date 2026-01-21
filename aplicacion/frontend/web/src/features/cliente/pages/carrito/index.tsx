@@ -27,7 +27,10 @@ export default function PaginaCarrito() {
 		condicionComercial,
 		destinoDescripcion,
 		handleDestinoTipoChange,
-		confirmarPedido
+		confirmarPedido,
+		perfil,
+		condicionPagoManual,
+		setCondicionPagoManual
 	} = useCarritoPage()
 
 	return (
@@ -87,6 +90,9 @@ export default function PaginaCarrito() {
 							setSelectedSucursalId={setSelectedSucursalId}
 							destinoDescripcion={destinoDescripcion}
 							invalidSucursalMessage={invalidSucursalMessage}
+							perfil={perfil}
+							condicionPagoManual={condicionPagoManual}
+							setCondicionPagoManual={setCondicionPagoManual}
 						/>
 					</div>
 				)}

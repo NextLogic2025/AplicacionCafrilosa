@@ -3,22 +3,23 @@ import { Alert } from 'components/ui/Alert'
 import { Modal } from 'components/ui/Modal'
 import { type ZonaComercial } from '../../services/zonasApi'
 
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
-const containerStyle = { width: '100%', height: '320px' }
-const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
+
+const mapStyle = { width: '100%', height: '300px' }
+const defaultCenter: google.maps.LatLngLiteral = { lat: -1.831239, lng: -78.183406 }
 
 interface ZonaDetailModalProps {
-  zona: ZonaComercial | null
   isOpen: boolean
   onClose: () => void
+  zona: ZonaComercial | null
 }
 
-export function ZonaDetailModal({ zona, isOpen, onClose }: ZonaDetailModalProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+export function ZonaDetailModal({ isOpen, onClose, zona }: ZonaDetailModalProps) {
   const path = parseGeoPolygon(zona?.poligono_geografico)
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? '',
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAP_LIBRARIES,
   })
 
@@ -43,7 +44,7 @@ export function ZonaDetailModal({ zona, isOpen, onClose }: ZonaDetailModalProps)
               <span className="text-[11px] text-neutral-500">Vista solo lectura</span>
             </div>
 
-            {!apiKey ? (
+            {!GOOGLE_MAPS_API_KEY ? (
               <Alert type="error" message="Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa." />
             ) : loadError ? (
               <Alert type="error" message="No se pudo cargar Google Maps." />
@@ -52,7 +53,7 @@ export function ZonaDetailModal({ zona, isOpen, onClose }: ZonaDetailModalProps)
             ) : (
               <div className="overflow-hidden rounded-xl border border-neutral-200 shadow-sm">
                 <GoogleMap
-                  mapContainerStyle={containerStyle}
+                  mapContainerStyle={mapStyle}
                   center={path[0] ?? defaultCenter}
                   zoom={path.length ? 13 : 12}
                   options={{
@@ -97,9 +98,8 @@ function Info({ label, value, highlight }: { label: string; value: string; highl
       <p className="text-[11px] uppercase tracking-wide text-neutral-500">{label}</p>
       {isPill ? (
         <span
-          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-            highlight === 'green' ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-700'
-          }`}
+          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${highlight === 'green' ? 'bg-green-100 text-green-800' : 'bg-neutral-100 text-neutral-700'
+            }`}
         >
           {value}
         </span>

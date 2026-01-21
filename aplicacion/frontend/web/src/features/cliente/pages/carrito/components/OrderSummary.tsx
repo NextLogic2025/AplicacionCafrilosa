@@ -1,8 +1,9 @@
 
 import { CheckCircle2 } from 'lucide-react'
 import { DeliverySelector } from './DeliverySelector'
+import { PaymentConditionSelector } from './PaymentConditionSelector'
 import type { DestinoTipo } from '../types'
-import type { SucursalCliente } from '../../../types'
+import type { PerfilCliente, SucursalCliente } from '../../../types'
 
 interface OrderSummaryProps {
     total: number
@@ -19,6 +20,9 @@ interface OrderSummaryProps {
     setSelectedSucursalId: (id: string | null) => void
     destinoDescripcion: string
     invalidSucursalMessage: string | null
+    perfil: PerfilCliente | null
+    condicionPagoManual: 'CONTADO' | 'CREDITO'
+    setCondicionPagoManual: (value: 'CONTADO' | 'CREDITO') => void
 }
 
 export function OrderSummary({
@@ -35,7 +39,10 @@ export function OrderSummary({
     selectedSucursalId,
     setSelectedSucursalId,
     destinoDescripcion,
-    invalidSucursalMessage
+    invalidSucursalMessage,
+    perfil,
+    condicionPagoManual,
+    setCondicionPagoManual
 }: OrderSummaryProps) {
     return (
         <div className="space-y-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm lg:col-span-1 lg:sticky lg:top-24">
@@ -61,6 +68,12 @@ export function OrderSummary({
                 </div>
             )}
 
+            <PaymentConditionSelector
+                condicionPagoManual={condicionPagoManual}
+                setCondicionPagoManual={setCondicionPagoManual}
+                superaCredito={superaCredito}
+            />
+
             <DeliverySelector
                 destinoTipo={destinoTipo}
                 handleDestinoTipoChange={handleDestinoTipoChange}
@@ -69,6 +82,7 @@ export function OrderSummary({
                 setSelectedSucursalId={setSelectedSucursalId}
                 destinoDescripcion={destinoDescripcion}
                 invalidSucursalMessage={invalidSucursalMessage}
+                perfil={perfil}
             />
 
             <div className="grid gap-2">
@@ -81,7 +95,7 @@ export function OrderSummary({
                 </button>
                 <button
                     type="button"
-                    disabled={itemsCount === 0 || superaCredito}
+                    disabled={itemsCount === 0 || (superaCredito && condicionPagoManual === 'CREDITO')}
                     onClick={confirmarPedido}
                     className="rounded-xl bg-brand-red px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >

@@ -34,7 +34,7 @@ export const useProductos = () => {
     const mapProductToFrontend = useCallback((items: any[]): Producto[] => {
         return items.map((p) => {
             const anyP = p as any
-            const rawBase = anyP.precio_base ?? anyP.precio ?? null
+            const rawBase = anyP.precio_final ?? anyP.precio_unitario ?? anyP.precio_lista ?? anyP.precio_base ?? anyP.precio ?? anyP.price ?? anyP.precioBase ?? null
             const rawOferta = anyP.precio_oferta ?? null
             const precioBase = typeof rawBase === 'string' ? Number(rawBase) : rawBase
             const precioOferta = typeof rawOferta === 'string' ? Number(rawOferta) : rawOferta

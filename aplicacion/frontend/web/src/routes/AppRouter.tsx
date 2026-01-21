@@ -10,14 +10,14 @@ import {
   InventarioPage,
   LotesPage,
   RecepcionesPage,
-  PedidosPage,
+  // PedidosPage,
   DespachosPage,
   DevolucionesPage,
   TrazabilidadPage,
   ReportesPage,
   PerfilPage,
 } from '../features/bodeguero/pages'
-const PedidosPendientesPage = React.lazy(() => import('../features/bodeguero/pages/Pedidos'))
+
 const NotificacionesBodegaPage = React.lazy(() => import('../features/bodeguero/pages/Notificaciones'))
 const AlmacenesPage = React.lazy(() => import('../features/bodeguero/pages/Almacenes'))
 const PickingPage = React.lazy(() => import('../features/bodeguero/pages/Picking'))
@@ -130,11 +130,11 @@ export default function AppRouter() {
           }
         >
           <Route index element={<DashboardPage />} />
-          <Route path="pendientes" element={<PedidosPendientesPage />} />
+
           <Route path="inventario" element={<InventarioPage />} />
           <Route path="lotes" element={<LotesPage />} />
           <Route path="recepciones" element={<RecepcionesPage />} />
-          <Route path="pedidos" element={<PedidosPage />} />
+          {/* <Route path="pedidos" element={<PedidosPage />} /> */}
           <Route path="despachos" element={<DespachosPage />} />
           <Route path="devoluciones" element={<DevolucionesPage />} />
           <Route path="trazabilidad" element={<TrazabilidadPage />} />

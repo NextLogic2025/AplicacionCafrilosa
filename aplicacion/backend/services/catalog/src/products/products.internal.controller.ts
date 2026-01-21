@@ -14,6 +14,13 @@ export class ProductsInternalController {
   async batch(@Body() body: { ids: string[]; cliente_id?: string }, @Req() req: any) {
     const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
     if (!ids.length) throw new BadRequestException('ids is required');
+
+    // Validar que los ids sean UUIDs para evitar errores de casting en la consulta
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const invalid = ids.filter(id => !uuidRegex.test(id));
+    if (invalid.length) {
+      throw new BadRequestException(`Invalid UUIDs provided: ${invalid.join(', ')}`);
+    }
     // ahora protegido por ServiceAuthGuard
 
     let clienteListaId: number | null = null;

@@ -200,7 +200,6 @@ export function CrearZonaForm({
           <span className="text-[11px] text-neutral-500">Opcional, ayuda a limitar la zona</span>
         </div>
         <ZonaMapSelector
-          apiKey={mapsApiKey}
           polygon={polygonPath}
           onPolygonChange={handlePolygonChange}
           center={mapCenter}

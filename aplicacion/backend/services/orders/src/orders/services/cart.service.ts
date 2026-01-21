@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, DataSource, EntityManager } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
 import { CarritoItem } from '../entities/carrito-item.entity';
 import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
@@ -14,6 +14,7 @@ export class CartService {
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
         private readonly serviceHttp: ServiceHttpClient,
+        private readonly dataSource: DataSource,
     ) { }
 
     /**
@@ -222,8 +223,8 @@ export class CartService {
                 if (dto.motivo_descuento !== undefined) {
                     item.motivo_descuento = dto.motivo_descuento;
                 }
-                } else {
-                    // Intentar obtener mejor promocion/precio desde Catalog y sobrescribir valores del cliente
+            } else {
+                // Intentar obtener mejor promocion/precio desde Catalog y sobrescribir valores del cliente
                 let precioUnitarioRef = 0;
                 let precioOriginalSnapshot = null;
                 let campaniaAplicada = dto.campania_aplicada_id ?? null;
@@ -325,20 +326,9 @@ export class CartService {
     async removeItem(usuario_id: string, producto_id: string, vendedor_id?: string): Promise<{ success: boolean }> {
         this.logger.debug(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
 
-        const whereCondition: any = {
-            usuario_id,
-            deleted_at: IsNull()
-        };
-
-        if (vendedor_id) {
-            whereCondition['vendedor_id'] = vendedor_id;
-        } else {
-            whereCondition['vendedor_id'] = IsNull();
-        }
-
-        const cart = await this.cartRepo.findOne({
-            where: whereCondition,
-        });
+        // Usar getOrCreateCart para asegurar que resolvemos el usuario/cliente correctamente (igual que al agregar)
+        // Esto maneja la lógica de si usuario_id es realmente un cliente_id
+        const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
         if (!cart) {
             this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
@@ -359,20 +349,9 @@ export class CartService {
     async clearCart(usuario_id: string, vendedor_id?: string): Promise<void> {
         this.logger.debug(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
 
-        const whereCondition: any = {
-            usuario_id,
-            deleted_at: IsNull()
-        };
+        // Usar getOrCreateCart para asegurar consistencia en la búsqueda
+        const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
-        if (vendedor_id) {
-            whereCondition['vendedor_id'] = vendedor_id;
-        } else {
-            whereCondition['vendedor_id'] = IsNull();
-        }
-
-        const cart = await this.cartRepo.findOne({
-            where: whereCondition,
-        });
 
         if (!cart) {
             this.logger.warn(`No se encontró carrito para usuario ${usuario_id} vendedor ${vendedor_id || 'cliente'}`);
@@ -425,21 +404,17 @@ export class CartService {
      * Se ejecuta después de cualquier modificación de items
      */
     async recalculateTotals(carrito_id: string): Promise<number> {
-        const items = await this.itemRepo.find({ where: { carrito_id } });
+        // Usar SUM en BD para evitar traer todos los items a memoria
+        const raw: any = await this.itemRepo
+            .createQueryBuilder('item')
+            .select('SUM(item.cantidad * item.precio_unitario_ref)', 'total')
+            .where('item.carrito_id = :id', { id: carrito_id })
+            .getRawOne();
 
-        const total_estimado = items.reduce((acc, item) => {
-            const cantidad = Number(item.cantidad) || 0;
-            const precio = Number(item.precio_unitario_ref) || 0;
-            return acc + (cantidad * precio);
-        }, 0);
+        const nuevoTotal = parseFloat(raw?.total) || 0;
 
-        this.logger.debug(`Recalculando totales para carrito ${carrito_id}: ${items.length} items, total=${total_estimado}`);
-
-        await this.cartRepo.update(carrito_id, { total_estimado });
-        return total_estimado;
+        await this.cartRepo.update(carrito_id, { total_estimado: nuevoTotal });
+        this.logger.debug(`Recalculando totales para carrito ${carrito_id}: total=${nuevoTotal}`);
+        return nuevoTotal;
     }
 }
-
-
-
-

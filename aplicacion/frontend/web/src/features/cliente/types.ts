@@ -7,6 +7,10 @@ export interface PerfilCliente {
   contactName: string
   currentDebt: number
   creditLimit: number
+  direccion?: string
+  direccion_texto?: string
+  ciudad?: string
+  estado?: string
 }
 
 export interface SucursalCliente {
@@ -96,6 +100,8 @@ export interface ItemPedido {
   unit: string
   unitPrice: number
   subtotal: number
+  cantidad_solicitada?: number | null
+  motivo_ajuste?: string | null
 }
 
 export interface Pedido {

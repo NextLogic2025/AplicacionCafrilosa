@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { GoogleMap, Polygon, Marker, InfoWindow } from '@react-google-maps/api';
-import { loadGoogleMaps } from '../../../utils/googleMapsLoader';
+import React from 'react';
+import { GoogleMap, Polygon, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../config/googleMaps';
 
 export interface PuntoMapa {
   lat: number;
@@ -23,15 +23,11 @@ export const ZonaMapaGoogle: React.FC<ZonaMapaGoogleProps> = ({
   zoom = 13,
   style,
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const loadMap = async () => {
-      const loaded = await loadGoogleMaps();
-      setIsLoaded(loaded);
-    };
-    loadMap();
-  }, []);
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES,
+  });
 
   // Calcular centro si no se pasa
   const mapCenter = center ||
@@ -39,7 +35,7 @@ export const ZonaMapaGoogle: React.FC<ZonaMapaGoogleProps> = ({
       ? poligono[0]
       : puntos.length > 0
         ? puntos[0]
-        : { lat: -12.0464, lng: -77.0428 });
+        : { lat: -3.99313, lng: -79.20422 });
 
   if (!isLoaded) return <div style={{ minHeight: 350 }}>Cargando mapa...</div>;
 

@@ -68,8 +68,17 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess, stockItem }: Adju
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Cantidad</label>
-                    <input type="number" step="0.01" {...register('cantidad')} className="mt-1 block w-full border rounded-md px-3 py-2" required min="0.001" />
+                    <label className="block text-sm font-medium text-gray-700">Cantidad (Enteros)</label>
+                    <input
+                        type="number"
+                        step="1"
+                        {...register('cantidad', {
+                            required: 'La cantidad es requerida',
+                            min: { value: 1, message: 'La cantidad mínima es 1' },
+                            validate: (value) => Number.isInteger(Number(value)) || 'Debe ser un número entero'
+                        })}
+                        className="mt-1 block w-full border rounded-md px-3 py-2"
+                    />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">

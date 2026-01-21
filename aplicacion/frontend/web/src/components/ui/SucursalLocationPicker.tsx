@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { GoogleMap, Marker, Polygon, useJsApiLoader } from '@react-google-maps/api'
 import { type ZonaOption } from './ClienteForm'
 
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../config/googleMaps'
+
 const sucursalMapStyle = { width: '100%', height: '280px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
@@ -16,9 +17,9 @@ interface SucursalLocationPickerProps {
 }
 
 export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatriz, onChange, mode }: SucursalLocationPickerProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey,
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAP_LIBRARIES,
   })
 
@@ -50,12 +51,8 @@ export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatri
     }
   }
 
-  if (!apiKey) {
-    return (
-      <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
-        <p className="text-xs text-yellow-800">Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa.</p>
-      </div>
-    )
+  if (!GOOGLE_MAPS_API_KEY) {
+    return <div className="text-red-500 text-sm p-4">Falta configurar la API Key de Google Maps</div>
   }
 
   if (loadError) {
@@ -76,6 +73,7 @@ export function SucursalLocationPicker({ position, zonaId, zonas, ubicacionMatri
 
   return (
     <div className="space-y-2">
+
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-800">Ubicación de la Sucursal</p>
         <span className="text-xs text-gray-500">Haz clic en el mapa para marcar</span>

@@ -20,6 +20,15 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
     const [pickModal, setPickModal] = useState<{ open: boolean, item: PickingItem | null }>({ open: false, item: null })
     const [pickQty, setPickQty] = useState('')
 
+    const [pickReason, setPickReason] = useState('')
+    const [pickNote, setPickNote] = useState('')
+
+    // Alternative lots state
+    const [showAltModal, setShowAltModal] = useState(false)
+    const [alternatives, setAlternatives] = useState<any[]>([])
+    const [loadingAlt, setLoadingAlt] = useState(false)
+    const [overrideLot, setOverrideLot] = useState<{ id: number, numero: string, ubicacionId: number, ubicacionLabel: string } | null>(null)
+
     const fetchDetails = async () => {
         setLoading(true)
         try {
@@ -37,8 +46,42 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
     }, [pickingId])
 
     const handlePickClick = (item: PickingItem) => {
-        setPickQty(String(item.cantidadPickeada)) // Start with current picked amount
+        setPickQty(String(Math.floor(item.cantidadPickeada))) // Start with integer part of current picked amount
+        setPickReason('')
+        setPickNote('')
+        setOverrideLot(null) // Reset override
         setPickModal({ open: true, item })
+    }
+
+    // ... (keep fetchAlternatives and selectAlternative as is)
+
+    // ... (inside confirmPick, verification is good, leaving it)
+
+    // ... (inside JSX)
+    // ... (keep fetchAlternatives and selectAlternative as is)
+
+    const fetchAlternatives = async () => {
+        if (!pickModal.item) return
+        setLoadingAlt(true)
+        try {
+            const stocks = await pickingApi.getStocks(pickModal.item.productoId)
+            setAlternatives(stocks)
+            setShowAltModal(true)
+        } catch (err) {
+            alert('Error al cargar stocks alternativos')
+        } finally {
+            setLoadingAlt(false)
+        }
+    }
+
+    const selectAlternative = (alt: any) => {
+        setOverrideLot({
+            id: alt.lote.id,
+            numero: alt.lote.numeroLote,
+            ubicacionId: alt.ubicacion.id,
+            ubicacionLabel: alt.ubicacion.codigoVisual
+        })
+        setShowAltModal(false)
     }
 
     const confirmPick = async () => {
@@ -55,6 +98,17 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
             return
         }
 
+        if (!Number.isInteger(targetQty)) {
+            alert('La cantidad debe ser un número entero.')
+            return
+        }
+
+        // Validate deviation reason if incomplete
+        if (targetQty < pickModal.item.cantidadSolicitada && !pickReason) {
+            alert('Debes indicar un motivo de desviación si la cantidad es menor a la solicitada.')
+            return
+        }
+
         const currentQty = pickModal.item.cantidadPickeada
         const delta = targetQty - currentQty
 
@@ -64,9 +118,16 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
         }
 
         try {
-            await pickingApi.pickItem(picking.id, pickModal.item.id, {
-                cantidadPickeada: delta
-            })
+            const payload = {
+                cantidadPickeada: delta,
+                motivo_desviacion: pickReason || undefined,
+                nota_bodeguero: pickNote || undefined,
+                loteConfirmado: overrideLot ? String(overrideLot.id) : undefined,
+                ubicacion_confirmada: overrideLot ? String(overrideLot.ubicacionId) : undefined
+            };
+            console.log('FRONTEND PickingProcessing - confirmPick Payload:', payload);
+
+            await pickingApi.pickItem(picking.id, pickModal.item.id, payload)
             setPickModal({ open: false, item: null })
             fetchDetails() // Refresh to see updates
         } catch (err: any) {
@@ -243,26 +304,95 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="flex gap-2 items-end">
-                            <TextField
-                                label="Cantidad Total Recogida"
-                                type="number"
-                                value={pickQty}
-                                onChange={(e) => setPickQty(e.target.value)}
-                                autoFocus
-                                className="flex-1 text-lg font-bold"
-                            />
-                            <Button
-                                variant="secondary"
-                                className="mb-0.5 h-10"
-                                onClick={() => {
-                                    if (pickModal.item) {
-                                        setPickQty(String(pickModal.item.cantidadSolicitada))
-                                    }
-                                }}
-                            >
-                                TODO
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex gap-2 items-end">
+                                <TextField
+                                    label="Cantidad Total Recogida"
+                                    type="number"
+                                    step="1"
+                                    value={pickQty}
+                                    onChange={(e) => {
+                                        const val = e.target.value
+                                        // Only allow digits (and empty string)
+                                        if (val === '' || /^\d+$/.test(val)) {
+                                            setPickQty(val)
+                                        }
+                                    }}
+                                    autoFocus
+                                    className="flex-1 text-lg font-bold"
+                                />
+                                <Button
+                                    variant="secondary"
+                                    className="mb-0.5 h-10"
+                                    onClick={() => {
+                                        if (pickModal.item) {
+                                            setPickQty(String(pickModal.item.cantidadSolicitada))
+                                        }
+                                    }}
+                                >
+                                    TODO
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Deviation Reason and Note */}
+                        {pickModal.item && Number(pickQty) < pickModal.item.cantidadSolicitada && (
+                            <div className="space-y-3 p-3 bg-orange-50 rounded-lg border border-orange-100 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-start gap-2 text-orange-800 mb-2">
+                                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                                    <p className="text-sm font-medium">Has indicado una cantidad menor a la solicitada. Por favor indica el motivo.</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                                        Motivo de desviación <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        className="w-full h-10 rounded-lg border border-neutral-300 px-3 text-sm focus:border-brand-red focus:outline-none"
+                                        value={pickReason}
+                                        onChange={(e) => setPickReason(e.target.value)}
+                                    >
+                                        <option value="">Seleccionar motivo...</option>
+                                        <option value="FALTANTE">Faltante (No hay stock físico)</option>
+                                        <option value="DANADO">Producto Dañado</option>
+                                        <option value="VENCIDO">Producto Vencido</option>
+                                        <option value="ERROR_INVENTARIO">Error de Inventario</option>
+                                        <option value="OTRO">Otro</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                                        Nota para Bodeguero (Opcional)
+                                    </label>
+                                    <textarea
+                                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none min-h-[80px]"
+                                        placeholder="Detalles adicionales..."
+                                        value={pickNote}
+                                        onChange={(e) => setPickNote(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Suggested Lot / Override Display */}
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
+                            <div>
+                                <p className="text-xs text-blue-600 font-bold uppercase">Lote {overrideLot ? 'Seleccionado' : 'Sugerido'}</p>
+                                <p className="text-neutral-900 font-medium">
+                                    {overrideLot ? overrideLot.numero : (
+                                        typeof pickModal.item?.loteSugerido === 'object' ?
+                                            (pickModal.item?.loteSugerido as any).numeroLote :
+                                            (pickModal.item?.loteSugerido ? String(pickModal.item?.loteSugerido) : 'N/A')
+                                    )}
+                                </p>
+                                <p className="text-xs text-neutral-500">
+                                    Ubicación: {overrideLot ? overrideLot.ubicacionLabel : (typeof pickModal.item?.ubicacionSugerida === 'object' ? pickModal.item?.ubicacionSugerida.codigoVisual : pickModal.item?.ubicacionSugerida)}
+                                </p>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={fetchAlternatives} disabled={loadingAlt}>
+                                {loadingAlt ? 'Cargando...' : 'Cambiar Lote'}
                             </Button>
                         </div>
                     </div>
@@ -270,6 +400,37 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
                     <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
                         <Button variant="ghost" onClick={() => setPickModal({ open: false, item: null })}>Cancelar</Button>
                         <Button variant="primary" onClick={confirmPick}>Confirmar Pickeo</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Alternatives Modal */}
+            <Modal
+                isOpen={showAltModal}
+                onClose={() => setShowAltModal(false)}
+                title="Seleccionar Lote Alternativo"
+            >
+                <div>
+                    {alternatives.length === 0 ? (
+                        <p className="p-4 text-center text-gray-500">No se encontraron otros stocks disponibles.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                            {alternatives.map((alt, idx) => (
+                                <div key={idx} className="p-3 border rounded-lg hover:bg-gray-50 flex justify-between items-center cursor-pointer" onClick={() => selectAlternative(alt)}>
+                                    <div>
+                                        <p className="font-bold text-sm">Lote: {alt.lote.numeroLote}</p>
+                                        <p className="text-xs text-gray-500">Vence: {alt.lote.fechaVencimiento ? new Date(alt.lote.fechaVencimiento).toLocaleDateString() : 'N/A'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-mono text-sm font-bold bg-gray-100 px-1 rounded">{alt.ubicacion.codigoVisual}</p>
+                                        <p className="text-xs text-green-600 font-bold">Disp: {alt.cantidadDisponible}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className="mt-4 text-right">
+                        <Button variant="ghost" onClick={() => setShowAltModal(false)}>Cerrar</Button>
                     </div>
                 </div>
             </Modal>

@@ -21,7 +21,7 @@ export function WarehouseDispatchScreen() {
         try {
             const allOrders = await OrderService.getOrders()
             // Filter: Shipped/Ready status. Assuming 'shipped' implies ready for final dispatch or create 'ready_dispatch' status logic.
-            // For now, let's assume 'shipped' implies "En proceso de entrega" but for the warehouse, maybe we want 'processing' -> 'ready'.
+            // For now, let's assume 'shipped' implies "En_proceso de entrega" but for the warehouse, maybe we want 'processing' -> 'ready'.
             // Using 'shipped' as "Listo para salir" for simplicity in this context or assuming a custom status.
             // Let's assume we filter orders that are "Pending Dispatch".
             const readyOrders = allOrders.filter(o => o.status === 'shipped') // Placeholder logic

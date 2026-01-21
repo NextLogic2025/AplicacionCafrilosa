@@ -11,21 +11,11 @@ export interface CrearRutaPayload {
 }
 
 export async function crearRuta(payload: CrearRutaPayload): Promise<any> {
-  const baseUrl = import.meta.env.VITE_CATALOGO_BASE_URL;
-  const url = `${baseUrl}/api/rutero`;
-  // Obtener token de localStorage/sessionStorage
-  const token = localStorage.getItem('cafrilosa.token') || sessionStorage.getItem('cafrilosa.token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, {
+  // Uso estandarizado de httpCatalogo
+  return httpCatalogo<any>('/rutero', {
     method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
+    body: payload,
   });
-  if (!res.ok) throw new Error('Error al guardar ruta');
-  return await res.json();
 }
 
 // NUEVA FUNCIÓN PARA EDITAR RUTA FILTRADA

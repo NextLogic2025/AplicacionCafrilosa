@@ -75,6 +75,10 @@ export class Cliente {
   @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
   updated_at: Date;
 
+  @ApiProperty({ description: 'Última actualización del saldo', nullable: true })
+  @Column({ name: 'ultima_actualizacion_saldo', type: 'timestamptz', nullable: true })
+  ultima_actualizacion_saldo: Date | null;
+
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deleted_at: Date | null;
 }

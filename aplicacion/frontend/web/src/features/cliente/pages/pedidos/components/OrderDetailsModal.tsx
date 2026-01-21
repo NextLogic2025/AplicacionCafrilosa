@@ -78,6 +78,8 @@ export function OrderDetailsModal({
                 </div>
 
                 <div className="space-y-8 px-8 py-6 overflow-y-auto">
+                    {/* DEBUG LOG */}
+                    {console.log('OrderDetailsModal Render - Detalle:', detalle)}
                     <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                             <p className="text-xs uppercase tracking-wide text-neutral-500">Fecha</p>
@@ -106,17 +108,47 @@ export function OrderDetailsModal({
                             ) : detalle.items.length === 0 ? (
                                 <div className="px-4 py-6 text-center text-sm text-neutral-500">Este pedido no tiene productos registrados.</div>
                             ) : (
-                                detalle.items.map(item => (
-                                    <div key={item.id} className="grid gap-4 px-4 py-3 md:grid-cols-3">
-                                        <div className="md:col-span-2">
-                                            <p className="text-sm font-semibold text-neutral-900">{item.productName}</p>
-                                            <p className="text-xs text-neutral-500">
-                                                {item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}
-                                            </p>
+                                detalle.items.map(item => {
+                                    const wasAdjusted = item.cantidad_solicitada != null && item.cantidad_solicitada !== item.quantity
+                                    const requestedQty = item.cantidad_solicitada ?? item.quantity
+
+                                    return (
+                                        <div key={item.id} className="grid gap-4 px-4 py-3 md:grid-cols-3">
+                                            <div className="md:col-span-2">
+                                                <p className="text-sm font-semibold text-neutral-900">{item.productName}</p>
+                                                <div className="flex flex-col gap-1 mt-1">
+                                                    {wasAdjusted ? (
+                                                        <>
+                                                            <p className="text-xs text-neutral-500 line-through">
+                                                                Solicitado: {requestedQty} {item.unit}
+                                                            </p>
+                                                            <p className="text-xs font-bold text-orange-600">
+                                                                Enviado: {item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}
+                                                            </p>
+                                                            {item.motivo_ajuste && (
+                                                                <p className="text-xs text-red-500 italic">
+                                                                    * Ajuste: {item.motivo_ajuste}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-xs text-neutral-500">
+                                                            {item.quantity} {item.unit} × ${item.unitPrice.toFixed(2)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold text-neutral-900">${item.subtotal.toFixed(2)}</p>
+                                                {wasAdjusted && (
+                                                    <span className="inline-block mt-1 px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold rounded-full">
+                                                        MODIFICADO
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <p className="text-right text-sm font-bold text-neutral-900">${item.subtotal.toFixed(2)}</p>
-                                    </div>
-                                ))
+                                    )
+                                })
                             )}
                         </div>
                     </div>

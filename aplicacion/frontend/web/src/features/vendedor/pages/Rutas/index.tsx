@@ -30,18 +30,17 @@ type DiaResumen = {
 }
 
 
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-const GOOGLE_MAP_LIBRARIES: Array<'drawing'> = ['drawing']
-const MAP_CONTAINER_STYLE = { width: '100%', height: '450px' }
-const DEFAULT_CENTER = { lat: -0.234292, lng: -78.524789 }
+const mapStyle = { width: '100%', height: 'calc(100vh - 120px)' }
+const defaultCenter: google.maps.LatLngLiteral = { lat: -1.831239, lng: -78.183406 }
 const PRIORIDAD_ORDEN: Record<RuteroPlanificado['prioridad_visita'], number> = {
   ALTA: 0,
   MEDIA: 1,
   BAJA: 2,
 }
 
-export default function VendedorRutas() {
+export default function RutasPage() {
   const cancelRef = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +48,11 @@ export default function VendedorRutas() {
   const [rutas, setRutas] = useState<RutaConCliente[]>([])
   const [clienteDetalle, setClienteDetalle] = useState<Cliente | null>(null)
   const [isDetalleAbierto, setIsDetalleAbierto] = useState(false)
-  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: GOOGLE_MAP_LIBRARIES })
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES
+  })
 
 
   useEffect(() => {
@@ -195,7 +198,7 @@ export default function VendedorRutas() {
       if (!plan.sucursal_id) {
         const coordsPrincipal = plan.ubicacion_gps?.coordinates
           ? { lat: plan.ubicacion_gps.coordinates[1], lng: plan.ubicacion_gps.coordinates[0] }
-          : getClienteCoords(item.cliente, null)
+          : getClienteCoords(item.cliente, undefined)
         if (coordsPrincipal) {
           const idPrincipal = plan.id ?? `${plan.cliente_id}-main-${plan.hora_estimada_arribo ?? plan.created_at ?? index}`
           puntos.push({
@@ -212,13 +215,13 @@ export default function VendedorRutas() {
 
       // Si existe sucursal_id, añadimos únicamente el marcador de la sucursal (no la matriz),
       // buscando coords en plan.ubicacion_gps o en cliente.sucursales
-      let coordsSucursal: { lat: number; lng: number } | undefined
+      let coordsSucursal: { lat: number; lng: number } | null | undefined
       if (plan.ubicacion_gps?.coordinates) {
         coordsSucursal = { lat: plan.ubicacion_gps.coordinates[1], lng: plan.ubicacion_gps.coordinates[0] }
       } else if (cliente?.sucursales && Array.isArray(cliente.sucursales)) {
         const suc = cliente.sucursales.find((s: any) => String(s.id) === String(plan.sucursal_id))
         if (suc) {
-          coordsSucursal = getClienteCoords({ ...item.cliente, ubicacion_gps: suc.ubicacion_gps, latitud: suc.latitud, longitud: suc.longitud } as Cliente, null)
+          coordsSucursal = getClienteCoords({ ...item.cliente, ubicacion_gps: suc.ubicacion_gps, latitud: suc.latitud, longitud: suc.longitud } as Cliente, undefined)
         }
       }
 
@@ -242,7 +245,7 @@ export default function VendedorRutas() {
 
   const rutaPolyline = useMemo(() => puntosMapa.map((punto) => punto.position), [puntosMapa])
 
-  const mapaCentro = useMemo(() => puntosMapa[0]?.position ?? DEFAULT_CENTER, [puntosMapa])
+  const mapaCentro = useMemo(() => puntosMapa[0]?.position ?? defaultCenter, [puntosMapa])
   const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null)
 
   const rutasGuardadasDia = useMemo(() => {
@@ -391,7 +394,7 @@ export default function VendedorRutas() {
               isLoaded={isLoaded}
               loadError={loadError}
               isLoading={isLoading}
-              mapContainerStyle={MAP_CONTAINER_STYLE}
+              mapContainerStyle={mapStyle}
             />
           </div>
         </div>

@@ -7,7 +7,8 @@ import { type Cliente, type ZonaComercial, type ListaPrecio } from '../../servic
 import { SucursalFormModal } from './SucursalFormModal'
 import type { ZonaOption } from 'components/ui/ClienteForm'
 
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
+
 const mapStyle = { width: '100%', height: '320px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
@@ -26,8 +27,11 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
   const [isSucursalModalOpen, setIsSucursalModalOpen] = useState(false)
   const [editingSucursal, setEditingSucursal] = useState<Sucursal | null>(null)
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string || ''
-  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey, libraries: GOOGLE_MAP_LIBRARIES })
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAP_LIBRARIES
+  })
 
   const reloadSucursales = async () => {
     if (!cliente) return
@@ -86,6 +90,16 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
 
   const zonasOptions = useMemo(() => zonas.map((z) => ({ id: z.id, nombre: z.nombre, poligono_geografico: (z as any).poligono_geografico })) as ZonaOption[], [zonas])
 
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente">
+        <div className="p-6 text-center text-red-600">
+          No se ha configurado la API Key de Google Maps
+        </div>
+      </Modal>
+    )
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Detalle del Cliente" headerGradient="red" maxWidth="2xl">
       {!cliente && <p className="text-sm text-gray-600">Selecciona un cliente para ver detalles.</p>}
@@ -131,14 +145,14 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
               <p className="text-sm font-semibold text-gray-800">Mapa general</p>
               <span className="text-xs text-gray-500">Pin rojo: matriz · Pins azules: sucursales</span>
             </div>
-            {!apiKey && <p className="text-xs text-yellow-700">Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa.</p>}
+            {!GOOGLE_MAPS_API_KEY && <p className="text-xs text-yellow-700">Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa.</p>}
             {loadError && <p className="text-xs text-red-700">No se pudo cargar Google Maps.</p>}
             {!isLoaded && !loadError && (
               <div className="flex h-[320px] items-center justify-center rounded-lg bg-gray-50">
                 <p className="text-sm text-gray-600">Cargando mapa...</p>
               </div>
             )}
-            {isLoaded && !loadError && apiKey && (
+            {isLoaded && !loadError && GOOGLE_MAPS_API_KEY && (
               <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
                 <GoogleMap
                   mapContainerStyle={mapStyle}

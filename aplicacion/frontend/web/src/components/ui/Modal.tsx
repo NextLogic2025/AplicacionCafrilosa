@@ -42,7 +42,7 @@ export function Modal({
         className={`max-h-[90vh] w-full ${widths[maxWidth]} overflow-y-auto rounded-lg bg-white shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`sticky top-0 flex items-center justify-between ${gradients[headerGradient]} p-6 text-white`}>
+        <div className={`sticky top-0 z-10 flex items-center justify-between ${gradients[headerGradient]} p-6 text-white`}>
           <h2 className="text-xl font-bold">{title}</h2>
           <button
             onClick={onClose}

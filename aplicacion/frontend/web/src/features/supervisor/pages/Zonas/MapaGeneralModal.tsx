@@ -1,24 +1,25 @@
+
 import { useMemo } from 'react'
 import { GoogleMap, Polygon, useJsApiLoader } from '@react-google-maps/api'
 import { Alert } from 'components/ui/Alert'
 import { Modal } from 'components/ui/Modal'
 import { type ZonaComercial } from '../../services/zonasApi'
 
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
-const containerStyle = { width: '100%', height: '70vh' }
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
+
+const mapStyle = { width: '100%', height: 'calc(90vh - 120px)' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -1.831239, lng: -78.183406 } // Ecuador centro
 
 interface MapaGeneralModalProps {
-  zonas: ZonaComercial[]
   isOpen: boolean
   onClose: () => void
+  zonas: ZonaComercial[]
 }
 
-export function MapaGeneralModal({ zonas, isOpen, onClose }: MapaGeneralModalProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
-
+export function MapaGeneralModal({ isOpen, onClose, zonas }: MapaGeneralModalProps) {
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? '',
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAP_LIBRARIES,
   })
 
@@ -62,7 +63,7 @@ export function MapaGeneralModal({ zonas, isOpen, onClose }: MapaGeneralModalPro
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Mapa general de zonas" headerGradient="red" maxWidth="2xl">
       <div className="space-y-4">
-        {!apiKey ? (
+        {!GOOGLE_MAPS_API_KEY ? (
           <Alert type="error" message="Configura VITE_GOOGLE_MAPS_API_KEY para ver el mapa." />
         ) : loadError ? (
           <Alert type="error" message="No se pudo cargar Google Maps." />
@@ -72,7 +73,7 @@ export function MapaGeneralModal({ zonas, isOpen, onClose }: MapaGeneralModalPro
           <>
             <div className="overflow-hidden rounded-xl border border-neutral-200 shadow-sm">
               <GoogleMap
-                mapContainerStyle={containerStyle}
+                mapContainerStyle={mapStyle}
                 center={defaultCenter}
                 zoom={7}
                 onLoad={(map) => {

@@ -1,11 +1,11 @@
+
 import { useCallback, useMemo } from 'react'
 import { GoogleMap, Polygon, DrawingManager, useJsApiLoader } from '@react-google-maps/api'
 import { Alert } from 'components/ui/Alert'
 
-const GOOGLE_MAP_LIBRARIES: ["drawing"] = ['drawing']
+import { GOOGLE_MAP_LIBRARIES, GOOGLE_MAP_SCRIPT_ID, GOOGLE_MAPS_API_KEY } from '../../../../config/googleMaps'
 
 interface ZonaMapSelectorProps {
-  apiKey: string | undefined
   polygon: google.maps.LatLngLiteral[]
   onPolygonChange: (path: google.maps.LatLngLiteral[]) => void
   center?: google.maps.LatLngLiteral
@@ -13,17 +13,35 @@ interface ZonaMapSelectorProps {
 
 const containerStyle = {
   width: '100%',
-  height: '360px',
+  height: '450px', // Adjusted height to fit in modal
 }
 
-const defaultCenter: google.maps.LatLngLiteral = {
-  lat: -3.99313, // Loja como punto de referencia central
-  lng: -79.20422,
+const defaultCenter = {
+  lat: -1.831239,
+  lng: -78.183406,
 }
 
-export function ZonaMapSelector({ apiKey, polygon, onPolygonChange, center }: ZonaMapSelectorProps) {
+// Opciones para el DrawingManager
+const drawingOptions = {
+  drawingControl: true,
+  drawingControlOptions: {
+    position: 2, // google.maps.ControlPosition.TOP_CENTER (valor literal para evitar cargar google antes)
+    drawingModes: ['polygon' as google.maps.drawing.OverlayType],
+  },
+  polygonOptions: {
+    fillColor: '#f0412d',
+    fillOpacity: 0.1,
+    strokeWeight: 2,
+    strokeColor: '#f0412d',
+    editable: true,
+    zIndex: 1,
+  },
+}
+
+export function ZonaMapSelector({ polygon, onPolygonChange, center }: ZonaMapSelectorProps) {
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? '',
+    id: GOOGLE_MAP_SCRIPT_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAP_LIBRARIES,
   })
 
@@ -78,7 +96,7 @@ export function ZonaMapSelector({ apiKey, polygon, onPolygonChange, center }: Zo
 
   const handleClear = () => onPolygonChange([])
 
-  if (!apiKey) {
+  if (!GOOGLE_MAPS_API_KEY) {
     return <Alert type="error" message="Configura VITE_GOOGLE_MAPS_API_KEY en tu .env para habilitar el mapa." />
   }
 

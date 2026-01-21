@@ -1,7 +1,7 @@
 
 import { Building2 } from 'lucide-react'
 import type { DestinoTipo } from '../types'
-import type { SucursalCliente } from '../../../types'
+import type { PerfilCliente, SucursalCliente } from '../../../types'
 
 interface DeliverySelectorProps {
     destinoTipo: DestinoTipo
@@ -11,6 +11,7 @@ interface DeliverySelectorProps {
     setSelectedSucursalId: (id: string | null) => void
     destinoDescripcion: string
     invalidSucursalMessage: string | null
+    perfil: PerfilCliente | null
 }
 
 export function DeliverySelector({
@@ -20,9 +21,10 @@ export function DeliverySelector({
     selectedSucursalId,
     setSelectedSucursalId,
     destinoDescripcion,
-    invalidSucursalMessage
+    invalidSucursalMessage,
+    perfil
 }: DeliverySelectorProps) {
-    if (sucursales.length === 0) return null
+    // if (sucursales.length === 0) return null
 
     return (
         <div className="rounded-2xl border border-neutral-200 px-3 py-3">
@@ -41,7 +43,11 @@ export function DeliverySelector({
                     />
                     <div>
                         <p className="font-semibold text-neutral-900">Cliente principal</p>
-                        <p className="text-xs text-neutral-500">Usaremos la dirección registrada del cliente.</p>
+                        <p className="text-xs text-neutral-500">
+                            {perfil?.direccion_texto || perfil?.direccion
+                                ? `${perfil.direccion_texto || perfil.direccion}${perfil.ciudad ? ` · ${perfil.ciudad}` : ''}${perfil.estado ? ` · ${perfil.estado}` : ''}`
+                                : 'Usaremos la dirección registrada.'}
+                        </p>
                     </div>
                 </label>
                 <label className={`flex cursor-pointer items-start gap-2 rounded-xl border px-3 py-2 text-sm ${destinoTipo === 'sucursal' ? 'border-brand-red/50 bg-brand-red/5' : 'border-neutral-200 hover:border-neutral-300'} ${sucursales.length === 0 ? 'opacity-60' : ''}`}>

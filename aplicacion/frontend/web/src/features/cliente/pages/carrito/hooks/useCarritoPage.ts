@@ -13,10 +13,11 @@ export const useCarritoPage = () => {
     const [selectedSucursalId, setSelectedSucursalId] = useState<string | null>(null)
     const [destinoTipo, setDestinoTipo] = useState<DestinoTipo>('cliente')
     const [invalidSucursalMessage, setInvalidSucursalMessage] = useState<string | null>(null)
+    const [condicionPagoManual, setCondicionPagoManual] = useState<'CONTADO' | 'CREDITO'>('CREDITO')
 
     const isUuid = useCallback((value: string | null | undefined) => {
         if (!value) return false
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+        return value.length > 0 // Allow any non-empty ID
     }, [])
 
     const selectedSucursal = useMemo(() => sucursales.find(s => s.id === selectedSucursalId) ?? null, [sucursales, selectedSucursalId])
@@ -28,6 +29,10 @@ export const useCarritoPage = () => {
     useEffect(() => {
         fetchSucursales()
     }, [fetchSucursales])
+
+    useEffect(() => {
+        console.log('[useCarritoPage] Sucursales updated:', sucursales)
+    }, [sucursales])
 
     useEffect(() => {
         if (destinoTipo !== 'sucursal') {
@@ -68,18 +73,23 @@ export const useCarritoPage = () => {
             : 'Selecciona una sucursal'
 
     const handleDestinoTipoChange = (tipo: DestinoTipo) => {
-        if (tipo === 'sucursal' && sucursales.length === 0) return
+        console.log('[useCarritoPage] handleDestinoTipoChange', tipo, 'sucursales len:', sucursales.length)
+        if (tipo === 'sucursal' && sucursales.length === 0) {
+            console.warn('[useCarritoPage] cannot switch to sucursal, empty list')
+            return
+        }
         setDestinoTipo(tipo)
         if (tipo === 'cliente') {
             setSelectedSucursalId(null)
         } else if (!selectedSucursalId && sucursales.length > 0) {
+            console.log('[useCarritoPage] Auto-selecting first sucursal:', sucursales[0].id)
             setSelectedSucursalId(sucursales[0].id)
         }
     }
 
     const confirmarPedido = async () => {
         if (items.length === 0) return
-        if (superaCredito) return
+        if (superaCredito && condicionPagoManual === 'CREDITO') return
         const wantsSucursal = destinoTipo === 'sucursal'
         const sucursalIdForApi = wantsSucursal && selectedSucursalId && isUuid(selectedSucursalId) ? selectedSucursalId : undefined
         if (wantsSucursal && !selectedSucursalId) {
@@ -93,7 +103,7 @@ export const useCarritoPage = () => {
         try {
             await crearPedidoDesdeCarrito({
                 sucursalId: sucursalIdForApi,
-                condicionPago: condicionPagoApi,
+                condicionPago: condicionPagoManual,
             })
             clearCart()
             try { window.dispatchEvent(new CustomEvent('pedidoCreado', { detail: { message: 'Pedido creado correctamente' } })) } catch { }
@@ -121,6 +131,9 @@ export const useCarritoPage = () => {
         condicionComercial,
         destinoDescripcion,
         handleDestinoTipoChange,
-        confirmarPedido
+        confirmarPedido,
+        perfil,
+        condicionPagoManual,
+        setCondicionPagoManual
     }
 }

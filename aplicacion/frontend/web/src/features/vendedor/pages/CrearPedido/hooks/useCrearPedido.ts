@@ -337,7 +337,7 @@ export const useCrearPedido = () => {
             const pedido = await httpOrders<any>(`/orders/from-cart/client/${clienteSeleccionado}`, {
                 method: 'POST',
                 body: {
-                    condicion_pago: condicionPagoManual,
+                    forma_pago_solicitada: condicionPagoManual,
                     sucursal_id: sucursalIdForApi
                 }
             })

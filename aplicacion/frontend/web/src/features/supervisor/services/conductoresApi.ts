@@ -17,6 +17,7 @@ export interface CreateConductorDto {
     cedula: string
     telefono?: string
     licencia?: string
+    usuario_id?: string
 }
 
 export async function getConductores(): Promise<Conductor[]> {

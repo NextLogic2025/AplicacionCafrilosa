@@ -9,10 +9,10 @@ import { IsEmail, IsString, IsOptional, IsNumber, MinLength, MaxLength, Matches 
  * - Al menos 1 número
  * - Al menos 1 carácter especial (@$!%*?&)
  */
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 const PASSWORD_ERROR_MESSAGE =
-  'La contraseña debe tener mínimo 8 caracteres, incluir al menos: 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (@$!%*?&._-)';
+  'La contraseña debe tener mínimo 8 caracteres, incluir al menos: 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (@$!%*?&)';
 
 export class CreateUsuarioDto {
   @IsEmail({}, { message: 'Debe proporcionar un email válido' })
