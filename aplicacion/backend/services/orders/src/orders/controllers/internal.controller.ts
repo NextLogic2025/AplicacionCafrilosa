@@ -1,4 +1,4 @@
-import { Controller, Patch, Param, Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Patch, Param, Body, UseGuards, Get } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
 import { ServiceAuthGuard } from '../../auth/guards/service-auth.guard';
 
