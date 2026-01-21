@@ -38,16 +38,51 @@ function mapRoleFromPayload(payload: unknown): AppRole | null {
   if (!payload || typeof payload !== 'object') return null
 
   const user = payload as Record<string, unknown>
-  const roleId = (user.rolId ?? user.roleId ?? user.rol_id ?? user.role_id ?? user['rol_id']) as
-    | number
-    | string
-    | undefined
-  const roleName = (user.rol ?? user.role ?? user['rol']) as unknown
 
+  // Try to find role ID in various locations and formats
+  // Check root, 'usuario', 'user', and both camelCase/snake_case
+  const possibleSources = [
+    user,
+    user.usuario as Record<string, unknown>,
+    user.user as Record<string, unknown>
+  ].filter(Boolean)
+
+  let roleId: string | number | undefined
+  let roleName: unknown
+
+  for (const src of possibleSources) {
+    if (src.rolId !== undefined) roleId = src.rolId as string | number
+    else if (src.rol_id !== undefined) roleId = src.rol_id as string | number
+    else if (src.roleId !== undefined) roleId = src.roleId as string | number
+    else if (src.role_id !== undefined) roleId = src.role_id as string | number
+
+    if (roleId !== undefined) break
+  }
+
+  // If roleId found, try mapping by ID first (most reliable)
   const normalizedId = typeof roleId === 'string' ? Number(roleId) : roleId
-  if (typeof normalizedId === 'number' && ROLE_BY_ID[normalizedId]) return ROLE_BY_ID[normalizedId]
+  if (typeof normalizedId === 'number' && ROLE_BY_ID[normalizedId]) {
+    return ROLE_BY_ID[normalizedId]
+  }
+
+  // Fallback: Try mapping by Name
+  // Find role name in sources
+  for (const src of possibleSources) {
+    if (src.rol !== undefined) {
+      if (typeof src.rol === 'string') roleName = src.rol
+      else if (typeof src.rol === 'object' && src.rol && 'nombre' in src.rol) roleName = (src.rol as any).nombre
+    } else if (src.role !== undefined) {
+      if (typeof src.role === 'string') roleName = src.role
+    }
+
+    if (roleName) break
+  }
 
   const normalizedName = typeof roleName === 'string' ? roleName.toLowerCase() : undefined
+
+  // Specific fix for "Cliente" variations
+  if (normalizedName === 'cliente' || normalizedName === 'customer') return 'cliente'
+
   const fromName = APP_ROLES.find((r) => r.key === normalizedName) ??
     APP_ROLES.find((r) => r.label.toLowerCase() === normalizedName)
   return fromName?.key ?? null

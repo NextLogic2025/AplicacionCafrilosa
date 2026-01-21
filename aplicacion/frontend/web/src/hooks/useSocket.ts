@@ -35,7 +35,15 @@ function saveNotifications(notifications: NotificationPayload[]) {
 }
 
 export function useSocket() {
-    const { token } = useAuth()
+    // Try to get auth token, but don't crash if context is missing
+    let token: string | null = null
+    try {
+        const auth = useAuth()
+        token = auth.token
+    } catch (e) {
+        console.warn('useSocket: Auth context missing or not ready', e)
+    }
+
     const socketRef = useRef<Socket | null>(null)
     const [notifications, setNotifications] = useState<NotificationPayload[]>(() => loadNotifications())
     const [isConnected, setIsConnected] = useState(false)

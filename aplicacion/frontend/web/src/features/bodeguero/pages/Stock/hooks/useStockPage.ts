@@ -27,10 +27,22 @@ export function useStockPage() {
     const fetchStock = async () => {
         setLoading(true)
         try {
-            const data = selectedProduct
+            const rawData = selectedProduct
                 ? await getStockByProduct(selectedProduct)
                 : await getAllStock()
-            setStock(data)
+
+            // Calculate availability on frontend since backend might return raw entities
+            const processedData = rawData.map(item => {
+                const fisico = Number(item.cantidadFisica)
+                const reservado = Number(item.cantidadReservada || 0)
+                const disponible = fisico - reservado
+                return {
+                    ...item,
+                    cantidadDisponible: item.cantidadDisponible ?? String(disponible) // Use backend value if exists, else calc
+                }
+            })
+
+            setStock(processedData)
         } catch (err: any) {
             setError(err.message || 'Error al cargar stock')
         } finally {
