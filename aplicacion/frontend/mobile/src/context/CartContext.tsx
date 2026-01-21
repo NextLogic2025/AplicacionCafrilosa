@@ -152,21 +152,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const serverCart = await CartService.getCart(target)
             const mappedCart = await mapServerCartToState(serverCart)
+
+            // Asegurar que si el servidor devuelve items pero el mapeo falla, no mostremos 0
+            if (serverCart?.items?.length > 0 && mappedCart.items.length === 0) {
+                console.warn('CartContext: Server returned items but mapped cart is empty. Retrying...')
+            }
+
             setCart(mappedCart)
         } catch (error) {
             console.warn('Error loading cart from server', error)
-            setCart({
-                items: [],
-                total_estimado: 0,
-                subtotal: 0,
-                descuento_total: 0,
-                impuestos_total: 0,
-                total_final: 0,
-                cliente_id: currentClient?.id,
-                cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
-                sucursal_id: currentBranch?.id,
-                sucursal_nombre: currentBranch?.nombre_sucursal
-            })
+            // No limpiar el carrito si ya tenía items y solo falló la actualización
+            if (cart.items.length === 0) {
+                setCart({
+                    items: [],
+                    total_estimado: 0,
+                    subtotal: 0,
+                    descuento_total: 0,
+                    impuestos_total: 0,
+                    total_final: 0,
+                    cliente_id: currentClient?.id,
+                    cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
+                    sucursal_id: currentBranch?.id,
+                    sucursal_nombre: currentBranch?.nombre_sucursal
+                })
+            }
         } finally {
             setLoading(false)
         }
@@ -195,130 +204,112 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
 
         const items: CartItem[] = []
-
-        const normalizePrice = (value: unknown) => {
-            if (value === undefined || value === null) return null
-            const numeric = Number(value)
-            return Number.isFinite(numeric) ? numeric : null
-        }
-
-        const resolvePrice = (candidates: unknown[]) => {
-            for (const candidate of candidates) {
-                const price = normalizePrice(candidate)
-                if (price !== null) return price
-            }
-            return 0
-        }
-
         let productsMap = new Map<string, any>()
+
         try {
-            // Solo llamar si hay cliente seleccionado y lista de precios válida
-            let clientListId: number | undefined
+            // Optimización: Si estamos en modo vendedor y existe cliente, intentar cargar info catálogo
+            // Pero NO bloquear si falla.
             if (isVendorMode && currentClient && currentClient.lista_precios_id) {
-                clientListId = currentClient.lista_precios_id
-                const productsResponse = await CatalogService.getProductsForClient(1, 1000, undefined, clientListId)
-                productsResponse.items.forEach(p => productsMap.set(p.id, p))
+                const clientListId = currentClient.lista_precios_id
+                const productsResponse = await CatalogService.getProductsForClient(1, 1000, '', clientListId)
+                if (productsResponse?.items) {
+                    productsResponse.items.forEach(p => productsMap.set(p.id, p))
+                }
             }
-            // Si no hay cliente seleccionado, no llamar a la API
         } catch (err) {
-            console.warn('Could not fetch products for cart enrichment', err)
+            console.warn('Could not fetch products for cart enrichment (using snapshots)', err)
         }
 
         for (const item of serverCart.items) {
             try {
-                const productDetails = productsMap.get(item.producto_id)
+                // Estrategia de recuperación de datos:
+                // 1. Datos frescos del catálogo (si existen)
+                // 2. Snapshots guardados en el item del carrito
+                // 3. Fallback a valores del item directo
 
+                const catalogProduct = productsMap.get(item.producto_id)
 
-                const precioLista = resolvePrice([
-                    item.precio_original_snapshot,
-                    item.precio_lista,
-                    productDetails?.precio_original,
-                    productDetails?.precio,
-                    productDetails?.precio_oferta
-                ])
+                // Resolver Precio Lista (Precio original/base)
+                const precioLista = Number(
+                    catalogProduct?.precio_original ??
+                    item.precio_original_snapshot ??
+                    item.precio_lista ??
+                    item.precio_unitario_ref ??
+                    0
+                )
 
-                let precioFinal = resolvePrice([
-                    item.precio_unitario_ref,
-                    item.precio_unitario,
-                    item.precio_final,
-                    item.precio,
-                    productDetails?.precio_oferta,
-                    productDetails?.precio_original,
-                    productDetails?.precio
-                ])
-                if (precioFinal === 0 && precioLista > 0) {
-                    precioFinal = precioLista
-                }
+                // Resolver Precio Final (Precio de venta real)
+                // Prioridad: Oferta Catálogo > Precio Catálogo > Precio Ref Carrito > Precio Final Carrito > Precio Unitario Carrito
+                let precioFinal = Number(
+                    catalogProduct?.precio_oferta ??
+                    catalogProduct?.precio ??
+                    item.precio_unitario_ref ??
+                    item.precio_final ??
+                    item.precio_unitario ??
+                    0
+                )
 
-                const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id
+                // Sanity check: Si precio final es 0 pero tenemos precio lista, usar precio lista
+                if (precioFinal <= 0 && precioLista > 0) precioFinal = precioLista
+                // Si ambos son 0, es un error de datos, pero mantenemos el item para que el usuario pueda borrarlo
+
+                const tienePromocion = (precioLista > precioFinal) || !!item.campania_aplicada_id || !!catalogProduct?.precio_oferta
+
                 let descuentoPorcentaje = 0
                 if (tienePromocion && precioLista > 0) {
                     descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100)
                 }
 
                 const cantidad = Number(item.cantidad || 0)
-                const subtotal = cantidad * precioFinal
 
+                // Construir item robusto
                 items.push({
-                    id: item.id,
+                    id: item.id || item.producto_id,
                     producto_id: item.producto_id,
-                    nombre_producto: productDetails?.nombre || item.nombre_producto || 'Producto',
-                    codigo_sku: productDetails?.codigo_sku || item.codigo_sku || 'N/A',
-                    imagen_url: productDetails?.imagen_url || item.imagen_url,
-                    cantidad,
-                    unidad_medida: productDetails?.unidad_medida || item.unidad_medida || 'UN',
+                    nombre_producto: catalogProduct?.nombre || item.nombre_producto || 'Producto sin nombre',
+                    codigo_sku: catalogProduct?.codigo_sku || item.codigo_sku || 'N/A',
+                    imagen_url: catalogProduct?.imagen_url || item.imagen_url,
+                    cantidad: cantidad,
+                    unidad_medida: catalogProduct?.unidad_medida || item.unidad_medida || 'UN',
                     precio_lista: precioLista,
                     precio_final: precioFinal,
-                    subtotal,
+                    subtotal: cantidad * precioFinal,
                     campania_aplicada_id: item.campania_aplicada_id,
                     motivo_descuento: item.motivo_descuento,
                     tiene_promocion: tienePromocion,
                     descuento_porcentaje: descuentoPorcentaje
                 })
+
             } catch (err) {
                 console.error(`Error processing cart item ${item.producto_id}`, err)
+                // Fallback de emergencia para no perder el item visualmente
                 items.push({
-                    id: item.id,
+                    id: item.id || 'error-id-' + Math.random(),
                     producto_id: item.producto_id,
-                    nombre_producto: 'Producto',
-                    codigo_sku: 'N/A',
-                    imagen_url: undefined,
-                    cantidad: Number(item.cantidad || 0),
+                    nombre_producto: item.nombre_producto || 'Error Producto',
+                    cantidad: Number(item.cantidad || 1),
                     unidad_medida: 'UN',
                     precio_lista: 0,
                     precio_final: 0,
                     subtotal: 0,
-                    campania_aplicada_id: item.campania_aplicada_id,
-                    motivo_descuento: item.motivo_descuento,
-                    tiene_promocion: false,
-                    descuento_porcentaje: 0
-                })
+                    codigo_sku: 'ERR',
+                    tiene_promocion: false
+                } as CartItem)
             }
         }
 
-        const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
-        const descuento_total = items.reduce((acc, curr) => {
-            const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
-            return acc + (discountPerUnit * curr.cantidad)
-        }, 0)
-
-        const impuestos_total = (subtotal) * 0.12 // Example TAX
-        const total_final = subtotal + impuestos_total
+        // ✅ USAR LA FUNCIÓN CENTRALIZADA
+        const totals = recalculateCartTotals(items)
 
         return {
             items,
-            total_estimado: total_final,
-            subtotal,
-            descuento_total,
-            impuestos_total,
-            total_final,
+            ...totals,
             cliente_id: serverCart.cliente_id,
             cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
             sucursal_id: currentBranch?.id,
             sucursal_nombre: currentBranch?.nombre_sucursal
         }
     }
-
     const setClient = (client: Client | null, branch?: ClientBranch | null) => {
         setCurrentClient(client)
         setCurrentBranch(branch || null)

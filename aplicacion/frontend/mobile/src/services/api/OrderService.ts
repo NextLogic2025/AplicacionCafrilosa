@@ -223,7 +223,7 @@ export const OrderService = {
                     : ordersEndpoint(endpoints.orders.orderFromCartMe)
 
             const payload = {
-                condicion_pago: options?.condicion_pago || 'CONTADO',
+                forma_pago_solicitada: options?.condicion_pago || 'CONTADO',
                 ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
             }
 

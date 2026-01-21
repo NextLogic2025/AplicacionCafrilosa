@@ -118,14 +118,17 @@ export function ClientCheckoutScreen() {
             console.error('Checkout error:', error);
             let errorMessage = error?.info?.backendMessage || error?.message || 'No se pudo procesar el pedido.';
 
-            // Si es error de stock o 500, mensaje amigable
-            if (
-                errorMessage.includes('No se pudo procesar el pedido') ||
-                errorMessage.includes('stock') ||
-                errorMessage.includes('500')
-            ) {
-                errorMessage = 'No se pudo procesar el pedido. Puede que uno de los productos no tenga stock suficiente o el servicio no esté disponible.';
+            // Manejo de errores específicos para el usuario
+            if (errorMessage.includes('reservar stock') || errorMessage.includes('stock')) {
+                errorMessage = '⚠️ No hay suficiente stock disponible para completar tu pedido. Por favor revisa las cantidades.';
+            } else if (errorMessage.includes('crédito') || errorMessage.includes('credit')) {
+                errorMessage = '💳 Tu límite de crédito es insuficiente para realizar esta compra.';
+            } else if (errorMessage.includes('monto mínimo')) {
+                errorMessage = '📉 El pedido no alcanza el monto mínimo requerido.';
+            } else if (errorMessage.includes('500') || errorMessage.includes('network')) {
+                errorMessage = '🔌 Error de conexión con el servidor. Por favor intenta más tarde.';
             }
+            // Si no cae en ninguno, muestra el mensaje original del backend o un genérico
 
             setErrorModalMessage(errorMessage)
             setShowErrorModal(true)
