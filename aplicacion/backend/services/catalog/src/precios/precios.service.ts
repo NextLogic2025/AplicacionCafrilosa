@@ -181,6 +181,8 @@ export class PreciosService {
         id: p.id,
         codigo_sku: p.codigoSku,
         nombre: p.nombre,
+        descripcion: p.descripcion,
+        imagen_url: p.imagenUrl,
         categoria: cat ? { id: cat.id, nombre: cat.nombre } : null,
         unidad_medida: p.unidadMedida,
         precio_lista: precioListaNum, // El precio viene de la tabla intermedia
