@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleMap, Polygon, Marker } from '@react-google-maps/api';
+import { GoogleMap, Polygon, Marker, InfoWindow } from '@react-google-maps/api';
 import { loadGoogleMaps } from '../../../utils/googleMapsLoader';
 
 export interface PuntoMapa {
@@ -38,8 +38,8 @@ export const ZonaMapaGoogle: React.FC<ZonaMapaGoogleProps> = ({
     (poligono.length > 0
       ? poligono[0]
       : puntos.length > 0
-      ? puntos[0]
-      : { lat: -12.0464, lng: -77.0428 });
+        ? puntos[0]
+        : { lat: -12.0464, lng: -77.0428 });
 
   if (!isLoaded) return <div style={{ minHeight: 350 }}>Cargando mapa...</div>;
 
@@ -69,9 +69,44 @@ export const ZonaMapaGoogle: React.FC<ZonaMapaGoogleProps> = ({
           />
         )}
         {puntos.map((p, i) => (
-          <Marker key={i} position={{ lat: p.lat, lng: p.lng }} label={p.nombre ? { text: p.nombre, color: '#d32f2f' } : undefined} />
+          <React.Fragment key={i}>
+            <Marker
+              position={{ lat: p.lat, lng: p.lng }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#d32f2f',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2,
+              }}
+            />
+            {p.nombre && (
+              <InfoWindow
+                position={{ lat: p.lat, lng: p.lng }}
+                options={{
+                  pixelOffset: new google.maps.Size(0, -15),
+                  disableAutoPan: true,
+                }}
+              >
+                <div style={{
+                  background: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#d32f2f',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {p.nombre}
+                </div>
+              </InfoWindow>
+            )}
+          </React.Fragment>
         ))}
       </GoogleMap>
     </div>
   );
 };
+

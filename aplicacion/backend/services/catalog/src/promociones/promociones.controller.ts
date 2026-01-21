@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req, Query,
 import { AuthGuard } from '@nestjs/passport';
 
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
 import { PromocionesService } from './promociones.service';
@@ -197,13 +198,8 @@ export class PromocionesController {
 
   // Internal S2S endpoint for best promo (used by other services)
   @Get('internal/mejor/producto/:id')
+  @UseGuards(require('../auth/guards/service-auth.guard').ServiceAuthGuard)
   async getBestPromotionInternal(@Param('id') id: string, @Req() req: any, @Query('cliente_id') queryClienteId?: string) {
-    const serviceToken = process.env.SERVICE_TOKEN;
-    const auth = (req.headers?.authorization || '').toString();
-    if (serviceToken) {
-      const expected = 'Bearer ' + serviceToken;
-      if (auth !== expected) throw new BadRequestException('Unauthorized internal access');
-    }
     const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req, queryClienteId);
     try {
       const best = await this.svc.getBestPromotionForProduct(id, { clienteId, listaId: clienteListaId });

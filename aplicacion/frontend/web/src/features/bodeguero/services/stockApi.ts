@@ -12,13 +12,13 @@ export interface StockItem {
     }
     lote?: {
         id: string
-        codigo: string
+        numeroLote: string
         producto?: {
             id: string
             nombre: string
             codigo_sku: string
         }
-        fecha_vencimiento: string
+        fechaVencimiento: string
     }
     cantidadFisica: string // usually string from decimal in DB
     cantidadReservada: string

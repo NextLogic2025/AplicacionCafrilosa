@@ -52,6 +52,9 @@ export class Product {
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
   createdAt: Date;
 
+  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  updatedAt: Date;
+
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', select: false })
   deletedAt: Date;
 }

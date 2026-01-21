@@ -7,6 +7,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { PickingService } from './picking.service';
 import { CreatePickingDto } from './dto/create-picking.dto';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
 @Controller('picking')
 export class PickingController {
@@ -74,11 +75,18 @@ export class PickingController {
 
     // Internal helper for local testing: no auth, directly confirm a reservation.
     @Post('internal/confirm-open')
+    @UseGuards(ServiceAuthGuard)
     async confirmOpen(@Body() body: any) {
         const pedidoId = body.pedido_id || body.pedidoId;
         const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
         if (!reservationId) throw new BadRequestException('reservation_id is required');
         return this.service.confirmFromReservation(pedidoId, reservationId);
+    }
+
+    @Get('internal/:id')
+    @UseGuards(ServiceAuthGuard)
+    async findOneInternal(@Param('id') id: string) {
+        return this.service.findOne(id);
     }
 
     @Put(':id/asignar')
@@ -93,7 +101,8 @@ export class PickingController {
     @Roles('bodeguero')
     tomar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
-        return this.service.asignarBodeguero(id, usuarioId);
+        const authHeader = req.headers?.authorization || null;
+        return this.service.asignarBodeguero(id, usuarioId, authHeader);
     }
 
     @Post(':id/iniciar')

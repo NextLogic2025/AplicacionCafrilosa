@@ -28,9 +28,7 @@ export const loadGoogleMaps = async (options?: Partial<GoogleMapsLoaderOptions>)
   const defaultOptions: GoogleMapsLoaderOptions = {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     version: 'weekly',
-    libraries: ['maps', 'drawing'],
-    language: 'en',
-    region: 'US',
+    libraries: ['drawing'],
   };
 
   const mergedOptions = { ...defaultOptions, ...options };
@@ -38,7 +36,8 @@ export const loadGoogleMaps = async (options?: Partial<GoogleMapsLoaderOptions>)
   loadPromise = new Promise<boolean>(async (resolve) => {
     try {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mergedOptions.googleMapsApiKey}&v=${mergedOptions.version}&libraries=${mergedOptions.libraries?.join(',')}&language=${mergedOptions.language}&region=${mergedOptions.region}`;
+      script.id = 'script-loader';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mergedOptions.googleMapsApiKey}&v=${mergedOptions.version}&libraries=${mergedOptions.libraries?.join(',')}&language=${mergedOptions.language}&region=${mergedOptions.region}&loading=async`;
       script.async = true;
       script.defer = true;
       script.onload = () => {

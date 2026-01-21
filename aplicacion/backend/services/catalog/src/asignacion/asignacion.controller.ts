@@ -1,16 +1,22 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Put } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Put, Body, Param, UseGuards, ParseIntPipe, HttpStatus } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
-
 import { AsignacionService } from './asignacion.service';
+import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 
+@ApiTags('Asignación de Vendedores')
+@ApiBearerAuth()
 @Controller('asignacion')
 export class AsignacionController {
   constructor(private svc: AsignacionService) {}
 
   @Get()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  @ApiOperation({ summary: 'Listar todas las asignaciones activas' })
   list() {
     return this.svc.findAll();
   }
@@ -18,21 +24,26 @@ export class AsignacionController {
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  create(@Body() body: any) {
-    return this.svc.create(body);
-  }
-
-  @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  remove(@Param('id') id: number) {
-    return this.svc.remove(Number(id));
+  @ApiOperation({ summary: 'Asignar vendedor a zona', description: 'Valida que solo exista un vendedor principal por zona.' })
+  @ApiResponse({ status: 201, description: 'Asignación creada.' })
+  @ApiResponse({ status: 400, description: 'Conflicto: Ya existe un principal.' })
+  create(@Body() dto: CreateAsignacionDto) { // <--- Usamos DTO aquí
+    return this.svc.create(dto);
   }
 
   @Put(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  update(@Param('id') id: number, @Body() body: any) {
-    return this.svc.update(Number(id), body);
+  @ApiOperation({ summary: 'Actualizar asignación' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateAsignacionDto>) {
+    return this.svc.update(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  @ApiOperation({ summary: 'Eliminar asignación (Soft Delete)' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.remove(id);
   }
 }

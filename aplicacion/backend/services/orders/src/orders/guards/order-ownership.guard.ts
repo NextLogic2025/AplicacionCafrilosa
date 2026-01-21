@@ -1,8 +1,11 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import { ServiceHttpClient } from '../../common/http/service-http-client.service';
 
 @Injectable()
 export class OrderOwnershipGuard implements CanActivate {
     private readonly logger = new Logger(OrderOwnershipGuard.name);
+
+    constructor(private readonly serviceHttp: ServiceHttpClient) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
@@ -29,18 +32,13 @@ export class OrderOwnershipGuard implements CanActivate {
         // Último recurso: resolver el cliente asociado al userId consultando Catalog
         if (user?.userId) {
             try {
-                const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-                const fetchFn = (globalThis as any).fetch;
-                if (typeof fetchFn === 'function') {
-                    const url = `${base.replace(/\/+$/, '')}/internal/clients/by-user/${user.userId}`;
-                    const resp: any = await fetchFn(url);
-                    if (resp && resp.ok) {
-                        const cliente = await resp.json();
-                        if (cliente && bodyClienteId && String(cliente.id) === String(bodyClienteId)) return true;
-                        // Also allow when paramsUserId is the user's cliente id
-                        if (paramsUserId && cliente && String(cliente.id) === String(paramsUserId)) return true;
-                    }
-                }
+                const cliente = await this.serviceHttp.get<any>(
+                    'catalog-service',
+                    `/internal/clients/by-user/${user.userId}`,
+                );
+                if (cliente && bodyClienteId && String(cliente.id) === String(bodyClienteId)) return true;
+                // Also allow when paramsUserId is the user's cliente id
+                if (paramsUserId && cliente && String(cliente.id) === String(paramsUserId)) return true;
             } catch (err) {
                 this.logger.warn('Error resolviendo cliente desde Catalog en OrderOwnershipGuard', err?.message || err);
                 // No bloquear por error de red; dejar que otros checks prevengan acceso

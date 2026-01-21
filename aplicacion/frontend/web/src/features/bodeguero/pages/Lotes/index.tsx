@@ -160,7 +160,7 @@ export default function LotesPage() {
               render: (_, item) => (
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" icon={Pencil} onClick={() => handleEdit(item)} />
-                  {(role === 'admin' || role === 'supervisor') && (
+                  {(role === 'supervisor') && (
                     <Button size="sm" variant="ghost" icon={Trash2} onClick={() => handleDeleteClick(item)} className="text-red-600 hover:bg-red-50" />
                   )}
                 </div>
@@ -183,9 +183,8 @@ export default function LotesPage() {
           open={!!loteToDelete}
           title="Eliminar Lote"
           description={`¿Estás seguro de que deseas eliminar el lote ${loteToDelete.numeroLote}? Esta acción no se puede deshacer.`}
-          confirmText="Eliminar"
-          cancelText="Cancelar"
-          variant="danger"
+          confirmLabel="Eliminar"
+          cancelLabel="Cancelar"
           onConfirm={confirmDelete}
           onCancel={() => setLoteToDelete(null)}
         />

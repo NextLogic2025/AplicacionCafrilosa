@@ -14,9 +14,11 @@ import { OrdersController } from './controllers/orders.controller';
 import { CartController } from './controllers/cart.controller';
 import { EstadosController } from './controllers/estados.controller';
 import { InternalAdminController } from './controllers/internal-admin.controller';
+import { InternalController } from './controllers/internal.controller';
 import { OrdersService } from './services/orders.service';
 import { CartService } from './services/cart.service';
 import { OrderListenerService } from './services/order-listener.service';
+import { OrderOwnershipGuard } from './guards/order-ownership.guard';
 
 @Module({
   imports: [
@@ -31,8 +33,8 @@ import { OrderListenerService } from './services/order-listener.service';
       PromocionAplicada,
     ]),
   ],
-  controllers: [OrdersController, CartController, EstadosController, InternalAdminController],
-  providers: [OrdersService, CartService, OrderListenerService],
+  controllers: [OrdersController, CartController, EstadosController, InternalAdminController, InternalController],
+  providers: [OrdersService, CartService, OrderListenerService, OrderOwnershipGuard],
   exports: [OrdersService, CartService],
 })
 export class OrdersModule {}

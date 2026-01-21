@@ -37,15 +37,35 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
     }, [pickingId])
 
     const handlePickClick = (item: PickingItem) => {
-        setPickQty(String(item.cantidadSolicitada - item.cantidadPickeada)) // Default to remaining
+        setPickQty(String(item.cantidadPickeada)) // Start with current picked amount
         setPickModal({ open: true, item })
     }
 
     const confirmPick = async () => {
         if (!pickModal.item || !picking) return
+        const targetQty = Number(pickQty)
+
+        if (targetQty > pickModal.item.cantidadSolicitada) {
+            alert(`No puedes ingresar más de lo solicitado (${pickModal.item.cantidadSolicitada} Unds).`)
+            return
+        }
+
+        if (targetQty < 0) {
+            alert('La cantidad no puede ser negativa.')
+            return
+        }
+
+        const currentQty = pickModal.item.cantidadPickeada
+        const delta = targetQty - currentQty
+
+        if (delta === 0) {
+            setPickModal({ open: false, item: null })
+            return
+        }
+
         try {
             await pickingApi.pickItem(picking.id, pickModal.item.id, {
-                cantidadPickeada: Number(pickQty)
+                cantidadPickeada: delta
             })
             setPickModal({ open: false, item: null })
             fetchDetails() // Refresh to see updates
@@ -75,15 +95,15 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             {/* Header */}
-            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-neutral-200 shadow-sm">
-                <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between bg-white  rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-4 p-4 flex-1">
                     <Button variant="ghost" icon={ArrowLeft} onClick={onBack} />
                     <div>
-                        <h2 className="text-lg font-bold text-neutral-900">Picking #{picking.id}</h2>
-                        <p className="text-sm text-neutral-500">Pedido REF: {picking.pedidoId}</p>
+                        <h2 className="text-lg font-bold text-neutral-900">Picking #{String(picking.id).substring(0, 8)}...</h2>
+                        <p className="text-sm text-neutral-500">Pedido REF: {String(picking.pedidoId).substring(0, 8)}...</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 p-4 bg-gray-50 h-full items-center">
                     <StatusBadge variant="warning">{picking.estado}</StatusBadge>
                     <Button
                         variant="primary"
@@ -99,37 +119,102 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
             {error && <Alert type="error" title="Error" message={error} onClose={() => setError(null)} />}
 
             {/* Items List */}
-            <div className="grid gap-4">
+            <div className="space-y-3">
                 {picking.items?.map(item => {
-                    const progress = item.cantidadSolicitada > 0 ? (item.cantidadPickeada / item.cantidadSolicitada) * 100 : 0
                     const isComplete = item.cantidadPickeada >= item.cantidadSolicitada
 
+                    // Logic to extract readable location
+                    let locationLabel = 'N/A'
+                    if (item.ubicacionSugerida) {
+                        if (typeof item.ubicacionSugerida === 'object') {
+                            locationLabel = item.ubicacionSugerida.codigoVisual
+                        } else {
+                            locationLabel = String(item.ubicacionSugerida)
+                        }
+                    }
+
+                    const productName = item.nombreProducto || `Producto ${item.productoId}`
+
+                    const handleQuickPick = async () => {
+                        if (isComplete) return // Already done
+                        const remaining = item.cantidadSolicitada - item.cantidadPickeada
+                        try {
+                            await pickingApi.pickItem(picking.id, item.id, {
+                                cantidadPickeada: remaining
+                            })
+                            fetchDetails()
+                        } catch (err: any) {
+                            alert('Error: ' + err.message)
+                        }
+                    }
+
+
+                    const remaining = item.cantidadSolicitada - item.cantidadPickeada
+
                     return (
-                        <div key={item.id} className={`bg-white p-4 rounded-xl border ${isComplete ? 'border-green-200 bg-green-50' : 'border-neutral-200'} shadow-sm flex justify-between items-center`}>
-                            <div className="flex gap-4 items-center">
-                                <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${isComplete ? 'bg-green-100 text-green-600' : 'bg-brand-red/10 text-brand-red'}`}>
+                        <div
+                            key={item.id}
+                            className={`bg-white p-4 rounded-xl border ${isComplete ? 'border-green-200 bg-green-50/50' : 'border-neutral-200'} shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between transition-all gap-4`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`h-12 w-12 rounded-lg flex items-center justify-center shrink-0 ${isComplete ? 'bg-green-100 text-green-600' : 'bg-neutral-100 text-neutral-500'}`}>
                                     <Package size={24} />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-neutral-900">Item #{item.id} (Prod ID: {item.productoId})</p>
-                                    <p className="text-sm text-neutral-500">
-                                        Solicitado: <span className="font-bold">{item.cantidadSolicitada}</span> |
-                                        Ubicación Sugerida: {item.ubicacionOrigenSugerida || 'N/A'}
+                                    <p className="font-semibold text-neutral-900 text-lg">
+                                        {productName}
                                     </p>
-                                    {/* Progress Bar */}
-                                    <div className="mt-2 w-48 h-2 bg-neutral-100 rounded-full overflow-hidden">
-                                        <div className={`h-full ${isComplete ? 'bg-green-500' : 'bg-brand-red'}`} style={{ width: `${progress}%` }} />
+                                    <p className="text-sm text-neutral-600">
+                                        Ubicación: <span className="font-mono bg-neutral-100 px-1 rounded font-bold text-neutral-700">{locationLabel}</span>
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <p className="text-sm text-neutral-500">
+                                            Progreso: <span className="font-bold text-neutral-900">{item.cantidadPickeada}</span> / {item.cantidadSolicitada} Unds
+                                        </p>
+                                        {remaining > 0 && (
+                                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-medium">
+                                                Faltan {remaining}
+                                            </span>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-neutral-400 mt-1">{item.cantidadPickeada} pickeados</p>
                                 </div>
                             </div>
 
-                            {!isComplete && (
-                                <Button onClick={() => handlePickClick(item)} variant="outline">
-                                    Registrar
-                                </Button>
-                            )}
-                            {isComplete && <CheckCircle className="text-green-500" />}
+                            <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                                {isComplete ? (
+                                    <div className="flex items-center gap-2">
+                                        <StatusBadge variant="success">Completado</StatusBadge>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handlePickClick(item)}
+                                            title="Corregir cantidad"
+                                        >
+                                            Editar
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            className="flex-1 sm:flex-none"
+                                            onClick={handleQuickPick}
+                                            title={`Confirmar restantes (${remaining})`}
+                                        >
+                                            Todo ({remaining})
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 sm:flex-none"
+                                            onClick={() => handlePickClick(item)}
+                                        >
+                                            Manual...
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )
                 })}
@@ -139,26 +224,52 @@ export function PickingProcessing({ pickingId, onBack, onComplete }: Props) {
             <Modal
                 isOpen={pickModal.open}
                 onClose={() => setPickModal({ open: false, item: null })}
-                title="Registrar Pickeo"
+                title={`Registrar Pickeo: ${pickModal.item?.nombreProducto || 'Producto'}`}
                 headerGradient="red"
             >
-                <div className="space-y-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500">Producto ID: {pickModal.item?.productoId}</p>
-                        <p className="font-bold text-lg">{pickModal.item?.cantidadPickeada} / {pickModal.item?.cantidadSolicitada} Unds</p>
+                <div className="space-y-6">
+                    <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Solicitado</p>
+                            <p className="font-bold text-xl">{pickModal.item?.cantidadSolicitada}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Ya Pickeado</p>
+                            <p className="font-bold text-xl text-blue-600">{pickModal.item?.cantidadPickeada}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase font-semibold">Faltan</p>
+                            <p className="font-bold text-xl text-orange-600">{(pickModal.item?.cantidadSolicitada || 0) - (pickModal.item?.cantidadPickeada || 0)}</p>
+                        </div>
                     </div>
 
-                    <TextField
-                        label="Cantidad a confirmar"
-                        type="number"
-                        value={pickQty}
-                        onChange={(e) => setPickQty(e.target.value)}
-                        autoFocus
-                    />
+                    <div className="space-y-2">
+                        <div className="flex gap-2 items-end">
+                            <TextField
+                                label="Cantidad Total Recogida"
+                                type="number"
+                                value={pickQty}
+                                onChange={(e) => setPickQty(e.target.value)}
+                                autoFocus
+                                className="flex-1 text-lg font-bold"
+                            />
+                            <Button
+                                variant="secondary"
+                                className="mb-0.5 h-10"
+                                onClick={() => {
+                                    if (pickModal.item) {
+                                        setPickQty(String(pickModal.item.cantidadSolicitada))
+                                    }
+                                }}
+                            >
+                                TODO
+                            </Button>
+                        </div>
+                    </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
                         <Button variant="ghost" onClick={() => setPickModal({ open: false, item: null })}>Cancelar</Button>
-                        <Button variant="primary" onClick={confirmPick}>Confirmar</Button>
+                        <Button variant="primary" onClick={confirmPick}>Confirmar Pickeo</Button>
                     </div>
                 </div>
             </Modal>

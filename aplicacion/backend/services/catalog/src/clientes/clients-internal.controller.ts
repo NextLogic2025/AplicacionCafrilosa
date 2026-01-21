@@ -1,4 +1,5 @@
-import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, UseGuards } from '@nestjs/common';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
 import { ClientesService } from './clientes.service';
 
@@ -7,6 +8,7 @@ export class ClientsInternalController {
   constructor(private readonly clientsService: ClientesService) {}
 
   @Get('by-user/:userId')
+  @UseGuards(ServiceAuthGuard)
   async findByUserId(@Param('userId') userId: string) {
     const cliente = await this.clientsService.findByUsuarioPrincipalId(userId);
     if (!cliente) throw new NotFoundException('Usuario no tiene perfil de cliente asociado');
@@ -14,6 +16,7 @@ export class ClientsInternalController {
   }
 
   @Get(':id')
+  @UseGuards(ServiceAuthGuard)
   async findById(@Param('id') id: string) {
     const cliente = await this.clientsService.findOne(id);
     if (!cliente) throw new NotFoundException('Cliente no encontrado');

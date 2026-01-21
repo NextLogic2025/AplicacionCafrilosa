@@ -33,7 +33,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
   useEffect(() => {
     if (isOpen && initialData && mode === 'edit') {
       setFormData({
-        nombre: initialData.nombre || '',
+        nombre: initialData.nombreCompleto || initialData.nombre || '',
         email: initialData.email || '',
         password: '',
         rolId: initialData.rol?.id || 4,
@@ -64,8 +64,10 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
 
     if (mode === 'create' && !formData.password) {
       newErrors.password = 'La contraseña es requerida'
-    } else if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres'
+    } else if (formData.password && formData.password.length < 8) {
+      newErrors.password = 'La contraseña debe tener al menos 8 caracteres'
+    } else if (formData.password && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{8,}$/.test(formData.password)) {
+      newErrors.password = 'Debe tener mayúscula, minúscula, número y algún caracter especial (@$!%*?&._-)'
     }
 
     setErrors(newErrors)
@@ -173,7 +175,7 @@ export function CrearUsuarioModal({ isOpen, onClose, onSuccess, initialData, mod
           label={mode === 'edit' ? 'Nueva contraseña (opcional)' : 'Contraseña'}
           tone="light"
           type="password"
-          placeholder={mode === 'edit' ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'}
+          placeholder={mode === 'edit' ? 'Dejar vacío para no cambiar' : 'Mínimo 8 caracteres'}
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           error={errors.password}

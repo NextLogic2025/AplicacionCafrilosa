@@ -20,7 +20,7 @@ export default function VendedorNotificaciones() {
 
       {!isConnected && (
         <Alert
-          type="warning"
+          type="info"
           title="Desconectado"
           message="Conectando con el servidor de notificaciones..."
         />

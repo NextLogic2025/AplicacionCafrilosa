@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import { 
+import {
   getAllZonas,
   getZonasConVendedores,
-  createZona, 
+  createZona,
   updateZona,
   toggleZonaActivo,
   asignarVendedorAZona,
   actualizarAsignacionVendedor,
   eliminarAsignacionVendedor,
-  type ZonaComercial, 
-  type CreateZonaDto 
+  type ZonaComercial,
+  type CreateZonaDto
 } from './zonasApi'
 import { obtenerVendedores, type Vendedor } from './usuariosApi'
 
@@ -67,6 +67,7 @@ export function useZonas() {
         zona_id: zonaCreada.id,
         vendedor_usuario_id: vendedorId,
         nombre_vendedor_cache: vendedor ? (vendedor.nombreCompleto || vendedor.nombre) : undefined,
+        es_principal: true,
       })
     }
 

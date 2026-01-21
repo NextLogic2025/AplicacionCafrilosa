@@ -17,44 +17,37 @@ interface AsignarPrecioModalProps {
 
 export function AsignarPrecioModal({ isOpen, onClose, onSubmit, productos, listas, initialData, productoId }: AsignarPrecioModalProps) {
   // Si productoId viene por prop, úsalo siempre como valor fuente
-  const [formData, setFormData] = useState<AsignarPrecioDto>(initialData || {
-    productoId: productoId || '',
-    listaId: listas[0]?.id || 1,
-    precio: 0,
-  })
+  const [productoIdState, setProductoIdState] = useState(productoId || initialData?.productoId || '')
+  const [listaId, setListaId] = useState(initialData?.listaId || listas[0]?.id || 1)
+  const [precio, setPrecio] = useState(initialData?.precio ? String(initialData.precio) : '')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    // Si el productoId viene por prop, nunca lo sobrescribas
-    if (name === 'productoId' && productoId) return
-    setFormData((prev: AsignarPrecioDto) => ({
-      ...prev,
-      [name]: name === 'precio' ? parseFloat(value) : name === 'listaId' ? parseInt(value) : value,
-    }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // Validación básica
-    const idToSend = productoId || formData.productoId
+    const idToSend = productoId || productoIdState
     if (!idToSend || idToSend.length < 10) {
       setErrorMsg('Selecciona un producto válido.')
       return
     }
-    if (!formData.listaId || isNaN(Number(formData.listaId))) {
+    if (!listaId || isNaN(Number(listaId))) {
       setErrorMsg('Selecciona una lista de precios.')
       return
     }
-    if (!formData.precio || isNaN(Number(formData.precio)) || formData.precio < 0.01) {
+    const precioNum = parseFloat(precio)
+    if (!precio || isNaN(precioNum) || precioNum < 0.01) {
       setErrorMsg('El precio debe ser mayor a 0.')
       return
     }
     setErrorMsg(null)
     setLoading(true)
     try {
-      await onSubmit({ ...formData, productoId: idToSend })
+      await onSubmit({
+        productoId: idToSend,
+        listaId: listaId,
+        precio: precioNum
+      })
       onClose()
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al asignar el precio')
@@ -75,16 +68,15 @@ export function AsignarPrecioModal({ isOpen, onClose, onSubmit, productos, lista
               value={productos.find(p => p.id === productoId)?.nombre || ''}
               disabled
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900"
-              // El valor real de productoId se mantiene en el estado y se envía por handleSubmit
+            // El valor real de productoId se mantiene en el estado y se envía por handleSubmit
             />
           </div>
         ) : (
           <div className="grid gap-2">
             <label className="text-xs text-neutral-600">Producto</label>
             <select
-              name="productoId"
-              value={formData.productoId}
-              onChange={handleChange}
+              value={productoIdState}
+              onChange={(e) => setProductoIdState(e.target.value)}
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
             >
               <option value="">Selecciona un producto</option>
@@ -99,9 +91,8 @@ export function AsignarPrecioModal({ isOpen, onClose, onSubmit, productos, lista
         <div className="grid gap-2">
           <label className="text-xs text-neutral-600">Lista de Precio</label>
           <select
-            name="listaId"
-            value={formData.listaId}
-            onChange={handleChange}
+            value={listaId}
+            onChange={(e) => setListaId(parseInt(e.target.value))}
             className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
           >
             {listas.map((lista) => (
@@ -114,13 +105,12 @@ export function AsignarPrecioModal({ isOpen, onClose, onSubmit, productos, lista
         <div className="grid gap-2">
           <label className="text-xs text-neutral-600">Precio</label>
           <input
-            name="precio"
             type="number"
             step="0.01"
-            min="0"
+            min="0.01"
             placeholder="Ej: 29.99"
-            value={formData.precio}
-            onChange={handleChange}
+            value={precio}
+            onChange={(e) => setPrecio(e.target.value)}
             className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
           />
         </div>

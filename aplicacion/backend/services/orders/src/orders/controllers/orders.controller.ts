@@ -12,6 +12,7 @@ import { HistorialEstado } from '../entities/historial-estado.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Pedido } from '../entities/pedido.entity';
 import { DataSource, Repository } from 'typeorm';
+import { ServiceHttpClient } from '../../common/http/service-http-client.service';
 
 @Controller('orders')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -21,6 +22,7 @@ export class OrdersController {
     constructor(
         // 1. Inyección del servicio de lógica de negocio
         private readonly ordersService: OrdersService,
+        private readonly serviceHttp: ServiceHttpClient,
 
         // 2. Inyección directa del Repositorio (Si se requiere acceso rápido)
         @InjectRepository(Pedido)
@@ -144,19 +146,12 @@ export class OrdersController {
         // If caller is a cliente, resolve the catalog client id from usuario_principal_id
         if (String(role).toLowerCase() === 'cliente') {
             try {
-                const base = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
-                const apiBase = base.replace(/\/+$/, '') + (base.includes('/api') ? '' : '/api');
-                const url = apiBase + '/internal/clients/by-user/' + userId;
-                const serviceToken = process.env.SERVICE_TOKEN;
-                const fetchFn = (globalThis as any).fetch;
-                if (typeof fetchFn === 'function') {
-                    const resp: any = await fetchFn(url, { headers: serviceToken ? { Authorization: 'Bearer ' + serviceToken } : undefined });
-                    if (resp && resp.ok) {
-                        const data = await resp.json();
-                        const clienteId = data?.id;
-                        if (clienteId) return this.ordersService.findAllByClient(clienteId);
-                    }
-                }
+                const data = await this.serviceHttp.get<any>(
+                    'catalog-service',
+                    `/internal/clients/by-user/${userId}`,
+                );
+                const clienteId = data?.id;
+                if (clienteId) return this.ordersService.findAllByClient(clienteId);
             } catch (err) {
                 this.logger.warn('Could not resolve cliente id from Catalog', { err: err?.message || err });
             }

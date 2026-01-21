@@ -42,10 +42,12 @@ async function httpRequest<T>(baseUrl: string, path: string, options: HttpOption
 
   const data = (await res.json().catch(() => null)) as T | { message?: string } | null
   if (!res.ok) {
-    const message =
-      typeof (data as { message?: string } | null)?.message === 'string'
-        ? (data as { message: string }).message
-        : 'Error de API'
+    let message = 'Error de API'
+    if (data && typeof (data as any).message === 'string') {
+      message = (data as any).message
+    } else if (data && Array.isArray((data as any).message)) {
+      message = (data as any).message.join(', ')
+    }
     throw new ApiError(message, res.status, data)
   }
   if (data == null) throw new ApiError('Respuesta inválida del servidor', res.status)

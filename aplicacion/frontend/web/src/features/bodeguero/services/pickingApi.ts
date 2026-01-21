@@ -12,12 +12,16 @@ export interface PickingItem {
     estadoLinea: 'PENDIENTE' | 'COMPLETADO' | 'PARCIAL'
     createdAt: string
     updatedAt: string
+    // Enriched fields
+    nombreProducto?: string
+    sku?: string
+    ubicacionSugerida?: { id: number; codigoVisual: string } | number // Backend can return object or ID
 }
 
 export interface PickingOrden {
     id: number
     pedidoId: number
-    estado: 'ASIGNADO' | 'EN_PROCESO' | 'COMPLETADO'
+    estado: 'ASIGNADO' | 'EN_PROCESO' | 'COMPLETADO' | 'PENDIENTE'
     prioridad: number
     bodegueroAsignadoId?: number
     fechaInicio?: string
@@ -82,6 +86,10 @@ export const pickingApi = {
 
     startPicking: async (id: number): Promise<void> => {
         return httpWarehouse(`/api/picking/${id}/iniciar`, { method: 'POST' })
+    },
+
+    tomarPedido: async (id: number): Promise<void> => {
+        return httpWarehouse(`/api/picking/${id}/tomar`, { method: 'POST' })
     },
 
     completePicking: async (id: number): Promise<void> => {

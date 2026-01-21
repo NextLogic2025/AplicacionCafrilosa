@@ -25,9 +25,9 @@ export type ClienteFormValues = {
   ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
 }
 
-export type ZonaOption = { 
-  id: number; 
-  nombre: string; 
+export type ZonaOption = {
+  id: number;
+  nombre: string;
   descripcion?: string;
   poligono_geografico?: unknown;
   vendedor_asignado?: {
@@ -78,7 +78,7 @@ export function validateClienteForm(value: ClienteFormValues, mode: 'create' | '
     if (!value.contacto_password) {
       newErrors.contacto_password = 'La contraseña es requerida'
     } else if (value.contacto_password.length < 6) {
-      newErrors.contacto_password = 'La contraseña debe tener al menos 6 caracteres'
+      newErrors.contacto_password = 'La contraseña debe tener al menos 8 caracteres'
     }
   }
 
@@ -173,7 +173,7 @@ export function ClienteForm({
               label="Contraseña"
               tone="light"
               type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
               value={value.contacto_password}
               onChange={(e) => update('contacto_password', e.target.value)}
               error={errors.contacto_password}
@@ -251,9 +251,8 @@ export function ClienteForm({
                     type="button"
                     key={lista.id}
                     onClick={() => update('lista_precios_id', lista.id === 0 ? null : lista.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      selected ? 'bg-brand-red text-white shadow' : 'bg-white text-neutral-700 hover:bg-neutral-100'
-                    }`}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selected ? 'bg-brand-red text-white shadow' : 'bg-white text-neutral-700 hover:bg-neutral-100'
+                      }`}
                     disabled={isSubmitting || isCatalogLoading}
                   >
                     {lista.nombre}
@@ -336,9 +335,9 @@ export function ClienteForm({
 
           {/* Mapa de la zona seleccionada */}
           {value.zona_comercial_id && (
-            <ZonaMapDisplay 
-              zonaId={value.zona_comercial_id} 
-              zonas={zonas} 
+            <ZonaMapDisplay
+              zonaId={value.zona_comercial_id}
+              zonas={zonas}
               isLoaded={isLoaded}
               loadError={loadError}
             />
@@ -383,7 +382,7 @@ export function ClienteForm({
             <p className="text-sm font-semibold text-gray-800">Ubicación en el Mapa</p>
             <span className="text-xs text-gray-500">Haz clic en el mapa para marcar la ubicación</span>
           </div>
-          
+
           {!value.zona_comercial_id && (
             <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 mb-2">
               <p className="text-xs text-yellow-800">
@@ -391,7 +390,7 @@ export function ClienteForm({
               </p>
             </div>
           )}
-          
+
           <LocationPicker
             position={value.latitud && value.longitud ? { lat: value.latitud, lng: value.longitud } : null}
             zonaId={value.zona_comercial_id}
@@ -424,15 +423,15 @@ export function ClienteForm({
 const containerStyle = { width: '100%', height: '280px' }
 const defaultCenter: google.maps.LatLngLiteral = { lat: -0.180653, lng: -78.467834 }
 
-function ZonaMapDisplay({ 
-  zonaId, 
-  zonas, 
-  isLoaded, 
-  loadError 
-}: { 
-  zonaId: number; 
-  zonas: ZonaOption[]; 
-  isLoaded: boolean; 
+function ZonaMapDisplay({
+  zonaId,
+  zonas,
+  isLoaded,
+  loadError
+}: {
+  zonaId: number;
+  zonas: ZonaOption[];
+  isLoaded: boolean;
   loadError: Error | undefined;
 }) {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
@@ -647,7 +646,7 @@ function LocationPicker({ position, zonaId, zonas, isLoaded, loadError, onChange
               }}
             />
           )}
-          
+
           {/* Marcador de ubicación */}
           {tempMarker && (
             <Marker
@@ -657,7 +656,7 @@ function LocationPicker({ position, zonaId, zonas, isLoaded, loadError, onChange
           )}
         </GoogleMap>
       </div>
-      
+
       {zonaPath.length > 0 && (
         <p className="text-xs text-gray-600">
           Polígono de la zona comercial visible. Haz clic dentro o cerca del área para marcar la ubicación.

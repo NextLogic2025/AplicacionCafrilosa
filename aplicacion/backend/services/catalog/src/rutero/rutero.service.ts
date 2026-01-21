@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import { Cliente } from '../clientes/entities/cliente.entity';
 import { SucursalCliente } from '../clientes/sucursales/entities/sucursal.entity';
+import { ServiceHttpClient } from '../common/http/service-http-client.service';
 
 import { RuteroPlanificado } from './entities/rutero-planificado.entity';
 
@@ -16,6 +17,7 @@ export class RuteroService {
     private clienteRepo: Repository<Cliente>,
     @InjectRepository(SucursalCliente)
     private sucursalRepo: Repository<SucursalCliente>,
+    private readonly serviceHttp: ServiceHttpClient,
   ) {}
 
   async findAll() {
@@ -63,12 +65,11 @@ export class RuteroService {
     let usuarioMap = new Map<string, { nombre: string; telefono: string | null }>();
     if (usuarioIds.length > 0) {
       try {
-        const response = await fetch(`${process.env.USUARIOS_SERVICE_URL || 'http://usuarios-service:3000'}/usuarios/batch/internal`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: usuarioIds })
-        });
-        const usuarios = await response.json();
+        const usuarios = await this.serviceHttp.post<any[]>(
+          'usuarios-service',
+          '/usuarios/batch/internal',
+          { ids: usuarioIds },
+        );
         usuarioMap = new Map(usuarios.map(u => [u.id, {
           nombre: (u.nombreCompleto ?? u.nombre) || u.email,
           telefono: u.telefono || null

@@ -9,6 +9,7 @@ type LoginResponse = {
   refresh_token?: string
   usuario?: unknown
   message?: string
+  rolId?: number
 }
 
 export type UserProfile = {

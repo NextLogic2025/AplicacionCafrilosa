@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PageHero } from '../../../../components/ui/PageHero'
 import { GenericDataTable } from '../../../../components/ui/GenericDataTable'
 import { Button } from '../../../../components/ui/Button'
+import { TextField } from '../../../../components/ui/TextField'
 import { Plus, Pencil, Trash2, MapPin } from 'lucide-react'
 import { Alert } from '../../../../components/ui/Alert'
 import { Modal } from '../../../../components/ui/Modal'
@@ -104,9 +105,8 @@ export default function UbicacionPage() {
                 open={!!deleteId}
                 title="Eliminar Ubicación"
                 description="¿Estás seguro de que deseas eliminar esta ubicación? Esta acción no se puede deshacer."
-                confirmText="Eliminar"
-                cancelText="Cancelar"
-                variant="danger"
+                confirmLabel="Eliminar"
+                cancelLabel="Cancelar"
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteId(null)}
             />
@@ -115,42 +115,64 @@ export default function UbicacionPage() {
 }
 
 function UbicacionFormModal({ isOpen, onClose, onSuccess, ubicacion }: { isOpen: boolean; onClose: () => void; onSuccess: () => void; ubicacion: Ubicacion | null }) {
-    const { register, handleSubmit, reset, setValue } = useForm<CreateUbicacionDto>()
+    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CreateUbicacionDto>()
     const [almacenes, setAlmacenes] = useState<Almacen[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [formData, setFormData] = useState({
+        almacenId: '',
+        codigoVisual: '',
+        tipo: 'RACK',
+        capacidadMaxKg: '',
+        esCuarentena: false
+    })
 
     useEffect(() => {
         if (isOpen) {
             almacenesApi.getAll().then(setAlmacenes)
             if (ubicacion) {
-                setValue('almacenId', ubicacion.almacenId)
-                setValue('codigoVisual', ubicacion.codigoVisual)
-                setValue('tipo', ubicacion.tipo)
-                setValue('capacidadMaxKg', ubicacion.capacidadMaxKg)
-                setValue('esCuarentena', ubicacion.esCuarentena)
+                setFormData({
+                    almacenId: String(ubicacion.almacenId),
+                    codigoVisual: ubicacion.codigoVisual,
+                    tipo: ubicacion.tipo,
+                    capacidadMaxKg: String(ubicacion.capacidadMaxKg || ''),
+                    esCuarentena: ubicacion.esCuarentena
+                })
             } else {
-                reset({
+                setFormData({
+                    almacenId: '',
+                    codigoVisual: '',
                     tipo: 'RACK',
+                    capacidadMaxKg: '',
                     esCuarentena: false
                 })
             }
         }
     }, [isOpen, ubicacion])
 
-    const onSubmit = async (data: CreateUbicacionDto) => {
+    const onSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
         setLoading(true)
         setError(null)
         try {
-            const payload = {
-                ...data,
-                almacenId: Number(data.almacenId),
-                capacidadMaxKg: data.capacidadMaxKg ? Number(data.capacidadMaxKg) : undefined
-            }
-
             if (ubicacion) {
+                // When updating, don't send almacenId as it cannot be changed
+                const payload = {
+                    codigoVisual: formData.codigoVisual,
+                    tipo: formData.tipo as any,
+                    capacidadMaxKg: formData.capacidadMaxKg ? Number(formData.capacidadMaxKg) : undefined,
+                    esCuarentena: formData.esCuarentena
+                }
                 await ubicacionesApi.update(ubicacion.id, payload)
             } else {
+                // When creating, include almacenId
+                const payload = {
+                    almacenId: Number(formData.almacenId),
+                    codigoVisual: formData.codigoVisual,
+                    tipo: formData.tipo as any,
+                    capacidadMaxKg: formData.capacidadMaxKg ? Number(formData.capacidadMaxKg) : undefined,
+                    esCuarentena: formData.esCuarentena
+                }
                 await ubicacionesApi.create(payload)
             }
             onSuccess()
@@ -162,13 +184,18 @@ function UbicacionFormModal({ isOpen, onClose, onSuccess, ubicacion }: { isOpen:
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={ubicacion ? 'Editar Ubicación' : 'Nueva Ubicación'} headerGradient="red">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                {error && <div className="text-red-500 text-sm">{error}</div>}
+        <Modal isOpen={isOpen} onClose={onClose} title={ubicacion ? 'Editar Ubicación' : 'Nueva Ubicación'} headerGradient="red" maxWidth="md">
+            <form onSubmit={onSubmit} className="space-y-4">
+                {error && <Alert type="error" message={error} />}
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Almacén</label>
-                    <select {...register('almacenId')} className="mt-1 block w-full border rounded-md px-3 py-2" required>
+                <div className="grid gap-2">
+                    <label className="text-xs text-neutral-600">Almacén</label>
+                    <select
+                        value={formData.almacenId}
+                        onChange={(e) => setFormData({ ...formData, almacenId: e.target.value })}
+                        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
+                        required
+                    >
                         <option value="">Seleccionar Almacén</option>
                         {almacenes.map(a => (
                             <option key={a.id} value={a.id}>{a.nombre}</option>
@@ -176,35 +203,66 @@ function UbicacionFormModal({ isOpen, onClose, onSuccess, ubicacion }: { isOpen:
                     </select>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Código Visual</label>
-                    <input type="text" {...register('codigoVisual')} className="mt-1 block w-full border rounded-md px-3 py-2" required placeholder="Ej. A-01-01" />
-                </div>
+                <TextField
+                    label="Código Visual"
+                    tone="light"
+                    type="text"
+                    placeholder="Ej: A-01-01"
+                    value={formData.codigoVisual}
+                    onChange={(e) => setFormData({ ...formData, codigoVisual: e.target.value })}
+                    required
+                />
 
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Tipo</label>
-                        <select {...register('tipo')} className="mt-1 block w-full border rounded-md px-3 py-2">
+                    <div className="grid gap-2">
+                        <label className="text-xs text-neutral-600">Tipo</label>
+                        <select
+                            value={formData.tipo}
+                            onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-neutral-900 outline-none transition focus:border-brand-red/60 focus:shadow-[0_0_0_4px_rgba(240,65,45,0.18)]"
+                        >
                             <option value="RACK">Rack</option>
                             <option value="PISO">Piso</option>
                             <option value="ESTANTERIA">Estantería</option>
                             <option value="CAMARA_FRIA">Cámara Fría</option>
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Capacidad (Kg)</label>
-                        <input type="number" step="0.01" {...register('capacidadMaxKg')} className="mt-1 block w-full border rounded-md px-3 py-2" />
-                    </div>
+                    <TextField
+                        label="Capacidad (Kg)"
+                        tone="light"
+                        type="number"
+                        step="0.01"
+                        placeholder="Opcional"
+                        value={formData.capacidadMaxKg}
+                        onChange={(e) => setFormData({ ...formData, capacidadMaxKg: e.target.value })}
+                    />
                 </div>
 
-                <div className="flex items-center">
-                    <input type="checkbox" {...register('esCuarentena')} className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                    <label className="ml-2 block text-sm text-gray-900">Es zona de cuarentena</label>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={formData.esCuarentena}
+                        onChange={(e) => setFormData({ ...formData, esCuarentena: e.target.checked })}
+                        className="h-4 w-4 rounded border-neutral-300 text-brand-red focus:ring-brand-red"
+                    />
+                    <label className="text-sm text-neutral-700">Es zona de cuarentena</label>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                    <Button variant="outline" onClick={onClose} type="button">Cancelar</Button>
-                    <Button type="submit" loading={loading}>{ubicacion ? 'Actualizar' : 'Guardar'}</Button>
+                <div className="flex justify-end gap-3 pt-4">
+                    <Button
+                        type="button"
+                        onClick={onClose}
+                        className="bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-50"
+                        disabled={loading}
+                    >
+                        {loading ? 'Guardando...' : (ubicacion ? 'Actualizar' : 'Guardar')}
+                    </Button>
                 </div>
             </form>
         </Modal>

@@ -10,7 +10,7 @@ export class AuthService {
   constructor(
     @InjectRepository(Usuario) private usuarioRepo: Repository<Usuario>,
     @InjectRepository(Role) private roleRepo: Repository<Role>,
-  ) {}
+  ) { }
 
 
   async obtenerMiPerfil(usuarioId: string) {
@@ -196,14 +196,16 @@ export class AuthService {
       if ('rolId' in d && d.rolId) up.rol = { id: d.rolId } as Role;
     }
 
-    await this.usuarioRepo.update(usuarioId, up as Partial<Usuario>);
+    // Use merge + save to ensure relationships (like rol) are updated correctly
+    const updatedUser = this.usuarioRepo.merge(target, up as Partial<Usuario>);
+    await this.usuarioRepo.save(updatedUser);
     return this.usuarioRepo.findOne({ where: { id: usuarioId }, relations: ['rol'] });
   }
 
   // Batch fetch usuarios by IDs (for internal service use)
   async obtenerUsuariosPorIds(ids: string[]) {
     if (!ids || ids.length === 0) return [];
-    
+
     const usuarios = await this.usuarioRepo
       .createQueryBuilder('u')
       .where('u.id IN (:...ids)', { ids })

@@ -128,7 +128,7 @@ const SupervisorRouteCreatePaso2Page: React.FC = () => {
       frecuencia: 'SEMANAL',
     }))
   );
-  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([...DIAS_SEMANA]);
+  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
 
   // Handlers
   const handleDestinoChange = (id: string, field: keyof Destino, value: string) => {

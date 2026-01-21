@@ -117,7 +117,7 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         setFormData(prev => ({ ...prev, vendedor_asignado_id: null }))
       }
     }
-    
+
     if (formData.zona_comercial_id) {
       loadVendorForZone()
     }
@@ -250,16 +250,45 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         onSuccess()
       }, 1200)
     } catch (error: any) {
-      const message = error?.message || 'Error al guardar el cliente'
-      const payloadInfo = (() => {
-        if (!error?.payload) return ''
-        try {
-          return ` (${typeof error.payload === 'string' ? error.payload : JSON.stringify(error.payload)})`
-        } catch {
-          return ''
+      // Extract user-friendly error message
+      let message = 'Error al guardar el cliente'
+
+      if (error?.message) {
+        // Check if the error message contains validation errors
+        if (typeof error.message === 'string') {
+          // Try to parse if it's a JSON string
+          try {
+            const parsed = JSON.parse(error.message)
+            if (Array.isArray(parsed.message)) {
+              // Backend validation errors array
+              message = parsed.message.join(', ')
+            } else if (parsed.message) {
+              message = parsed.message
+            } else {
+              message = error.message
+            }
+          } catch {
+            // Not JSON, use as is but clean it up
+            message = error.message
+          }
         }
-      })()
-      setSubmitMessage({ type: 'error', message: `${message}${payloadInfo}` })
+      }
+
+      // Additional validation error extraction
+      if (error?.payload) {
+        try {
+          const payload = typeof error.payload === 'string' ? JSON.parse(error.payload) : error.payload
+          if (Array.isArray(payload.message)) {
+            message = payload.message.join('. ')
+          } else if (payload.message) {
+            message = payload.message
+          }
+        } catch {
+          // Ignore parsing errors
+        }
+      }
+
+      setSubmitMessage({ type: 'error', message })
     } finally {
       setIsSubmitting(false)
     }
@@ -278,13 +307,12 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
             <div key={step} className="flex flex-1 items-center">
               <div className="flex flex-col items-center">
                 <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-bold transition ${
-                    isCompleted
+                  className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-bold transition ${isCompleted
                       ? 'border-brand-red bg-brand-red text-white'
                       : isCurrent
-                      ? 'border-brand-red bg-white text-brand-red'
-                      : 'border-gray-300 bg-white text-gray-400'
-                  }`}
+                        ? 'border-brand-red bg-white text-brand-red'
+                        : 'border-gray-300 bg-white text-gray-400'
+                    }`}
                 >
                   {isCompleted ? <Check className="h-6 w-6" /> : step}
                 </div>

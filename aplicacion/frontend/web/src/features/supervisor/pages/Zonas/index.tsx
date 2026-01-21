@@ -11,6 +11,7 @@ import { ZonasTable } from './ZonasTable'
 import { CrearZonaForm } from './CrearZonaForm'
 import { ZonaDetailModal } from './ZonaDetailModal'
 import { MapaGeneralModal } from './MapaGeneralModal'
+import { findOverlappingZones } from '../../utils/polygonUtils'
 
 type ModalMode = 'crear' | 'editar'
 
@@ -104,6 +105,25 @@ export default function ZonasPage() {
     setSubmitMessage(null)
 
     if (!validateForm()) return
+
+    // Validate polygon overlap if polygon is defined
+    if (formData.poligono_geografico) {
+      const overlapping = findOverlappingZones(
+        formData.poligono_geografico,
+        zonas,
+        modalMode === 'editar' ? zonaEditando?.id : undefined
+      )
+
+      if (overlapping.length > 0) {
+        const zoneNames = overlapping.map(z => z.nombre).join(', ')
+        setSubmitMessage({
+          type: 'error',
+          message: `El polígono se superpone con ${overlapping.length === 1 ? 'la zona' : 'las zonas'}: ${zoneNames}. Por favor, ajusta el área geográfica.`
+        })
+        setIsSubmitting(false)
+        return
+      }
+    }
 
     setIsSubmitting(true)
 
@@ -237,8 +257,8 @@ export default function ZonasPage() {
       {toast && (
         <div
           className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'success'
-              ? 'bg-green-500 text-white'
-              : 'bg-red-500 text-white'
+            ? 'bg-green-500 text-white'
+            : 'bg-red-500 text-white'
             }`}
           style={{
             animation: 'slideInRight 0.3s ease-out',

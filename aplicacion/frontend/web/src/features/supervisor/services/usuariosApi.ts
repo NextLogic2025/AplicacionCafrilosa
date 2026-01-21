@@ -13,12 +13,8 @@ export interface CreateUsuarioDto {
 }
 
 export interface CreateUsuarioResponse {
+  mensaje: string
   id: string
-  email: string
-  nombre: string
-  rolId: number
-  activo: boolean
-  createdAt: string
 }
 
 export interface Usuario {
@@ -47,7 +43,7 @@ export interface UpdateUsuarioDto {
   activo?: boolean
 }
 
-export interface Vendedor extends Usuario {}
+export interface Vendedor extends Usuario { }
 
 // Registro de usuario - usa la ruta de autenticación en puerto 3001
 export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuarioResponse> {

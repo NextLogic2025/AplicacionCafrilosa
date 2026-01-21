@@ -29,7 +29,7 @@ export const CLIENTE_NAV_ITEMS: SidebarItem[] = [
 // ========================================
 export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/bodeguero', icon: Home, end: true },
-  { id: 'pendientes', label: 'Pedidos Pendientes', to: '/bodeguero/pendientes', icon: ClipboardList },
+
   { id: 'inventario', label: 'Inventario', to: '/bodeguero/inventario', icon: Package },
   { id: 'lotes', label: 'Lotes y Vencimientos', to: '/bodeguero/lotes', icon: Boxes },
   { id: 'pedidos', label: 'Preparación de Pedidos', to: '/bodeguero/pedidos', icon: ListChecks },

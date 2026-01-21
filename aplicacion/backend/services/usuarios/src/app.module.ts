@@ -6,10 +6,12 @@ import { Role } from './entities/role.entity';
 import { Usuario } from './entities/usuario.entity';
 import { ConfigModule } from './config/config.module';
 import { HealthModule } from './health/health.module';
+import { ServiceHttpModule } from './common/http/service-http.module';
 
 @Module({
   imports: [
     ConfigModule,
+    ServiceHttpModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,

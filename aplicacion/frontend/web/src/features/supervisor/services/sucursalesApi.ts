@@ -11,6 +11,8 @@ export interface Sucursal {
   activo: boolean
   created_at: string
   updated_at: string
+  zona_id?: number | null
+  zona_nombre?: string | null
 }
 
 export interface CreateSucursalDto {
