@@ -17,4 +17,10 @@ export class InternalController {
   async getOrderInternal(@Param('id') id: string) {
     return this.ordersService.findOne(id);
   }
+
+  @Post(':id/apply-picking')
+  @UseGuards(ServiceAuthGuard)
+  async applyPickingInternal(@Param('id') id: string, @Body() body: any) {
+    return this.ordersService.applyPickingResult(id, body || {});
+  }
 }

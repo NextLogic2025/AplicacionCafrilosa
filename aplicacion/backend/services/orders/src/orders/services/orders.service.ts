@@ -587,10 +587,11 @@ export class OrdersService {
 
       const itemsFromPicking: Array<any> = Array.isArray(payload.items) ? payload.items : [];
 
-      // Mapear por producto para facilidad
+      // Mapear por producto para facilidad. Soportar tanto `producto_id` como `productId`.
       const pickingMap: Record<string, any> = {};
       for (const it of itemsFromPicking) {
-        pickingMap[String(it.producto_id)] = it;
+        const key = String((it as any).producto_id ?? (it as any).productId ?? (it as any).productoId ?? (it as any).product_id);
+        pickingMap[key] = it;
       }
 
       // Ajustes por detalle (modificar en memoria y guardar en bulk)
@@ -628,6 +629,8 @@ export class OrdersService {
       const impuestos_total = Number((recalculatedSubtotal - descuento_total) * 0.12);
       const total_final = recalculatedSubtotal - descuento_total + impuestos_total;
 
+      const previousEstado = pedido.estado_actual;
+
       pedido.subtotal = recalculatedSubtotal as any;
       pedido.impuestos_total = impuestos_total as any;
       pedido.total_final = total_final as any;
@@ -635,10 +638,10 @@ export class OrdersService {
 
       await queryRunner.manager.save(pedido);
 
-      // Registrar en historial
+      // Registrar en historial (usar estado anterior real)
       const historial = queryRunner.manager.create(HistorialEstado, {
         pedido_id: pedidoId,
-        estado_anterior: pedido.estado_actual,
+        estado_anterior: previousEstado,
         estado_nuevo: 'PREPARADO',
         usuario_id: null,
         comentario: 'Reconciliado con resultado de picking' + (payload.pickingId ? (' id:' + payload.pickingId) : ''),

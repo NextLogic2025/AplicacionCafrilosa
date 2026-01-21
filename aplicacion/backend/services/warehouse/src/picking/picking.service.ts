@@ -533,11 +533,21 @@ export class PickingService {
             this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
         }
 
-        // Notify Orders service to mark the related pedido as PREPARADO
+        // Notify Orders service: first attempt to POST picking results for reconciliation,
+        // then PATCH the pedido status to PREPARADO. Use best-effort; failures are logged but don't block.
         try {
             const ordenRecord2: any = await this.ordenRepo.findOne({ where: { id } });
             const pedidoId = ordenRecord2?.pedidoId || (orden as any).pedidoId || null;
             if (pedidoId) {
+                // Build items payload (supporting motivoDesviacion -> motivo_ajuste)
+                const itemsPayload = (items || []).map(it => ({ producto_id: it.productoId, cantidad_pickeada: Number(it.cantidadPickeada || 0), motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion }));
+                try {
+                    await this.serviceHttp.post('orders-service', `/internal/${pedidoId}/apply-picking`, { pickingId: id, items: itemsPayload });
+                    this.logger.log(`Notificado Orders apply-picking para pedido ${pedidoId} desde picking ${id}`);
+                } catch (postErr) {
+                    this.logger.warn('Fallo al notificar Orders apply-picking', { pickingId: id, pedidoId, error: postErr?.message || postErr });
+                }
+
                 try {
                     await this.serviceHttp.patch('orders-service', `/internal/${pedidoId}/status`, { status: 'PREPARADO' });
                     this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
