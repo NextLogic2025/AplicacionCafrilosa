@@ -12,6 +12,7 @@ import { UserService } from '../../../../services/api/UserService'
 import { ClientService, ClientBranch, Client } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
+import { FeedbackModal } from '../../../../components/ui/FeedbackModal'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
 
@@ -44,6 +45,8 @@ export function ClientCheckoutScreen() {
     const [showSucursalesAccordion, setShowSucursalesAccordion] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [orderNumber, setOrderNumber] = useState('')
+    const [showErrorModal, setShowErrorModal] = useState(false)
+    const [errorModalMessage, setErrorModalMessage] = useState('')
 
     const subtotal = cart.subtotal || cart.items.reduce((sum, item) => sum + item.subtotal, 0)
     const descuentos = cart.descuento_total || 0
@@ -88,7 +91,8 @@ export function ClientCheckoutScreen() {
 
     const handleConfirmOrder = async () => {
         if (!userId) {
-            Alert.alert('Error', 'No se ha identificado el usuario del carrito.')
+            setErrorModalMessage('No se ha identificado el usuario del carrito.')
+            setShowErrorModal(true)
             return
         }
 
@@ -112,13 +116,19 @@ export function ClientCheckoutScreen() {
 
         } catch (error: any) {
             console.error('Checkout error:', error);
-            let errorMessage = error.message || 'No se pudo procesar el pedido';
+            let errorMessage = error?.info?.backendMessage || error?.message || 'No se pudo procesar el pedido.';
 
-            if (errorMessage.includes('500')) {
-                errorMessage = 'Error del servidor. Por favor verifica tu conexión y que el servicio de Catálogo esté disponible.';
+            // Si es error de stock o 500, mensaje amigable
+            if (
+                errorMessage.includes('No se pudo procesar el pedido') ||
+                errorMessage.includes('stock') ||
+                errorMessage.includes('500')
+            ) {
+                errorMessage = 'No se pudo procesar el pedido. Puede que uno de los productos no tenga stock suficiente o el servicio no esté disponible.';
             }
 
-            Alert.alert('Error', errorMessage)
+            setErrorModalMessage(errorMessage)
+            setShowErrorModal(true)
         } finally {
             setLoading(false)
         }
@@ -302,6 +312,13 @@ export function ClientCheckoutScreen() {
                 onClose={handleSuccessModalClose}
                 onPrimaryPress={handleSuccessModalClose}
                 primaryButtonText="Ir a Mis Pedidos"
+            />
+            <FeedbackModal
+                visible={showErrorModal}
+                type="error"
+                title="No se pudo procesar el pedido"
+                message={errorModalMessage}
+                onClose={() => setShowErrorModal(false)}
             />
         </View>
     )

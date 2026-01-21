@@ -98,4 +98,12 @@ export const endpoints = {
     reservationById: (id: string) => `/api/reservations/${id}`,
     reservationConfirm: (id: string) => `/api/reservations/${id}/confirm`,
   },
+  logistics: {
+    conductores: '/api/conductores',
+    conductorById: (id: string) => `/api/conductores/${id}`,
+    vehiculos: '/api/vehiculos',
+    vehiculoById: (id: string) => `/api/vehiculos/${id}`,
+    despachos: '/api/despachos',
+    despachoById: (id: string) => `/api/despachos/${id}`,
+  },
 } as const

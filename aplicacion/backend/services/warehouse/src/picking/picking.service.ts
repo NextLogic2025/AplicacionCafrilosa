@@ -59,7 +59,7 @@ export class PickingService {
         try {
             const body = await this.serviceHttp.get<any>(
                 'orders-service',
-                `/orders/${pedidoId}`,
+                `/internal/${pedidoId}`,
             );
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
@@ -455,6 +455,24 @@ export class PickingService {
             }
         } catch (e) {
             this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
+        }
+
+        // Notify Orders service to mark the related pedido as PREPARADO
+        try {
+            const ordenRecord2: any = await this.ordenRepo.findOne({ where: { id } });
+            const pedidoId = ordenRecord2?.pedidoId || (orden as any).pedidoId || null;
+            if (pedidoId) {
+                try {
+                    await this.serviceHttp.patch('orders-service', `/internal/${pedidoId}/status`, { status: 'PREPARADO' });
+                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
+                } catch (notifyErr) {
+                    this.logger.warn('Fallo al notificar Orders para marcar PREPARADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
+                }
+            } else {
+                this.logger.warn('Picking completado sin pedido asociado - no se notificará Orders', { pickingId: id });
+            }
+        } catch (e) {
+            this.logger.warn('Error preparando notificacion a Orders tras completar picking', { pickingId: id, err: e?.message || e });
         }
 
         return this.findOne(id);

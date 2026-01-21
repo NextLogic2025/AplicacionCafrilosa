@@ -37,9 +37,14 @@ export interface Lot {
 }
 
 export const ProductService = {
-    async getProducts(_params?: ProductParams | string): Promise<Product[]> {
-        await delay(500)
-        return []
+    async getProducts(params?: ProductParams & { clienteId?: string }): Promise<Product[]> {
+        // Si se pasa clienteId, filtra productos por cliente
+        let endpoint = '/api/products';
+        if (params?.clienteId) {
+            endpoint = `/api/products?clienteId=${params.clienteId}`;
+        }
+        // Puedes agregar más filtros aquí si tu backend los soporta
+        return apiRequest<Product[]>(endpoint);
     },
 
     async getLots(): Promise<Lot[]> {
@@ -61,13 +66,4 @@ export const ProductService = {
         await delay(300)
         return null
     },
-
-    async getCategories(): Promise<Category[]> {
-        return [
-            { id: '1', name: 'Embutidos', icon: 'nutrition' },
-            { id: '2', name: 'Carnes', icon: 'restaurant' },
-            { id: '3', name: 'Lácteos', icon: 'water' },
-            { id: '4', name: 'Snacks', icon: 'fast-food' },
-        ]
-    }
 }

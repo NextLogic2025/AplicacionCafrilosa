@@ -83,6 +83,12 @@ export class PickingController {
         return this.service.confirmFromReservation(pedidoId, reservationId);
     }
 
+    @Get('internal/:id')
+    @UseGuards(ServiceAuthGuard)
+    async findOneInternal(@Param('id') id: string) {
+        return this.service.findOne(id);
+    }
+
     @Put(':id/asignar')
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')

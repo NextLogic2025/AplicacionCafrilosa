@@ -21,10 +21,10 @@ export function QuickActionsGrid() {
             onPress: () => navigation.navigate('SupervisorAlmacenes'),
         },
         {
-            label: 'Reporte',
-            icon: 'stats-chart-outline',
+            label: 'Conductores',
+            icon: 'people-outline',
             color: '#6366F1',
-            onPress: () => navigation.navigate('SupervisorReports'),
+            onPress: () => navigation.navigate('SupervisorConductoresList'),
         },
         {
             label: 'Lotes',

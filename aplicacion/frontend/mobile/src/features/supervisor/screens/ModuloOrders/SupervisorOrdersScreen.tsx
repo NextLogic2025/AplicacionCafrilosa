@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react'
-import { Alert } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { OrderListTemplate } from '../../../../components/orders/OrderListTemplate'
 import { OrderStatusModal } from '../../../../components/ui/OrderStatusModal'
+import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { OrderService, Order, OrderStatus } from '../../../../services/api/OrderService'
 import { ClientService, Client } from '../../../../services/api/ClientService'
+import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../../shared/types'
 
 const SUPERVISOR_ALLOWED_STATUSES: OrderStatus[] = [
@@ -16,11 +17,24 @@ export function SupervisorOrdersScreen() {
     const navigation = useNavigation<any>()
     const [loading, setLoading] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    const [changingStatus, setChangingStatus] = useState(false)
     const [orders, setOrders] = useState<Order[]>([])
     const [clients, setClients] = useState<Client[]>([])
 
     const [showStatusModal, setShowStatusModal] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+
+    const [feedbackModal, setFeedbackModal] = useState<{
+        visible: boolean
+        type: FeedbackType
+        title: string
+        message: string
+    }>({
+        visible: false,
+        type: 'info',
+        title: '',
+        message: ''
+    })
 
     useFocusEffect(
         useCallback(() => {
@@ -65,15 +79,38 @@ export function SupervisorOrdersScreen() {
     const confirmStatusChange = async (newStatus: OrderStatus) => {
         if (!selectedOrder) return
 
+        setChangingStatus(true)
         try {
             await OrderService.changeOrderStatus(selectedOrder.id, newStatus)
             setShowStatusModal(false)
             setSelectedOrder(null)
-            Alert.alert('Éxito', 'Pedido actualizado correctamente')
+
+            // Mostrar mensaje apropiado según el estado
+            let message = `Pedido #${selectedOrder.codigo_visual} actualizado a ${newStatus}`
+            if (newStatus === 'APROBADO') {
+                message = `Pedido #${selectedOrder.codigo_visual} aprobado exitosamente. Se creará automáticamente una orden de picking para bodega.`
+            } else if (newStatus === 'RECHAZADO') {
+                message = `Pedido #${selectedOrder.codigo_visual} rechazado.`
+            }
+
+            setFeedbackModal({
+                visible: true,
+                type: 'success',
+                title: 'Estado Actualizado',
+                message
+            })
+
             await loadOrders()
         } catch (error) {
             console.error('Error changing status:', error)
-            Alert.alert('Error', 'No se pudo cambiar el estado del pedido')
+            setFeedbackModal({
+                visible: true,
+                type: 'error',
+                title: 'Error al Cambiar Estado',
+                message: getUserFriendlyMessage(error, 'UPDATE_ERROR')
+            })
+        } finally {
+            setChangingStatus(false)
         }
     }
 
@@ -105,6 +142,15 @@ export function SupervisorOrdersScreen() {
                 allowedStatuses={SUPERVISOR_ALLOWED_STATUSES}
                 onStatusChange={confirmStatusChange}
                 onClose={() => setShowStatusModal(false)}
+                isProcessing={changingStatus}
+            />
+
+            <FeedbackModal
+                visible={feedbackModal.visible}
+                type={feedbackModal.type}
+                title={feedbackModal.title}
+                message={feedbackModal.message}
+                onClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
             />
         </>
     )

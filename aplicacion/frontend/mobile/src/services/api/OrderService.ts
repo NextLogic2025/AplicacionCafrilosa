@@ -12,6 +12,7 @@ export type OrderStatus =
     | 'PENDIENTE'
     | 'APROBADO'
     | 'EN_PREPARACION'
+    | 'PREPARADO'
     | 'FACTURADO'
     | 'EN_RUTA'
     | 'ENTREGADO'
@@ -22,6 +23,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
     PENDIENTE: '#F59E0B',
     APROBADO: '#3B82F6',
     EN_PREPARACION: '#8B5CF6',
+    PREPARADO: '#10B981',
     FACTURADO: '#06B6D4',
     EN_RUTA: '#6366F1',
     ENTREGADO: '#10B981',
@@ -33,6 +35,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
     PENDIENTE: 'Pendiente',
     APROBADO: 'Aprobado',
     EN_PREPARACION: 'En Preparación',
+    PREPARADO: 'Preparado',
     FACTURADO: 'Facturado',
     EN_RUTA: 'En Camino',
     ENTREGADO: 'Entregado',
@@ -407,16 +410,48 @@ export const OrderService = {
         }
     },
 
-    changeOrderStatus: async (orderId: string, newStatus: OrderStatus): Promise<Order> => {
+    /**
+     * Cambia el estado de un pedido
+     * @param orderId - ID del pedido
+     * @param newStatus - Nuevo estado
+     * @param comentario - Comentario opcional sobre el cambio
+     */
+    changeOrderStatus: async (orderId: string, newStatus: OrderStatus, comentario?: string): Promise<Order> => {
         try {
-            const updatedOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderStatus(orderId)), {
+            // Usar el endpoint correcto: /orders/estados/:orderId/state
+            const updatedOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderEstadosChangeState(orderId)), {
                 method: 'PATCH',
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({
+                    nuevoEstado: newStatus,
+                    comentario: comentario || `Cambio de estado a ${newStatus}`
+                })
             })
             return OrderService.normalizeOrder(updatedOrder)
         } catch (error) {
-            logErrorForDebugging(error, 'OrderService.changeOrderStatus', { orderId, newStatus })
+            logErrorForDebugging(error, 'OrderService.changeOrderStatus', { orderId, newStatus, comentario })
             throw error
+        }
+    },
+
+    /**
+     * Obtiene el picking asociado a un pedido
+     * @param orderId - ID del pedido
+     * @returns Picking asociado o null si no existe
+     */
+    getOrderPicking: async (orderId: string): Promise<any | null> => {
+        try {
+            // Importación dinámica para evitar dependencia circular
+            const { PickingService } = await import('./PickingService')
+
+            // Buscar pickings del pedido
+            const pickings = await PickingService.list()
+            const orderPicking = pickings.find(p => p.pedidoId === orderId)
+
+            return orderPicking || null
+        } catch (error) {
+            logErrorForDebugging(error, 'OrderService.getOrderPicking', { orderId })
+            // No fallar si no se puede obtener el picking
+            return null
         }
     },
 

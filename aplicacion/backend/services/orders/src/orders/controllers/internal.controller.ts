@@ -1,4 +1,4 @@
-import { Controller, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Patch, Param, Body, UseGuards, Get } from '@nestjs/common';
 import { OrdersService } from '../services/orders.service';
 import { ServiceAuthGuard } from '../../auth/guards/service-auth.guard';
 
@@ -10,5 +10,11 @@ export class InternalController {
   @UseGuards(ServiceAuthGuard)
   async updateStatusInternal(@Param('id') id: string, @Body() body: { status: string }) {
     return this.ordersService.updateStatus(id, body.status, null);
+  }
+
+  @Get(':id')
+  @UseGuards(ServiceAuthGuard)
+  async getOrderInternal(@Param('id') id: string) {
+    return this.ordersService.findOne(id);
   }
 }

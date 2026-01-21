@@ -27,9 +27,10 @@ INSERT INTO estados_pedido (codigo, nombre_visible, descripcion, es_estado_final
 ('PENDIENTE', 'Pendiente de Aprobación', 'Esperando validación de Crédito y Stock', FALSE, 1),
 ('APROBADO', 'Aprobado', 'Validado, en cola para Bodega', FALSE, 2),
 ('EN_PREPARACION', 'En Preparación', 'Bodega está haciendo picking', FALSE, 3),
-('FACTURADO', 'Facturado', 'Documento legal generado', FALSE, 4),
-('EN_RUTA', 'En Camino', 'Transportista asignado y en ruta', FALSE, 5),
-('ENTREGADO', 'Entregado', 'Cliente recibió conforme', TRUE, 6),
+('PREPARADO', 'Preparado', 'Pedido listo tras completar picking', FALSE, 4),
+('FACTURADO', 'Facturado', 'Documento legal generado', FALSE, 5),
+('EN_RUTA', 'En Camino', 'Transportista asignado y en ruta', FALSE, 6),
+('ENTREGADO', 'Entregado', 'Cliente recibió conforme', TRUE, 7),
 ('ANULADO', 'Anulado', 'Cancelado por usuario o sistema', TRUE, 0),
 ('RECHAZADO', 'Rechazado', 'Fallo en crédito o stock', TRUE, 0);
 

@@ -21,6 +21,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         case 'Orders':
             return isFocused ? 'receipt' : 'receipt-outline'
         case 'Entregas':
+        case 'Vehículos':
             return isFocused ? 'car' : 'car-outline'
         case 'Equipo':
             return isFocused ? 'people' : 'people-outline'
@@ -85,7 +86,7 @@ export function TabNavigation({ state, descriptors, navigation }: BottomTabBarPr
                 paddingTop: 12,
                 paddingHorizontal: 6,
                 elevation: 12,
-                zIndex: 50, 
+                zIndex: 50,
             }}
         >
             <View className="flex-row items-center justify-around w-full">

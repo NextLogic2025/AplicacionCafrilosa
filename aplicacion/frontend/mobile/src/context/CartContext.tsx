@@ -212,15 +212,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         let productsMap = new Map<string, any>()
         try {
-            // ✅ MEJORADO: Obtener lista_precios_id del cliente para vendedores
+            // Solo llamar si hay cliente seleccionado y lista de precios válida
             let clientListId: number | undefined
-            if (isVendorMode && currentClient) {
-                clientListId = currentClient.lista_precios_id ?? undefined
+            if (isVendorMode && currentClient && currentClient.lista_precios_id) {
+                clientListId = currentClient.lista_precios_id
+                const productsResponse = await CatalogService.getProductsForClient(1, 1000, undefined, clientListId)
+                productsResponse.items.forEach(p => productsMap.set(p.id, p))
             }
-
-            // Usar método unificado que maneja tanto cliente directo como vendedor
-            const productsResponse = await CatalogService.getProductsForClient(1, 1000, undefined, clientListId)
-            productsResponse.items.forEach(p => productsMap.set(p.id, p))
+            // Si no hay cliente seleccionado, no llamar a la API
         } catch (err) {
             console.warn('Could not fetch products for cart enrichment', err)
         }

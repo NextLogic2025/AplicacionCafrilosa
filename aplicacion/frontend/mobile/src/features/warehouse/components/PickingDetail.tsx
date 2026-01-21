@@ -70,6 +70,8 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
         message: '',
     })
 
+    // (DEBUG visual eliminado)
+
     const loadData = async () => {
         setLoading(true)
         try {
@@ -127,7 +129,16 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
         }
         setSaving(true)
         try {
-            await PickingService.pickItem(pickingId, item.id, qty, item.loteSugerido || undefined)
+            // Si item.loteSugerido es un objeto, enviar solo el id
+            let loteId: string | undefined = undefined;
+            if (item.loteSugerido) {
+                if (typeof item.loteSugerido === 'string') {
+                    loteId = item.loteSugerido;
+                } else if (typeof item.loteSugerido === 'object' && item.loteSugerido.id) {
+                    loteId = item.loteSugerido.id;
+                }
+            }
+            await PickingService.pickItem(pickingId, item.id, qty, loteId)
             setFeedback({ visible: true, type: 'success', title: 'Registrado', message: `Se registraron ${qty} unidades correctamente.` })
             await loadData()
             onUpdated()
@@ -327,7 +338,7 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                                     <View className="flex-row items-center mb-1">
                                                         <Ionicons name="pricetag-outline" size={14} color="#6B7280" />
                                                         <Text className="text-xs text-neutral-500 ml-1">
-                                                            Lote: <Text className="font-semibold">{item.loteInfo?.numeroLote || item.loteSugerido?.slice(0, 8)}</Text>
+                                                            Lote: <Text className="font-semibold">{item.loteInfo?.numeroLote || (typeof item.loteSugerido === 'string' ? item.loteSugerido.slice(0, 8) : '')}</Text>
                                                         </Text>
                                                     </View>
                                                 )}
@@ -369,9 +380,10 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                 )}
             </ScrollView>
 
+            {/* Barra de acciones fija abajo */}
             {picking && (
-                <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-neutral-100 px-4 py-4" style={{ elevation: 10 }}>
-                    {allowStart && picking.estado === 'PENDIENTE' && (
+                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#e5e7eb', padding: 16, paddingBottom: 32, elevation: 10 }}>
+                    {allowStart && (picking.estado === 'PENDIENTE' || picking.estado === 'ASIGNADO') && (
                         <PrimaryButton
                             title={saving ? 'Iniciando...' : 'Iniciar Picking'}
                             onPress={handleStart}
