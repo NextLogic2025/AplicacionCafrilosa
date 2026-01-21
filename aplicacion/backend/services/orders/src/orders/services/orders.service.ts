@@ -651,20 +651,32 @@ export class OrdersService {
       // Llamar a Finance para crear factura (idempotente si ya existe factura_id)
       try {
         if (!pedido.factura_id) {
+          // Enriquecer con datos fiscales del cliente desde Catalog (internal)
+          let clienteFiscal: any = null;
+          try {
+            clienteFiscal = await this.serviceHttp.get<any>('catalog-service', `/internal/clients/${pedido.cliente_id}`);
+          } catch (e) {
+            this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
+          }
+
+          const rucCliente = clienteFiscal?.identificacion ?? clienteFiscal?.cliente_identificacion ?? '0000000000';
+          const razonSocialCliente = clienteFiscal?.razon_social ?? clienteFiscal?.razonSocial ?? ('Cliente ' + (pedido.cliente_id || '').slice(0, 8));
+
           const facturaPayload: any = {
             pedidoId: pedido.id,
             clienteId: pedido.cliente_id,
-            formaPago: pedido.forma_pago_solicitada,
+            vendedorId: pedido.vendedor_id || null,
+            rucCliente,
+            razonSocialCliente,
             subtotal: pedido.subtotal,
             impuestos: pedido.impuestos_total,
-            total: pedido.total_final,
-            items: (pedido.detalles || []).map((d: any) => ({
-              producto_id: d.producto_id,
-              codigo_sku: d.codigo_sku,
-              nombre_producto: d.nombre_producto,
+            totalFinal: pedido.total_final,
+            detalles: (pedido.detalles || []).map((d: any) => ({
+              productoId: d.producto_id,
+              descripcion: d.nombre_producto || d.codigo_sku || null,
               cantidad: Number(d.cantidad),
-              precio_unitario: Number(d.precio_final),
-              subtotal_linea: Number(d.cantidad) * Number(d.precio_final),
+              precioUnitario: Number(d.precio_final),
+              totalLinea: Number(d.cantidad) * Number(d.precio_final),
             })),
           };
 
