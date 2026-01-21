@@ -668,7 +668,7 @@ export class OrdersService {
             })),
           };
 
-          const resp = await this.serviceHttp.post<any>('finance-service', '/facturas', facturaPayload);
+          const resp = await this.serviceHttp.post<any>('finance-service', '/api/facturas', facturaPayload);
           if (resp && resp.id) {
             pedido.factura_id = resp.id;
             pedido.factura_numero = resp.numero || resp.facturaNumero || null;
