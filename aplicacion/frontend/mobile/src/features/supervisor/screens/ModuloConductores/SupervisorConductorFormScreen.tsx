@@ -4,11 +4,22 @@ import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
+import { PickerModal, type PickerOption } from '../../../../components/ui/PickerModal'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
 import { ConductorService, type CreateConductorDto, type Conductor } from '../../../../services/api/ConductorService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { BRAND_COLORS } from '../../../../shared/types'
+
+const TIPOS_LICENCIA: PickerOption[] = [
+    { id: 'A', label: 'Tipo A', description: 'Ciclomotores, motocicletas', icon: 'bicycle' },
+    { id: 'B', label: 'Tipo B', description: 'Automóviles, camionetas', icon: 'car' },
+    { id: 'C', label: 'Tipo C', description: 'Taxis, convencionales', icon: 'car-sport' },
+    { id: 'D', label: 'Tipo D', description: 'Servicio público, pasajeros', icon: 'bus' },
+    { id: 'E', label: 'Tipo E', description: 'Camiones pesados, trailers', icon: 'cube' },
+    { id: 'F', label: 'Tipo F', description: 'Automotores especiales', icon: 'construct' },
+    { id: 'G', label: 'Tipo G', description: 'Maquinaria agrícola/pesada', icon: 'hardware-chip' },
+]
 
 interface RouteParams {
     conductorId?: string
@@ -29,8 +40,11 @@ export function SupervisorConductorFormScreen() {
     const [nombreCompleto, setNombreCompleto] = useState('')
     const [cedula, setCedula] = useState('')
     const [telefono, setTelefono] = useState('')
-    const [licencia, setLicencia] = useState('')
+    const [tipoLicencia, setTipoLicencia] = useState('')
+    const [numeroLicencia, setNumeroLicencia] = useState('')
     const [activo, setActivo] = useState(true)
+
+    const [showLicenciaPicker, setShowLicenciaPicker] = useState(false)
 
     // Validation errors
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -62,7 +76,16 @@ export function SupervisorConductorFormScreen() {
             setNombreCompleto(data.nombre_completo)
             setCedula(data.cedula)
             setTelefono(data.telefono || '')
-            setLicencia(data.licencia || '')
+            // Parse licencia like "B-LIC123" => tipo: B, numero: LIC123
+            if (data.licencia) {
+                const parts = data.licencia.split('-')
+                if (parts.length === 2) {
+                    setTipoLicencia(parts[0])
+                    setNumeroLicencia(parts[1])
+                } else {
+                    setNumeroLicencia(data.licencia)
+                }
+            }
             setActivo(data.activo)
         } catch (error) {
             setFeedbackModal({
@@ -116,7 +139,7 @@ export function SupervisorConductorFormScreen() {
             nombre_completo: nombreCompleto.trim(),
             cedula: cedula.trim(),
             telefono: telefono.trim() || undefined,
-            licencia: licencia.trim() || undefined,
+            licencia: tipoLicencia && numeroLicencia ? `${tipoLicencia}-${numeroLicencia.trim()}` : numeroLicencia.trim() || undefined,
             activo,
         }
 
@@ -256,11 +279,33 @@ export function SupervisorConductorFormScreen() {
 
                         {/* Licencia */}
                         <View>
-                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Licencia de Conducir</Text>
+                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Tipo de Licencia</Text>
+                            <Pressable
+                                onPress={() => setShowLicenciaPicker(true)}
+                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-3 flex-row items-center justify-between"
+                            >
+                                <View className="flex-1">
+                                    {tipoLicencia ? (
+                                        <>
+                                            <Text className="font-bold text-neutral-900">
+                                                {TIPOS_LICENCIA.find(t => t.id === tipoLicencia)?.label}
+                                            </Text>
+                                            <Text className="text-xs text-neutral-500 mt-0.5">
+                                                {TIPOS_LICENCIA.find(t => t.id === tipoLicencia)?.description}
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <Text className="text-neutral-400">Seleccionar tipo...</Text>
+                                    )}
+                                </View>
+                                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+                            </Pressable>
+
+                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Número de Licencia</Text>
                             <TextInput
                                 className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
-                                value={licencia}
-                                onChangeText={setLicencia}
+                                value={numeroLicencia}
+                                onChangeText={setNumeroLicencia}
                                 placeholder="Ej: LIC-12345"
                                 editable={!loading}
                             />
@@ -333,6 +378,7 @@ export function SupervisorConductorFormScreen() {
                 </View>
             </View>
 
+
             {/* Feedback Modal */}
             <FeedbackModal
                 visible={feedbackModal.visible}
@@ -340,6 +386,22 @@ export function SupervisorConductorFormScreen() {
                 title={feedbackModal.title}
                 message={feedbackModal.message}
                 onClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+            />
+
+            {/* License Type Picker */}
+            <PickerModal
+                visible={showLicenciaPicker}
+                title="Selecciona el tipo de licencia"
+                options={TIPOS_LICENCIA}
+                selectedId={tipoLicencia}
+                onSelect={(id) => {
+                    setTipoLicencia(String(id))
+                    setShowLicenciaPicker(false)
+                }}
+                onClose={() => setShowLicenciaPicker(false)}
+                infoText="Selecciona el tipo de licencia de conducir del conductor."
+                infoIcon="car-outline"
+                infoColor={BRAND_COLORS.red}
             />
         </View>
     )

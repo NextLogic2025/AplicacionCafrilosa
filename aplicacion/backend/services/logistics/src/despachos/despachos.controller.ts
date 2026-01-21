@@ -40,7 +40,7 @@ export class DespachosController {
 
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);
   }

@@ -145,6 +145,7 @@ CREATE TABLE clientes (
     ubicacion_gps GEOMETRY(POINT, 4326),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    ultima_actualizacion_saldo TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ
 );
 
@@ -162,6 +163,8 @@ CREATE TABLE sucursales_cliente (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
 );
+
+-- (Nota: columnas financieras ya están definidas dentro de la CREATE TABLE clientes)
 
 -- =========================================
 -- 8. PROMOCIONES

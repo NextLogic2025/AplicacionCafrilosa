@@ -6,6 +6,10 @@
 
 \c orders_db; 
 
+-- 1.a ELIMINAR TABLAS ANTIGUAS (si existen)
+DROP TABLE IF EXISTS pagos_pedido CASCADE;
+DROP TABLE IF EXISTS pagos_resumen CASCADE;
+
 -- =========================================
 -- 1. EXTENSIONES
 -- =========================================
@@ -106,14 +110,17 @@ CREATE TABLE pedidos (
     total_final DECIMAL(12,2) NOT NULL CHECK (total_final >= 0),
     
     -- METADATA
-    condicion_pago VARCHAR(50),
     fecha_entrega_solicitada DATE,
     origen_pedido VARCHAR(20),
     ubicacion_pedido GEOMETRY(POINT, 4326),
     observaciones_entrega TEXT,
     
     -- ESTADO DE PAGO
-    monto_pagado DECIMAL(12,2) DEFAULT 0 CHECK (monto_pagado >= 0),
+    -- FACTURACIÓN / ESTADO DE PAGO
+    factura_id UUID,
+    factura_numero VARCHAR(50),
+    url_pdf_factura TEXT,
+    forma_pago_solicitada VARCHAR(20) DEFAULT 'CREDITO',
     estado_pago VARCHAR(20) DEFAULT 'PENDIENTE' 
         CHECK (estado_pago IN ('PENDIENTE','PARCIAL','PAGADO','ANULADO')),
         
@@ -136,6 +143,10 @@ CREATE TABLE detalles_pedido (
     unidad_medida VARCHAR(20),
     
     cantidad DECIMAL(12,2) NOT NULL CHECK (cantidad > 0),
+    -- Campos para soportar ajustes y auditoría de cantidad
+    cantidad_solicitada DECIMAL(12,2),
+    motivo_ajuste VARCHAR(50),
+    nota_al_cliente TEXT,
     
     -- PRECIOS CONGELADOS AL MOMENTO DE LA COMPRA
     precio_lista DECIMAL(10,2),       -- Era 'precio_original_snapshot' en el carrito
@@ -151,6 +162,10 @@ CREATE TABLE detalles_pedido (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Nota: Las columnas de facturación y las columnas de ajuste/nota
+-- han sido definidas inline en las declaraciones CREATE TABLE arriba.
+
 
 -- =========================================
 -- 6. PROMOCIONES APLICADAS (ANALÍTICA)
@@ -183,78 +198,8 @@ CREATE TABLE historial_estados (
 -- =========================================
 -- 8. PAGOS EN EFECTIVO
 -- =========================================
-CREATE TABLE pagos_pedido (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    pedido_id UUID NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
-    vendedor_id UUID NOT NULL,
-    monto DECIMAL(12,2) NOT NULL CHECK (monto > 0),
-    fecha_pago TIMESTAMPTZ DEFAULT NOW(),
-    observaciones TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ
-);
--- =========================================
--- 9. PAGOs RESUMEN (OPTIMIZACIÓN)
--- =========================================
-CREATE TABLE pagos_resumen (
-    pedido_id UUID PRIMARY KEY REFERENCES pedidos(id) ON DELETE CASCADE,
-    monto_pagado DECIMAL(14,2) NOT NULL DEFAULT 0,
-    estado_pago VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' CHECK (estado_pago IN ('PENDIENTE','PARCIAL','PAGADO','ANULADO')),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- =========================================
--- 10. FUNCIÓN PARA ACTUALIZAR RESUMEN DE PAGOS (trigger automático)
--- =========================================
-CREATE OR REPLACE FUNCTION fn_actualizar_resumen_pagos()
-RETURNS TRIGGER AS $$
-DECLARE
-    sum_monto NUMERIC(14,2);
-    pedido_total NUMERIC(12,2);
-    nuevo_estado VARCHAR(20);
-BEGIN
-    -- Calcular suma de pagos válidos para este pedido
-    SELECT COALESCE(SUM(monto), 0) INTO sum_monto
-    FROM pagos_pedido
-    WHERE pedido_id = NEW.pedido_id AND deleted_at IS NULL;
-
-    -- Obtener total del pedido
-    SELECT total_final INTO pedido_total FROM pedidos WHERE id = NEW.pedido_id;
-
-    IF pedido_total IS NULL THEN
-        -- Pedido eliminado o inexistente, borra resumen
-        DELETE FROM pagos_resumen WHERE pedido_id = NEW.pedido_id;
-        RETURN NEW;
-    END IF;
-
-    -- Determinar nuevo estado
-    IF sum_monto >= pedido_total THEN
-        nuevo_estado := 'PAGADO';
-    ELSIF sum_monto > 0 THEN
-        nuevo_estado := 'PARCIAL';
-    ELSE
-        nuevo_estado := 'PENDIENTE';
-    END IF;
-
-    -- Insertar o actualizar resumen
-    INSERT INTO pagos_resumen (pedido_id, monto_pagado, estado_pago, updated_at)
-    VALUES (NEW.pedido_id, sum_monto, nuevo_estado, NOW())
-    ON CONFLICT (pedido_id) DO UPDATE SET
-        monto_pagado = EXCLUDED.monto_pagado,
-        estado_pago = EXCLUDED.estado_pago,
-        updated_at = EXCLUDED.updated_at;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- =========================================
--- 11. TRIGGER PARA ACTUALIZAR RESUMEN AL REGISTRAR PAGO
--- =========================================
-CREATE TRIGGER trg_actualizar_resumen_pago
-AFTER INSERT OR UPDATE OR DELETE ON pagos_pedido
-FOR EACH ROW EXECUTE FUNCTION fn_actualizar_resumen_pagos();
+-- (Nota) Se eliminaron las tablas de pagos y la lógica de resumen en este script.
+-- Si se requiere una nueva implementación de pagos, agregarla en un migration separado.
 
 -- =========================================
 -- 12. AUDITORÍA
@@ -297,7 +242,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_audit_pedidos AFTER INSERT OR UPDATE OR DELETE ON pedidos FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
 CREATE TRIGGER trg_audit_detalles AFTER INSERT OR UPDATE OR DELETE ON detalles_pedido FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
 CREATE TRIGGER trg_audit_promociones AFTER INSERT OR UPDATE OR DELETE ON promociones_aplicadas FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
-CREATE TRIGGER trg_audit_pagospedido AFTER INSERT OR UPDATE OR DELETE ON pagos_pedido FOR EACH ROW EXECUTE FUNCTION fn_audit_orders();
+-- Triggers for pagos_pedido removed (payments tables deleted earlier)
 
 -- =========================================
 -- 13. TRIGGER UPDATED_AT AUTOMÁTICO
@@ -314,7 +259,7 @@ CREATE TRIGGER tr_updated_pedidos BEFORE UPDATE ON pedidos FOR EACH ROW EXECUTE 
 CREATE TRIGGER tr_updated_detalles BEFORE UPDATE ON detalles_pedido FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_orders();
 CREATE TRIGGER tr_updated_promociones BEFORE UPDATE ON promociones_aplicadas FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_orders();
 CREATE TRIGGER tr_updated_carritos BEFORE UPDATE ON carritos_cabecera FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_orders();
-CREATE TRIGGER tr_updated_pagospedido BEFORE UPDATE ON pagos_pedido FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_orders();
+-- Updated timestamp trigger for pagos_pedido removed
 
 -- =========================================
 -- 14. SOFT DELETE AUTOMÁTICO
@@ -329,7 +274,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_soft_delete_pedidos BEFORE DELETE ON pedidos FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_orders();
 CREATE TRIGGER trg_soft_delete_carritos BEFORE DELETE ON carritos_cabecera FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_orders();
-CREATE TRIGGER trg_soft_delete_pagospedido BEFORE DELETE ON pagos_pedido FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_orders();
+-- Soft-delete trigger for pagos_pedido removed
 
 -- =========================================
 -- 15. ÍNDICES OPTIMIZADOS
@@ -340,7 +285,7 @@ CREATE INDEX idx_pedidos_estado ON pedidos(estado_actual) WHERE deleted_at IS NU
 CREATE INDEX idx_pedidos_estado_pago ON pedidos(estado_pago) WHERE deleted_at IS NULL;
 CREATE INDEX idx_pedidos_gps ON pedidos USING GIST(ubicacion_pedido);
 CREATE INDEX idx_promociones_pedido ON promociones_aplicadas(pedido_id);
-CREATE INDEX idx_pagospedido_pedido ON pagos_pedido(pedido_id);
+-- Index idx_pagospedido_pedido removed (payments tables deleted)
 CREATE INDEX idx_audit_orders ON audit_log_orders(table_name, record_id, changed_at DESC);
 
 -- =========================================
@@ -392,17 +337,7 @@ FOR EACH ROW WHEN (OLD.estado_actual IS DISTINCT FROM NEW.estado_actual)
 EXECUTE FUNCTION notify_pedido_entregado();
 
 -- Pago registrado (nuevo evento para notificar supervisor o cliente)
-CREATE OR REPLACE FUNCTION notify_pago_registrado()
-RETURNS TRIGGER AS $$
-BEGIN
-    PERFORM pg_notify('pago-registrado', NEW.id::text);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_notify_pago_registrado
-AFTER INSERT ON pagos_pedido
-FOR EACH ROW EXECUTE FUNCTION notify_pago_registrado();
+-- notify_pago_registrado trigger/function removed (payments tables deleted)
 
 -- =========================================
 -- FIN DEL MICROSERVICIO ORDERS - 100% COMPLETO

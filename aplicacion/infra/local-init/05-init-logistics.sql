@@ -95,6 +95,12 @@ CREATE TABLE entregas_despacho (
     
     -- ESTADO INDIVIDUAL DEL PEDIDO
     estado_entrega VARCHAR(20) DEFAULT 'PENDIENTE', -- PENDIENTE | ENTREGADO | RECHAZADO | REPROGRAMADO
+
+    -- CAMPOS FINANCIEROS (INLINED PARA EJECUCIONES IDÉNTICAS)
+    valor_declarado DECIMAL(12,2) DEFAULT 0,
+    requiere_cobro BOOLEAN DEFAULT FALSE,
+    monto_a_cobrar DECIMAL(12,2) DEFAULT 0,
+    numero_factura_fisica VARCHAR(50),
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -104,6 +110,27 @@ CREATE TABLE entregas_despacho (
 
 CREATE INDEX idx_entregas_pedido ON entregas_despacho(pedido_id);
 CREATE INDEX idx_entregas_geo ON entregas_despacho USING GIST(coordenadas_entrega);
+
+-- Nota: Los campos financieros fueron definidos inline en la tabla `entregas_despacho`.
+
+-- Corregir índice erróneo si existe y crear índice de seguimiento correcto
+DROP INDEX IF EXISTS idx_entregas_efectividad;
+
+CREATE INDEX IF NOT EXISTS idx_entregas_seguimiento 
+ON entregas_despacho(despacho_id, estado_entrega);
+
+-- Vista de efectividad por conductor y vehículo
+CREATE OR REPLACE VIEW reporte_efectividad_conductores AS
+SELECT 
+    c.nombre_completo AS conductor,
+    v.placa AS vehiculo,
+    e.estado_entrega,
+    COUNT(*) as total_paquetes
+FROM entregas_despacho e
+JOIN despachos d ON e.despacho_id = d.id
+JOIN conductores c ON d.conductor_id = c.id
+JOIN vehiculos v ON d.vehiculo_id = v.id
+GROUP BY c.nombre_completo, v.placa, e.estado_entrega;
 
 -- =========================================
 -- 6. PRUEBAS DE ENTREGA (POD) - POR PEDIDO

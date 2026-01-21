@@ -317,6 +317,14 @@
     CREATE INDEX IF NOT EXISTS idx_reservation_items_reservation ON reservation_items(reservation_id);
     CREATE INDEX IF NOT EXISTS idx_reservation_items_stock_loc ON reservation_items(stock_ubicacion_id);
 
+    -- =========================================
+    -- 17.b: COLUMNAS ADICIONALES EN picking_items
+    -- Agregamos motivo de desviación y notas del bodeguero para auditoría y control
+    -- Estas columnas se crean solo si no existen para permitir re-ejecución segura del script
+    ALTER TABLE picking_items
+        ADD COLUMN IF NOT EXISTS motivo_desviacion VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS notas_bodeguero TEXT;
+
 
     -- =========================================
     -- 17. EVENTOS ASÍNCRONOS (pg_notify → Cloud Functions)

@@ -22,9 +22,14 @@ describe('AsignacionController', () => {
   });
 
   it('should create assignment', async () => {
-    const body = { vendedor: 'v1' };
+    const body = {
+      zona_id: 1,
+      vendedor_usuario_id: '550e8400-e29b-41d4-a716-446655440000',
+      nombre_vendedor_cache: 'v1',
+      es_principal: true
+    };
     mockSvc.create.mockResolvedValue({ id: 1, ...body });
-    const res = await controller.create(body);
+    const res = await controller.create(body as any);
     expect(mockSvc.create).toHaveBeenCalledWith(body);
     expect(res).toEqual({ id: 1, ...body });
   });

@@ -381,6 +381,47 @@ export class PickingService {
         if (!lote) throw new BadRequestException('Lote no encontrado');
         if (lote.productoId !== item.productoId) throw new BadRequestException('El lote no corresponde al producto');
 
+        // If worker picked from a different lote than the suggested one, split the line
+        // creating a new picking item for the confirmed lote and adjusting the original
+        // requested quantity so inventory/kardex accounting works per-lote.
+        if (loteConfirmado && item.loteSugerido && loteConfirmado !== item.loteSugerido) {
+            return this.itemRepo.manager.transaction(async (manager) => {
+                const itemRepo = manager.getRepository(PickingItem);
+
+                // Create a new line representing the picked quantity from the different lote
+                const newLine = itemRepo.create({
+                    pickingId: item.pickingId,
+                    productoId: item.productoId,
+                    cantidadSolicitada: cantidadPickeada,
+                    cantidadPickeada: cantidadPickeada,
+                    ubicacionOrigenSugerida: item.ubicacionOrigenSugerida || null,
+                    loteSugerido: null,
+                    loteConfirmado: loteConfirmado,
+                    estadoLinea: Number(cantidadPickeada) >= Number(cantidadPickeada) ? 'COMPLETADO' : 'PARCIAL',
+                } as any);
+
+                await itemRepo.save(newLine);
+
+                // Decrement the original requested quantity by the amount already picked
+                const remaining = Math.max(0, Number(item.cantidadSolicitada) - Number(cantidadPickeada));
+                item.cantidadSolicitada = remaining as any;
+
+                // Ensure original picked amount does not exceed the new requested amount
+                if (Number(item.cantidadPickeada) > Number(item.cantidadSolicitada)) {
+                    item.cantidadPickeada = Number(item.cantidadSolicitada) as any;
+                }
+
+                // Update estadoLinea of original
+                item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : (Number(item.cantidadPickeada) === 0 ? 'PENDIENTE' : 'PARCIAL');
+                item.updatedAt = new Date();
+
+                await itemRepo.save(item as any);
+
+                return newLine;
+            });
+        }
+
+        // Default: same lote (or no suggested lote mismatch) => accumulate on the same line
         item.cantidadPickeada = (Number(item.cantidadPickeada) + cantidadPickeada) as any;
         item.loteConfirmado = loteId;
         item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : 'PARCIAL';
