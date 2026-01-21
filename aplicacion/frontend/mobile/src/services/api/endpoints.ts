@@ -106,4 +106,10 @@ export const endpoints = {
     despachos: '/api/despachos',
     despachoById: (id: string) => `/api/despachos/${id}`,
   },
+  finance: {
+    facturas: '/api/facturas',
+    facturaById: (id: string) => `/api/facturas/${id}`,
+    facturaPdf: (id: string) => `/api/facturas/${id}/pdf`,
+    cuentasPorCobrar: '/api/cuentas-por-cobrar',
+  },
 } as const

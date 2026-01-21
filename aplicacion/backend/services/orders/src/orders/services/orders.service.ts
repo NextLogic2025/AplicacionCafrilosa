@@ -605,6 +605,7 @@ export class OrdersService {
           if (picked !== original) {
             detalle.cantidad_solicitada = original as any;
             detalle.motivo_ajuste = p.motivo_ajuste || p.motivo_desviacion || ('Ajuste por picking ' + (payload.pickingId || ''));
+            if (p.nota_al_cliente) detalle.nota_al_cliente = p.nota_al_cliente;
             detalle.cantidad = picked as any;
             detallesToSave.push(detalle);
             continue; // ya acumulado, sumar en siguiente sección

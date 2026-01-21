@@ -109,6 +109,35 @@ export function OrderDetailTemplate({
                     )}
                 </View>
 
+                {order.factura_numero && (
+                    <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5 border-l-4 border-cyan-500">
+                        <View className="flex-row items-center justify-between mb-2">
+                            <Text className="text-neutral-900 font-bold text-lg">Factura Generada</Text>
+                            <Ionicons name="document-text" size={24} color="#06B6D4" />
+                        </View>
+                        <View className="flex-row items-center justify-between">
+                            <View>
+                                <Text className="text-neutral-500 text-xs uppercase tracking-wide">Número de Factura</Text>
+                                <Text className="text-neutral-900 font-bold text-base mt-0.5">{order.factura_numero}</Text>
+                            </View>
+                        </View>
+
+                        {order.url_pdf_factura && (
+                            <TouchableOpacity
+                                className="flex-row items-center justify-center bg-cyan-50 py-3 rounded-xl mt-4 border border-cyan-100"
+                                onPress={() => {
+                                    // TODO: Implement PDF viewer or download
+                                    // Linking.openURL(order.url_pdf_factura)
+                                    alert('Abriendo PDF: ' + order.url_pdf_factura)
+                                }}
+                            >
+                                <Ionicons name="download-outline" size={20} color="#0891B2" />
+                                <Text className="text-cyan-700 font-bold ml-2">Ver Factura PDF</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+
                 {roleType !== 'cliente' && order.cliente && (
                     <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5">
                         <Text className="text-neutral-900 font-bold text-lg mb-3">Cliente</Text>

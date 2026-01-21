@@ -79,6 +79,8 @@ export interface Order {
     created_at: string
     updated_at: string
     deleted_at?: string
+    factura_numero?: string
+    url_pdf_factura?: string
 
     detalles?: OrderDetail[]
     cliente?: {

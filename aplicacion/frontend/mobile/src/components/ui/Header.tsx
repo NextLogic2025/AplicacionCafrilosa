@@ -27,6 +27,7 @@ type HeaderProps = {
     icon: keyof typeof Ionicons.glyphMap
     onPress: () => void
   }
+  rightElement?: React.ReactNode
 }
 
 export function Header({
@@ -46,7 +47,8 @@ export function Header({
   title,
   onBackPress,
   notificationRoute,
-  rightAction
+  rightAction,
+  rightElement
 }: HeaderProps) {
   const insets = useStableInsets()
   const notificationsCtx = useNotificationsOptional()
@@ -158,6 +160,8 @@ export function Header({
               <Ionicons name={rightAction.icon} size={22} color="white" />
             </Pressable>
           )}
+
+          {rightElement}
 
           {/* Menu Icon Removed by user request */}
         </View>

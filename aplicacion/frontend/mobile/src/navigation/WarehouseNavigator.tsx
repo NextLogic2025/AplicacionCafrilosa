@@ -27,6 +27,8 @@ import { WarehousePickingListScreen } from '../features/bodeguero/screens/Modulo
 import { WarehousePickingDetailScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingDetailScreen'
 import { WarehousePickingHistoryScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingHistoryScreen'
 import { WarehouseReservationsScreen } from '../features/bodeguero/screens/ModuloReservas/WarehouseReservationsScreen'
+import { WarehouseInvoicesScreen } from '../features/bodeguero/screens/ModuloFacturas/WarehouseInvoicesScreen'
+import { WarehouseInvoiceDetailScreen } from '../features/bodeguero/screens/ModuloFacturas/WarehouseInvoiceDetailScreen'
 
 import { TabNavigation } from '../components/ui/TabNavigation'
 
@@ -99,6 +101,8 @@ export function WarehouseNavigator() {
             <Stack.Screen name="WarehousePickingDetail" component={WarehousePickingDetailScreen} />
             <Stack.Screen name="WarehousePickingHistory" component={WarehousePickingHistoryScreen} />
             <Stack.Screen name="WarehouseReservations" component={WarehouseReservationsScreen} />
+            <Stack.Screen name="WarehouseInvoices" component={WarehouseInvoicesScreen} />
+            <Stack.Screen name="InvoiceDetail" component={WarehouseInvoiceDetailScreen} />
         </Stack.Navigator>
     )
 }

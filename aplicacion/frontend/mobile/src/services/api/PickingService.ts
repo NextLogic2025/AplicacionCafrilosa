@@ -55,6 +55,30 @@ export type BodegueroInfo = {
     nombreCompleto?: string
 }
 
+// Stock alternativo para cambio de lote
+export type AlternativeStock = {
+    ubicacion: {
+        id: string
+        codigoVisual?: string
+        nombre?: string
+    }
+    lote: {
+        id: string
+        numeroLote?: string
+        fechaVencimiento?: string
+    }
+    cantidadDisponible: number
+}
+
+// Motivos de desviación predefinidos
+export const MOTIVOS_DESVIACION = [
+    { value: 'FALTANTE', label: 'Faltante (No hay stock físico)' },
+    { value: 'DANADO', label: 'Producto Dañado' },
+    { value: 'VENCIDO', label: 'Producto Vencido' },
+    { value: 'ERROR_INVENTARIO', label: 'Error de Inventario' },
+    { value: 'OTRO', label: 'Otro' },
+] as const
+
 // Picking con campos enriquecidos del backend
 export type Picking = {
     id: string
@@ -205,14 +229,42 @@ export const PickingService = {
         }
     },
 
-    async pickItem(id: string, itemId: string, cantidadPickeada: number, loteConfirmado?: string): Promise<PickingItem> {
+    async pickItem(
+        id: string,
+        itemId: string,
+        cantidadPickeada: number,
+        options?: {
+            loteConfirmado?: string
+            motivoDesviacion?: string
+            notasBodeguero?: string
+            ubicacionConfirmada?: string
+        }
+    ): Promise<PickingItem> {
         try {
+            const payload: Record<string, unknown> = { cantidadPickeada }
+            if (options?.loteConfirmado) payload.loteConfirmado = options.loteConfirmado
+            if (options?.motivoDesviacion) payload.motivoDesviacion = options.motivoDesviacion
+            if (options?.notasBodeguero) payload.notasBodeguero = options.notasBodeguero
+            if (options?.ubicacionConfirmada) payload.ubicacionConfirmada = options.ubicacionConfirmada
+
             return await apiRequest<PickingItem>(warehouse(endpoints.warehouse.pickingPickItem(id, itemId)), {
                 method: 'POST',
-                body: JSON.stringify({ cantidadPickeada, loteConfirmado }),
+                body: JSON.stringify(payload),
             })
         } catch (error) {
-            logErrorForDebugging(error, 'PickingService.pickItem', { id, itemId, cantidadPickeada, loteConfirmado })
+            logErrorForDebugging(error, 'PickingService.pickItem', { id, itemId, cantidadPickeada, ...options })
+            throw error
+        }
+    },
+
+    /**
+     * Obtiene stocks alternativos para un producto (otros lotes/ubicaciones disponibles)
+     */
+    async getAlternativeStocks(productoId: string): Promise<AlternativeStock[]> {
+        try {
+            return await apiRequest<AlternativeStock[]>(warehouse(`/api/picking/stocks/${productoId}`))
+        } catch (error) {
+            logErrorForDebugging(error, 'PickingService.getAlternativeStocks', { productoId })
             throw error
         }
     },

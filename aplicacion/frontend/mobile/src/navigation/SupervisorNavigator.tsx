@@ -59,6 +59,9 @@ import { SupervisorDespachosListScreen } from '../features/supervisor/screens/Mo
 import { SupervisorDespachoFormScreen } from '../features/supervisor/screens/ModuloDespachos/SupervisorDespachoFormScreen'
 import { SupervisorDespachoDetailScreen } from '../features/supervisor/screens/ModuloDespachos/SupervisorDespachoDetailScreen'
 
+import { SupervisorInvoicesScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoicesScreen'
+import { SupervisorInvoiceDetailScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoiceDetailScreen'
+
 import { SupervisorAuditScreen } from '../features/supervisor/screens/ModuloAuditoria/SupervisorAuditScreen'
 
 const Tab = createBottomTabNavigator()
@@ -186,6 +189,10 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorDespachosList" component={SupervisorDespachosListScreen} />
             <Stack.Screen name="SupervisorDespachoForm" component={SupervisorDespachoFormScreen} />
             <Stack.Screen name="SupervisorDespachoDetail" component={SupervisorDespachoDetailScreen} />
+
+            {/* Facturas Module */}
+            <Stack.Screen name="SupervisorInvoices" component={SupervisorInvoicesScreen} />
+            <Stack.Screen name="InvoiceDetail" component={SupervisorInvoiceDetailScreen} />
 
             <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>
