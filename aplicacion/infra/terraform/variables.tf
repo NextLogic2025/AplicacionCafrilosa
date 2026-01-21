@@ -40,7 +40,7 @@ variable "services" {
   type        = list(string)
   # Agregamos 'auth', 'catalog', 'orders' que vimos en las carpetas.
   # Mantenemos 'inventario' solo si planean subir código pronto.
-  default     = ["auth", "catalog", "orders", "usuarios", "ventas", "warehouse"]
+  default     = ["auth", "catalog", "orders", "usuarios", "finance", "warehouse"]
 }
 
 variable "enable_deletion_protection" {

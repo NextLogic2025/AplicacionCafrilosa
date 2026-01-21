@@ -40,9 +40,9 @@ const SERVICE_URLS: Record<string, ServiceUrlConfig> = {
     defaultUrl: 'http://warehouse-service:3000',
     apiPrefix: true,
   },
-  'ventas-service': {
-    envKey: 'VENTAS_SERVICE_URL',
-    defaultUrl: 'http://ventas-service:3000',
+  'finance-service': {
+    envKey: 'FINANCE_SERVICE_URL',
+    defaultUrl: 'http://finance-service:3000',
   },
   'auth-service': {
     envKey: 'AUTH_SERVICE_URL',

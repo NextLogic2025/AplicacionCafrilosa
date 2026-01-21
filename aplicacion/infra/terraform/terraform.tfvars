@@ -11,7 +11,7 @@ github_repo_name  = "AplicacionCafrilosa"
 # Lista de servicios basada en las carpetas REALES de Omer
 # (Nota: 'inventario' lo quitamos porque está vacío. Agregamos 'auth', 'catalog', 'orders')
 services = [
-  "ventas", 
+  "finance", 
   "usuarios", 
   "auth", 
   "catalog", 
