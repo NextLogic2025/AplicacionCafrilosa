@@ -36,6 +36,56 @@ export class OrdersService {
     }
   }
 
+  // Helpers para optimizaciones: batch prices, reserva y ubicación
+  private async _getBatchPricesFromCatalog(createOrderDto: CreateOrderDto) {
+    const productPayload = (createOrderDto.items || []).map(i => ({ id: i.producto_id, cantidad: i.cantidad }));
+    try {
+      const preciosBatch = await this.serviceHttp.post<any[]>(
+        'catalog-service',
+        '/precios/internal/batch-calculator',
+        { items: productPayload, cliente_id: createOrderDto.cliente_id },
+      );
+      return preciosBatch || [];
+    } catch (err) {
+      this.logger.warn('Error fetching batch prices from catalog', { error: err?.message || err });
+      return [];
+    }
+  }
+
+  private async _reserveStockInWarehouse(createOrderDto: CreateOrderDto): Promise<string | null> {
+    try {
+      const payload = { items: (createOrderDto.items || []).map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })), pedido_ref: null };
+      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservas/internal/bulk', payload);
+      return res?.reservationId ?? null;
+    } catch (err) {
+      this.logger.warn('Error reserving stock in warehouse', { error: err?.message || err });
+      throw new BadRequestException('No se pudo reservar stock para el pedido');
+    }
+  }
+
+  private async _resolveLocation(createOrderDto: CreateOrderDto) {
+    try {
+      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) return createOrderDto.ubicacion;
+      if (createOrderDto.sucursal_id) {
+        const suc = await this.serviceHttp.get<any>('catalog-service', `/sucursales/${createOrderDto.sucursal_id}`);
+        if (suc?.location) return suc.location;
+      }
+      return null;
+    } catch (err) {
+      this.logger.warn('Error resolving location', { error: err?.message || err });
+      return null;
+    }
+  }
+
+  private async _rollbackReservation(reservationId: string | null) {
+    if (!reservationId) return;
+    try {
+      await this.serviceHttp.post('warehouse-service', `/reservas/${reservationId}/release`, {});
+    } catch (e) {
+      this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
+    }
+  }
+
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
       where: [
@@ -76,102 +126,48 @@ export class OrdersService {
     return qb.orderBy('o.created_at', 'DESC').getMany();
   }
 
-  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false): Promise<Pedido> {
+  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false, skipPriceResolution = false): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    // Variables que deben estar en scope para manejar compensación en catch
     let reservationId: string | null = null;
 
     try {
-      // Antes de calcular totales, obtener precios canónicos desde Catalog
-      // Reserva síncrona en Warehouse (Camino Dorado)
-      try {
-        const tempId = (globalThis as any).crypto && typeof (globalThis as any).crypto.randomUUID === 'function'
-          ? (globalThis as any).crypto.randomUUID()
-          : ('resv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      // Paralelizar: reserva, resolución de ubicación y cálculo de precios en batch
+      const promises: Promise<any>[] = [];
+      promises.push(this._reserveStockInWarehouse(createOrderDto));
+      promises.push(this._resolveLocation(createOrderDto));
+      if (!skipPriceResolution) promises.push(this._getBatchPricesFromCatalog(createOrderDto));
 
-        const reservationBody = {
-          items: (createOrderDto.items || []).map((it: any) => ({
-            producto_id: it.producto_id ?? it.productId,
-            cantidad: it.cantidad ?? it.quantity,
-            // Propagar sku/codigo_sku tal cual vienen; NO adivinar valores alternativos
-            sku: it.sku ?? null,
-            codigo_sku: it.codigo_sku ?? null,
-          })),
-          temp_id: tempId,
-          pedido_temp_id: tempId
-        };
-
-        this.logger.debug('Attempting warehouse reservation', { items: reservationBody.items?.length });
-        // Log payload to help debugging propagation of sku to Warehouse
-        this.logger.debug('Reservation payload', { reservationBody });
-        const data = await this.serviceHttp.post<any>(
-          'warehouse-service',
-          '/reservations',
-          reservationBody,
-        );
-        reservationId = data?.id ?? tempId;
-        this.logger.debug('Warehouse reservation created', { reservationId });
-      } catch (resErr) {
-        this.logger.warn('Reservation error, aborting order create', { error: resErr?.message || resErr });
-        // Exponer error hacia el cliente: stock insuficiente o warehouse caído
-        if (resErr instanceof BadRequestException) throw resErr;
-        if (resErr instanceof HttpException && resErr.getStatus() === 409) {
-          throw new BadRequestException('Stock insuficiente para los items del pedido');
-        }
-        throw new BadRequestException('Stock insuficiente o servicio de Warehouse no disponible');
+      const results = await Promise.all(promises);
+      // resultados posicionales: [reservationId, ubicacion?, precios?]
+      reservationId = results[0] ?? null;
+      let ubicacionPedido: { lng: number; lat: number } | null = null;
+      let preciosBatch: any[] = [];
+      if (results.length === 2) {
+        if (Array.isArray(results[1])) preciosBatch = results[1]; else ubicacionPedido = results[1];
+      }
+      if (results.length === 3) {
+        ubicacionPedido = results[1];
+        preciosBatch = results[2];
       }
 
-      for (const item of createOrderDto.items) {
-        try {
-          // 1) Intentar obtener la mejor promoción para el cliente
-          let best: any = null;
-          try {
-            best = await this.serviceHttp.get<any>(
-              'catalog-service',
-              `/promociones/internal/mejor/producto/${item.producto_id}?cliente_id=${createOrderDto.cliente_id}`,
-            );
-          } catch (err) {
-            this.logger.debug('Catalog promo call not ok', { producto_id: item.producto_id, error: err?.message || err });
-          }
+      const preciosMap = new Map<string, any>();
+      (preciosBatch || []).forEach(p => preciosMap.set(String(p.producto_id), p));
 
-          if (best && best.precio_final != null) {
-            // Sobrescribir datos del item
-            (item as any).precio_original = best.precio_lista ?? null;
-            (item as any).precio_unitario = best.precio_final;
-            (item as any).campania_aplicada_id = best.campania_id ?? (item as any).campania_aplicada_id ?? null;
-          } else {
-            // 2) Fallback: solicitar precios desde /precios/producto/:id y escoger el menor
-            try {
-              const precios = await this.serviceHttp.get<any>(
-                'catalog-service',
-                `/precios/internal/producto/${item.producto_id}`,
-              );
-              const arr = Array.isArray(precios) ? precios : (precios || []);
-              if (arr.length) {
-                const min = Math.min(...arr.map((p: any) => Number(p.precio || p.price || 0)));
-                (item as any).precio_original = min;
-                (item as any).precio_unitario = min;
-              } else {
-                throw new BadRequestException('No hay precio disponible para el producto ' + item.producto_id);
-              }
-            } catch (err) {
-              this.logger.warn('Catalog precios call failed', { producto_id: item.producto_id, error: err?.message || err });
-              throw new BadRequestException('No se pudo obtener precio para producto ' + item.producto_id);
-            }
-          }
-        } catch (err) {
-          this.logger.warn('Error al resolver precio/campaña para item', { producto: item.producto_id, err: err?.message || err });
-          throw new BadRequestException('Error validando precio para producto ' + item.producto_id);
+      // Asignar precios desde map en memoria
+      for (const item of createOrderDto.items) {
+        if (!skipPriceResolution) {
+          const precioInfo = preciosMap.get(String(item.producto_id));
+          if (!precioInfo) throw new BadRequestException(`No se pudo obtener precio para ${item.producto_id}`);
+          (item as any).precio_unitario = precioInfo.precio_final;
+          (item as any).precio_original = precioInfo.precio_lista;
+          (item as any).campania_aplicada_id = precioInfo.campania_id ?? (item as any).campania_aplicada_id ?? null;
         }
       }
 
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
-
-      // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
-      // descuento por item = (precio_original - precio_unitario) * cantidad
       const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
         const precioOriginal = Number((item as any).precio_original) || 0;
         const precioFinal = Number((item as any).precio_unitario) || 0;
@@ -179,35 +175,9 @@ export class OrdersService {
         return acc + descuentoLinea;
       }, 0);
 
-      // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
       const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
       const total_final = subtotal - descuento_total + impuestos_total;
-
-      // RESOLVER UBICACIÓN: Si hay sucursal_id → ubicación de sucursal, si no → ubicación del cliente
-      let ubicacionPedido: { lng: number; lat: number } | null = null;
-      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
-        // Si viene ubicación explícita en el DTO, usarla
-        ubicacionPedido = { lng: createOrderDto.ubicacion.lng, lat: createOrderDto.ubicacion.lat };
-      } else {
-        try {
-          // Intentar obtener ubicación desde Catalog (cliente o sucursal)
-          const path = createOrderDto.sucursal_id
-            ? `/internal/sucursales/${createOrderDto.sucursal_id}`
-            : `/internal/clients/${createOrderDto.cliente_id}`;
-          this.logger.debug('Fetching ubicaci▋ desde Catalog', { path });
-          const data = await this.serviceHttp.get<any>('catalog-service', path);
-          const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
-          if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
-            // GeoJSON format: [lng, lat]
-            ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
-          } else if (data?.lat && data?.lng) {
-            ubicacionPedido = { lng: data.lng, lat: data.lat };
-          }
-        } catch (err) {
-          this.logger.debug('No se pudo obtener ubicación desde Catalog', { error: err?.message || err });
-        }
-      }
 
       const nuevoPedido = queryRunner.manager.create(Pedido, {
         cliente_id: createOrderDto.cliente_id,
@@ -227,20 +197,20 @@ export class OrdersService {
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
 
-      // Guardar ubicación si se resolvió
       if (ubicacionPedido) {
-        await queryRunner.manager.query(
-          `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
-          [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
-        );
+        try {
+          await queryRunner.manager.query(
+            `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
+            [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
+          );
+        } catch (e) { this.logger.warn('No se pudo guardar ubicacion en pedido', { error: e?.message || e }); }
       }
 
-      const detallesGuardados: DetallePedido[] = [];
+      // Validaciones de promoción y preparación de detalles en memoria
+      const detallesEntities = [] as DetallePedido[];
+      const promosEntities: any[] = [];
       for (const item of createOrderDto.items) {
         const tieneDescuento = (item as any).precio_original && (item as any).precio_original > (item as any).precio_unitario;
-
-        // Si el frontend declara una campaña aplicada Y hay descuento real, confiar en que fue validada en el carrito
-        // Solo hacer validación estricta si NO hay descuento (indica que la promo puede haber expirado)
         if ((item as any).campania_aplicada_id && !tieneDescuento) {
           const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id);
           if (!esValida) {
@@ -261,66 +231,58 @@ export class OrdersService {
           campania_aplicada_id: (item as any).campania_aplicada_id || null,
           motivo_descuento: item.motivo_descuento || null,
         });
-        const saved = await queryRunner.manager.save(DetallePedido, detalle);
-        detallesGuardados.push(saved);
+        detallesEntities.push(detalle as any);
 
-        // Guardar promoción aplicada si el frontend indicó una campaña
         if ((item as any).campania_aplicada_id) {
-          try {
-            const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
-            const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
-            const promocion = queryRunner.manager.create(PromocionAplicada, {
-              pedido_id: pedidoGuardado.id,
-              detalle_pedido_id: saved.id,
-              campania_id: (item as any).campania_aplicada_id,
-              tipo_descuento: 'PORCENTAJE',
-              valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
-              monto_aplicado: montoAplicado,
-            });
-            await queryRunner.manager.save(PromocionAplicada, promocion);
-          } catch (promoErr) {
-            this.logger.warn('No se pudo guardar la promoción aplicada', { error: promoErr?.message, campania_id: (item as any).campania_aplicada_id });
-          }
+          const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
+          const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
+          promosEntities.push(queryRunner.manager.create(PromocionAplicada, {
+            pedido_id: pedidoGuardado.id,
+            detalle_pedido_id: null, // se seteará después
+            campania_id: (item as any).campania_aplicada_id,
+            tipo_descuento: 'PORCENTAJE',
+            valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
+            monto_aplicado: montoAplicado,
+          }));
         }
+      }
+
+      // Guardar detalles en bulk
+      const detallesGuardados = await queryRunner.manager.save(DetallePedido, detallesEntities as any[]);
+
+      // Ajustar promociones para referenciar los detalles recién guardados
+      if (promosEntities.length) {
+        promosEntities.forEach((p, idx) => {
+          p.detalle_pedido_id = detallesGuardados[idx] ? detallesGuardados[idx].id : null;
+        });
+        await queryRunner.manager.save(PromocionAplicada, promosEntities as any[]);
       }
 
       await queryRunner.commitTransaction();
 
       if (!skipCartClear) {
         try {
-          // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
-          // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
           if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
-            // Carrito del vendedor
             await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
           } else if (usuarioId) {
-            // Carrito del cliente
             await this.cartService.clearCart(usuarioId);
           }
         } catch (cartError) {
           this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
         }
       }
+
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      // Intentar liberar la reserva en Warehouse si existe
-      try {
-        if (typeof reservationId !== 'undefined' && reservationId) {
-          try {
-              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
-              this.logger.debug('Released warehouse reservation after rollback', { reservationId });
-          } catch (releaseErr) {
-            this.logger.error('CRÍTICO: No se pudo liberar la reserva en Warehouse tras rollback', { reservationId, error: releaseErr?.message || releaseErr });
-          }
-        }
-      } catch (e) {
-        this.logger.warn('Error intentando liberar reserva', { error: e?.message || e });
-      }
+      try { await this._rollbackReservation(reservationId); } catch (e) { /* swallow */ }
 
-      this.logger.error('Error al crear pedido', { error: err.message, stack: err.stack, dto: createOrderDto });
-      throw new InternalServerErrorException('No se pudo procesar el pedido.');
+      this.logger.error('Error al crear pedido', { error: err?.message || err, stack: err?.stack, dto: createOrderDto });
+      if (err instanceof BadRequestException || err instanceof ConflictException || err instanceof NotFoundException || err instanceof HttpException) {
+        throw err;
+      }
+      throw new InternalServerErrorException(err?.message || 'No se pudo procesar el pedido.');
     } finally {
       await queryRunner.release();
     }
@@ -596,6 +558,126 @@ export class OrdersService {
     } catch (err) {
       await queryRunner.rollbackTransaction();
       this.logger.error('Error al cancelar pedido', { error: err.message, pedidoId });
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Aplica el resultado del picking al pedido: ajusta cantidades cuando difieren,
+   * escribe `motivo_ajuste`, recalcula totales y opcionalmente llama a Finance
+   * para crear la factura.
+   * Payload esperado: { pickingId?: string, items: [{ producto_id, cantidad_pickeada, motivo_ajuste? }] }
+   */
+  async applyPickingResult(pedidoId: string, payload: any) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId }, relations: ['detalles'] });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+
+      const itemsFromPicking: Array<any> = Array.isArray(payload.items) ? payload.items : [];
+
+      // Mapear por producto para facilidad
+      const pickingMap: Record<string, any> = {};
+      for (const it of itemsFromPicking) {
+        pickingMap[String(it.producto_id)] = it;
+      }
+
+      // Ajustes por detalle (modificar en memoria y guardar en bulk)
+      let recalculatedSubtotal = 0;
+      const detallesToSave: any[] = [];
+      for (const detalle of pedido.detalles || []) {
+        const p = pickingMap[String(detalle.producto_id)];
+        if (p && p.cantidad_pickeada != null) {
+          const picked = Number(p.cantidad_pickeada);
+          const original = Number(detalle.cantidad);
+          if (picked !== original) {
+            detalle.cantidad_solicitada = original as any;
+            detalle.motivo_ajuste = p.motivo_ajuste || p.motivo_desviacion || ('Ajuste por picking ' + (payload.pickingId || ''));
+            detalle.cantidad = picked as any;
+            detallesToSave.push(detalle);
+            continue; // ya acumulado, sumar en siguiente sección
+          }
+        }
+        // No modificado: igualmente sumar al subtotal
+      }
+
+      // Recalcular subtotal sumando todas las cantidades actuales
+      for (const detalle of pedido.detalles || []) {
+        const precioFinal = Number(detalle.precio_final || 0);
+        const cantidad = Number(detalle.cantidad || 0);
+        recalculatedSubtotal += precioFinal * cantidad;
+      }
+
+      if (detallesToSave.length) {
+        await queryRunner.manager.save(DetallePedido, detallesToSave);
+      }
+
+      // Recalcular totales
+      const descuento_total = Number(pedido.descuento_total || 0);
+      const impuestos_total = Number((recalculatedSubtotal - descuento_total) * 0.12);
+      const total_final = recalculatedSubtotal - descuento_total + impuestos_total;
+
+      pedido.subtotal = recalculatedSubtotal as any;
+      pedido.impuestos_total = impuestos_total as any;
+      pedido.total_final = total_final as any;
+      pedido.estado_actual = 'PREPARADO';
+
+      await queryRunner.manager.save(pedido);
+
+      // Registrar en historial
+      const historial = queryRunner.manager.create(HistorialEstado, {
+        pedido_id: pedidoId,
+        estado_anterior: pedido.estado_actual,
+        estado_nuevo: 'PREPARADO',
+        usuario_id: null,
+        comentario: 'Reconciliado con resultado de picking' + (payload.pickingId ? (' id:' + payload.pickingId) : ''),
+      });
+      await queryRunner.manager.save(historial);
+
+      // Llamar a Finance para crear factura (idempotente si ya existe factura_id)
+      try {
+        if (!pedido.factura_id) {
+          const facturaPayload: any = {
+            pedidoId: pedido.id,
+            clienteId: pedido.cliente_id,
+            formaPago: pedido.forma_pago_solicitada,
+            subtotal: pedido.subtotal,
+            impuestos: pedido.impuestos_total,
+            total: pedido.total_final,
+            items: (pedido.detalles || []).map((d: any) => ({
+              producto_id: d.producto_id,
+              codigo_sku: d.codigo_sku,
+              nombre_producto: d.nombre_producto,
+              cantidad: Number(d.cantidad),
+              precio_unitario: Number(d.precio_final),
+              subtotal_linea: Number(d.cantidad) * Number(d.precio_final),
+            })),
+          };
+
+          const resp = await this.serviceHttp.post<any>('finance-service', '/facturas', facturaPayload);
+          if (resp && resp.id) {
+            pedido.factura_id = resp.id;
+            pedido.factura_numero = resp.numero || resp.facturaNumero || null;
+            pedido.url_pdf_factura = resp.url_pdf_factura || resp.url || null;
+            pedido.estado_actual = 'FACTURADO';
+            await queryRunner.manager.save(pedido);
+          }
+        }
+      } catch (finErr) {
+        this.logger.warn('No se pudo crear factura en finance-service', { error: finErr?.message || finErr });
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al aplicar resultado de picking', { error: err?.message || err, payload });
       throw err;
     } finally {
       await queryRunner.release();

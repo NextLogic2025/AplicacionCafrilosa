@@ -297,6 +297,23 @@ export class PickingService {
         };
     }
 
+    async findAlternativeStocks(productoId: string) {
+        return this.stockRepo.createQueryBuilder('s')
+            .innerJoinAndSelect('s.lote', 'l')
+            .innerJoinAndSelect('s.ubicacion', 'u')
+            .where('l.producto_id = :productoId', { productoId })
+            .andWhere('l.estado_calidad = :estado', { estado: 'LIBERADO' })
+            .andWhere('s.cantidad_fisica - s.cantidad_reservada > 0')
+            .orderBy('l.fecha_vencimiento', 'ASC')
+            .addOrderBy('u.es_cuarentena', 'ASC')
+            .getMany()
+            .then(stocks => stocks.map(s => ({
+                ubicacion: s.ubicacion,
+                lote: s.lote,
+                cantidadDisponible: Number(s.cantidadFisica) - Number(s.cantidadReservada)
+            })));
+    }
+
     private async reservarStock(ubicacionId: string, loteId: string, cantidad: number) {
         const stock = await this.stockRepo.findOne({ where: { ubicacionId, loteId } });
         if (!stock) throw new NotFoundException('Stock no encontrado');
@@ -370,7 +387,8 @@ export class PickingService {
         return this.findOne(id);
     }
 
-    async registrarPickeo(pickingId: string, itemId: string, cantidadPickeada: number, loteConfirmado?: string) {
+    async registrarPickeo(pickingId: string, itemId: string, cantidadPickeada: number, loteConfirmado?: string, motivoDesviacion?: string, notasBodeguero?: string, ubicacionConfirmada?: string) {
+        this.logger.log(`Registrar pickeo: id=${pickingId} item=${itemId} qty=${cantidadPickeada} dev=${motivoDesviacion} note=${notasBodeguero} loc=${ubicacionConfirmada}`);
         const item = await this.itemRepo.findOne({ where: { id: itemId, pickingId } });
         if (!item) throw new NotFoundException('Item de picking no encontrado');
 
@@ -394,10 +412,17 @@ export class PickingService {
                     productoId: item.productoId,
                     cantidadSolicitada: cantidadPickeada,
                     cantidadPickeada: cantidadPickeada,
-                    ubicacionOrigenSugerida: item.ubicacionOrigenSugerida || null,
                     loteSugerido: null,
                     loteConfirmado: loteConfirmado,
                     estadoLinea: Number(cantidadPickeada) >= Number(cantidadPickeada) ? 'COMPLETADO' : 'PARCIAL',
+                    motivoDesviacion,
+                    notasBodeguero,
+                    ubicacionOrigenSugerida: ubicacionConfirmada || item.ubicacionOrigenSugerida // Use new location if provided
+                    // But if we are splitting, we are saying "I found X amount here". 
+                    // If the user entered a deviation reason, it applies to this specific pick action. 
+                    // However, deviation usually implies "I couldn't find enough".
+                    // If I picked from a DIFFERENT lote, I presumably found what I looked for there?
+                    // Let's assume the reason/notes apply to the record we are creating/updating.
                 } as any);
 
                 await itemRepo.save(newLine);
@@ -415,6 +440,13 @@ export class PickingService {
                 item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : (Number(item.cantidadPickeada) === 0 ? 'PENDIENTE' : 'PARCIAL');
                 item.updatedAt = new Date();
 
+                // If the user provided notes/deviation, we might want to attach them to the original line too if it remains open/partial?
+                // But for now sticking to attaching to the action line (newLine) seems safest or just attaching to item?
+                // Actually, if I split, "item" is the original line (requested). "newLine" is what I actually picked.
+                // If I have a shortage, I am likely modifying "item" (saying I picked less).
+                // But this block is specifically "Picked from DIFFERENT lote".
+                // If I just picked less from the correct lote, we go to the ELSE block below.
+
                 await itemRepo.save(item as any);
 
                 return newLine;
@@ -426,6 +458,9 @@ export class PickingService {
         item.loteConfirmado = loteId;
         item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : 'PARCIAL';
         item.updatedAt = new Date();
+
+        if (motivoDesviacion) item.motivoDesviacion = motivoDesviacion;
+        if (notasBodeguero) item.notasBodeguero = notasBodeguero;
 
         await this.itemRepo.save(item);
 

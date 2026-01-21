@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe, Delete, UseInterceptors, ClassSerializerInterceptor, NotFoundException, Patch, Req, Logger, Query, BadRequestException } from '@nestjs/common';
+import { ServiceAuthGuard } from '../../auth/guards/service-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -140,6 +141,18 @@ export class OrdersController {
         const sucursal_id = body.sucursal_id;
         // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
         return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, forma_pago_solicitada, vendedorId);
+    }
+
+    /**
+     * Endpoint interno: aplicar resultado de picking al pedido y generar factura.
+     * Protegido por `ServiceAuthGuard` (solo llamadas internas desde Warehouse).
+     * Body esperado: { pickingId?: string, items: [{ producto_id, cantidad_pickeada, motivo_ajuste? }] }
+     */
+    @Post('/internal/:id/apply-picking')
+    @UseGuards(ServiceAuthGuard)
+    async applyPicking(@Param('id') pedidoId: string, @Body() body: any) {
+        const payload = body || {};
+        return this.ordersService.applyPickingResult(pedidoId, payload);
     }
 
     @Get('user/history')
