@@ -365,8 +365,21 @@ export default function PedidosPage() {
                           {detalle.motivo_descuento && (
                             <p className="text-xs text-green-600">🎁 {detalle.motivo_descuento}</p>
                           )}
+                          {detalle.cantidad_solicitada != null && detalle.cantidad_solicitada !== detalle.cantidad && (
+                            <div className="mt-1 flex flex-col gap-0.5">
+                              <p className="text-xs text-gray-500 line-through">
+                                Solicitado: {Number(detalle.cantidad_solicitada).toFixed(2)} {detalle.unidad_medida}
+                              </p>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold">AJUSTADO</span>
+                                {detalle.motivo_ajuste && <span className="text-xs text-red-500 italic">({detalle.motivo_ajuste})</span>}
+                              </div>
+                            </div>
+                          )}
                         </td>
-                        <td className="px-4 py-2 text-sm text-right text-gray-900">{detalle.cantidad} {detalle.unidad_medida}</td>
+                        <td className="px-4 py-2 text-sm text-right text-gray-900">
+                          {Number(detalle.cantidad).toFixed(2)} {detalle.unidad_medida}
+                        </td>
                         <td className="px-4 py-2 text-sm text-right text-gray-900">{formatCurrency(parseFloat(detalle.precio_lista))}</td>
                         <td className="px-4 py-2 text-sm text-right font-semibold text-gray-900">{formatCurrency(parseFloat(detalle.precio_final))}</td>
                         <td className="px-4 py-2 text-sm text-right font-semibold text-gray-900">{formatCurrency(parseFloat(detalle.subtotal_linea))}</td>

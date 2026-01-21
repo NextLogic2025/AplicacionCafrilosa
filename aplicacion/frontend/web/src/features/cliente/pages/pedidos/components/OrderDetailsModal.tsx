@@ -78,8 +78,6 @@ export function OrderDetailsModal({
                 </div>
 
                 <div className="space-y-8 px-8 py-6 overflow-y-auto">
-                    {/* DEBUG LOG */}
-                    {console.log('OrderDetailsModal Render - Detalle:', detalle)}
                     <div className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                             <p className="text-xs uppercase tracking-wide text-neutral-500">Fecha</p>

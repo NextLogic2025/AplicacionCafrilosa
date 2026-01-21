@@ -206,10 +206,28 @@ export default function VendedorPedidos() {
                   <tbody className="divide-y">
                     {selectedPedido.items.map(item => (
                       <tr key={item.id}>
-                        <td className="px-3 py-2">{item.productName}</td>
-                        <td className="px-3 py-2 text-right">{item.quantity}</td>
-                        <td className="px-3 py-2 text-right">${item.unitPrice.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-medium">${item.subtotal.toFixed(2)}</td>
+                        <td className="px-3 py-2">
+                          <div>
+                            <p className="font-medium text-neutral-900">{item.productName}</p>
+                            {item.cantidad_solicitada != null && item.cantidad_solicitada !== item.quantity && (
+                              <div className="mt-1 flex flex-col gap-0.5">
+                                <p className="text-xs text-neutral-500 line-through">
+                                  Solicitado: {item.cantidad_solicitada} {item.unit}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold">AJUSTADO</span>
+                                  {item.motivo_ajuste && <span className="text-xs text-red-500 italic">({item.motivo_ajuste})</span>}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right align-top">
+                          {item.quantity}
+                          <span className="text-xs text-neutral-400 block">{item.unit}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right align-top">${item.unitPrice.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-medium align-top">${item.subtotal.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

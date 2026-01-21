@@ -12,6 +12,8 @@ export interface DetallePedido {
     precio_final: string
     es_bonificacion: boolean
     motivo_descuento: string | null
+    cantidad_solicitada?: string | null
+    motivo_ajuste?: string | null
     campania_aplicada_id: number | null
     subtotal_linea: string
     created_at: string

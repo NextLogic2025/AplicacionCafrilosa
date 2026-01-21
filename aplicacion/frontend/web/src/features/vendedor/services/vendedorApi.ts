@@ -41,7 +41,9 @@ export async function getPedidos(page = 1): Promise<{ items: Pedido[]; page: num
         quantity: d.cantidad,
         unit: d.unidad_medida || 'UN',
         unitPrice: parseFloat(d.precio_final),
-        subtotal: parseFloat(d.precio_final) * d.cantidad
+        subtotal: parseFloat(d.precio_final) * d.cantidad,
+        cantidad_solicitada: d.cantidad_solicitada ? Number(d.cantidad_solicitada) : null,
+        motivo_ajuste: d.motivo_ajuste ? String(d.motivo_ajuste) : null
       }))
     }))
 
