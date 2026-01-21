@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
 @ApiTags('Facturas')
 @ApiBearerAuth()
@@ -45,6 +46,13 @@ export class FacturasController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   create(@Body() createDto: any) {
+    return this.facturasService.create(createDto);
+  }
+
+  // Internal: allow other services to create factura using the SERVICE_TOKEN
+  @Post('internal')
+  @UseGuards(ServiceAuthGuard)
+  async createInternal(@Body() createDto: any) {
     return this.facturasService.create(createDto);
   }
 }
