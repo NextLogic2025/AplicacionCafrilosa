@@ -539,13 +539,8 @@ export class PickingService {
             const ordenRecord2: any = await this.ordenRepo.findOne({ where: { id } });
             const pedidoId = ordenRecord2?.pedidoId || (orden as any).pedidoId || null;
             if (pedidoId) {
-                // Build items payload (supporting motivoDesviacion -> motivo_ajuste, notasBodeguero -> nota_al_cliente)
-                const itemsPayload = (items || []).map(it => ({
-                    producto_id: it.productoId,
-                    cantidad_pickeada: Number(it.cantidadPickeada || 0),
-                    motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion,
-                    nota_al_cliente: it.notasBodeguero
-                }));
+                // Build items payload (supporting motivoDesviacion -> motivo_ajuste)
+                const itemsPayload = (items || []).map(it => ({ producto_id: it.productoId, cantidad_pickeada: Number(it.cantidadPickeada || 0), motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion }));
                 try {
                     await this.serviceHttp.post('orders-service', `/internal/${pedidoId}/apply-picking`, { pickingId: id, items: itemsPayload });
                     this.logger.log(`Notificado Orders apply-picking para pedido ${pedidoId} desde picking ${id}`);

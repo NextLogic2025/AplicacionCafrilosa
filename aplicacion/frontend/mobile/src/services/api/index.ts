@@ -37,8 +37,7 @@ export type {
     ProductsResponse,
     PriceList as CatalogPriceList,
     Promotion,
-    CommercialZone as CatalogZone,
-    AuditLog
+    CommercialZone as CatalogZone
 } from './CatalogService'
 
 export type {

@@ -62,8 +62,6 @@ import { SupervisorDespachoDetailScreen } from '../features/supervisor/screens/M
 import { SupervisorInvoicesScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoicesScreen'
 import { SupervisorInvoiceDetailScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoiceDetailScreen'
 
-import { SupervisorAuditScreen } from '../features/supervisor/screens/ModuloAuditoria/SupervisorAuditScreen'
-
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
 
@@ -117,9 +115,9 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         onPress: () => navigation.navigate('SupervisorAlerts'),
                     },
                     {
-                        icon: 'shield-checkmark-outline',
-                        label: 'Auditoría',
-                        onPress: () => navigation.navigate('SupervisorAudit'),
+                        icon: 'receipt-outline',
+                        label: 'Facturas',
+                        onPress: () => navigation.navigate('SupervisorInvoices'),
                     },
                 ]}
             />
@@ -193,8 +191,6 @@ export function SupervisorNavigator() {
             {/* Facturas Module */}
             <Stack.Screen name="SupervisorInvoices" component={SupervisorInvoicesScreen} />
             <Stack.Screen name="InvoiceDetail" component={SupervisorInvoiceDetailScreen} />
-
-            <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
         </Stack.Navigator>
     )
 }

@@ -24,6 +24,7 @@ interface OrderDetailTemplateProps {
     showTimeline?: boolean
     actionButtons?: ActionButton[]
     onBackPress?: () => void
+    onViewInvoice?: (invoiceId: string) => void
 }
 
 export function OrderDetailTemplate({
@@ -33,7 +34,8 @@ export function OrderDetailTemplate({
     loading,
     showTimeline = false,
     actionButtons = [],
-    onBackPress
+    onBackPress,
+    onViewInvoice
 }: OrderDetailTemplateProps) {
     if (loading) {
         return (
@@ -110,31 +112,47 @@ export function OrderDetailTemplate({
                 </View>
 
                 {order.factura_numero && (
-                    <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm shadow-black/5 border-l-4 border-cyan-500">
-                        <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-neutral-900 font-bold text-lg">Factura Generada</Text>
-                            <Ionicons name="document-text" size={24} color="#06B6D4" />
-                        </View>
-                        <View className="flex-row items-center justify-between">
-                            <View>
-                                <Text className="text-neutral-500 text-xs uppercase tracking-wide">Número de Factura</Text>
-                                <Text className="text-neutral-900 font-bold text-base mt-0.5">{order.factura_numero}</Text>
+                    <View className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-2xl p-5 mb-4 shadow-md shadow-cyan-500/20">
+                        <View className="flex-row items-center justify-between mb-3">
+                            <View className="flex-row items-center">
+                                <View className="bg-white/20 p-2 rounded-full mr-3">
+                                    <Ionicons name="document-text" size={24} color="white" />
+                                </View>
+                                <View>
+                                    <Text className="text-white/80 text-xs uppercase tracking-wide">Factura</Text>
+                                    <Text className="text-white font-bold text-lg">{order.factura_numero}</Text>
+                                </View>
+                            </View>
+                            <View className="bg-white/20 px-3 py-1 rounded-full">
+                                <Text className="text-white text-xs font-bold">Generada</Text>
                             </View>
                         </View>
 
-                        {order.url_pdf_factura && (
-                            <TouchableOpacity
-                                className="flex-row items-center justify-center bg-cyan-50 py-3 rounded-xl mt-4 border border-cyan-100"
-                                onPress={() => {
-                                    // TODO: Implement PDF viewer or download
-                                    // Linking.openURL(order.url_pdf_factura)
-                                    alert('Abriendo PDF: ' + order.url_pdf_factura)
-                                }}
-                            >
-                                <Ionicons name="download-outline" size={20} color="#0891B2" />
-                                <Text className="text-cyan-700 font-bold ml-2">Ver Factura PDF</Text>
-                            </TouchableOpacity>
-                        )}
+                        <View className="flex-row gap-2 mt-2">
+                            {onViewInvoice && (
+                                <TouchableOpacity
+                                    className="flex-1 flex-row items-center justify-center bg-white py-3 rounded-xl"
+                                    onPress={() => onViewInvoice(order.factura_id || '')}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="eye-outline" size={18} color="#0891B2" />
+                                    <Text className="text-cyan-700 font-bold ml-2 text-sm">Ver Detalle</Text>
+                                </TouchableOpacity>
+                            )}
+                            {order.url_pdf_factura && (
+                                <TouchableOpacity
+                                    className="flex-1 flex-row items-center justify-center bg-white/20 py-3 rounded-xl border border-white/30"
+                                    onPress={() => {
+                                        // TODO: Implement PDF viewer or download
+                                        alert('Abriendo PDF: ' + order.url_pdf_factura)
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="download-outline" size={18} color="white" />
+                                    <Text className="text-white font-bold ml-2 text-sm">Descargar PDF</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
                 )}
 

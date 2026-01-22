@@ -72,15 +72,6 @@ export interface CommercialZone {
     activo: boolean
 }
 
-export interface AuditLog {
-    id: string
-    action: 'CREATE' | 'UPDATE' | 'DELETE'
-    entity: string
-    detail: string
-    user: string
-    time: string
-}
-
 export const CatalogService = {
     getCategories: async (): Promise<Category[]> => {
         return apiRequest<Category[]>(endpoints.catalog.categories)
@@ -350,9 +341,5 @@ export const CatalogService = {
             method: 'POST',
             body: JSON.stringify(zone)
         })
-    },
-
-    getAuditLogs: async (): Promise<AuditLog[]> => {
-        return apiRequest<AuditLog[]>('/api/audit')
     }
 }

@@ -241,11 +241,12 @@ export const PickingService = {
         }
     ): Promise<PickingItem> {
         try {
+            // Backend espera campos en snake_case
             const payload: Record<string, unknown> = { cantidadPickeada }
             if (options?.loteConfirmado) payload.loteConfirmado = options.loteConfirmado
-            if (options?.motivoDesviacion) payload.motivoDesviacion = options.motivoDesviacion
-            if (options?.notasBodeguero) payload.notasBodeguero = options.notasBodeguero
-            if (options?.ubicacionConfirmada) payload.ubicacionConfirmada = options.ubicacionConfirmada
+            if (options?.motivoDesviacion) payload.motivo_desviacion = options.motivoDesviacion
+            if (options?.notasBodeguero) payload.nota_bodeguero = options.notasBodeguero
+            if (options?.ubicacionConfirmada) payload.ubicacion_confirmada = options.ubicacionConfirmada
 
             return await apiRequest<PickingItem>(warehouse(endpoints.warehouse.pickingPickItem(id, itemId)), {
                 method: 'POST',
@@ -262,7 +263,7 @@ export const PickingService = {
      */
     async getAlternativeStocks(productoId: string): Promise<AlternativeStock[]> {
         try {
-            return await apiRequest<AlternativeStock[]>(warehouse(`/api/picking/stocks/${productoId}`))
+            return await apiRequest<AlternativeStock[]>(warehouse(endpoints.warehouse.picking + `/products/${productoId}/stocks`))
         } catch (error) {
             logErrorForDebugging(error, 'PickingService.getAlternativeStocks', { productoId })
             throw error

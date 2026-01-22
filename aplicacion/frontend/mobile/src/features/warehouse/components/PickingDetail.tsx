@@ -217,18 +217,12 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                 return
             }
 
-            // Resolver lote: usar seleccionado o sugerido
-            let loteId: string | undefined
-            if (pickModal.loteSeleccionado) {
-                loteId = pickModal.loteSeleccionado.id
-            } else if (pickModal.item.loteSugerido) {
-                loteId = typeof pickModal.item.loteSugerido === 'string'
-                    ? pickModal.item.loteSugerido
-                    : (pickModal.item.loteSugerido as { id: string }).id
-            }
+            // Solo enviar loteConfirmado si el usuario CAMBIO de lote (como hace el web)
+            // Si no se cambió, el backend usa el lote sugerido automáticamente
+            const loteIdOverride = pickModal.loteSeleccionado ? pickModal.loteSeleccionado.id : undefined
 
             await PickingService.pickItem(pickingId, pickModal.item.id, delta > 0 ? delta : qty, {
-                loteConfirmado: loteId,
+                loteConfirmado: loteIdOverride,
                 motivoDesviacion: pickModal.motivoDesviacion || undefined,
                 notasBodeguero: pickModal.notasBodeguero || undefined,
                 ubicacionConfirmada: pickModal.loteSeleccionado?.ubicacionId,
@@ -288,6 +282,31 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
         } finally {
             setSaving(false)
             setConfirmIncompleteModal(false)
+        }
+    }
+
+    // Pickeo rápido: igual que el web, pickea todo lo restante SIN cambiar de lote
+    const handleQuickPick = async (item: PickingItem) => {
+        if (!picking) return
+        const remaining = (item.cantidadSolicitada || 0) - (item.cantidadPickeada || 0)
+        if (remaining <= 0) return // Ya está completo
+
+        setSaving(true)
+        try {
+            // Igual que el web: solo envía cantidadPickeada, SIN loteConfirmado
+            await PickingService.pickItem(pickingId, item.id, remaining, {})
+            setFeedback({ visible: true, type: 'success', title: 'Registrado', message: `Se pickeo ${formatQuantity(remaining)} unidades correctamente.` })
+            await loadData()
+            onUpdated()
+        } catch (error) {
+            setFeedback({
+                visible: true,
+                type: 'error',
+                title: 'Error',
+                message: getUserFriendlyMessage(error, 'UPDATE_ERROR'),
+            })
+        } finally {
+            setSaving(false)
         }
     }
 
@@ -511,13 +530,43 @@ export function PickingDetail({ pickingId, allowStart = false, allowComplete = f
                                             </View>
                                         )}
 
-                                        {/* Indicador de toque para editar */}
+                                        {/* Botones de acción: igual que el web */}
                                         {allowPick && picking.estado === 'EN_PROCESO' && (
-                                            <View className="mt-3 pt-3 border-t border-neutral-100 flex-row items-center justify-center">
-                                                <Ionicons name="create-outline" size={16} color="#7C3AED" />
-                                                <Text className="text-xs font-medium text-purple-600 ml-1">
-                                                    Toca para {isComplete ? 'editar' : 'registrar pickeo'}
-                                                </Text>
+                                            <View className="mt-3 pt-3 border-t border-neutral-100">
+                                                {isComplete ? (
+                                                    // Item completado: solo mostrar botón editar
+                                                    <Pressable
+                                                        onPress={() => openPickModal(item)}
+                                                        className="flex-row items-center justify-center py-2 bg-neutral-100 rounded-xl active:bg-neutral-200"
+                                                    >
+                                                        <Ionicons name="create-outline" size={16} color="#6B7280" />
+                                                        <Text className="text-xs font-medium text-neutral-600 ml-1">Editar</Text>
+                                                    </Pressable>
+                                                ) : (
+                                                    // Item pendiente: botones Todo y Manual (igual que web)
+                                                    <View className="flex-row gap-2">
+                                                        <Pressable
+                                                            onPress={(e) => {
+                                                                e.stopPropagation()
+                                                                handleQuickPick(item)
+                                                            }}
+                                                            disabled={saving}
+                                                            className="flex-1 flex-row items-center justify-center py-2.5 bg-green-100 rounded-xl active:bg-green-200"
+                                                        >
+                                                            <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                                                            <Text className="text-sm font-bold text-green-700 ml-1">
+                                                                Todo ({formatQuantity(remaining)})
+                                                            </Text>
+                                                        </Pressable>
+                                                        <Pressable
+                                                            onPress={() => openPickModal(item)}
+                                                            className="flex-1 flex-row items-center justify-center py-2.5 bg-purple-100 rounded-xl active:bg-purple-200"
+                                                        >
+                                                            <Ionicons name="options-outline" size={18} color="#7C3AED" />
+                                                            <Text className="text-sm font-bold text-purple-700 ml-1">Manual</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                )}
                                             </View>
                                         )}
                                     </View>

@@ -80,6 +80,7 @@ export interface Order {
     updated_at: string
     deleted_at?: string
     factura_numero?: string
+    factura_id?: string
     url_pdf_factura?: string
 
     detalles?: OrderDetail[]
