@@ -29,7 +29,7 @@ export class PreciosService {
     private readonly promoRepo: Repository<ProductoPromocion>,
     @Inject(forwardRef(() => PromocionesService))
     private readonly promocionesService: PromocionesService,
-  ) {}
+  ) { }
 
   // --- GESTIÓN DE PRECIOS INDIVIDUALES ---
 
@@ -49,11 +49,11 @@ export class PreciosService {
   }
 
   async removePrecio(listaId: number, productoId: string) {
-    const result = await this.precioRepo.delete({ 
-      lista_id: listaId, 
-      producto_id: productoId 
+    const result = await this.precioRepo.delete({
+      lista_id: listaId,
+      producto_id: productoId
     });
-    
+
     if (result.affected === 0) throw new NotFoundException('Precio no encontrado');
     return { message: 'Precio eliminado correctamente' };
   }
@@ -138,9 +138,9 @@ export class PreciosService {
     // Agrupar promociones por producto
     const promoMap = new Map<string, ProductoPromocion[]>();
     (promos as ProductoPromocion[]).forEach(p => {
-       const list = promoMap.get(p.producto_id) || [];
-       list.push(p);
-       promoMap.set(p.producto_id, list);
+      const list = promoMap.get(p.producto_id) || [];
+      list.push(p);
+      promoMap.set(p.producto_id, list);
     });
 
     // 3. Transformación
@@ -181,6 +181,8 @@ export class PreciosService {
         id: p.id,
         codigo_sku: p.codigoSku,
         nombre: p.nombre,
+        descripcion: p.descripcion,
+        imagen_url: p.imagenUrl,
         categoria: cat ? { id: cat.id, nombre: cat.nombre } : null,
         unidad_medida: p.unidadMedida,
         precio_lista: precioListaNum, // El precio viene de la tabla intermedia
@@ -221,7 +223,7 @@ export class PreciosService {
    * items: [{ id: productoId, cantidad? }]
    */
   // En PreciosService
-// ... imports y constructor ...
+  // ... imports y constructor ...
 
   // --- REEMPLAZA TU MÉTODO calculateBatchForLista CON ESTE ---
   async calculateBatchForLista(items: Array<{ id: string; cantidad?: number }>, listaId: number) {
@@ -247,14 +249,14 @@ export class PreciosService {
     const preciosMap = new Map<string, number>();
     preciosRaw.forEach(row => {
       // Nota: getRawMany devuelve strings para numeros en algunos drivers de PG
-      preciosMap.set(String(row.producto_id), Number(row.precio_base)); 
+      preciosMap.set(String(row.producto_id), Number(row.precio_base));
     });
 
     // 3. Cargar Promociones (Usando el método que YA EXISTE en tu PromocionesService)
     // Filtramos solo productos que tienen precio base para no buscar de más
     const validProductIds = productIds.filter(id => preciosMap.has(id));
     let promos: any[] = [];
-    
+
     if (validProductIds.length > 0) {
       // CORRECCIÓN: Usamos findPromosForCliente que ya tenías definido
       promos = await this.promocionesService.findPromosForCliente(validProductIds, undefined, listaId) as any[];
@@ -263,20 +265,20 @@ export class PreciosService {
     // 4. Calcular precio final en memoria
     return items.map(item => {
       const precioBase = preciosMap.get(item.id);
-      
+
       // Si no hay precio base, retornamos nulls
       if (precioBase === undefined || precioBase === null) {
-        return { 
-          producto_id: item.id, 
-          precio_lista: null, 
-          precio_final: null, 
-          campania_id: null 
+        return {
+          producto_id: item.id,
+          precio_lista: null,
+          precio_final: null,
+          campania_id: null
         };
       }
 
       // Filtrar promos para este producto
       const misPromos = promos.filter(p => String(p.producto_id) === String(item.id));
-      
+
       // CORRECCIÓN: Llamamos al helper privado implementado abajo
       const mejorOpcion = this.calcularMejorDescuento(precioBase, misPromos);
 
@@ -320,7 +322,7 @@ export class PreciosService {
       if (precioOferta !== null) {
         // Sanitizar (no negativos)
         if (precioOferta < 0) precioOferta = 0;
-        
+
         // Redondear a 2 decimales
         precioOferta = Math.round(precioOferta * 100) / 100;
 

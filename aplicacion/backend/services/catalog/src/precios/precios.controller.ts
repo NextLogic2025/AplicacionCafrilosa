@@ -121,6 +121,39 @@ export class PreciosController {
     return this.preciosService.productosConPrecioParaLista(listaId, { page, q });
   }
 
+  // --- GESTIÓN DE LISTAS DE PRECIOS (ADMIN) ---
+
+  @Get('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor', 'vendedor', 'bodeguero', 'transportista')
+  async listarListas() {
+    return this.preciosService.findAllListas();
+  }
+
+  @Post('listas')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async crearLista(@Body() dto: CreateListaPrecioDto) {
+    return this.preciosService.createLista(dto);
+  }
+
+  @Patch('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async editarLista(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: Partial<CreateListaPrecioDto>
+  ) {
+    return this.preciosService.updateLista(id, dto);
+  }
+
+  @Delete('listas/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async eliminarLista(@Param('id', ParseIntPipe) id: number) {
+    return this.preciosService.deleteLista(id);
+  }
+
   // --- HELPERS ---
 
   private checkRole(user: any, role: string): boolean {

@@ -54,9 +54,14 @@ export class OrdersService {
 
   private async _reserveStockInWarehouse(createOrderDto: CreateOrderDto): Promise<string | null> {
     try {
-      const payload = { items: (createOrderDto.items || []).map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad })), pedido_ref: null };
-      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservas/internal/bulk', payload);
-      return res?.reservationId ?? null;
+      // Map items to the Warehouse reservations contract (productId, quantity)
+      const payload = {
+        tempId: null,
+        items: (createOrderDto.items || []).map(i => ({ productId: (i as any).producto_id ?? (i as any).product_id, quantity: (i as any).cantidad ?? (i as any).quantity }))
+      };
+      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservations', payload);
+      // Warehouse returns { id }
+      return res?.id ?? null;
     } catch (err) {
       this.logger.warn('Error reserving stock in warehouse', { error: err?.message || err });
       throw new BadRequestException('No se pudo reservar stock para el pedido');
@@ -80,7 +85,8 @@ export class OrdersService {
   private async _rollbackReservation(reservationId: string | null) {
     if (!reservationId) return;
     try {
-      await this.serviceHttp.post('warehouse-service', `/reservas/${reservationId}/release`, {});
+      // The warehouse exposes DELETE /reservations/:id to cancel a reservation
+      await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
     } catch (e) {
       this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
     }
@@ -581,10 +587,11 @@ export class OrdersService {
 
       const itemsFromPicking: Array<any> = Array.isArray(payload.items) ? payload.items : [];
 
-      // Mapear por producto para facilidad
+      // Mapear por producto para facilidad. Soportar tanto `producto_id` como `productId`.
       const pickingMap: Record<string, any> = {};
       for (const it of itemsFromPicking) {
-        pickingMap[String(it.producto_id)] = it;
+        const key = String((it as any).producto_id ?? (it as any).productId ?? (it as any).productoId ?? (it as any).product_id);
+        pickingMap[key] = it;
       }
 
       // Ajustes por detalle (modificar en memoria y guardar en bulk)
@@ -622,6 +629,8 @@ export class OrdersService {
       const impuestos_total = Number((recalculatedSubtotal - descuento_total) * 0.12);
       const total_final = recalculatedSubtotal - descuento_total + impuestos_total;
 
+      const previousEstado = pedido.estado_actual;
+
       pedido.subtotal = recalculatedSubtotal as any;
       pedido.impuestos_total = impuestos_total as any;
       pedido.total_final = total_final as any;
@@ -629,10 +638,10 @@ export class OrdersService {
 
       await queryRunner.manager.save(pedido);
 
-      // Registrar en historial
+      // Registrar en historial (usar estado anterior real)
       const historial = queryRunner.manager.create(HistorialEstado, {
         pedido_id: pedidoId,
-        estado_anterior: pedido.estado_actual,
+        estado_anterior: previousEstado,
         estado_nuevo: 'PREPARADO',
         usuario_id: null,
         comentario: 'Reconciliado con resultado de picking' + (payload.pickingId ? (' id:' + payload.pickingId) : ''),
@@ -642,28 +651,53 @@ export class OrdersService {
       // Llamar a Finance para crear factura (idempotente si ya existe factura_id)
       try {
         if (!pedido.factura_id) {
+          // Enriquecer con datos fiscales del cliente desde Catalog (internal)
+          let clienteFiscal: any = null;
+          try {
+            clienteFiscal = await this.serviceHttp.get<any>('catalog-service', `/internal/clients/${pedido.cliente_id}`);
+          } catch (e) {
+            this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
+          }
+
+          const rucCliente = clienteFiscal?.identificacion ?? clienteFiscal?.cliente_identificacion ?? '0000000000';
+          const razonSocialCliente = clienteFiscal?.razon_social ?? clienteFiscal?.razonSocial ?? ('Cliente ' + (pedido.cliente_id || '').slice(0, 8));
+
           const facturaPayload: any = {
             pedidoId: pedido.id,
             clienteId: pedido.cliente_id,
-            formaPago: pedido.forma_pago_solicitada,
+            vendedorId: pedido.vendedor_id || null,
+            rucCliente,
+            razonSocialCliente,
             subtotal: pedido.subtotal,
             impuestos: pedido.impuestos_total,
-            total: pedido.total_final,
-            items: (pedido.detalles || []).map((d: any) => ({
-              producto_id: d.producto_id,
-              codigo_sku: d.codigo_sku,
-              nombre_producto: d.nombre_producto,
+            totalFinal: pedido.total_final,
+            detalles: (pedido.detalles || []).map((d: any) => ({
+              productoId: d.producto_id,
+              descripcion: d.nombre_producto || d.codigo_sku || null,
               cantidad: Number(d.cantidad),
-              precio_unitario: Number(d.precio_final),
-              subtotal_linea: Number(d.cantidad) * Number(d.precio_final),
+              precioUnitario: Number(d.precio_final),
+              totalLinea: Number(d.cantidad) * Number(d.precio_final),
             })),
           };
 
-          const resp = await this.serviceHttp.post<any>('finance-service', '/facturas', facturaPayload);
+          let resp: any = null;
+          try {
+            resp = await this.serviceHttp.post<any>('finance-service', '/api/facturas/internal', facturaPayload);
+          } catch (postErr) {
+            this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
+            // try to lookup existing factura by pedidoId as fallback
+            try {
+              resp = await this.serviceHttp.get<any>('finance-service', `/api/facturas/internal/pedido/${pedido.id}`);
+            } catch (getErr) {
+              this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
+              resp = null;
+            }
+          }
+
           if (resp && resp.id) {
             pedido.factura_id = resp.id;
-            pedido.factura_numero = resp.numero || resp.facturaNumero || null;
-            pedido.url_pdf_factura = resp.url_pdf_factura || resp.url || null;
+            pedido.factura_numero = resp.numeroCompleto || resp.numero || resp.facturaNumero || null;
+            pedido.url_pdf_factura = resp.urlPdf || resp.url_pdf || resp.url || null;
             pedido.estado_actual = 'FACTURADO';
             await queryRunner.manager.save(pedido);
           }
