@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+// internal endpoints moved to FacturasInternalController
 
 @ApiTags('Facturas')
 @ApiBearerAuth()
@@ -47,21 +47,5 @@ export class FacturasController {
   @Roles('admin', 'supervisor')
   create(@Body() createDto: any) {
     return this.facturasService.create(createDto);
-  }
-
-  // Internal: allow other services to create factura using the SERVICE_TOKEN
-  @Post('internal')
-  @UseGuards(ServiceAuthGuard)
-  async createInternal(@Body() createDto: any) {
-    return this.facturasService.create(createDto);
-  }
-
-  // Internal: find factura by pedidoId
-  @Get('internal/pedido/:pedidoId')
-  @UseGuards(ServiceAuthGuard)
-  async findByPedidoInternal(@Param('pedidoId') pedidoId: string) {
-    const f = await this.facturasService.findByPedidoId(pedidoId);
-    if (!f) return null;
-    return f;
   }
 }

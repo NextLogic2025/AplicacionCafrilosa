@@ -9,13 +9,14 @@ import { PromocionesModule } from '../promociones/promociones.module';
 
 import { PreciosService } from './precios.service';
 import { PreciosController } from './precios.controller';
+import { PreciosInternalController } from './precios.internal.controller';
 import { PrecioItem } from './entities/precio.entity';
 import { ListaPrecio } from './entities/lista-precio.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([PrecioItem, ListaPrecio, Product, Category, ProductoPromocion]), forwardRef(() => PromocionesModule), ClientesModule],
   providers: [PreciosService],
-  controllers: [PreciosController],
+  controllers: [PreciosController, PreciosInternalController],
   exports: [PreciosService],
 })
 export class PreciosModule {}

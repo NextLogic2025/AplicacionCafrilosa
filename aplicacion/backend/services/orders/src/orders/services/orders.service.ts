@@ -8,6 +8,9 @@ import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { CartService } from './cart.service';
 import { ServiceHttpClient } from '../../common/http/service-http-client.service';
+import { CatalogExternalService } from '../../common/external/catalog.external.service';
+import { WarehouseExternalService } from '../../common/external/warehouse.external.service';
+import { FinanceExternalService } from '../../common/external/finance.external.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,7 +19,9 @@ export class OrdersService {
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
-    private readonly serviceHttp: ServiceHttpClient,
+    private readonly catalogExternal: CatalogExternalService,
+    private readonly warehouseExternal: WarehouseExternalService,
+    private readonly financeExternal: FinanceExternalService,
   ) { }
 
   // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
@@ -24,10 +29,7 @@ export class OrdersService {
     if (!campaniaId) return false;
     // Preferir llamada al servicio Catalog si está disponible
     try {
-      const data = await this.serviceHttp.get<any>(
-        'catalog-service',
-        `/promociones/${campaniaId}/productos`,
-      );
+      const data = await this.catalogExternal.getClientByPath(`/promociones/${campaniaId}/productos` as any);
       const items = Array.isArray(data?.items) ? data.items : [];
       return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
     } catch (err) {
@@ -40,11 +42,7 @@ export class OrdersService {
   private async _getBatchPricesFromCatalog(createOrderDto: CreateOrderDto) {
     const productPayload = (createOrderDto.items || []).map(i => ({ id: i.producto_id, cantidad: i.cantidad }));
     try {
-      const preciosBatch = await this.serviceHttp.post<any[]>(
-        'catalog-service',
-        '/precios/internal/batch-calculator',
-        { items: productPayload, cliente_id: createOrderDto.cliente_id },
-      );
+      const preciosBatch = await this.catalogExternal.calculateBatchPrices(productPayload, createOrderDto.cliente_id);
       return preciosBatch || [];
     } catch (err) {
       this.logger.warn('Error fetching batch prices from catalog', { error: err?.message || err });
@@ -59,7 +57,7 @@ export class OrdersService {
         tempId: null,
         items: (createOrderDto.items || []).map(i => ({ productId: (i as any).producto_id ?? (i as any).product_id, quantity: (i as any).cantidad ?? (i as any).quantity }))
       };
-      const res = await this.serviceHttp.post<any>('warehouse-service', '/reservations', payload);
+      const res = await this.warehouseExternal.reserveStock(payload);
       // Warehouse returns { id }
       return res?.id ?? null;
     } catch (err) {
@@ -72,7 +70,7 @@ export class OrdersService {
     try {
       if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) return createOrderDto.ubicacion;
       if (createOrderDto.sucursal_id) {
-        const suc = await this.serviceHttp.get<any>('catalog-service', `/sucursales/${createOrderDto.sucursal_id}`);
+        const suc = await this.catalogExternal.getSucursal(createOrderDto.sucursal_id);
         if (suc?.location) return suc.location;
       }
       return null;
@@ -86,7 +84,7 @@ export class OrdersService {
     if (!reservationId) return;
     try {
       // The warehouse exposes DELETE /reservations/:id to cancel a reservation
-      await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+      await this.warehouseExternal.deleteReservation(reservationId);
     } catch (e) {
       this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
     }
@@ -324,10 +322,7 @@ export class OrdersService {
     // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
     if (actorRole === 'cliente') {
       try {
-        const clientInfo = await this.serviceHttp.get<any>(
-          'catalog-service',
-          `/internal/clients/${clienteId}`,
-        );
+        const clientInfo = await this.catalogExternal.getClientByPath(clienteId);
         pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
         this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
       } catch (err) {
@@ -350,11 +345,7 @@ export class OrdersService {
     // Intentar enriquecer items con datos del Catalog (codigo_sku, nombre_producto)
     try {
       const productIds = items.map(i => i.producto_id);
-      const products = await this.serviceHttp.post<any[]>(
-        'catalog-service',
-        '/products/internal/batch',
-        { ids: productIds, cliente_id: clienteId },
-      );
+      const products = await this.catalogExternal.batchProducts(productIds, clienteId);
       const productMap = Array.isArray(products)
         ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
         : {};
@@ -457,7 +448,7 @@ export class OrdersService {
             const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
             const reservationId = res && res[0] ? res[0].reservation_id || null : null;
             if (reservationId) {
-              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+              await this.warehouseExternal.deleteReservation(reservationId);
               this.logger.debug('Released warehouse reservation after pedido ' + estadoUpper, { pedidoId, reservationId });
             }
           } catch (err) {
@@ -550,7 +541,7 @@ export class OrdersService {
           const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
           const reservationId = res && res[0] ? res[0].reservation_id || null : null;
           if (reservationId) {
-            await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+            await this.warehouseExternal.deleteReservation(reservationId);
             this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
           }
         } catch (err) {
@@ -654,7 +645,7 @@ export class OrdersService {
           // Enriquecer con datos fiscales del cliente desde Catalog (internal)
           let clienteFiscal: any = null;
           try {
-            clienteFiscal = await this.serviceHttp.get<any>('catalog-service', `/internal/clients/${pedido.cliente_id}`);
+            clienteFiscal = await this.catalogExternal.getClientByPath(pedido.cliente_id);
           } catch (e) {
             this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
           }
@@ -682,12 +673,13 @@ export class OrdersService {
 
           let resp: any = null;
           try {
-            resp = await this.serviceHttp.post<any>('finance-service', '/api/facturas/internal', facturaPayload);
+            // Use FinanceExternalService to call internal endpoint
+            resp = await this.financeExternal.createFactura(facturaPayload);
           } catch (postErr) {
             this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
-            // try to lookup existing factura by pedidoId as fallback
+            // try to lookup existing factura by pedidoId as fallback using wrapper
             try {
-              resp = await this.serviceHttp.get<any>('finance-service', `/api/facturas/internal/pedido/${pedido.id}`);
+              resp = await this.financeExternal.findByPedido(pedido.id);
             } catch (getErr) {
               this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
               resp = null;

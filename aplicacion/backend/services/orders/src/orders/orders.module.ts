@@ -18,6 +18,9 @@ import { InternalController } from './controllers/internal.controller';
 import { OrdersService } from './services/orders.service';
 import { CartService } from './services/cart.service';
 import { OrderListenerService } from './services/order-listener.service';
+import { CatalogExternalService } from '../common/external/catalog.external.service';
+import { WarehouseExternalService } from '../common/external/warehouse.external.service';
+import { FinanceExternalService } from '../common/external/finance.external.service';
 import { OrderOwnershipGuard } from './guards/order-ownership.guard';
 
 @Module({
@@ -34,7 +37,7 @@ import { OrderOwnershipGuard } from './guards/order-ownership.guard';
     ]),
   ],
   controllers: [OrdersController, CartController, EstadosController, InternalAdminController, InternalController],
-  providers: [OrdersService, CartService, OrderListenerService, OrderOwnershipGuard],
+  providers: [OrdersService, CartService, OrderListenerService, OrderOwnershipGuard, CatalogExternalService, WarehouseExternalService, FinanceExternalService],
   exports: [OrdersService, CartService],
 })
 export class OrdersModule {}

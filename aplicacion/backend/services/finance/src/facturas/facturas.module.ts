@@ -9,6 +9,7 @@ import { ImputacionPago } from '../entities/imputacion-pago.entity';
 import { CuentaPorCobrar } from '../entities/cuenta-por-cobrar.entity';
 import { PuntoEmision } from '../entities/punto-emision.entity';
 import { SaldoVendedorCaja } from '../entities/saldo-vendedor-caja.entity';
+import { FacturasInternalController } from './facturas.internal.controller';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { SaldoVendedorCaja } from '../entities/saldo-vendedor-caja.entity';
       SaldoVendedorCaja,
     ]),
   ],
-  controllers: [FacturasController],
+  controllers: [FacturasController, FacturasInternalController],
   providers: [FacturasService],
 })
 export class FacturasModule {}

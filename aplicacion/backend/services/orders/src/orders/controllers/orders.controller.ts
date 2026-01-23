@@ -148,12 +148,7 @@ export class OrdersController {
      * Protegido por `ServiceAuthGuard` (solo llamadas internas desde Warehouse).
      * Body esperado: { pickingId?: string, items: [{ producto_id, cantidad_pickeada, motivo_ajuste? }] }
      */
-    @Post('/internal/:id/apply-picking')
-    @UseGuards(ServiceAuthGuard)
-    async applyPicking(@Param('id') pedidoId: string, @Body() body: any) {
-        const payload = body || {};
-        return this.ordersService.applyPickingResult(pedidoId, payload);
-    }
+    // NOTE: internal apply-picking moved to `InternalController` guarded by ServiceAuthGuard
 
     @Get('user/history')
     @Roles('admin', 'vendedor', 'cliente')

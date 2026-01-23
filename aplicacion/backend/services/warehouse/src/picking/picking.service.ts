@@ -11,6 +11,9 @@ import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { ReservationItem } from '../reservations/entities/reservation-item.entity';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
+import { CatalogExternalService } from '../common/external/catalog.external.service';
+import { OrdersExternalService } from '../common/external/orders.external.service';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 @Injectable()
 export class PickingService {
@@ -31,16 +34,14 @@ export class PickingService {
         private readonly reservationRepo: Repository<Reservation>,
         @InjectRepository(ReservationItem)
         private readonly reservationItemRepo: Repository<ReservationItem>,
-        private readonly serviceHttp: ServiceHttpClient,
+        private readonly catalogExternal: CatalogExternalService,
+        private readonly ordersExternal: OrdersExternalService,
+        private readonly usuariosExternal: UsuariosExternalService,
     ) { }
 
     private async fetchProductInfo(productId: string) {
         try {
-            const arr = await this.serviceHttp.post<any[]>(
-                'catalog-service',
-                '/products/internal/batch',
-                { ids: [productId] },
-            );
+            const arr = await this.catalogExternal.batchProducts([productId]);
             if (Array.isArray(arr) && arr.length) {
                 const body = arr[0];
                 const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
@@ -57,10 +58,7 @@ export class PickingService {
 
     private async fetchOrderInfo(pedidoId: string) {
         try {
-            const body = await this.serviceHttp.get<any>(
-                'orders-service',
-                `/internal/${pedidoId}`,
-            );
+            const body = await this.ordersExternal.getOrder(pedidoId);
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
                 clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
@@ -74,11 +72,7 @@ export class PickingService {
 
     private async fetchUserInfo(userId: string) {
         try {
-            const body = await this.serviceHttp.post<any[]>(
-                'usuarios-service',
-                '/usuarios/batch/internal',
-                { ids: [userId] },
-            );
+            const body = await this.usuariosExternal.batchUsuarios([userId]);
             if (!Array.isArray(body) || body.length === 0) return null;
             const u = body[0];
             return {
@@ -353,12 +347,7 @@ export class PickingService {
             const pedidoId = (orden as any).pedidoId;
             if (pedidoId) {
                 const headers = authHeader ? { Authorization: authHeader } : undefined;
-                await this.serviceHttp.patch(
-                    'orders-service',
-                    `/orders/${pedidoId}/status`,
-                    { status: 'EN_PREPARACION' },
-                    { headers },
-                );
+                await this.ordersExternal.patchStatus(pedidoId, { status: 'EN_PREPARACION' }, headers);
             }
         } catch (err) {
             this.logger.error('Error while notifying Orders service about picking assignment', err?.message || err);
@@ -542,14 +531,14 @@ export class PickingService {
                 // Build items payload (supporting motivoDesviacion -> motivo_ajuste)
                 const itemsPayload = (items || []).map(it => ({ producto_id: it.productoId, cantidad_pickeada: Number(it.cantidadPickeada || 0), motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion }));
                 try {
-                    await this.serviceHttp.post('orders-service', `/internal/${pedidoId}/apply-picking`, { pickingId: id, items: itemsPayload });
+                    await this.ordersExternal.applyPicking(pedidoId, { pickingId: id, items: itemsPayload });
                     this.logger.log(`Notificado Orders apply-picking para pedido ${pedidoId} desde picking ${id}`);
                 } catch (postErr) {
                     this.logger.warn('Fallo al notificar Orders apply-picking', { pickingId: id, pedidoId, error: postErr?.message || postErr });
                 }
 
                 try {
-                    await this.serviceHttp.patch('orders-service', `/internal/${pedidoId}/status`, { status: 'PREPARADO' });
+                    await this.ordersExternal.patchStatus(pedidoId, { status: 'PREPARADO' });
                     this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
                 } catch (notifyErr) {
                     this.logger.warn('Fallo al notificar Orders para marcar PREPARADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });

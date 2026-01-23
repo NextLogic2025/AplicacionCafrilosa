@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Client } from 'pg';
 import { OrdersService } from './orders.service';
 import { ServiceHttpClient } from '../../common/http/service-http-client.service';
+import { WarehouseExternalService } from '../../common/external/warehouse.external.service';
 
 @Injectable()
 export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
@@ -12,7 +13,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
     constructor(
         private readonly configService: ConfigService,
         private readonly ordersService: OrdersService,
-        private readonly serviceHttp: ServiceHttpClient,
+        private readonly warehouseExternal: WarehouseExternalService,
     ) {
         this.pgClient = new Client({ connectionString: this.configService.get<string>('DATABASE_URL') });
     }
@@ -87,24 +88,10 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
             const bodyToSend: any = reservationId ? { pedido_id: id, reservation_id: reservationId } : { pedido_id: id };
 
             try {
-                await this.serviceHttp.post('warehouse-service', '/picking/confirm', bodyToSend);
+                await this.warehouseExternal.confirmPicking(bodyToSend);
                 this.logger.debug('Warehouse picking confirmed for pedido', { pedidoId: id });
             } catch (err) {
                 this.logger.warn('Warehouse picking confirm failed', { pedidoId: id, error: err?.message || err });
-                if (err instanceof HttpException && err.getStatus() === 401) {
-                    try {
-                        this.logger.debug('Intentando endpoint interno /picking/internal/confirm-open por 401', { pedidoId: id });
-                        // No pasar encabezado Authorization vacío: permitir que ServiceHttpClient inyecte SERVICE_TOKEN
-                        await this.serviceHttp.post(
-                            'warehouse-service',
-                            '/picking/internal/confirm-open',
-                            bodyToSend,
-                        );
-                        this.logger.debug('Warehouse picking confirmed via internal endpoint', { pedidoId: id });
-                    } catch (innerErr) {
-                        this.logger.warn('Warehouse internal picking confirm also failed', { pedidoId: id, error: innerErr?.message || innerErr });
-                    }
-                }
             }
         } catch (err) {
             this.logger.error('Error notifying warehouse for picking confirm', { pedidoId: id, error: err?.message || err });
@@ -119,10 +106,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`Picking completado recibido: ${pickingId}`);
 
         try {
-            const pickingJson = await this.serviceHttp.get<any>(
-                'warehouse-service',
-                `/picking/internal/${pickingId}`,
-            );
+            const pickingJson: any = await this.warehouseExternal.getPicking(pickingId);
 
             const pedidoId = pickingJson?.pedidoId || pickingJson?.pedido_id || pickingJson?.pedido || null;
             if (!pedidoId) {

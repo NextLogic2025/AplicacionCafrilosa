@@ -7,6 +7,7 @@ import { Role } from '../entities/role.entity';
 import { Usuario } from '../entities/usuario.entity';
 
 import { AuthController } from './auth.controller';
+import { AuthInternalController } from './auth.internal.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -24,7 +25,7 @@ import { ConfigModule } from '@nestjs/config';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AuthInternalController],
   providers: [AuthService, JwtAuthGuard, RolesGuard, JwtStrategy],
   exports: [JwtAuthGuard, RolesGuard],
 })
