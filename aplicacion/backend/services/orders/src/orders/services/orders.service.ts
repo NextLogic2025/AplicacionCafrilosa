@@ -50,21 +50,9 @@ export class OrdersService {
     }
   }
 
-  private async _resolveLocation(createOrderDto: CreateOrderDto) {
-    try {
-      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) return createOrderDto.ubicacion;
-      if (createOrderDto.sucursal_id) {
-        const suc = await this.catalogExternal.getSucursal(createOrderDto.sucursal_id);
-        if (suc?.location) return suc.location;
-      }
-      return null;
-    } catch (err) {
-      this.logger.warn('Error resolving location', { error: err?.message || err });
-      return null;
-    }
-  }
+  // Reservations are handled externally; Orders no longer creates warehouse reservations
 
-  // Reservations are no longer created by Orders; reservation helpers removed
+  // Reservation rollback helper removed: reservations managed outside Orders
 
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
@@ -106,30 +94,16 @@ export class OrdersService {
     return qb.orderBy('o.created_at', 'DESC').getMany();
   }
 
-  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false, skipPriceResolution = false): Promise<Pedido> {
+  async create(createOrderDto: any, usuarioId?: string, skipCartClear = false, skipPriceResolution = false): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    // Reservations are not created here anymore
-
     try {
-      // Paralelizar: resolución de ubicación y cálculo de precios en batch
-      const promises: Promise<any>[] = [];
-      promises.push(this._resolveLocation(createOrderDto));
-      if (!skipPriceResolution) promises.push(this._getBatchPricesFromCatalog(createOrderDto));
-
-      const results = await Promise.all(promises);
-      // resultados posicionales: [ubicacion?, precios?]
-      let ubicacionPedido: { lng: number; lat: number } | null = null;
+      // Use frontend-provided location (ubicacion) directly; resolve prices if needed
+      let ubicacionPedido: { lng: number; lat: number } | null = createOrderDto.ubicacion || createOrderDto.ubicacion_pedido || null;
       let preciosBatch: any[] = [];
-      if (results.length === 1) {
-        if (Array.isArray(results[0])) preciosBatch = results[0]; else ubicacionPedido = results[0];
-      }
-      if (results.length === 2) {
-        ubicacionPedido = results[0];
-        preciosBatch = results[1];
-      }
+      if (!skipPriceResolution) preciosBatch = await this._getBatchPricesFromCatalog(createOrderDto);
 
       const preciosMap = new Map<string, any>();
       (preciosBatch || []).forEach(p => preciosMap.set(String(p.producto_id), p));
@@ -162,7 +136,7 @@ export class OrdersService {
         vendedor_id: createOrderDto.vendedor_id,
         sucursal_id: createOrderDto.sucursal_id || null,
         observaciones_entrega: createOrderDto.observaciones_entrega || null,
-        forma_pago_solicitada: createOrderDto.forma_pago_solicitada || 'CONTADO',
+        forma_pago_solicitada: createOrderDto.forma_pago_solicitada || null,
         fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
         origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
         subtotal,
@@ -170,6 +144,7 @@ export class OrdersService {
         impuestos_total,
         total_final,
         estado_actual: 'PENDIENTE',
+        // reservation_id removed: reservations handled outside Orders
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
@@ -270,7 +245,7 @@ export class OrdersService {
    * - Construye un CreateOrderDto mínimo
    * - Llama a `create()` para persistir
    */
-  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, forma_pago_solicitada?: string, vendedorIdParam?: string | null): Promise<Pedido> {
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, ubicacion?: any, forma_pago_solicitada?: string, vendedorIdParam?: string | null): Promise<Pedido> {
     // 1. Obtener carrito EXACTO del actor
     // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
     // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
@@ -291,7 +266,16 @@ export class OrdersService {
 
     if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
 
-    // Nota: por cambio de negocio, al crear pedidos por cliente no se asigna vendedor (se envía null)
+    // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
+    if (actorRole === 'cliente') {
+      try {
+        const clientInfo = await this.catalogExternal.getClientByPath(clienteId);
+        pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
+        this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
+      } catch (err) {
+        this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
+      }
+    }
 
     // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
     // ADEMÁS: Resolver codigo_sku y nombre_producto desde Catalog
@@ -326,10 +310,10 @@ export class OrdersService {
       cliente_id: clienteId,
       vendedor_id: pedidoVendedorId,
       sucursal_id: sucursal_id || null,
-      forma_pago_solicitada: forma_pago_solicitada,
+      forma_pago_solicitada: forma_pago_solicitada || null,
       items,
       origen_pedido: 'FROM_CART',
-      ubicacion: null,
+      ubicacion: ubicacion || null,
     };
 
     // 4. Crear pedido
@@ -402,7 +386,7 @@ export class OrdersService {
 
       // Al hacer commit, se dispararán los triggers de pg_notify del SQL
       await queryRunner.commitTransaction();
-      // No-op: reservation handling removed from Orders
+      // reservation handling removed from Orders
 
       return this.findOne(pedidoId);
     } catch (err) {
@@ -480,7 +464,7 @@ export class OrdersService {
       await queryRunner.commitTransaction();
 
       this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
-      // No-op: reservation handling removed from Orders
+      // reservation handling removed from Orders
 
       return this.findOne(pedidoId);
     } catch (err) {

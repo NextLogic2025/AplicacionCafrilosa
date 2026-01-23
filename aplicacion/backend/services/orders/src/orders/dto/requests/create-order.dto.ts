@@ -56,10 +56,6 @@ export class CreateOrderDto {
   @IsUUID()
   vendedor_id?: string;
 
-  @IsOptional()
-  @IsUUID()
-  sucursal_id?: string;
-
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderDetailDto)
@@ -81,10 +77,9 @@ export class CreateOrderDto {
   @IsString()
   origen_pedido?: string;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => UbicacionDto)
-  ubicacion?: UbicacionDto;
+  ubicacion_pedido?: UbicacionDto;
 
   @IsOptional()
   @IsNumber()
