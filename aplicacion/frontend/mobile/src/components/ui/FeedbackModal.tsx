@@ -15,6 +15,7 @@ interface FeedbackModalProps {
     onConfirm?: () => void
     showCancel?: boolean
     cancelText?: string
+    children?: React.ReactNode
 }
 
 export const FeedbackModal = ({
@@ -26,7 +27,8 @@ export const FeedbackModal = ({
     confirmText = 'Entendido',
     onConfirm,
     showCancel = false,
-    cancelText = 'Cancelar'
+    cancelText = 'Cancelar',
+    children
 }: FeedbackModalProps) => {
 
     const getConfig = () => {
@@ -98,6 +100,8 @@ export const FeedbackModal = ({
                     <Text className="text-base text-neutral-500 text-center mb-6 leading-6">
                         {message}
                     </Text>
+
+                    {children}
 
                     {/* Actions */}
                     <View className="flex-row w-full space-x-3">

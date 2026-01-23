@@ -5,6 +5,7 @@ import { Header } from '../ui/Header'
 import { SearchBar } from '../ui/SearchBar'
 import { EmptyState } from '../ui/EmptyState'
 import { OrderCard } from '../ui/OrderCard'
+import { DashboardCard } from '../ui/DashboardCard'
 import { Order, OrderStatus, ORDER_STATUS_LABELS } from '../../services/api/OrderService'
 import { Client } from '../../services/api/ClientService'
 import { BRAND_COLORS } from '../../shared/types'
@@ -93,19 +94,28 @@ export function OrderListTemplate({
                 title={roleType === 'cliente' ? 'Mis Pedidos' : roleType === 'supervisor' ? 'Gestión de Pedidos' : 'Mis Pedidos'}
             />
 
-            <View className="flex-row px-5 py-4 gap-3 bg-white border-b border-neutral-100 z-10">
-                <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
-                    <Text className="text-neutral-500 text-xs font-medium uppercase mb-1">Totales</Text>
-                    <Text className="text-neutral-900 text-xl font-bold">{stats.total}</Text>
-                </View>
-                <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
-                    <Text className="text-yellow-600 text-xs font-medium uppercase mb-1">Pendientes</Text>
-                    <Text className="text-neutral-900 text-xl font-bold">{stats.pending}</Text>
-                </View>
-                <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
-                    <Text className="text-green-600 text-xs font-medium uppercase mb-1">Entregados</Text>
-                    <Text className="text-neutral-900 text-xl font-bold">{stats.completed}</Text>
-                </View>
+            <View className="flex-row px-5 py-4 justify-between bg-white border-b border-neutral-100 z-10 -mx-1.5">
+                <DashboardCard
+                    label="Totales"
+                    value={stats.total}
+                    icon="layers"
+                    color="#525252"
+                    columns={3}
+                />
+                <DashboardCard
+                    label="Pendientes"
+                    value={stats.pending}
+                    icon="time"
+                    color="#D97706"
+                    columns={3}
+                />
+                <DashboardCard
+                    label="Entregados"
+                    value={stats.completed}
+                    icon="checkmark-done-circle"
+                    color="#16A34A"
+                    columns={3}
+                />
             </View>
 
             <View className="bg-white px-5 pb-4 shadow-sm shadow-black/5 z-0">

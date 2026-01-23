@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store'
+import { secureDeleteItem, secureGetItem, secureSetItem } from './secureStorage'
 
 const ACCESS_TOKEN_KEY = 'cafrilosa.access_token'
 const REFRESH_TOKEN_KEY = 'cafrilosa.refresh_token'
@@ -12,7 +12,7 @@ let volatileUserName: string | null = null
 export async function getToken() {
   try {
     if (volatileAccessToken) return volatileAccessToken
-    return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
+    return await secureGetItem(ACCESS_TOKEN_KEY)
   } catch {
     return null
   }
@@ -21,14 +21,14 @@ export async function getToken() {
 export async function setToken(token: string, opts?: { persist?: boolean }) {
   const persist = opts?.persist ?? true
   volatileAccessToken = token
-  if (persist) await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token)
-  else await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
+  if (persist) await secureSetItem(ACCESS_TOKEN_KEY, token)
+  else await secureDeleteItem(ACCESS_TOKEN_KEY)
 }
 
 export async function getRefreshToken() {
   try {
     if (volatileRefreshToken) return volatileRefreshToken
-    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
+    return await secureGetItem(REFRESH_TOKEN_KEY)
   } catch {
     return null
   }
@@ -37,14 +37,14 @@ export async function getRefreshToken() {
 export async function setRefreshToken(token: string, opts?: { persist?: boolean }) {
   const persist = opts?.persist ?? true
   volatileRefreshToken = token
-  if (persist) await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token)
-  else await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+  if (persist) await secureSetItem(REFRESH_TOKEN_KEY, token)
+  else await secureDeleteItem(REFRESH_TOKEN_KEY)
 }
 
 export async function getUserName() {
   try {
     if (volatileUserName) return volatileUserName
-    return await SecureStore.getItemAsync(USER_NAME_KEY)
+    return await secureGetItem(USER_NAME_KEY)
   } catch {
     return null
   }
@@ -53,8 +53,8 @@ export async function getUserName() {
 export async function setUserName(name: string, opts?: { persist?: boolean }) {
   const persist = opts?.persist ?? true
   volatileUserName = name
-  if (persist) await SecureStore.setItemAsync(USER_NAME_KEY, name)
-  else await SecureStore.deleteItemAsync(USER_NAME_KEY)
+  if (persist) await secureSetItem(USER_NAME_KEY, name)
+  else await secureDeleteItem(USER_NAME_KEY)
 }
 
 export async function clearTokens() {
@@ -62,9 +62,9 @@ export async function clearTokens() {
   volatileRefreshToken = null
   volatileUserName = null
   await Promise.all([
-    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-    SecureStore.deleteItemAsync(USER_NAME_KEY)
+    secureDeleteItem(ACCESS_TOKEN_KEY),
+    secureDeleteItem(REFRESH_TOKEN_KEY),
+    secureDeleteItem(USER_NAME_KEY)
   ])
 }
 

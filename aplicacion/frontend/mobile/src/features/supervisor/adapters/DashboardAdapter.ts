@@ -5,8 +5,13 @@ import { BRAND_COLORS } from '../../../shared/types'
 export const DashboardAdapter = {
     getKPIs: async (): Promise<KPI[]> => {
         try {
-            const vendors = await UserService.getVendors()
-            const activeVendors = vendors.filter(v => v.active).length
+            const users = await UserService.getUsers()
+            // Roles considerados parte del equipo activo: Vendedor, Transportista, Bodeguero, Supervisor
+            const activeTeam = users.filter(u => {
+                if (!u.active) return false
+                const role = (u.role || '').toUpperCase()
+                return ['VENDEDOR', 'TRANSPORTISTA', 'BODEGUERO', 'SUPERVISOR'].includes(role)
+            }).length
 
             const pendingOrders = 0
             const dailySales = 0.00
@@ -16,19 +21,19 @@ export const DashboardAdapter = {
                     label: 'Ventas de Hoy',
                     value: `$${dailySales}`,
                     color: '#10B981',
-                    icon: 'cash-outline'
+                    icon: 'cash'
                 },
                 {
-                    label: 'Pedidos Pendientes',
+                    label: 'Pedidos\nPendientes',
                     value: pendingOrders,
                     color: '#F59E0B',
-                    icon: 'time-outline'
+                    icon: 'time'
                 },
                 {
                     label: 'Equipo Activo',
-                    value: activeVendors,
+                    value: activeTeam,
                     color: '#3B82F6',
-                    icon: 'people-outline'
+                    icon: 'people'
                 }
             ]
         } catch {

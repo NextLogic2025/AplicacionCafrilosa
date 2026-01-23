@@ -10,7 +10,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { PrimaryButton } from '../../../../components/ui/PrimaryButton'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { KpiCard } from '../../../../components/ui/KpiCard'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { PickingService, type Picking } from '../../../../services/api/PickingService'
 import { OrderService } from '../../../../services/api/OrderService'
 
@@ -86,7 +86,7 @@ export function WarehousePreparationScreen() {
     useFocusEffect(
         useCallback(() => {
             loadPickings()
-            return () => {}
+            return () => { }
         }, [loadPickings]),
     )
 
@@ -218,24 +218,24 @@ export function WarehousePreparationScreen() {
             {/* KPIs */}
             <View className="mx-4 mt-4">
                 <View className="flex-row justify-between">
-                    <KpiCard
+                    <DashboardCard
                         label="Total"
                         value={totals.total}
-                        icon="layers-outline"
+                        icon="layers"
                         color="#DC2626"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Por Verificar"
                         value={totals.porVerificar}
-                        icon="alert-circle-outline"
+                        icon="alert-circle"
                         color="#D97706"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Verificados"
                         value={totals.verificados}
-                        icon="checkmark-done-outline"
+                        icon="checkmark-done-circle"
                         color="#059669"
                         columns={3}
                     />

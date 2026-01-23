@@ -9,6 +9,7 @@ import { Header } from '../../../../components/ui/Header'
 import { TransportistaService, type TransportistaAlert, type TransportistaKPIs, type Delivery } from '../../../../services/api/TransportistaService'
 
 import { getUserName } from '../../../../storage/authStorage'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 
 export function TransportistaHomeScreen() {
     const navigation = useNavigation<any>()
@@ -69,6 +70,11 @@ export function TransportistaHomeScreen() {
             onPress: () => navigation.navigate('Historial')
         },
         {
+            icon: 'document-text-outline',
+            label: 'Facturas',
+            onPress: () => navigation.navigate('DriverInvoices')
+        },
+        {
             icon: 'notifications-outline',
             label: 'Notificaciones',
             onPress: () => navigation.navigate('Notificaciones')
@@ -105,24 +111,27 @@ export function TransportistaHomeScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
             >
                 {/* KPIs */}
-                <View className="flex-row justify-between mb-6">
+                <View className="flex-row justify-between mb-6 -mx-1.5">
                     <DashboardCard
                         icon="cube"
                         value={kpis?.assignedOrders || 0}
                         label="Pedidos Asignados"
                         color="#3B82F6"
+                        columns={3}
                     />
                     <DashboardCard
                         icon="bus"
                         value={kpis?.pendingDeliveries || 0}
                         label="Por Entregar"
                         color="#F59E0B"
+                        columns={3}
                     />
                     <DashboardCard
                         icon="checkmark-circle"
                         value={kpis?.deliveredToday || 0}
                         label="Entregados Hoy"
                         color="#10B981"
+                        columns={3}
                     />
                 </View>
 
@@ -149,17 +158,7 @@ export function TransportistaHomeScreen() {
 }
 
 // Sub-components to keep clean
-function DashboardCard({ icon, value, label, color }: any) {
-    return (
-        <View className="bg-white p-3 rounded-2xl w-[31%] shadow-sm border border-neutral-100 items-center">
-            <View className="p-2 rounded-full mb-2" style={{ backgroundColor: `${color}15` }}>
-                <Ionicons name={icon} size={20} color={color} />
-            </View>
-            <Text className="text-2xl font-bold text-neutral-900">{value}</Text>
-            <Text className="text-[10px] text-neutral-500 text-center font-medium mt-1">{label}</Text>
-        </View>
-    )
-}
+
 
 function AlertItem({ alert }: { alert: TransportistaAlert }) {
     const isWarning = alert.type === 'route_changed'

@@ -7,7 +7,7 @@ import { Header } from '../../../../components/ui/Header'
 import { SearchBar } from '../../../../components/ui/SearchBar'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
-import { KpiCard } from '../../../../components/ui/KpiCard'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { PickingService, type Picking } from '../../../../services/api/PickingService'
 
 const formatDate = (dateStr?: string) => {
@@ -52,7 +52,7 @@ export function WarehousePickingHistoryScreen() {
     useFocusEffect(
         useCallback(() => {
             loadData()
-            return () => {}
+            return () => { }
         }, [loadData]),
     )
 
@@ -192,24 +192,24 @@ export function WarehousePickingHistoryScreen() {
             {/* KPIs */}
             <View className="mx-4 mt-4">
                 <View className="flex-row justify-between">
-                    <KpiCard
+                    <DashboardCard
                         label="Completados"
                         value={totals.completados}
-                        icon="checkmark-done-outline"
+                        icon="checkmark-done-circle"
                         color="#059669"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Productos"
                         value={totals.productos}
-                        icon="cube-outline"
+                        icon="cube"
                         color="#2563EB"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Unidades"
                         value={totals.unidades}
-                        icon="layers-outline"
+                        icon="layers"
                         color="#7C3AED"
                         columns={3}
                     />

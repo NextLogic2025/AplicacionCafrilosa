@@ -8,6 +8,7 @@ import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { LoadingScreen } from '../../../../components/ui/LoadingScreen'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { ClientService, type Client } from '../../../../services/api/ClientService'
 import { SellerStackParamList } from '../../../../navigation/SellerNavigator'
 
@@ -46,7 +47,7 @@ export function SellerClientsScreen() {
                 ClientService.getMyClients(),
                 ClientService.getPriceLists()
             ])
-            
+
             setClients(clientsData)
             setFilteredClients(clientsData)
 
@@ -175,7 +176,7 @@ export function SellerClientsScreen() {
                 </View>
 
                 {/* Footer - Ver detalles */}
-                <TouchableOpacity 
+                <TouchableOpacity
                     className="flex-row items-center justify-between px-4 py-3 bg-white border-t border-neutral-100"
                     onPress={() => handleClientPress(item)}
                     activeOpacity={0.7}
@@ -215,22 +216,28 @@ export function SellerClientsScreen() {
             </View>
 
             {/* Stats Cards */}
-            <View className="flex-row px-4 py-4 gap-3">
-                <View className="flex-1 bg-white p-3 rounded-xl border border-neutral-100 items-center">
-                    <Ionicons name="people" size={22} color={BRAND_COLORS.red} />
-                    <Text className="text-2xl font-bold text-neutral-900 mt-1">{stats.total}</Text>
-                    <Text className="text-[10px] text-neutral-500 font-medium">Total Clientes</Text>
-                </View>
-                <View className="flex-1 bg-white p-3 rounded-xl border border-neutral-100 items-center">
-                    <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                    <Text className="text-2xl font-bold text-neutral-900 mt-1">{stats.activos}</Text>
-                    <Text className="text-[10px] text-neutral-500 font-medium">Activos</Text>
-                </View>
-                <View className="flex-1 bg-white p-3 rounded-xl border border-neutral-100 items-center">
-                    <Ionicons name="lock-closed" size={22} color="#DC2626" />
-                    <Text className="text-2xl font-bold text-neutral-900 mt-1">{stats.bloqueados}</Text>
-                    <Text className="text-[10px] text-neutral-500 font-medium">Bloqueados</Text>
-                </View>
+            <View className="flex-row px-4 py-4 justify-between -mx-1.5">
+                <DashboardCard
+                    label="Total Clientes"
+                    value={stats.total}
+                    icon="people"
+                    color={BRAND_COLORS.red}
+                    columns={3}
+                />
+                <DashboardCard
+                    label="Activos"
+                    value={stats.activos}
+                    icon="checkmark-circle"
+                    color="#10B981"
+                    columns={3}
+                />
+                <DashboardCard
+                    label="Bloqueados"
+                    value={stats.bloqueados}
+                    icon="lock-closed"
+                    color="#DC2626"
+                    columns={3}
+                />
             </View>
 
             {/* Lista de clientes */}
@@ -251,7 +258,7 @@ export function SellerClientsScreen() {
                     <EmptyState
                         icon="people-outline"
                         title={searchQuery ? "Sin resultados" : "No tienes clientes asignados"}
-                        description={searchQuery 
+                        description={searchQuery
                             ? "No se encontraron clientes con ese criterio de búsqueda"
                             : "Cuando te asignen clientes, aparecerán aquí"
                         }

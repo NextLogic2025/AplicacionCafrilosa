@@ -6,6 +6,7 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { Header } from '../../../../components/ui/Header'
 import { EmptyState } from '../../../../components/ui/EmptyState'
 import { TicketCard } from '../../../../components/ui/TicketCard'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { SupportService, Ticket } from '../../../../services/api/SupportService'
 
 export function ClientSupportScreen() {
@@ -41,15 +42,21 @@ export function ClientSupportScreen() {
 
             <View className="flex-1">
                 {/* Estadísticas */}
-                <View className="flex-row px-5 py-4 gap-3 bg-white border-b border-neutral-100 z-10">
-                    <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
-                        <Text className="text-yellow-600 text-xs font-medium uppercase mb-1">Abiertos</Text>
-                        <Text className="text-neutral-900 text-xl font-bold">{stats.open}</Text>
-                    </View>
-                    <View className="flex-1 bg-neutral-50 p-3 rounded-xl border border-neutral-100 items-center">
-                        <Text className="text-green-600 text-xs font-medium uppercase mb-1">Cerrados</Text>
-                        <Text className="text-neutral-900 text-xl font-bold">{stats.closed}</Text>
-                    </View>
+                <View className="flex-row px-5 py-4 justify-between bg-white border-b border-neutral-100 z-10 -mx-1.5">
+                    <DashboardCard
+                        label="Abiertos"
+                        value={stats.open}
+                        icon="chatbubbles"
+                        color="#D97706"
+                        columns={2}
+                    />
+                    <DashboardCard
+                        label="Cerrados"
+                        value={stats.closed}
+                        icon="checkmark-circle"
+                        color="#16A34A"
+                        columns={2}
+                    />
                 </View>
 
                 {loading ? (
