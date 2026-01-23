@@ -16,7 +16,7 @@ export class Pedido {
   vendedor_id: string;
 
   @Column({ type: 'uuid', nullable: true })
-  sucursal_id: string;
+  // removed: sucursal handling moved to frontend and no longer persisted here
 
   @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
   estado_actual: string;

@@ -219,7 +219,6 @@ export class OrdersService {
       const nuevoPedido = queryRunner.manager.create(Pedido, {
         cliente_id: createOrderDto.cliente_id,
         vendedor_id: createOrderDto.vendedor_id,
-        sucursal_id: createOrderDto.sucursal_id || null,
         observaciones_entrega: createOrderDto.observaciones_entrega || null,
         forma_pago_solicitada: createOrderDto.forma_pago_solicitada || null,
         fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
@@ -389,7 +388,6 @@ export class OrdersService {
     const dto: any = {
       cliente_id: clienteId,
       vendedor_id: actorRole === 'vendedor' ? pedidoVendedorId : null,
-      sucursal_id: sucursal_id || null,
       forma_pago_solicitada: forma_pago_solicitada || null,
       items,
       origen_pedido: 'FROM_CART',
