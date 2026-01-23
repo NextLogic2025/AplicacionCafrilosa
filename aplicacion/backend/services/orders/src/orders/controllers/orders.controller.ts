@@ -209,5 +209,18 @@ export class OrdersController {
         return this.ordersService.updateStatus(id, status, usuarioId);
     }
 
+    /**
+     * PATCH /orders/:id/confirm
+     * Cliente confirma el pedido después de revisar el picking.
+     * Se crea la factura y se marca el pedido como FACTURADO.
+     */
+    @Patch('/:id/confirm')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('cliente')
+    async confirmOrder(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.confirmOrderAndCreateFactura(id, usuarioId);
+    }
+
 }
 

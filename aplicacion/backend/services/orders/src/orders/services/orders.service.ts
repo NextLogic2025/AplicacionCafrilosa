@@ -37,6 +37,92 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Método invocado cuando el cliente confirma el pedido después de revisar el picking.
+   * Crea la factura (idempotente) y marca el pedido como FACTURADO.
+   */
+  async confirmOrderAndCreateFactura(pedidoId: string, usuarioId?: string): Promise<Pedido> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId }, relations: ['detalles'] });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+
+      // Sólo permitir la confirmación si el picking ya fue aplicado y el pedido está en CONFIRMADO
+      if (String(pedido.estado_actual).toUpperCase() !== 'CONFIRMADO') {
+        throw new BadRequestException('El pedido no está en estado CONFIRMADO y no puede facturarse');
+      }
+
+      // Enriquecer con datos fiscales del cliente desde Catalog (internal)
+      let clienteFiscal: any = null;
+      try {
+        clienteFiscal = await this.catalogExternal.getClientByPath(pedido.cliente_id);
+      } catch (e) {
+        this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
+      }
+
+      const rucCliente = clienteFiscal?.identificacion ?? clienteFiscal?.cliente_identificacion ?? '0000000000';
+      const razonSocialCliente = clienteFiscal?.razon_social ?? clienteFiscal?.razonSocial ?? ('Cliente ' + (pedido.cliente_id || '').slice(0, 8));
+
+      const facturaPayload: any = {
+        pedidoId: pedido.id,
+        clienteId: pedido.cliente_id,
+        vendedorId: pedido.vendedor_id || null,
+        rucCliente,
+        razonSocialCliente,
+        subtotal: pedido.subtotal,
+        impuestos: pedido.impuestos_total,
+        totalFinal: pedido.total_final,
+        detalles: (pedido.detalles || []).map((d: any) => ({
+          productoId: d.producto_id,
+          descripcion: d.nombre_producto || d.codigo_sku || null,
+          cantidad: Number(d.cantidad),
+          precioUnitario: Number(d.precio_final),
+          totalLinea: Number(d.cantidad) * Number(d.precio_final),
+        })),
+      };
+
+      let resp: any = null;
+      try {
+        resp = await this.financeExternal.createFactura(facturaPayload);
+      } catch (postErr) {
+        this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
+        try {
+          resp = await this.financeExternal.findByPedido(pedido.id);
+        } catch (getErr) {
+          this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
+          resp = null;
+        }
+      }
+
+      if (resp && resp.id) {
+        pedido.factura_id = resp.id;
+        pedido.estado_actual = 'FACTURADO';
+        await queryRunner.manager.save(pedido);
+
+        const historial = queryRunner.manager.create(HistorialEstado, {
+          pedido_id: pedido.id,
+          estado_anterior: 'CONFIRMADO',
+          estado_nuevo: 'FACTURADO',
+          usuario_id: usuarioId || null,
+          comentario: 'Factura generada al confirmar pedido por cliente'
+        });
+        await queryRunner.manager.save(historial);
+      }
+
+      await queryRunner.commitTransaction();
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al confirmar pedido y crear factura', { error: err?.message || err });
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   // Helpers para optimizaciones: batch prices, reserva y ubicación
   private async _getBatchPricesFromCatalog(createOrderDto: CreateOrderDto) {
     const productPayload = (createOrderDto.items || []).map(i => ({ id: i.producto_id, cantidad: i.cantidad }));
@@ -307,7 +393,8 @@ export class OrdersService {
       forma_pago_solicitada: forma_pago_solicitada || null,
       items,
       origen_pedido: 'FROM_CART',
-      ubicacion: ubicacion || null,
+      // Use frontend-provided location as `ubicacion_pedido` (DB column expects ubicacion_pedido)
+      ubicacion_pedido: ubicacion || null,
     };
 
     // 4. Crear pedido
@@ -534,7 +621,9 @@ export class OrdersService {
       pedido.subtotal = recalculatedSubtotal as any;
       pedido.impuestos_total = impuestos_total as any;
       pedido.total_final = total_final as any;
-      pedido.estado_actual = 'PREPARADO';
+      // Después del picking completado, marcar como CONFIRMADO.
+      // La factura NO se crea aquí; se generará cuando el cliente confirme el pedido.
+      pedido.estado_actual = 'CONFIRMADO';
 
       await queryRunner.manager.save(pedido);
 
@@ -548,62 +637,8 @@ export class OrdersService {
       });
       await queryRunner.manager.save(historial);
 
-      // Llamar a Finance para crear factura (idempotente si ya existe factura_id)
-      try {
-        if (!pedido.factura_id) {
-          // Enriquecer con datos fiscales del cliente desde Catalog (internal)
-          let clienteFiscal: any = null;
-          try {
-            clienteFiscal = await this.catalogExternal.getClientByPath(pedido.cliente_id);
-          } catch (e) {
-            this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
-          }
-
-          const rucCliente = clienteFiscal?.identificacion ?? clienteFiscal?.cliente_identificacion ?? '0000000000';
-          const razonSocialCliente = clienteFiscal?.razon_social ?? clienteFiscal?.razonSocial ?? ('Cliente ' + (pedido.cliente_id || '').slice(0, 8));
-
-          const facturaPayload: any = {
-            pedidoId: pedido.id,
-            clienteId: pedido.cliente_id,
-            vendedorId: pedido.vendedor_id || null,
-            rucCliente,
-            razonSocialCliente,
-            subtotal: pedido.subtotal,
-            impuestos: pedido.impuestos_total,
-            totalFinal: pedido.total_final,
-            detalles: (pedido.detalles || []).map((d: any) => ({
-              productoId: d.producto_id,
-              descripcion: d.nombre_producto || d.codigo_sku || null,
-              cantidad: Number(d.cantidad),
-              precioUnitario: Number(d.precio_final),
-              totalLinea: Number(d.cantidad) * Number(d.precio_final),
-            })),
-          };
-
-          let resp: any = null;
-          try {
-            // Use FinanceExternalService to call internal endpoint
-            resp = await this.financeExternal.createFactura(facturaPayload);
-          } catch (postErr) {
-            this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
-            // try to lookup existing factura by pedidoId as fallback using wrapper
-            try {
-              resp = await this.financeExternal.findByPedido(pedido.id);
-            } catch (getErr) {
-              this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
-              resp = null;
-            }
-          }
-
-          if (resp && resp.id) {
-            pedido.factura_id = resp.id;
-            pedido.estado_actual = 'FACTURADO';
-            await queryRunner.manager.save(pedido);
-          }
-        }
-      } catch (finErr) {
-        this.logger.warn('No se pudo crear factura en finance-service', { error: finErr?.message || finErr });
-      }
+      // Nota: la creación de la factura fue removida de aquí.
+      // La factura se generará cuando el cliente confirme el pedido tras revisar el resultado del picking.
 
       await queryRunner.commitTransaction();
 
