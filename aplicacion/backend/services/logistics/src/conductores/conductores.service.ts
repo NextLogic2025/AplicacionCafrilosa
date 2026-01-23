@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Conductor } from './entities/conductor.entity';
+import { CreateConductorDto } from './dto/create-conductor.dto';
 
 @Injectable()
 export class ConductoresService {
@@ -15,7 +16,7 @@ export class ConductoresService {
     return this.repo.findOne({ where: { id, deleted_at: null } });
   }
 
-  async create(dto: Partial<Conductor>) {
+  async create(dto: CreateConductorDto) {
     const c = this.repo.create(dto as any);
     return this.repo.save(c);
   }

@@ -78,10 +78,8 @@ export class ClientesService {
     }
 
     const nuevoCliente = this.repo.create({
-        ...dto,
-        vendedor_asignado_id: vendedorId,
-        // Conversión segura de números
-        limite_credito: dto.limite_credito ? String(dto.limite_credito) : '0',
+      ...dto,
+      vendedor_asignado_id: vendedorId,
     } as any);
 
     const savedResult = await this.repo.save(nuevoCliente);
@@ -122,10 +120,7 @@ export class ClientesService {
     // Mapeo manual seguro o Object.assign controlado
     Object.assign(cliente, dto as any);
 
-    // Manejo especial para decimales si vienen en el DTO
-    if (dto.limite_credito !== undefined) {
-        cliente.limite_credito = String(dto.limite_credito);
-    }
+    // No hay campos financieros en el esquema actual; actualizamos con campos del DTO normalmente
 
     cliente.updated_at = new Date();
     

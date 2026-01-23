@@ -108,25 +108,6 @@ export class CreateClienteDto {
     @IsOptional()
     ubicacion_gps?: any;
 
-    // Campos financieros (Opcionales al crear, por defecto 0/false)
-    
-    @ApiProperty({ description: 'Tiene crédito habilitado', default: false })
-    @IsOptional()
-    @IsBoolean()
-    tiene_credito?: boolean;
-
-    @ApiProperty({ description: 'Límite de crédito aprobado', example: 1000.00 })
-    @IsOptional()
-    // TypeORM decimal viene como string para precisión, pero el DTO puede recibir number o string numérico
-    @IsNumber({ maxDecimalPlaces: 2 })
-    @Min(0)
-    limite_credito?: number;
-
-    @ApiProperty({ description: 'Días de plazo para pago', example: 30 })
-    @IsOptional()
-    @IsInt()
-    @Min(0)
-    dias_plazo?: number;
 
     @ApiProperty({ description: 'Sucursales del cliente', type: 'array', required: false })
     @IsOptional()

@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('imputaciones_pago')
+@Entity('pago_aplicacion')
 export class ImputacionPago {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -8,12 +8,18 @@ export class ImputacionPago {
   @Column({ name: 'recibo_id', type: 'uuid' })
   reciboId: string;
 
-  @Column({ name: 'cuota_id', type: 'uuid' })
-  cuotaId: string;
+  @Column({ name: 'cuenta_por_cobrar_id', type: 'uuid' })
+  cuentaPorCobrarId: string;
 
-  @Column({ name: 'monto_aplicado', type: 'decimal', precision: 12, scale: 2 })
+  @Column({ name: 'monto_aplicado', type: 'numeric', precision: 12, scale: 2 })
   montoAplicado: number;
+
+  @Column({ name: 'estado', type: 'varchar', length: 20, default: 'ACTIVA' })
+  estado: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 }

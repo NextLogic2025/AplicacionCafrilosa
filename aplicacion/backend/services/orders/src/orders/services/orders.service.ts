@@ -138,23 +138,22 @@ export class OrdersService {
     let reservationId: string | null = null;
 
     try {
-      // Paralelizar: reserva, resolución de ubicación y cálculo de precios en batch
+      // Paralelizar: resolución de ubicación y cálculo de precios en batch
       const promises: Promise<any>[] = [];
-      promises.push(this._reserveStockInWarehouse(createOrderDto));
       promises.push(this._resolveLocation(createOrderDto));
       if (!skipPriceResolution) promises.push(this._getBatchPricesFromCatalog(createOrderDto));
 
       const results = await Promise.all(promises);
-      // resultados posicionales: [reservationId, ubicacion?, precios?]
-      reservationId = results[0] ?? null;
+      // resultados posicionales: [ubicacion?, precios?]
+      reservationId = null; // Reservas en Warehouse ya no se crean al crear pedidos
       let ubicacionPedido: { lng: number; lat: number } | null = null;
       let preciosBatch: any[] = [];
-      if (results.length === 2) {
-        if (Array.isArray(results[1])) preciosBatch = results[1]; else ubicacionPedido = results[1];
+      if (results.length === 1) {
+        if (Array.isArray(results[0])) preciosBatch = results[0]; else ubicacionPedido = results[0];
       }
-      if (results.length === 3) {
-        ubicacionPedido = results[1];
-        preciosBatch = results[2];
+      if (results.length === 2) {
+        ubicacionPedido = results[0];
+        preciosBatch = results[1];
       }
 
       const preciosMap = new Map<string, any>();
@@ -319,16 +318,7 @@ export class OrdersService {
 
     if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
 
-    // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
-    if (actorRole === 'cliente') {
-      try {
-        const clientInfo = await this.catalogExternal.getClientByPath(clienteId);
-        pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
-        this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
-      } catch (err) {
-        this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
-      }
-    }
+    // Nota: por cambio de negocio, al crear pedidos por cliente no se asigna vendedor (se envía null)
 
     // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
     // ADEMÁS: Resolver codigo_sku y nombre_producto desde Catalog
@@ -688,8 +678,6 @@ export class OrdersService {
 
           if (resp && resp.id) {
             pedido.factura_id = resp.id;
-            pedido.factura_numero = resp.numeroCompleto || resp.numero || resp.facturaNumero || null;
-            pedido.url_pdf_factura = resp.urlPdf || resp.url_pdf || resp.url || null;
             pedido.estado_actual = 'FACTURADO';
             await queryRunner.manager.save(pedido);
           }

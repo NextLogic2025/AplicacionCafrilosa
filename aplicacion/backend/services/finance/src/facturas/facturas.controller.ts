@@ -21,6 +21,8 @@ export class FacturasController {
     const isCliente = roles.includes('cliente');
     const userId = req.user?.userId;
     if (isCliente) return this.facturasService.findAll(userId);
+    const isBodeguero = roles.includes('bodeguero');
+    if (isBodeguero) return this.facturasService.findByBodegueroId(userId);
     return this.facturasService.findAll();
   }
 
@@ -47,5 +49,34 @@ export class FacturasController {
   @Roles('admin', 'supervisor')
   create(@Body() createDto: any) {
     return this.facturasService.create(createDto);
+  }
+
+  @Post(':id/detalle')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async addDetalle(@Param('id') id: string, @Body() body: any) {
+    // body.detalles = array of lines
+    const detalles = Array.isArray(body.detalles) ? body.detalles : [body];
+    await this.facturasService.spAgregarDetalleBatch(id, detalles);
+    return { ok: true };
+  }
+
+  @Post(':id/emitir')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async emitir(@Param('id') id: string, @Body() body: any) {
+    const fechaVencimiento = body.fechaVencimiento || null;
+    const cuotas = body.cuotas || 1;
+    await this.facturasService.spEmitirFactura(id, fechaVencimiento, cuotas);
+    return { ok: true };
+  }
+
+  @Post(':id/anular')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin', 'supervisor')
+  async anular(@Param('id') id: string, @Body() body: any) {
+    const motivo = body.motivo || 'Anulación desde API';
+    await this.facturasService.spAnularFactura(id, motivo);
+    return { ok: true };
   }
 }

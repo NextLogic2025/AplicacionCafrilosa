@@ -5,18 +5,11 @@ export class Conductor {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'usuario_id', type: 'uuid', nullable: true })
+  @Column({ name: 'usuario_id', type: 'uuid', nullable: true, unique: true })
   usuario_id: string | null;
 
   @Column({ name: 'nombre_completo', length: 150 })
   nombre_completo: string;
-
-  @Column({ length: 15, unique: true })
-  cedula: string;
-
-  @Column({ length: 20, nullable: true })
-  telefono: string | null;
-
   @Column({ length: 20, nullable: true })
   licencia: string | null;
 

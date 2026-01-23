@@ -9,16 +9,17 @@ import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 export class PickingInternalController {
     constructor(private readonly service: PickingService) { }
 
-    @Post('confirm')
-    async confirmOpen(@Body() body: any) {
-        const pedidoId = body.pedido_id || body.pedidoId;
-        const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
-        if (!reservationId) throw new BadRequestException('reservation_id is required');
-        return this.service.confirmFromReservation(pedidoId, reservationId);
-    }
+    // reservation-based confirmation removed; callers should POST to `create` with explicit items
 
     @Get(':id')
     async findOneInternal(@Param('id') id: string) {
         return this.service.findOne(id);
+    }
+
+    @Get('by-bodeguero/:bodegueroId')
+    async findByBodegueroInternal(@Param('bodegueroId') bodegueroId: string) {
+        // Return minimal picking records (pedidoId + picking id) for a given bodeguero
+        const rows = await this.service.findByBodeguero(bodegueroId);
+        return rows.map(r => ({ id: (r as any).id, pedidoId: (r as any).pedidoId }));
     }
 }

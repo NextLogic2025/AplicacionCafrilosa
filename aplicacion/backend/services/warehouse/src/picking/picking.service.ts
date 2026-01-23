@@ -8,8 +8,6 @@ import { PickingItem } from './entities/picking-item.entity';
 import { StockUbicacion } from '../stock/entities/stock-ubicacion.entity';
 import { Lote } from '../lotes/entities/lote.entity';
 import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
-import { Reservation } from '../reservations/entities/reservation.entity';
-import { ReservationItem } from '../reservations/entities/reservation-item.entity';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
 import { CatalogExternalService } from '../common/external/catalog.external.service';
 import { OrdersExternalService } from '../common/external/orders.external.service';
@@ -30,10 +28,7 @@ export class PickingService {
         private readonly loteRepo: Repository<Lote>,
         @InjectRepository(KardexMovimiento)
         private readonly kardexRepo: Repository<KardexMovimiento>,
-        @InjectRepository(Reservation)
-        private readonly reservationRepo: Repository<Reservation>,
-        @InjectRepository(ReservationItem)
-        private readonly reservationItemRepo: Repository<ReservationItem>,
+        // reservation repos removed (reservations handled externally)
         private readonly catalogExternal: CatalogExternalService,
         private readonly ordersExternal: OrdersExternalService,
         private readonly usuariosExternal: UsuariosExternalService,
@@ -510,17 +505,7 @@ export class PickingService {
 
         await this.ordenRepo.update(id, updatePayload as any);
 
-        // If this picking was created from a reservation, mark that reservation as COMPLETED
-        try {
-            const ordenRecord: any = await this.ordenRepo.findOne({ where: { id } });
-            const reservationId = ordenRecord?.reservationId || (orden as any).reservationId || null;
-            if (reservationId) {
-                await this.reservationRepo.update(reservationId, { status: 'COMPLETED' } as any);
-                this.logger.log(`Reserva ${reservationId} marcada como COMPLETED por picking ${id}`);
-            }
-        } catch (e) {
-            this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
-        }
+            // Reservation lifecycle is now managed by the originating service; no local update performed.
 
         // Notify Orders service: first attempt to POST picking results for reconciliation,
         // then PATCH the pedido status to PREPARADO. Use best-effort; failures are logged but don't block.
@@ -583,40 +568,9 @@ export class PickingService {
      * Expects a reservation id previously created via /reservations.
      */
     async confirmFromReservation(pedidoId: string, reservationId: string) {
-        if (!reservationId) throw new BadRequestException('reservation_id requerido');
-
-        const reservation = await this.reservationRepo.findOne({ where: { id: reservationId }, relations: ['items'] as any });
-        if (!reservation) throw new NotFoundException('Reservation no encontrada');
-        if (reservation.status !== 'ACTIVE') throw new BadRequestException('Reservation no está en estado ACTIVE');
-
-
-        const items = (reservation.items || []).map((it: ReservationItem) => ({
-            productoId: it.productId,
-            cantidad: Number(it.quantity),
-            stockUbicacionId: (it as any).stockUbicacionId || (it as any).stock_ubicacion_id || null,
-            loteId: (it as any).lote_id || (it as any).loteId || null,
-        }));
-
-        // If no pedidoId provided, fallback to reservation id so DB constraint is satisfied
-        const effectivePedidoId = pedidoId || reservation.tempId || reservation.id;
-
-        // Create picking using existing create logic (will reserve stock where possible)
-        const picking = await this.create({ pedidoId: effectivePedidoId, items, estado: 'PENDIENTE' });
-
-        // Mark reservation as CONFIRMED
-        await this.reservationRepo.update(reservationId, { status: 'CONFIRMED' } as any);
-
-        // Persist mapping between picking and reservation so completarPicking can update it later
-        try {
-            const pickingId = (picking as any)?.id || (picking && (picking as any).id);
-            if (pickingId) {
-                await this.ordenRepo.update(pickingId, { reservationId } as any);
-            }
-        } catch (e) {
-            this.logger.warn('No se pudo guardar reservationId en picking_ordenes', { err: e?.message || e });
-        }
-
-        return picking;
+        // Confirmation via external reservation system is deprecated here.
+        // The warehouse now expects an external service to trigger picking creation via the regular create flow.
+        throw new BadRequestException('confirmFromReservation is removed; use create() with explicit items');
     }
 
     async getStatsPorBodeguero() {
