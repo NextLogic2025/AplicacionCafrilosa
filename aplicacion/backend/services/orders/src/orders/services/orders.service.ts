@@ -265,15 +265,10 @@ export class OrdersService {
 
     if (!clienteId) throw new BadRequestException('No se pudo resolver cliente para crear el pedido');
 
-    // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
+    // No resolver ni enviar `vendedor_id` cuando el actor es cliente.
+    // Si el actor es vendedor, `pedidoVendedorId` ya fue asignado arriba (actorUserId o vendedorIdParam).
     if (actorRole === 'cliente') {
-      try {
-        const clientInfo = await this.catalogExternal.getClientByPath(clienteId);
-        pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
-        this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
-      } catch (err) {
-        this.logger.warn('No se pudo obtener vendedor asignado del cliente desde Catalog', { error: err?.message || err });
-      }
+      pedidoVendedorId = null;
     }
 
     // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
@@ -307,7 +302,7 @@ export class OrdersService {
 
     const dto: any = {
       cliente_id: clienteId,
-      vendedor_id: pedidoVendedorId,
+      vendedor_id: actorRole === 'vendedor' ? pedidoVendedorId : null,
       sucursal_id: sucursal_id || null,
       forma_pago_solicitada: forma_pago_solicitada || null,
       items,
