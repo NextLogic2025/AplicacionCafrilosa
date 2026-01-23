@@ -208,6 +208,11 @@ export class PickingService {
         const saved: PickingOrden = await this.ordenRepo.save(orden);
 
         for (const item of dto.items) {
+            // Normalize quantity field: support different payload shapes coming from callers
+            const cantidad = Number(item.cantidad ?? item.cantidadSolicitada ?? item.cantidad_solicitada ?? 0);
+            if (!cantidad || Number.isNaN(cantidad) || cantidad <= 0) {
+                throw new BadRequestException(`Cantidad inválida para producto ${item.productoId}`);
+            }
             // Preferir una ubicación/lote provista en el item (por ejemplo from reservation.item.stock_ubicacion_id)
             let sugerencia: any = null;
             if (item.stockUbicacionId) {
@@ -223,13 +228,13 @@ export class PickingService {
 
             // Si no tenemos sugerencia por stockUbicacionId, usar la lógica normal de sugerencia
             if (!sugerencia) {
-                sugerencia = await this.sugerirUbicacionLote(item.productoId, item.cantidad);
+                sugerencia = await this.sugerirUbicacionLote(item.productoId, cantidad);
             }
 
             const pickingItem = this.itemRepo.create({
                 pickingId: saved.id,
                 productoId: item.productoId,
-                cantidadSolicitada: item.cantidad,
+                cantidadSolicitada: cantidad,
                 ubicacionOrigenSugerida: sugerencia?.ubicacionId || null,
                 loteSugerido: sugerencia?.loteId || null,
                 estadoLinea: 'PENDIENTE',
@@ -239,7 +244,7 @@ export class PickingService {
 
             if (sugerencia) {
                 // Reservar solo la cantidad disponible (puede ser parcial)
-                const cantidadAReservar = Math.min(Number(item.cantidad), Number(sugerencia.cantidadDisponible));
+                const cantidadAReservar = Math.min(Number(cantidad), Number(sugerencia.cantidadDisponible));
                 if (cantidadAReservar > 0) {
                     await this.reservarStock(sugerencia.ubicacionId, sugerencia.loteId, cantidadAReservar);
                 }
