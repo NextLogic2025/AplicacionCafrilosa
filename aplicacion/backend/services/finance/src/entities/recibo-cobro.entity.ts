@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('recibos_cobro')
+@Entity('recibo')
 export class ReciboCobro {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -11,17 +11,17 @@ export class ReciboCobro {
   @Column({ name: 'vendedor_id', type: 'uuid' })
   vendedorId: string;
 
-  @Column({ name: 'codigo_recibo', length: 50, nullable: true })
-  codigoRecibo: string | null;
+  @Column({ name: 'codigo', length: 50, nullable: true })
+  codigo: string | null;
 
-  @CreateDateColumn({ name: 'fecha_cobro', type: 'timestamptz' })
-  fechaCobro: Date;
+  @Column({ name: 'fecha', type: 'timestamptz', default: () => 'NOW()' })
+  fecha: Date;
 
-  @Column({ name: 'monto_total', type: 'decimal', precision: 12, scale: 2 })
-  montoTotal: number;
+  @Column({ name: 'estado', type: 'varchar', length: 20, default: 'BORRADOR' })
+  estado: string;
 
-  @Column({ name: 'forma_pago', length: 20, default: 'EFECTIVO' })
-  formaPago: string;
+  @Column({ name: 'observacion', type: 'text', nullable: true })
+  observacion: string | null;
 
   @Column({ name: 'foto_comprobante_url', type: 'text', nullable: true })
   fotoComprobanteUrl: string | null;
@@ -29,12 +29,9 @@ export class ReciboCobro {
   @Column({ name: 'ubicacion_gps', type: 'geometry', spatialFeatureType: 'Point', srid: 4326, nullable: true })
   ubicacionGps: any | null;
 
-  @Column({ name: 'estado_liquidacion', length: 20, default: 'EN_MANO_VENDEDOR' })
-  estadoLiquidacion: string;
-
-  @Column({ name: 'observaciones', type: 'text', nullable: true })
-  observaciones: string | null;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 }

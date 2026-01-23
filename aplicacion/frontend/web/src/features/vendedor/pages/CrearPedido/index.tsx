@@ -19,26 +19,19 @@ export default function VendedorCrearPedido() {
     creditoDisponible,
     superaCredito,
     condicionComercial,
-    condicionPagoManual,
-    setCondicionPagoManual,
-    destinoTipo,
-    handleDestinoTipoChange,
-    sucursales,
-    clienteDetalle,
-    selectedSucursalId,
-    setSelectedSucursalId,
-    invalidSucursalMessage,
+
     goBackToProducts,
     handleSubmitOrder,
     isSubmitting,
-    selectedSucursal
+    clienteDetalle,
+    sucursales,
+    selectedSucursalId,
+    setSelectedSucursalId,
+    destinoTipo,
+    handleDestinoTipoChange
   } = useCrearPedido()
 
-  const destinoDescripcion = destinoTipo === 'cliente'
-    ? 'Cliente principal'
-    : selectedSucursal
-      ? `${selectedSucursal.nombre_sucursal || selectedSucursal.nombre}${selectedSucursal.zona_nombre ? ` · ${selectedSucursal.zona_nombre}` : ''}`
-      : 'Selecciona una sucursal'
+  const destinoDescripcion = 'Cliente principal'
 
   return (
     <div className="space-y-6">
@@ -90,16 +83,15 @@ export default function VendedorCrearPedido() {
               creditoDisponible={creditoDisponible}
               superaCredito={superaCredito}
               condicionComercial={condicionComercial}
-              condicionPagoManual={condicionPagoManual}
-              setCondicionPagoManual={setCondicionPagoManual}
-              destinoTipo={destinoTipo}
-              onDestinoChange={handleDestinoTipoChange}
-              sucursales={sucursales}
+
               clienteDetalle={clienteDetalle}
+              sucursales={sucursales}
               selectedSucursalId={selectedSucursalId}
-              onSucursalSelect={setSelectedSucursalId}
-              invalidSucursalMessage={invalidSucursalMessage}
-              destinoDescripcion={destinoDescripcion}
+              setSelectedSucursalId={setSelectedSucursalId}
+              destinoTipo={destinoTipo}
+              handleDestinoTipoChange={handleDestinoTipoChange}
+
+
               onGoBack={goBackToProducts}
               onSubmit={handleSubmitOrder}
               isSubmitting={isSubmitting}

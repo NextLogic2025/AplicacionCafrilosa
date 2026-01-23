@@ -52,12 +52,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
     setFormData({
       ...CLIENTE_FORM_DEFAULT,
       ...initialData,
-      limite_credito:
-        typeof initialData?.limite_credito === 'string'
-          ? parseFloat(initialData.limite_credito) || 0
-          : initialData?.limite_credito ?? 0,
-      dias_plazo: initialData?.dias_plazo ?? 0,
-      tiene_credito: initialData?.tiene_credito ?? false,
       identificacion: initialData?.identificacion ?? '',
       tipo_identificacion: initialData?.tipo_identificacion ?? 'RUC',
       razon_social: initialData?.razon_social ?? '',
@@ -193,11 +187,21 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           lista_precios_id: formData.lista_precios_id,
           zona_comercial_id: formData.zona_comercial_id,
           vendedor_asignado_id: formData.vendedor_asignado_id || undefined,
-          tiene_credito: formData.tiene_credito,
-          limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
-          dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
           direccion_texto: formData.direccion_texto || undefined,
           ubicacion_gps: formData.ubicacion_gps || undefined,
+          sucursales: sucursalesTemp.map(s => ({
+            nombre_sucursal: s.nombre_sucursal,
+            direccion_entrega: s.direccion_entrega,
+            ubicacion_gps: s.ubicacion_gps
+              ? s.ubicacion_gps
+              : s.latitud && s.longitud
+                ? { type: 'Point', coordinates: [s.longitud, s.latitud] }
+                : undefined,
+            contacto_nombre: s.contacto_nombre,
+            contacto_telefono: s.contacto_telefono,
+            zona_id: s.zonaId || undefined,
+            activo: true
+          }))
         })
         clienteId = nuevoCliente.id
       } else if (initialData?.id) {
@@ -210,9 +214,6 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
           lista_precios_id: formData.lista_precios_id,
           zona_comercial_id: formData.zona_comercial_id,
           vendedor_asignado_id: formData.vendedor_asignado_id || undefined,
-          tiene_credito: formData.tiene_credito,
-          limite_credito: formData.tiene_credito ? formData.limite_credito : 0,
-          dias_plazo: formData.tiene_credito ? formData.dias_plazo : 0,
           direccion_texto: formData.direccion_texto || undefined,
           ubicacion_gps: formData.ubicacion_gps || undefined,
         })
@@ -220,11 +221,12 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
         throw new Error('No se pudo identificar el cliente a actualizar')
       }
 
-      if (clienteId && sucursalesTemp.length > 0) {
+      // En modo edición, las sucursales nuevas se crean por separado
+      if (mode === 'edit' && initialData?.id && sucursalesTemp.length > 0) {
         await Promise.all(
           sucursalesTemp.map((sucursal) => {
             const payload: any = {
-              cliente_id: clienteId!,
+              cliente_id: initialData!.id!,
               nombre_sucursal: sucursal.nombre_sucursal,
               direccion_entrega: sucursal.direccion_entrega,
               ubicacion_gps: sucursal.ubicacion_gps
@@ -234,12 +236,10 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
                   : undefined,
               contacto_nombre: sucursal.contacto_nombre,
               contacto_telefono: sucursal.contacto_telefono,
+              zona_id: sucursal.zonaId || undefined,
               activo: true,
             };
-            if (sucursal.zonaId) {
-              payload.zona_id = sucursal.zonaId;
-            }
-            return crearSucursal(clienteId!, payload);
+            return crearSucursal(initialData!.id!, payload);
           })
         )
       }
@@ -308,10 +308,10 @@ export function CrearClienteModal({ isOpen, onClose, onSuccess, initialData, mod
               <div className="flex flex-col items-center">
                 <div
                   className={`flex h-12 w-12 items-center justify-center rounded-full border-2 font-bold transition ${isCompleted
-                      ? 'border-brand-red bg-brand-red text-white'
-                      : isCurrent
-                        ? 'border-brand-red bg-white text-brand-red'
-                        : 'border-gray-300 bg-white text-gray-400'
+                    ? 'border-brand-red bg-brand-red text-white'
+                    : isCurrent
+                      ? 'border-brand-red bg-white text-brand-red'
+                      : 'border-gray-300 bg-white text-gray-400'
                     }`}
                 >
                   {isCompleted ? <Check className="h-6 w-6" /> : step}

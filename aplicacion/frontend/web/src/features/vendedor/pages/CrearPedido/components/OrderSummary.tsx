@@ -1,8 +1,8 @@
 
 import { CheckCircle2 } from 'lucide-react'
-import { PaymentConditionSelector } from './PaymentConditionSelector'
-import { DestinationSelector } from './DestinationSelector'
-import type { SucursalCliente, ClienteDetalle } from '../types'
+
+
+import type { SucursalCliente, ClienteDetalle, DestinoTipo } from '../types'
 
 interface OrderSummaryProps {
     totalItems: number
@@ -10,16 +10,16 @@ interface OrderSummaryProps {
     creditoDisponible: number
     superaCredito: boolean
     condicionComercial: string
-    condicionPagoManual: 'CONTADO' | 'CREDITO'
-    setCondicionPagoManual: (value: 'CONTADO' | 'CREDITO') => void
-    destinoTipo: 'cliente' | 'sucursal'
-    onDestinoChange: (tipo: 'cliente' | 'sucursal') => void
-    sucursales: SucursalCliente[]
+
+
+    // New props for selection
     clienteDetalle: ClienteDetalle | null
+    sucursales: SucursalCliente[]
     selectedSucursalId: string | null
-    onSucursalSelect: (id: string) => void
-    invalidSucursalMessage: string | null
-    destinoDescripcion: string
+    setSelectedSucursalId: (id: string | null) => void
+    destinoTipo: DestinoTipo
+    handleDestinoTipoChange: (tipo: DestinoTipo) => void
+
     onGoBack: () => void
     onSubmit: () => void
     isSubmitting: boolean
@@ -32,16 +32,16 @@ export function OrderSummary({
     creditoDisponible,
     superaCredito,
     condicionComercial,
-    condicionPagoManual,
-    setCondicionPagoManual,
-    destinoTipo,
-    onDestinoChange,
-    sucursales,
+
+
+    // Selection props
     clienteDetalle,
+    sucursales,
     selectedSucursalId,
-    onSucursalSelect,
-    invalidSucursalMessage,
-    destinoDescripcion,
+    setSelectedSucursalId,
+    destinoTipo,
+    handleDestinoTipoChange,
+
     onGoBack,
     onSubmit,
     isSubmitting,
@@ -57,40 +57,104 @@ export function OrderSummary({
                 <p className="text-sm text-neutral-700">Total</p>
                 <p className="text-xl font-bold text-neutral-900">${total.toFixed(2)}</p>
             </div>
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-700">Crédito disponible</p>
-                <p className={`text-sm font-semibold ${superaCredito ? 'text-brand-red' : 'text-emerald-700'}`}>${creditoDisponible.toFixed(2)}</p>
-            </div>
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-neutral-700">Condición comercial</p>
-                <p className="text-sm font-semibold text-neutral-900">{condicionComercial}</p>
-            </div>
-            {superaCredito ? (
-                <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
-                    El total excede el crédito disponible.
-                </div>
-            ) : (
-                <div className="rounded-xl bg-green-50 px-3 py-2 text-sm text-green-800">
-                    <CheckCircle2 className="mr-1 inline h-4 w-4" /> Cumple con crédito disponible.
+
+
+            {/* Destination Selection UI */}
+            {(clienteDetalle || sucursales.length > 0) && (
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4">
+                    <p className="text-sm font-semibold text-neutral-900 border-b border-neutral-100 pb-2">Destino del pedido</p>
+
+                    {/* Option: Main Address */}
+                    <label className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${destinoTipo === 'cliente' ? 'border-brand-red bg-red-50/50' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                        <div className="pt-0.5">
+                            <input
+                                type="radio"
+                                name="destinoTipo"
+                                checked={destinoTipo === 'cliente'}
+                                onChange={() => handleDestinoTipoChange('cliente')}
+                                className="h-4 w-4 text-brand-red border-neutral-300 focus:ring-brand-red"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <span className="block text-sm font-medium text-neutral-900">
+                                Cliente principal
+                            </span>
+                            {clienteDetalle ? (
+                                <div className="mt-1 text-sm text-neutral-600">
+                                    <p className="font-medium text-neutral-800">
+                                        {clienteDetalle.razon_social || clienteDetalle.nombre_comercial || 'Cliente'}
+                                    </p>
+                                    <p>
+                                        {clienteDetalle.direccion || clienteDetalle.direccion_texto || 'Dirección no registrada'}
+                                    </p>
+                                    {clienteDetalle.ciudad && <p className="text-xs text-neutral-500">{clienteDetalle.ciudad}</p>}
+                                </div>
+                            ) : (
+                                <p className="mt-1 text-sm text-neutral-400 italic">Información no disponible</p>
+                            )}
+                        </div>
+                    </label>
+
+                    {/* Option: Branch (if available) */}
+                    {sucursales.length > 0 && (
+                        <div className="space-y-3">
+                            <label className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${destinoTipo === 'sucursal' ? 'border-brand-red bg-red-50/50' : 'border-neutral-200 hover:bg-neutral-50'}`}>
+                                <div className="pt-0.5">
+                                    <input
+                                        type="radio"
+                                        name="destinoTipo"
+                                        checked={destinoTipo === 'sucursal'}
+                                        onChange={() => handleDestinoTipoChange('sucursal')}
+                                        className="h-4 w-4 text-brand-red border-neutral-300 focus:ring-brand-red"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <span className="block text-sm font-medium text-neutral-900">
+                                        Sucursal
+                                    </span>
+                                    <p className="text-xs text-neutral-500 mt-1">
+                                        Selecciona una sucursal del cliente
+                                    </p>
+                                </div>
+                            </label>
+
+                            {destinoTipo === 'sucursal' && (
+                                <div className="pl-7 space-y-2">
+                                    {sucursales.map(sucursal => (
+                                        <label
+                                            key={sucursal.id}
+                                            className={`block cursor-pointer rounded-lg border p-2 transition-colors ${selectedSucursalId === sucursal.id ? 'border-brand-red ring-1 ring-brand-red' : 'border-neutral-200 hover:border-brand-red/50'}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="sucursalId"
+                                                    value={sucursal.id}
+                                                    checked={selectedSucursalId === sucursal.id}
+                                                    onChange={(e) => setSelectedSucursalId(e.target.value)}
+                                                    className="h-3.5 w-3.5 text-brand-red border-neutral-300 focus:ring-brand-red"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-medium text-neutral-900 truncate">
+                                                        {sucursal.nombre || sucursal.nombre_sucursal}
+                                                    </p>
+                                                    <p className="text-xs text-neutral-500 truncate">
+                                                        {sucursal.direccion || sucursal.direccion_entrega}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
-            <PaymentConditionSelector
-                condicionPagoManual={condicionPagoManual}
-                setCondicionPagoManual={setCondicionPagoManual}
-                superaCredito={superaCredito}
-            />
 
-            <DestinationSelector
-                destinoTipo={destinoTipo}
-                onDestinoChange={onDestinoChange}
-                sucursales={sucursales}
-                clienteDetalle={clienteDetalle}
-                selectedSucursalId={selectedSucursalId}
-                onSucursalSelect={onSucursalSelect}
-                invalidSucursalMessage={invalidSucursalMessage}
-                destinoDescripcion={destinoDescripcion}
-            />
+
+
 
             <div className="grid gap-2">
                 <button
@@ -102,7 +166,7 @@ export function OrderSummary({
                 </button>
                 <button
                     type="button"
-                    disabled={isCartEmpty || (superaCredito && condicionPagoManual === 'CREDITO') || isSubmitting}
+                    disabled={isCartEmpty || isSubmitting}
                     onClick={onSubmit}
                     className="rounded-xl bg-brand-red px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2"
                 >

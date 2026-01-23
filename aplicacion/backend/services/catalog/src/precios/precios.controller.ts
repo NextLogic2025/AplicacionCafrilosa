@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ClientesService } from '../clientes/clientes.service';
@@ -27,7 +26,7 @@ class BatchCalculationDto {
   @IsUUID()
   cliente_id?: string;
 }
-
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('precios')
 export class PreciosController {
   constructor(
@@ -38,14 +37,12 @@ export class PreciosController {
   // --- GESTIÓN DE PRECIOS (ADMIN) ---
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   asignar(@Body() dto: CreatePrecioDto) {
     return this.preciosService.asignarPrecio(dto);
   }
 
   @Delete('lista/:listaId/producto/:productoId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removePrecio(
     @Param('listaId', ParseIntPipe) listaId: number,
@@ -57,7 +54,6 @@ export class PreciosController {
   // --- CONSULTAS PÚBLICAS Y MIXTAS ---
 
   @Get('producto/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
   async verPrecios(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
     const user = req.user;
@@ -73,28 +69,10 @@ export class PreciosController {
     return this.preciosService.obtenerPreciosDeProducto(id);
   }
 
-  // --- ENDPOINTS INTERNOS (S2S) ---
-
-  @Post('internal/batch-calculator')
-  @UseGuards(ServiceAuthGuard)
-  async batchCalculate(@Body() dto: BatchCalculationDto) {
-    let listaId = 1; // Default
-    if (dto.cliente_id) {
-       // Optimización: Intentar resolver lista, si falla usar default silenciosamente
-       try {
-         const cliente = await this.clientesService.findOne(dto.cliente_id);
-         if (cliente?.lista_precios_id) listaId = cliente.lista_precios_id;
-       } catch (e) {}
-    }
-    // IMPORTANTE: El servicio debe soportar cálculo masivo optimizado (ver abajo)
-    return this.preciosService.calculateBatchForLista(dto.items, listaId);
-  }
-
   // --- VISTAS DE CATÁLOGO ---
 
   // 1. Cliente viendo SU propio catálogo
   @Get('mis-precios/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('cliente')
   async listarMisProductos(
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
@@ -107,7 +85,6 @@ export class PreciosController {
 
   // 2. Vendedor simulando ver el catálogo de un cliente específico
   @Get('cliente/:clienteId/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   async listarProductosComoCliente(
     @Param('clienteId', ParseUUIDPipe) clienteId: string,
@@ -124,21 +101,18 @@ export class PreciosController {
   // --- GESTIÓN DE LISTAS DE PRECIOS (ADMIN) ---
 
   @Get('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'bodeguero', 'transportista')
   async listarListas() {
     return this.preciosService.findAllListas();
   }
 
   @Post('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   async crearLista(@Body() dto: CreateListaPrecioDto) {
     return this.preciosService.createLista(dto);
   }
 
   @Patch('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   async editarLista(
     @Param('id', ParseIntPipe) id: number,
@@ -148,7 +122,6 @@ export class PreciosController {
   }
 
   @Delete('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   async eliminarLista(@Param('id', ParseIntPipe) id: number) {
     return this.preciosService.deleteLista(id);

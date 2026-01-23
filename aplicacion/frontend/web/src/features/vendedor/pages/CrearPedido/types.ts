@@ -3,6 +3,7 @@ import type { Cliente } from '../../../supervisor/services/clientesApi'
 import type { Producto } from '../../../cliente/types'
 export type { Producto }
 
+export type DestinoTipo = 'cliente' | 'sucursal'
 
 export interface CartItem {
     producto: Producto

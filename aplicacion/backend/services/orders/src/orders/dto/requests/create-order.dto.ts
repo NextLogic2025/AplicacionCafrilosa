@@ -53,12 +53,12 @@ export class CreateOrderDto {
   cliente_id: string;
 
   @IsOptional()
-  @IsUUID()
-  vendedor_id?: string;
+  @IsString()
+  sucursal_id?: string;
 
   @IsOptional()
   @IsUUID()
-  sucursal_id?: string;
+  vendedor_id?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -69,9 +69,10 @@ export class CreateOrderDto {
   @IsString()
   observaciones_entrega?: string;
 
-  @IsString({ message: 'forma_pago_solicitada es requerido' })
+  @IsOptional()
+  @IsString()
   @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], { message: 'forma_pago_solicitada debe ser: CONTADO, CREDITO, TRANSFERENCIA o CHEQUE' })
-  forma_pago_solicitada: string;
+  forma_pago_solicitada?: string;
 
   @IsOptional()
   @IsDateString({}, { message: 'Fecha de entrega debe ser formato YYYY-MM-DD' })
@@ -84,7 +85,7 @@ export class CreateOrderDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => UbicacionDto)
-  ubicacion?: UbicacionDto;
+  ubicacion_pedido?: UbicacionDto;
 
   @IsOptional()
   @IsNumber()

@@ -9,10 +9,11 @@ import { ClientsInternalController } from './clients-internal.controller';
 import { SucursalesModule } from './sucursales/sucursales.module';
 import { ZonaComercial } from '../zonas/entities/zona.entity';
 import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Cliente, ZonaComercial, AsignacionVendedores]), forwardRef(() => SucursalesModule), HttpModule],
-  providers: [ClientesService],
+  providers: [ClientesService, UsuariosExternalService],
   controllers: [ClientesController, ClientsInternalController],
   exports: [ClientesService],
 })

@@ -10,10 +10,6 @@ export interface Cliente {
   lista_precios_id: number | null
   vendedor_asignado_id: string | null
   zona_comercial_id: number | null
-  tiene_credito: boolean
-  limite_credito: string
-  saldo_actual: string
-  dias_plazo: number
   bloqueado: boolean
   direccion_texto: string | null
   ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
@@ -35,11 +31,17 @@ export interface CreateClienteDto {
   lista_precios_id?: number | null
   vendedor_asignado_id?: string | null
   zona_comercial_id?: number | null
-  tiene_credito?: boolean
-  limite_credito?: number
-  dias_plazo?: number
   direccion_texto?: string
   ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
+  sucursales?: Array<{
+    nombre_sucursal?: string
+    direccion_entrega?: string
+    ubicacion_gps?: { type: 'Point'; coordinates: [number, number] } | null
+    contacto_nombre?: string
+    contacto_telefono?: string
+    zona_id?: number
+    activo?: boolean
+  }>
 }
 
 export interface ZonaComercial {

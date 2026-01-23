@@ -12,9 +12,6 @@ export type ClienteFormValues = {
   tipo_identificacion: string
   razon_social: string
   nombre_comercial: string
-  tiene_credito: boolean
-  limite_credito: number
-  dias_plazo: number
   direccion_texto: string
   lista_precios_id: number | null
   zona_comercial_id: number | null
@@ -47,9 +44,6 @@ export const CLIENTE_FORM_DEFAULT: ClienteFormValues = {
   tipo_identificacion: 'RUC',
   razon_social: '',
   nombre_comercial: '',
-  tiene_credito: false,
-  limite_credito: 0,
-  dias_plazo: 0,
   direccion_texto: '',
   lista_precios_id: null,
   zona_comercial_id: null,
@@ -89,13 +83,7 @@ export function validateClienteForm(value: ClienteFormValues, mode: 'create' | '
     newErrors.razon_social = 'La razón social es requerida'
   }
 
-  if (value.tiene_credito && value.limite_credito <= 0) {
-    newErrors.limite_credito = 'El límite de crédito debe ser mayor a 0'
-  }
 
-  if (value.tiene_credito && value.dias_plazo < 0) {
-    newErrors.dias_plazo = 'Los días de plazo no pueden ser negativos'
-  }
 
   return newErrors
 }
@@ -261,47 +249,7 @@ export function ClienteForm({
             </div>
           </div>
 
-          <div className="space-y-3 rounded-lg border border-dashed border-neutral-200 bg-white p-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="tiene_credito"
-                checked={value.tiene_credito}
-                onChange={(e) => update('tiene_credito', e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-red focus:ring-brand-red"
-                disabled={isSubmitting}
-              />
-              <label htmlFor="tiene_credito" className="text-sm font-medium text-neutral-700">
-                Tiene Crédito
-              </label>
-            </div>
 
-            {value.tiene_credito && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <TextField
-                  label="Límite de Crédito"
-                  tone="light"
-                  type="number"
-                  placeholder="0.00"
-                  value={value.limite_credito}
-                  onChange={(e) => update('limite_credito', parseFloat(e.target.value) || 0)}
-                  error={errors.limite_credito}
-                  disabled={isSubmitting}
-                />
-
-                <TextField
-                  label="Días de Plazo"
-                  tone="light"
-                  type="number"
-                  placeholder="30"
-                  value={value.dias_plazo}
-                  onChange={(e) => update('dias_plazo', parseInt(e.target.value) || 0)}
-                  error={errors.dias_plazo}
-                  disabled={isSubmitting}
-                />
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Zona Comercial con Mapa */}

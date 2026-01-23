@@ -9,6 +9,7 @@ import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedor
 import { RuteroController } from './rutero.controller';
 import { RuteroPlanificado } from './entities/rutero-planificado.entity';
 import { RuteroService } from './rutero.service';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { RuteroService } from './rutero.service';
       AsignacionVendedores,
     ]),
   ],
-  providers: [RuteroService],
+  providers: [RuteroService, UsuariosExternalService],
   controllers: [RuteroController],
   exports: [RuteroService],
 })

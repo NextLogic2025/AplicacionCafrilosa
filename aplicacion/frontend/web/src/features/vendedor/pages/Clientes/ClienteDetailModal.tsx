@@ -33,6 +33,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
 
   const modalTitle = getClienteDisplayName(cliente)
   const secondaryName = cliente ? getClienteSecondaryName(cliente, modalTitle) : null
+  const apiKey = GOOGLE_MAPS_API_KEY
 
   useEffect(() => {
     if (!isOpen || !cliente) return
@@ -109,9 +110,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
   const listaNombre = cliente?.lista_precios?.nombre ?? (cliente?.lista_precios_id ? `Lista ${cliente.lista_precios_id}` : null)
   const zonaNombre = zona?.nombre ?? (cliente?.zona_comercial_id ? `Zona ${cliente.zona_comercial_id}` : null)
 
-  const creditoDisponible = cliente?.tiene_credito && cliente.limite_credito
-    ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
-    : '0.00'
+
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
@@ -141,27 +140,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente }: ClienteDetailMo
               {listaNombre && <p className="text-sm text-neutral-700">Lista de precios: {listaNombre}</p>}
               <p className="text-xs text-neutral-500">Creado: {new Date(cliente.created_at).toLocaleDateString('es-EC')}</p>
             </div>
-            <div className="space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-neutral-600">Crédito</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-xs text-neutral-500">Límite</p>
-                  <p className="font-semibold text-neutral-900">${cliente.limite_credito}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500">Saldo</p>
-                  <p className="font-semibold text-neutral-900">${cliente.saldo_actual}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500">Disponible</p>
-                  <p className="font-semibold text-emerald-600">${creditoDisponible}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-neutral-500">Plazo</p>
-                  <p className="font-semibold text-neutral-900">{cliente.dias_plazo} días</p>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           <div className="space-y-2 rounded-lg border border-neutral-200 bg-white p-3">

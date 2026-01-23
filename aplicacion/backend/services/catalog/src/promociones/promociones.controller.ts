@@ -13,6 +13,7 @@ import { UpdateCampaniaDto } from './dto/update-campania.dto';
 import { AsignProductoPromoDto } from './dto/asign-producto-promo.dto';
 import { AsignClientePromoDto } from './dto/asign-cliente-promo.dto';
 
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('promociones')
 export class PromocionesController {
   private readonly logger = new Logger(PromocionesController.name);
@@ -25,35 +26,30 @@ export class PromocionesController {
 
   // ===== CAMPAÑAS =====
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   listCampanias() {
     return this.svc.findCampanias();
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   getCampania(@Param('id') id: string) {
     return this.svc.findCampania(Number(id));
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   create(@Body() body: CreateCampaniaDto) {
     return this.svc.createCampania(body as any);
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   update(@Param('id') id: string, @Body() body: UpdateCampaniaDto) {
     return this.svc.updateCampania(Number(id), body as any);
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.removeCampania(Number(id));
@@ -61,14 +57,12 @@ export class PromocionesController {
 
   // ===== PRODUCTOS EN CAMPAÑA =====
   @Post(':id/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   addProducto(@Param('id') id: string, @Body() body: AsignProductoPromoDto) {
     return this.svc.addProductoPromo({ campania_id: Number(id), ...body } as any);
   }
 
   @Get(':id/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   async getProductos(@Param('id') id: string) {
     const campaniaId = Number(id);
@@ -133,15 +127,13 @@ export class PromocionesController {
         item.ahorro = Math.round((precioOriginal - precioOferta) * 100) / 100;
         item.campania_aplicada_id = pr.campania_id;
       }
-
       return item;
-    });
+      });
 
     return { items };
   }
 
   @Get('mejor/producto/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
   async getBestPromotion(@Param('id') id: string, @Req() req: any, @Query('cliente_id') queryClienteId?: string) {
     const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req, queryClienteId);
@@ -155,7 +147,6 @@ export class PromocionesController {
   }
 
   @Delete(':id/productos/:productoId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removeProducto(@Param('id') id: string, @Param('productoId') productoId: string) {
     return this.svc.removeProductoPromo(Number(id), productoId);
@@ -197,36 +188,22 @@ export class PromocionesController {
   }
 
   // Internal S2S endpoint for best promo (used by other services)
-  @Get('internal/mejor/producto/:id')
-  @UseGuards(require('../auth/guards/service-auth.guard').ServiceAuthGuard)
-  async getBestPromotionInternal(@Param('id') id: string, @Req() req: any, @Query('cliente_id') queryClienteId?: string) {
-    const { roles, clienteListaId, clienteId } = await this.resolveClientContext(req, queryClienteId);
-    try {
-      const best = await this.svc.getBestPromotionForProduct(id, { clienteId, listaId: clienteListaId });
-      return best || {};
-    } catch (err) {
-      this.logger.warn({ msg: 'Error obteniendo mejor promo (internal)', err: err.message });
-      return {};
-    }
-  }
+  // Note: internal endpoints moved to separate controller guarded by ServiceAuthGuard
 
   // ===== CLIENTES PERMITIDOS (para alcance POR_CLIENTE) =====
   @Post(':id/clientes')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   addCliente(@Param('id') id: string, @Body() body: AsignClientePromoDto) {
     return this.svc.addClientePermitido(Number(id), body.cliente_id);
   }
 
   @Get(':id/clientes')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   getClientes(@Param('id') id: string) {
     return this.svc.findClientesPermitidos(Number(id));
   }
 
   @Delete(':id/clientes/:clienteId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removeCliente(@Param('id') id: string, @Param('clienteId') clienteId: string) {
     return this.svc.removeClientePermitido(Number(id), clienteId);

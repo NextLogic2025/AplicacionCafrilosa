@@ -14,6 +14,7 @@ import { CreateCategoryDto, UpdateCategoryDto } from './dto/create-category.dto'
 
 @ApiTags('Categorías')
 @ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly svc: CategoriesService) {}
@@ -26,7 +27,6 @@ export class CategoriesController {
   }
 
   @Get('deleted')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar papelera de reciclaje (Soft Deleted)' })
@@ -35,6 +35,7 @@ export class CategoriesController {
   }
 
   @Get(':id')
+  @Roles('admin', 'supervisor', 'vendedor', 'bodeguero', 'cliente', 'transportista')
   @ApiOperation({ summary: 'Obtener detalle de categoría' })
   @ApiResponse({ status: 404, description: 'Categoría no encontrada' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -42,7 +43,6 @@ export class CategoriesController {
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Crear nueva categoría' })
   @ApiResponse({ status: 201, description: 'Creado exitosamente', type: Category })
@@ -51,7 +51,6 @@ export class CategoriesController {
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Actualizar categoría' })
   @ApiResponse({ status: 200, description: 'Categoría actualizada', type: Category })
@@ -63,7 +62,6 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Eliminar categoría (Soft Delete)' })
   @ApiResponse({ status: 200, description: 'Categoría eliminada (soft)', schema: { example: { success: true, id: 1, deleted_at: '2026-01-18T00:00:00Z' } } })
@@ -72,7 +70,6 @@ export class CategoriesController {
   }
 
   @Post(':id/restore')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Restaurar categoría eliminada' })
   @ApiResponse({ status: 200, description: 'Categoría restaurada', type: Category })

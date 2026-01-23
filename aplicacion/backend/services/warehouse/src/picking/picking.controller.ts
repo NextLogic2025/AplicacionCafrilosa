@@ -7,21 +7,19 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 
 import { PickingService } from './picking.service';
 import { CreatePickingDto } from './dto/create-picking.dto';
-import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
 
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('picking')
 export class PickingController {
     constructor(private readonly service: PickingService) { }
 
     @Get('products/:productId/stocks')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
     getStocks(@Param('productId') productId: string) {
         return this.service.findAlternativeStocks(productId);
     }
 
     @Get()
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
     findAll(@Query('estado') estado?: string, @Query('all') all?: string, @Req() req?: any) {
         // If requester is a bodeguero and did not explicitly request all entries,
@@ -40,14 +38,12 @@ export class PickingController {
     }
 
     @Get('stats/general')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     getStats() {
         return this.service.getStatsPorBodeguero();
     }
 
     @Get('mis-ordenes')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     misOrdenes(@Req() req: any) {
         const bodegueroId = req.user?.userId;
@@ -55,56 +51,24 @@ export class PickingController {
     }
 
     @Get(':id')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor', 'bodeguero')
     findOne(@Param('id') id: string) {
         return this.service.findOne(id);
     }
 
     @Post()
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     create(@Body() dto: CreatePickingDto) {
         return this.service.create(dto);
     }
 
-    @Post('confirm')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
-    @Roles('admin', 'supervisor')
-    async confirm(@Body() body: any) {
-        const pedidoId = body.pedido_id || body.pedidoId;
-        const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
-        if (!reservationId) {
-            throw new BadRequestException('reservation_id is required');
-        }
-        return this.service.confirmFromReservation(pedidoId, reservationId);
-    }
-
-    // Internal helper for local testing: no auth, directly confirm a reservation.
-    @Post('internal/confirm-open')
-    @UseGuards(ServiceAuthGuard)
-    async confirmOpen(@Body() body: any) {
-        const pedidoId = body.pedido_id || body.pedidoId;
-        const reservationId = body.reservation_id || body.reservationId || body.reserva_id;
-        if (!reservationId) throw new BadRequestException('reservation_id is required');
-        return this.service.confirmFromReservation(pedidoId, reservationId);
-    }
-
-    @Get('internal/:id')
-    @UseGuards(ServiceAuthGuard)
-    async findOneInternal(@Param('id') id: string) {
-        return this.service.findOne(id);
-    }
-
     @Put(':id/asignar')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('admin', 'supervisor')
     asignar(@Param('id') id: string, @Body() body: { bodegueroId: string }) {
         return this.service.asignarBodeguero(id, body.bodegueroId);
     }
 
     @Post(':id/tomar')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     tomar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
@@ -113,7 +77,6 @@ export class PickingController {
     }
 
     @Post(':id/iniciar')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     iniciar(@Param('id') id: string, @Req() req: any) {
         const usuarioId = req.user?.userId;
@@ -121,7 +84,6 @@ export class PickingController {
     }
 
     @Post(':id/completar')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     completar(@Param('id') id: string, @Req() req: any, @Body() body?: any) {
         const usuarioId = req.user?.userId;
@@ -130,7 +92,6 @@ export class PickingController {
     }
 
     @Post(':id/items/:itemId/pickear')
-    @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Roles('bodeguero')
     pickearItem(
         @Param('id') pickingId: string,

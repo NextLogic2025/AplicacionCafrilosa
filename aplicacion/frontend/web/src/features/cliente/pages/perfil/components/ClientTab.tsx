@@ -88,10 +88,7 @@ export function ClientTab({
                             : '—'}
                     />
                     <InfoCard label="Zona comercial" value={client.zona_comercial_id ?? '—'} />
-                    <InfoCard label="Tiene crédito" value={client.tiene_credito ? 'Sí' : 'No'} />
-                    <InfoCard label="Límite crédito" value={client.limite_credito ?? '0.00'} />
-                    <InfoCard label="Saldo actual" value={client.saldo_actual ?? '0.00'} />
-                    <InfoCard label="Días plazo" value={client.dias_plazo != null ? String(client.dias_plazo) : '0'} />
+
                     <InfoCard label="Bloqueado" value={client.bloqueado ? 'Sí' : 'No'} />
                     <InfoCard label="Dirección" value={client.direccion_texto ?? '—'} />
                     <InfoCard label="Ubicación GPS" value={client.ubicacion_gps ? formatGps(client.ubicacion_gps) : '—'} />

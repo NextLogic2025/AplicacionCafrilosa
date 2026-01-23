@@ -26,10 +26,7 @@ export function ClienteCard({ cliente, onEdit, onDelete, onView, zonas, listasPr
   const zonaNombre = cliente.zona_comercial?.nombre || zonas.find(z => z.id === cliente.zona_comercial_id)?.nombre
   const listaNombre = cliente.lista_precios?.nombre || listasPrecios.find(l => l.id === cliente.lista_precios_id)?.nombre
 
-  const creditoDisponible =
-    cliente.tiene_credito && cliente.limite_credito
-      ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
-      : '0.00'
+
 
   return (
     <div className="group relative flex flex-col justify-between min-h-[420px] overflow-hidden rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -75,33 +72,7 @@ export function ClienteCard({ cliente, onEdit, onDelete, onView, zonas, listasPr
           )}
         </div>
 
-        {/* Información de crédito */}
-        {cliente.tiene_credito && (
-          <div className="mt-4 space-y-2 border-b border-neutral-200 pb-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs font-semibold text-neutral-600 uppercase tracking-[0.08em]">Información de crédito</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <p className="text-xs text-neutral-500">Límite</p>
-                <p className="font-semibold text-neutral-900">${cliente.limite_credito}</p>
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">Saldo</p>
-                <p className="font-semibold text-neutral-900">${cliente.saldo_actual}</p>
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">Disponible</p>
-                <p className="font-semibold text-emerald-700">${creditoDisponible}</p>
-              </div>
-              <div>
-                <p className="text-xs text-neutral-500">Plazo</p>
-                <p className="font-semibold text-neutral-900">{cliente.dias_plazo} días</p>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Estado badges */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -112,14 +83,7 @@ export function ClienteCard({ cliente, onEdit, onDelete, onView, zonas, listasPr
             </span>
           </StatusBadge>
 
-          {cliente.tiene_credito && (
-            <StatusBadge variant="info">
-              <span className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                Con crédito
-              </span>
-            </StatusBadge>
-          )}
+
         </div>
 
         {/* Fecha de creación */}

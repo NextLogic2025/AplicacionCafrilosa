@@ -84,9 +84,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
   const listaNombre = cliente?.lista_precios?.nombre || listasPrecios.find(l => l.id === cliente?.lista_precios_id)?.nombre
   const zonaNombre = cliente?.zona_comercial?.nombre || zona?.nombre
 
-  const creditoDisponible = cliente?.tiene_credito && cliente.limite_credito
-    ? (parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_actual)).toFixed(2)
-    : '0.00'
+
 
   const zonasOptions = useMemo(() => zonas.map((z) => ({ id: z.id, nombre: z.nombre, poligono_geografico: (z as any).poligono_geografico })) as ZonaOption[], [zonas])
 
@@ -117,27 +115,7 @@ export function ClienteDetailModal({ isOpen, onClose, cliente, zonas, listasPrec
               {listaNombre && <p className="text-sm text-gray-700">Lista de precios: {listaNombre}</p>}
               <p className="text-xs text-gray-500">Creado: {new Date(cliente.created_at).toLocaleDateString('es-ES')}</p>
             </div>
-            <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-gray-700">Crédito</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-xs text-gray-500">Límite</p>
-                  <p className="font-semibold text-gray-900">${cliente.limite_credito}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Saldo</p>
-                  <p className="font-semibold text-gray-900">${cliente.saldo_actual}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Disponible</p>
-                  <p className="font-semibold text-green-700">${creditoDisponible}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Plazo</p>
-                  <p className="font-semibold text-gray-900">{cliente.dias_plazo} días</p>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3">

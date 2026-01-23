@@ -136,11 +136,6 @@ export default function ClientesPage() {
           tipo_identificacion: editingCliente.tipo_identificacion,
           razon_social: editingCliente.razon_social,
           nombre_comercial: editingCliente.nombre_comercial || '',
-          tiene_credito: editingCliente.tiene_credito,
-          limite_credito: typeof editingCliente.limite_credito === 'string'
-            ? parseFloat(editingCliente.limite_credito) || 0
-            : editingCliente.limite_credito,
-          dias_plazo: editingCliente.dias_plazo,
           direccion_texto: editingCliente.direccion_texto || '',
           lista_precios_id: editingCliente.lista_precios_id,
           zona_comercial_id: editingCliente.zona_comercial_id,
@@ -171,8 +166,8 @@ export default function ClientesPage() {
       {toast && (
         <div
           className={`fixed bottom-6 right-6 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 z-50 ${toast.type === 'success'
-              ? 'bg-green-500 text-white'
-              : 'bg-red-500 text-white'
+            ? 'bg-green-500 text-white'
+            : 'bg-red-500 text-white'
             }`}
           style={{
             animation: 'slideInRight 0.3s ease-out',

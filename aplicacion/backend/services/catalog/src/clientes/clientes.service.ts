@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ServiceHttpClient } from '../common/http/service-http-client.service';
 
 import { ZonaComercial } from '../zonas/entities/zona.entity';
 import { AsignacionVendedores } from '../asignacion/entities/asignacion-vendedores.entity';
 import { Cliente } from './entities/cliente.entity';
 import { CreateClienteDto, UpdateClienteDto } from './dto/create-cliente.dto';
 import { SucursalesService } from './sucursales/sucursales.service';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 // Interfaz interna para respuesta de Usuarios Service
 interface UsuarioExterno {
@@ -32,9 +32,9 @@ export class ClientesService {
     private zonaRepo: Repository<ZonaComercial>,
     @InjectRepository(AsignacionVendedores)
     private asignRepo: Repository<AsignacionVendedores>,
-    private readonly serviceHttp: ServiceHttpClient,
     @Inject(forwardRef(() => SucursalesService))
     private readonly sucursalesService: SucursalesService,
+    private readonly usuariosExternal: UsuariosExternalService,
   ) {}
 
   async findAll() {
@@ -78,10 +78,8 @@ export class ClientesService {
     }
 
     const nuevoCliente = this.repo.create({
-        ...dto,
-        vendedor_asignado_id: vendedorId,
-        // Conversión segura de números
-        limite_credito: dto.limite_credito ? String(dto.limite_credito) : '0',
+      ...dto,
+      vendedor_asignado_id: vendedorId,
     } as any);
 
     const savedResult = await this.repo.save(nuevoCliente);
@@ -122,10 +120,7 @@ export class ClientesService {
     // Mapeo manual seguro o Object.assign controlado
     Object.assign(cliente, dto as any);
 
-    // Manejo especial para decimales si vienen en el DTO
-    if (dto.limite_credito !== undefined) {
-        cliente.limite_credito = String(dto.limite_credito);
-    }
+    // No hay campos financieros en el esquema actual; actualizamos con campos del DTO normalmente
 
     cliente.updated_at = new Date();
     
@@ -168,13 +163,8 @@ export class ClientesService {
     const usuarioIds = [...new Set(clientes.map(c => c.usuario_principal_id).filter(Boolean))];
     if (!usuarioIds.length) return clientes;
     
-    try {
-      // Llamada S2S segura usando el token interno si está configurado en el HttpModule
-      const usuarios = await this.serviceHttp.post<UsuarioExterno[]>(
-        'usuarios-service',
-        '/usuarios/batch/internal',
-        { ids: usuarioIds },
-      );
+      try {
+      const usuarios = await await this.usuariosExternal.fetchUsuariosByIds(usuarioIds);
       const usuarioMap = new Map(
         usuarios.map(u => [u.id, {
           nombre: (u.nombreCompleto ?? u.nombre) || u.email,
@@ -198,11 +188,7 @@ export class ClientesService {
     if (!vendedorIds.length) return clientes;
 
     try {
-      const usuarios = await this.serviceHttp.post<UsuarioExterno[]>(
-        'usuarios-service',
-        '/usuarios/batch/internal',
-        { ids: vendedorIds },
-      );
+       const usuarios = await await this.usuariosExternal.fetchUsuariosByIds(vendedorIds);
       const vendedorMap = new Map(usuarios.map(u => [u.id, (u.nombreCompleto ?? u.nombre) || u.email]));
 
       return clientes.map(c => ({

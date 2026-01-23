@@ -1,6 +1,5 @@
 // placeholder (Auth controller)
 import { Controller, Get, Post, Req, UseGuards, Put, Param, Body } from '@nestjs/common';
-import { ServiceAuthGuard } from './guards/service-auth.guard';
 import { Request } from 'express';
 
 import { AuthService } from './auth.service';
@@ -71,9 +70,4 @@ export class AuthController {
     return this.authService.actualizarUsuario(id, body, _req.user);
   }
 
-  @Post('batch/internal')
-  @UseGuards(ServiceAuthGuard)
-  async obtenerUsuariosPorIdsInternal(@Body() body: { ids: string[] }) {
-    return this.authService.obtenerUsuariosPorIds(body.ids || []);
-  }
 }

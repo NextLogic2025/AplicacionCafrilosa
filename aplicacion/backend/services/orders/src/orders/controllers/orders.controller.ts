@@ -111,13 +111,10 @@ export class OrdersController {
     ) {
         const usuarioId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
-        const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
-        if (!forma_pago_solicitada) {
-            throw new BadRequestException('Envíe la forma de pago en `forma_pago_solicitada` o `forma_pago`');
-        }
         const sucursal_id = body.sucursal_id;
+        const ubicacion = (body as any).ubicacion || null;
         // Para carrito propio: usuario_id=<JWT>, vendedor_id=null
-        return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, forma_pago_solicitada, null);
+        return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, ubicacion, (body as any).forma_pago_solicitada || null, null);
     }
 
     /**
@@ -134,13 +131,10 @@ export class OrdersController {
     ) {
         const vendedorId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
-        const forma_pago_solicitada = (body as any).forma_pago_solicitada || (body as any).forma_pago || null;
-        if (!forma_pago_solicitada) {
-            throw new BadRequestException('Envíe la forma de pago en `forma_pago_solicitada` o `forma_pago`');
-        }
         const sucursal_id = body.sucursal_id;
+        const ubicacion = (body as any).ubicacion || null;
         // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
-        return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, forma_pago_solicitada, vendedorId);
+        return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, ubicacion, (body as any).forma_pago_solicitada || null, vendedorId);
     }
 
     /**
@@ -148,12 +142,7 @@ export class OrdersController {
      * Protegido por `ServiceAuthGuard` (solo llamadas internas desde Warehouse).
      * Body esperado: { pickingId?: string, items: [{ producto_id, cantidad_pickeada, motivo_ajuste? }] }
      */
-    @Post('/internal/:id/apply-picking')
-    @UseGuards(ServiceAuthGuard)
-    async applyPicking(@Param('id') pedidoId: string, @Body() body: any) {
-        const payload = body || {};
-        return this.ordersService.applyPickingResult(pedidoId, payload);
-    }
+    // NOTE: internal apply-picking moved to `InternalController` guarded by ServiceAuthGuard
 
     @Get('user/history')
     @Roles('admin', 'vendedor', 'cliente')
@@ -218,6 +207,19 @@ export class OrdersController {
     async updateStatus(@Param('id', ParseUUIDPipe) id: string, @Body('status') status: string, @Req() req: any) {
         const usuarioId = req.user?.sub || req.user?.id;
         return this.ordersService.updateStatus(id, status, usuarioId);
+    }
+
+    /**
+     * PATCH /orders/:id/confirm
+     * Cliente confirma el pedido después de revisar el picking.
+     * Se crea la factura y se marca el pedido como FACTURADO.
+     */
+    @Patch('/:id/confirm')
+    @UseGuards(OrderOwnershipGuard)
+    @Roles('cliente')
+    async confirmOrder(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+        const usuarioId = req.user?.sub || req.user?.id;
+        return this.ordersService.confirmOrderAndCreateFactura(id, usuarioId);
     }
 
 }

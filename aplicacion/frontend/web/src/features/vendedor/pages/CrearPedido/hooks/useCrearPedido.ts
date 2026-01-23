@@ -5,7 +5,7 @@ import { getClientesAsignados } from '../../../services/vendedorApi'
 import type { Cliente } from '../../../../supervisor/services/clientesApi'
 import { httpOrders, httpCatalogo } from '../../../../../services/api/http'
 import { fetchSucursalesByCliente } from '../../../../cliente/pages/sucursal/sucursalesApi'
-import type { CartItem, ClienteDetalle, SucursalCliente, Producto } from '../types'
+import type { CartItem, ClienteDetalle, SucursalCliente, Producto, DestinoTipo } from '../types'
 
 export const useCrearPedido = () => {
     const navigate = useNavigate()
@@ -13,18 +13,18 @@ export const useCrearPedido = () => {
     const [clienteSeleccionado, setClienteSeleccionado] = useState<string>('')
     const [clienteDetalle, setClienteDetalle] = useState<ClienteDetalle | null>(null)
     const [sucursales, setSucursales] = useState<SucursalCliente[]>([])
+
+    // New state for selection
+    const [selectedSucursalId, setSelectedSucursalId] = useState<string | null>(null)
+    const [destinoTipo, setDestinoTipo] = useState<DestinoTipo>('cliente')
     const [cart, setCart] = useState<CartItem[]>([])
     const [isLoadingClientes, setIsLoadingClientes] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Estado para destino del pedido
-    const [destinoTipo, setDestinoTipo] = useState<'cliente' | 'sucursal'>('cliente')
-    const [selectedSucursalId, setSelectedSucursalId] = useState<string | null>(null)
-    const [invalidSucursalMessage, setInvalidSucursalMessage] = useState<string | null>(null)
 
-    // Estado para condición de pago manual
-    const [condicionPagoManual, setCondicionPagoManual] = useState<'CONTADO' | 'CREDITO'>('CREDITO')
+
+
 
     const loadCartFromBackend = async (clienteId: string) => {
         try {
@@ -111,35 +111,13 @@ export const useCrearPedido = () => {
             })
             setClienteDetalle(cliente)
 
-            // Auto-seleccionar condición de pago basado en crédito
-            const limite = parseFloat(`${cliente?.creditLimit || (cliente as any)?.limite_credito || 0}`)
-            const deuda = parseFloat(`${cliente?.currentDebt || (cliente as any)?.deuda_actual || (cliente as any)?.saldo_actual || 0}`)
-            const creditoDisponible = Math.max(limite - deuda, 0)
 
-            console.log('Crédito disponible calculado:', { limite, deuda, creditoDisponible })
-
-            if (creditoDisponible <= 0) {
-                console.log('Sin crédito disponible, seleccionando CONTADO automáticamente')
-                setCondicionPagoManual('CONTADO')
-            } else {
-                // Si tiene crédito, por defecto CREDITO
-                setCondicionPagoManual('CREDITO')
-            }
         } catch (error) {
             console.error('Error loading client details:', error)
         }
     }
 
-    const loadSucursales = async (clienteId: string) => {
-        try {
-            const sucursalesData = await fetchSucursalesByCliente(clienteId)
-            console.log('Sucursales loaded:', sucursalesData)
-            setSucursales(Array.isArray(sucursalesData) ? sucursalesData : [])
-        } catch (error) {
-            console.error('Error loading sucursales:', error)
-            setSucursales([])
-        }
-    }
+
 
     // Cargar clientes y carrito desde backend
     useEffect(() => {
@@ -156,9 +134,11 @@ export const useCrearPedido = () => {
             // Cargar carrito desde backend
             loadCartFromBackend(savedCliente)
             // Cargar detalles del cliente (crédito)
+            // Cargar detalles del cliente (crédito)
             loadClienteDetalle(savedCliente)
-            // Cargar sucursales del cliente
-            loadSucursales(savedCliente)
+            // Cargar sucursales
+            fetchSucursalesByCliente(savedCliente).then(setSucursales).catch(() => setSucursales([]))
+
         }
     }, [])
 
@@ -249,50 +229,9 @@ export const useCrearPedido = () => {
         navigate('/vendedor/productos')
     }
 
-    const isUuid = useCallback((value: string | null | undefined) => {
-        if (!value) return false
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-    }, [])
 
-    const selectedSucursal = useMemo(() => sucursales.find(s => s.id === selectedSucursalId) ?? null, [sucursales, selectedSucursalId])
 
-    useEffect(() => {
-        if (destinoTipo !== 'sucursal') {
-            setInvalidSucursalMessage(null)
-            return
-        }
-        if (!selectedSucursalId) {
-            setInvalidSucursalMessage('Selecciona una sucursal disponible para enviar el pedido.')
-            return
-        }
-        const stillExists = sucursales.some(s => s.id === selectedSucursalId)
-        if (!stillExists) {
-            setSelectedSucursalId(null)
-            setInvalidSucursalMessage('La sucursal seleccionada ya no está disponible, elige otra opción.')
-            return
-        }
-        setInvalidSucursalMessage(isUuid(selectedSucursalId) ? null : 'Esta sucursal no cuenta con un identificador compatible con el servicio de pedidos.')
-    }, [selectedSucursalId, sucursales, isUuid, destinoTipo])
 
-    useEffect(() => {
-        if (destinoTipo === 'sucursal' && !selectedSucursalId && sucursales.length > 0) {
-            setSelectedSucursalId(sucursales[0].id)
-        }
-        if (destinoTipo === 'sucursal' && sucursales.length === 0) {
-            setDestinoTipo('cliente')
-            setSelectedSucursalId(null)
-        }
-    }, [destinoTipo, selectedSucursalId, sucursales])
-
-    const handleDestinoTipoChange = (tipo: 'cliente' | 'sucursal') => {
-        if (tipo === 'sucursal' && sucursales.length === 0) return
-        setDestinoTipo(tipo)
-        if (tipo === 'cliente') {
-            setSelectedSucursalId(null)
-        } else if (!selectedSucursalId && sucursales.length > 0) {
-            setSelectedSucursalId(sucursales[0].id)
-        }
-    }
 
     const total = cart.reduce((sum, item) => sum + (item.producto.price * item.cantidad), 0)
 
@@ -312,22 +251,7 @@ export const useCrearPedido = () => {
             return
         }
 
-        if (superaCredito && condicionPagoManual === 'CREDITO') {
-            setError('El total excede el crédito disponible del cliente. Seleccione pago al Contado.')
-            return
-        }
 
-        const wantsSucursal = destinoTipo === 'sucursal'
-        const sucursalIdForApi = wantsSucursal && selectedSucursalId && isUuid(selectedSucursalId) ? selectedSucursalId : undefined
-
-        if (wantsSucursal && !selectedSucursalId) {
-            setInvalidSucursalMessage('Selecciona una sucursal para poder enviar el pedido a esa ubicación.')
-            return
-        }
-        if (wantsSucursal && selectedSucursalId && !sucursalIdForApi) {
-            setInvalidSucursalMessage('La sucursal seleccionada no tiene un identificador válido.')
-            return
-        }
 
         try {
             setIsSubmitting(true)
@@ -336,10 +260,7 @@ export const useCrearPedido = () => {
             // Llamar al endpoint del backend usando httpOrders
             const pedido = await httpOrders<any>(`/orders/from-cart/client/${clienteSeleccionado}`, {
                 method: 'POST',
-                body: {
-                    forma_pago_solicitada: condicionPagoManual,
-                    sucursal_id: sucursalIdForApi
-                }
+                body: {}
             })
 
             // Limpiar carrito local
@@ -363,6 +284,29 @@ export const useCrearPedido = () => {
     const totalItems = cart.reduce((sum, item) => sum + item.cantidad, 0)
     const condicionComercial = superaCredito ? 'Contado' : 'Crédito'
 
+    const selectedSucursal = useMemo(() => sucursales.find(s => s.id === selectedSucursalId) ?? null, [sucursales, selectedSucursalId])
+
+    const handleDestinoTipoChange = (tipo: DestinoTipo) => {
+        if (tipo === 'sucursal' && sucursales.length === 0) return
+        setDestinoTipo(tipo)
+        if (tipo === 'cliente') {
+            setSelectedSucursalId(null)
+        } else if (!selectedSucursalId && sucursales.length > 0) {
+            setSelectedSucursalId(sucursales[0].id)
+        }
+    }
+
+    // Effect to reset selection when client changes
+    useEffect(() => {
+        if (clienteSeleccionado) {
+            fetchSucursalesByCliente(clienteSeleccionado).then(setSucursales).catch(() => setSucursales([]))
+            setDestinoTipo('cliente')
+            setSelectedSucursalId(null)
+        } else {
+            setSucursales([])
+        }
+    }, [clienteSeleccionado])
+
     return {
         clientes,
         clienteSeleccionado,
@@ -374,23 +318,21 @@ export const useCrearPedido = () => {
         isSubmitting,
         error,
         setError,
-        destinoTipo,
-        selectedSucursalId,
-        setSelectedSucursalId,
-        invalidSucursalMessage,
-        condicionPagoManual,
-        setCondicionPagoManual,
+
         updateQuantity,
         removeItem,
         clearCart,
         goBackToProducts,
-        handleDestinoTipoChange,
         handleSubmitOrder,
         total,
         totalItems,
         creditoDisponible,
         superaCredito,
+
         condicionComercial,
-        selectedSucursal
+        selectedSucursalId,
+        setSelectedSucursalId,
+        destinoTipo,
+        handleDestinoTipoChange
     }
 }

@@ -5,6 +5,7 @@ import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
 import { CarritoItem } from '../entities/carrito-item.entity';
 import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
 import { ServiceHttpClient } from '../../common/http/service-http-client.service';
+import { CatalogExternalService } from '../../common/external/catalog.external.service';
 
 @Injectable()
 export class CartService {
@@ -13,8 +14,7 @@ export class CartService {
     constructor(
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
-        private readonly serviceHttp: ServiceHttpClient,
-        private readonly dataSource: DataSource,
+        private readonly catalogExternal: CatalogExternalService,
     ) { }
 
     /**
@@ -31,10 +31,7 @@ export class CartService {
         // Si es vendedor, intentar resolver cliente desde Catalog usando el id del path (que puede ser cliente_id)
         if (vendedor_id) {
             try {
-                const body = await this.serviceHttp.get<any>(
-                    'catalog-service',
-                    `/internal/clients/${originalParamId}`,
-                );
+                const body = await this.catalogExternal.getClientByPath(originalParamId);
                 resolvedClienteId = body?.id ?? null;
                 resolvedUsuarioId = body?.usuario_principal_id ?? resolvedUsuarioId;
                 this.logger.debug('Resolved client for vendor cart', { originalParamId, cliente_id: resolvedClienteId, usuario_principal_id: resolvedUsuarioId, vendedor_id });
@@ -74,10 +71,7 @@ export class CartService {
 
             // Resolver cliente_id
             try {
-                const body = await this.serviceHttp.get<any>(
-                    'catalog-service',
-                    `/internal/clients/by-user/${resolvedUsuarioId}`,
-                );
+                const body = await this.catalogExternal.getClientByUser(resolvedUsuarioId);
                 if (body && body.id) {
                     cart.cliente_id = body.id;
                     await this.cartRepo.save(cart);
@@ -100,10 +94,7 @@ export class CartService {
             this.logger.debug('Found existing cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: cart.cliente_id });
             if (vendedor_id && !cart.cliente_id) {
                 try {
-                    const body = await this.serviceHttp.get<any>(
-                        'catalog-service',
-                        `/internal/clients/by-user/${resolvedUsuarioId}`,
-                    );
+                    const body = await this.catalogExternal.getClientByUser(resolvedUsuarioId);
                     if (body && body.id) {
                         cart.cliente_id = body.id;
                         await this.cartRepo.save(cart);
@@ -131,11 +122,7 @@ export class CartService {
             if (cart.items && cart.items.length) {
                 try {
                     const ids = cart.items.map((it: any) => it.producto_id);
-                    const data = await this.serviceHttp.post<any[]>(
-                        'catalog-service',
-                        '/products/internal/batch',
-                        { ids, cliente_id: cart.cliente_id ?? undefined },
-                    );
+                    const data = await this.catalogExternal.batchProducts(ids, cart.cliente_id ?? undefined);
 
                     const map = new Map<string, any>();
                     (data || []).forEach((p: any) => map.set(String(p.id), p));
@@ -170,11 +157,7 @@ export class CartService {
         try {
             if (cart && cart.items && cart.items.length) {
                 const ids = cart.items.map((it: any) => it.producto_id);
-                const products = await this.serviceHttp.post<any[]>(
-                    'catalog-service',
-                    '/products/internal/batch',
-                    { ids, cliente_id: cart.cliente_id ?? undefined },
-                );
+                const products = await this.catalogExternal.batchProducts(ids, cart.cliente_id ?? undefined);
 
                 const map = new Map<string, any>();
                 (products || []).forEach((p: any) => map.set(String(p.id), p));
@@ -230,11 +213,7 @@ export class CartService {
                 let campaniaAplicada = dto.campania_aplicada_id ?? null;
 
                 try {
-                    const arr = await this.serviceHttp.post<any[]>(
-                        'catalog-service',
-                        '/products/internal/batch',
-                        { ids: [dto.producto_id], cliente_id: cart.cliente_id ?? undefined },
-                    );
+                    const arr = await this.catalogExternal.batchProducts([dto.producto_id], cart.cliente_id ?? undefined);
                     const best = Array.isArray(arr) && arr.length ? arr[0] : null;
                     if (best) {
                         if (best.promocion?.precio_final != null) {
@@ -248,10 +227,7 @@ export class CartService {
                             let chosenPrice: number | null = null;
                             try {
                                 if (cart.cliente_id) {
-                                    const clientBody = await this.serviceHttp.get<any>(
-                                        'catalog-service',
-                                        `/internal/clients/${cart.cliente_id}`,
-                                    );
+                                    const clientBody = await this.catalogExternal.getClientByPath(cart.cliente_id);
                                     const listaId = clientBody?.lista_precios_id ?? null;
                                     if (listaId && Array.isArray(best.precios) && best.precios.length) {
                                         const match = best.precios.find((p: any) => Number(p.lista_id) === Number(listaId));

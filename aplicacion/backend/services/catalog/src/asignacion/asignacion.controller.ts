@@ -9,12 +9,13 @@ import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 
 @ApiTags('Asignación de Vendedores')
 @ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('asignacion')
 export class AsignacionController {
   constructor(private svc: AsignacionService) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Listar todas las asignaciones activas' })
   list() {
@@ -22,7 +23,6 @@ export class AsignacionController {
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Asignar vendedor a zona', description: 'Valida que solo exista un vendedor principal por zona.' })
   @ApiResponse({ status: 201, description: 'Asignación creada.' })
@@ -32,7 +32,6 @@ export class AsignacionController {
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Actualizar asignación' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateAsignacionDto>) {
@@ -40,7 +39,6 @@ export class AsignacionController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Eliminar asignación (Soft Delete)' })
   remove(@Param('id', ParseIntPipe) id: number) {

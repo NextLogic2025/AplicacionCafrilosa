@@ -39,22 +39,6 @@ export class Cliente {
   @Column({ name: 'zona_comercial_id', type: 'int', nullable: true })
   zona_comercial_id: number | null;
 
-  // Financiero
-  @ApiProperty()
-  @Column({ name: 'tiene_credito', default: false })
-  tiene_credito: boolean;
-
-  @ApiProperty()
-  @Column({ name: 'limite_credito', type: 'decimal', precision: 12, scale: 2, default: 0 })
-  limite_credito: string;
-
-  @ApiProperty()
-  @Column({ name: 'saldo_actual', type: 'decimal', precision: 12, scale: 2, default: 0 })
-  saldo_actual: string;
-
-  @ApiProperty()
-  @Column({ name: 'dias_plazo', type: 'int', default: 0 })
-  dias_plazo: number;
 
   @ApiProperty()
   @Column({ default: false })

@@ -405,7 +405,7 @@ export async function createPedido(
 
 type CondicionPago = 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
 
-export async function createPedidoFromCart(options?: { condicionPago?: CondicionPago; sucursalId?: string | null }): Promise<Pedido> {
+export async function createPedidoFromCart(options?: { condicionPago?: CondicionPago }): Promise<Pedido> {
   const ctx = await getClienteContext()
   if (!ctx?.usuarioId) throw new Error('No se encontró el usuario autenticado')
 
@@ -424,7 +424,6 @@ export async function createPedidoFromCart(options?: { condicionPago?: Condicion
 
   const condicionPago: CondicionPago = options?.condicionPago ?? 'CONTADO'
   const payload: Record<string, unknown> = { forma_pago_solicitada: condicionPago }
-  if (options?.sucursalId) payload.sucursal_id = options.sucursalId
 
   console.log('[clientApi] createPedidoFromCart - Payload:', payload)
 

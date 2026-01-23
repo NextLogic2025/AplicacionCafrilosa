@@ -6,6 +6,7 @@ import { ClientesModule } from '../clientes/clientes.module';
 
 import { PromocionesService } from './promociones.service';
 import { PromocionesController } from './promociones.controller';
+import { PromocionesInternalController } from './promociones.internal.controller';
 import { CampaniaPromocional } from './entities/campania.entity';
 import { ProductoPromocion } from './entities/producto-promocion.entity';
 import { PromocionClientePermitido } from './entities/promocion-cliente-permitido.entity';
@@ -15,7 +16,7 @@ import { PromocionClientePermitido } from './entities/promocion-cliente-permitid
 @Module({
   imports: [TypeOrmModule.forFeature([CampaniaPromocional, ProductoPromocion, PromocionClientePermitido]), forwardRef(() => PreciosModule), ClientesModule],
   providers: [PromocionesService],
-  controllers: [PromocionesController],
+  controllers: [PromocionesController, PromocionesInternalController],
   exports: [PromocionesService],
 })
 export class PromocionesModule {}

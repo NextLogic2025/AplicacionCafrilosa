@@ -17,6 +17,7 @@ import { SucursalCliente } from './entities/sucursal.entity';
 @ApiTags('Sucursales')
 @ApiBearerAuth()
 @Controller()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class SucursalesController {
   private readonly logger = new Logger(SucursalesController.name);
 
@@ -54,7 +55,6 @@ export class SucursalesController {
   // --- Endpoints ---
 
   @Post('clientes/:clienteId/sucursales')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   @ApiOperation({ summary: 'Crear sucursal para un cliente' })
   @ApiResponse({ status: 201, description: 'Sucursal creada', type: SucursalCliente })
@@ -70,7 +70,6 @@ export class SucursalesController {
   }
 
   @Get('clientes/:clienteId/sucursales')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente', 'vendedor')
   @ApiOperation({ summary: 'Listar sucursales de un cliente' })
   async findAllByCliente(
@@ -82,7 +81,6 @@ export class SucursalesController {
   }
 
   @Get('clientes/:clienteId/sucursales/desactivadas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente', 'vendedor')
   @ApiOperation({ summary: 'Ver papelera de sucursales de un cliente' })
   async findDeactivatedByCliente(
@@ -94,7 +92,6 @@ export class SucursalesController {
   }
 
   @Get('sucursales')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Listar TODAS las sucursales (Global)' })
   findAll() {
@@ -102,7 +99,6 @@ export class SucursalesController {
   }
 
   @Get('sucursales/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente', 'vendedor')
   @ApiOperation({ summary: 'Obtener detalle de sucursal' })
   async findOne(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
@@ -113,7 +109,6 @@ export class SucursalesController {
   }
 
   @Put('sucursales/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   @ApiOperation({ summary: 'Actualizar sucursal' })
   async update(
@@ -128,7 +123,6 @@ export class SucursalesController {
   }
 
   @Delete('sucursales/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   @ApiOperation({ summary: 'Eliminar sucursal (Soft Delete)' })
   async remove(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
@@ -139,7 +133,6 @@ export class SucursalesController {
   }
 
   @Put('sucursales/:id/activar')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   @ApiOperation({ summary: 'Restaurar sucursal eliminada' })
   async activate(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
