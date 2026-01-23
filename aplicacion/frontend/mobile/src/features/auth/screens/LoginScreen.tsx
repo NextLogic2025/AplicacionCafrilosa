@@ -20,7 +20,7 @@ type Props = {
 }
 
 export function LoginScreen({ onSignedIn, onForgotPassword }: Props) {
-  const [showPassword, setShowPassword] = React.useState(false)
+  const [showPassword, setShowPassword] = React.useState(true)
   const [remember, setRemember] = React.useState(true)
   const [serverError, setServerError] = React.useState<string | null>(null)
 
