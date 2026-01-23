@@ -83,12 +83,19 @@ export function useRealtimeSync(
             appStateRef.current = nextAppState
         }
 
-        const subscription = AppState.addEventListener('change', handleAppStateChange)
+    const subscription = AppState.addEventListener('change', handleAppStateChange)
 
         return () => {
             subscription.remove()
         }
     }, [enabled, onlyWhenActive, startPolling, stopPolling])
+
+    // Limpiar polling en el desmontaje para evitar leaks
+    useEffect(() => {
+        return () => {
+            stopPolling()
+        }
+    }, [stopPolling])
 
     // Iniciar/detener polling cuando enabled cambia
     useEffect(() => {

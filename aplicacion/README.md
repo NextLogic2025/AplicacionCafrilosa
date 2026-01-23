@@ -22,3 +22,12 @@ Docs:
 - Web: `frontend/web/README.md`
 - Móvil: `frontend/mobile/README.md`
 - Calidad: `docs/frontend-quality.md`
+
+
+
+
+C:\Users\Denis\Desktop\AplicacionCafrilosa\aplicacion\frontend\mobile\src\services\api\AlmacenService.ts
+C:\Users\Denis\Desktop\AplicacionCafrilosa\aplicacion\frontend\mobile\src\services\api\ApiError.ts
+C:\Users\Denis\Desktop\AplicacionCafrilosa\aplicacion\frontend\mobile\src\services\api\AssignmentService.ts
+C:\Users\Denis\Desktop\AplicacionCafrilosa\aplicacion\frontend\mobile\src\services\api\CartService.ts
+C:\Users\Denis\Desktop\AplicacionCafrilosa\aplicacion\frontend\mobile\src\services\api\CatalogService.ts

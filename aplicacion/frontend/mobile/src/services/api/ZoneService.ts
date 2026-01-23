@@ -1,4 +1,7 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
+import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 /** Estado compartido para edición de zonas (evita problemas con params de navegación) */
 export const ZoneEditState = {
@@ -24,9 +27,7 @@ export interface LatLng {
     longitude: number
 }
 
-/** Helpers para conversión GeoJSON <-> Google Maps */
 export const ZoneHelpers = {
-    /** Convierte GeoJSON Polygon a array de LatLng para Google Maps */
     parsePolygon: (geoJson?: any): LatLng[] => {
         if (!geoJson) return []
 
@@ -65,8 +66,7 @@ export const ZoneHelpers = {
         return coords
     },
 
-    /** Convierte array de LatLng a GeoJSON Polygon */
-    toGeoJson: (coords: LatLng[]): { type: 'Polygon', coordinates: number[][][] } | null => {
+    toGeoJson: (coords: LatLng[]): { type: 'Polygon'; coordinates: number[][][] } | null => {
         if (!coords || coords.length < 3) return null
 
         const closedCoords = [...coords]
@@ -103,51 +103,45 @@ export interface UpdateZonePayload {
     poligono_geografico?: any
 }
 
-export const ZoneService = {
-    getZones: async (): Promise<Zone[]> => {
+const rawService = {
+    async getZones(): Promise<Zone[]> {
         try {
-            return await apiRequest<Zone[]>('/api/zonas')
+            return await ApiService.get<Zone[]>(endpoints.catalog.zonas)
         } catch (error) {
-            console.error('Error fetching zones:', error)
+            logErrorForDebugging(error, 'ZoneService.getZones')
             return []
         }
     },
 
-    createZone: async (data: CreateZonePayload): Promise<{ success: boolean; data?: Zone; message?: string }> => {
+    async createZone(data: CreateZonePayload): Promise<{ success: boolean; data?: Zone; message?: string }> {
         try {
-            const response = await apiRequest<Zone>('/api/zonas', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            })
+            const response = await ApiService.post<Zone>(endpoints.catalog.zonas, data)
             return { success: true, data: response }
         } catch (error: any) {
-            console.error('Error creating zone:', error)
+            logErrorForDebugging(error, 'ZoneService.createZone', { data })
             return { success: false, message: error.message || 'Error al crear zona' }
         }
     },
 
-    updateZone: async (id: number, data: UpdateZonePayload): Promise<{ success: boolean; message?: string }> => {
+    async updateZone(id: number, data: UpdateZonePayload): Promise<{ success: boolean; message?: string }> {
         try {
-            await apiRequest(`/api/zonas/${id}`, {
-                method: 'PUT',
-                body: JSON.stringify(data)
-            })
+            await ApiService.put(endpoints.catalog.zonaById(id), data)
             return { success: true, message: 'Zona actualizada correctamente' }
         } catch (error: any) {
-            console.error('Error updating zone:', error)
+            logErrorForDebugging(error, 'ZoneService.updateZone', { id, data })
             return { success: false, message: error.message || 'Error al actualizar zona' }
         }
     },
 
-    deleteZone: async (id: number): Promise<{ success: boolean; message?: string }> => {
+    async deleteZone(id: number): Promise<{ success: boolean; message?: string }> {
         try {
-            await apiRequest(`/api/zonas/${id}`, {
-                method: 'DELETE'
-            })
+            await ApiService.delete(endpoints.catalog.zonaById(id))
             return { success: true, message: 'Zona eliminada correctamente' }
         } catch (error: any) {
-            console.error('Error deleting zone:', error)
+            logErrorForDebugging(error, 'ZoneService.deleteZone', { id })
             return { success: false, message: error.message || 'Error al eliminar zona' }
         }
     }
 }
+
+export const ZoneService = createService('ZoneService', rawService)

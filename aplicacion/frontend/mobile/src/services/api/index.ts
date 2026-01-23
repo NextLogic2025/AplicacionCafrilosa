@@ -1,4 +1,6 @@
 export { apiRequest } from './client'
+export { ApiService } from './ApiService'
+export { createService } from './createService'
 
 export { AssignmentService } from './AssignmentService'
 export { CartService } from './CartService'

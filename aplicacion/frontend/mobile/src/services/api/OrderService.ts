@@ -1,12 +1,11 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { isApiError } from './ApiError'
 import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
-function ordersEndpoint(path: string) {
-    return `${env.api.ordersUrl}${path}`
-}
+const ordersEndpoint = (path: string) => `${env.api.ordersUrl}${path}`
 
 export type OrderStatus =
     | 'PENDIENTE'
@@ -82,7 +81,6 @@ export interface Order {
     factura_numero?: string
     factura_id?: string
     url_pdf_factura?: string
-
     detalles?: OrderDetail[]
     cliente?: {
         id: string
@@ -95,7 +93,6 @@ export interface Order {
         nombre: string
         direccion?: string
     }
-
     status?: 'pending' | 'processing' | 'shipped' | 'delivered'
     clientName?: string
     address?: string
@@ -141,8 +138,6 @@ export type TrackingInfo = {
     dates: { confirmed?: string; shipped?: string; delivered?: string }
 }
 
-
-
 export interface OrderFilters {
     vendedor_id?: string
     cliente_id?: string
@@ -176,98 +171,143 @@ function applyOrderFilters(orders: Order[], filters?: OrderFilters) {
     return result
 }
 
-export const OrderService = {
-    normalizeOrder: (order: Order): Order => {
-        const clientName =
-            order.clientName ?? order.cliente?.nombre_comercial ?? order.cliente?.razon_social
+const normalizeOrder = (order: Order): Order => {
+    const clientName =
+        order.clientName ?? order.cliente?.nombre_comercial ?? order.cliente?.razon_social
 
-        const itemsCount = order.itemsCount ?? order.detalles?.length
-        const total = order.total ?? order.total_final
-        const numero = order.numero ?? order.codigo_visual
-        const fecha_creacion = order.fecha_creacion ?? order.created_at
+    const itemsCount = order.itemsCount ?? order.detalles?.length
+    const total = order.total ?? order.total_final
+    const numero = order.numero ?? order.codigo_visual
+    const fecha_creacion = order.fecha_creacion ?? order.created_at
 
-        const status: Order['status'] =
-            order.status ??
-            (order.estado_actual === 'ENTREGADO'
-                ? 'delivered'
-                : order.estado_actual === 'EN_RUTA'
-                    ? 'shipped'
-                    : order.estado_actual === 'EN_PREPARACION'
-                        ? 'processing'
-                        : 'pending')
+    const status: Order['status'] =
+        order.status ??
+        (order.estado_actual === 'ENTREGADO'
+            ? 'delivered'
+            : order.estado_actual === 'EN_RUTA'
+                ? 'shipped'
+                : order.estado_actual === 'EN_PREPARACION'
+                    ? 'processing'
+                    : 'pending')
 
-        return {
-            ...order,
-            clientName,
-            itemsCount,
-            total,
-            numero,
-            fecha_creacion,
-            status
-        }
-    },
+    return {
+        ...order,
+        clientName,
+        itemsCount,
+        total,
+        numero,
+        fecha_creacion,
+        status
+    }
+}
 
-    createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
-        void payload
+const formatOrderDate = (dateString: string): string => {
+    const date = new Date(dateString)
+    const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }
+    return date.toLocaleDateString('es-EC', options)
+}
+
+const formatOrderDateShort = (dateString: string): string => {
+    const date = new Date(dateString)
+    const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    }
+    return date.toLocaleDateString('es-EC', options)
+}
+
+const getOrderStats = (orders: Order[]) => {
+    const total = orders.length
+    const porEstado = orders.reduce((acc, order) => {
+        acc[order.estado_actual] = (acc[order.estado_actual] || 0) + 1
+        return acc
+    }, {} as Record<OrderStatus, number>)
+
+    const totalVentas = orders.reduce((sum, order) => sum + order.total_final, 0)
+
+    return {
+        total,
+        porEstado,
+        totalVentas
+    }
+}
+
+const fetchOrderDetailsFromApi = async (orderId: string): Promise<OrderDetail[]> => {
+    const detail = await ApiService.get<{
+        id: string
+        detalles: { producto_id: string; cantidad: number; precio_unitario: number; subtotal: number }[]
+        fecha_creacion?: string
+    }>(ordersEndpoint(endpoints.orders.orderDetail(orderId)))
+
+    const createdAt = detail.fecha_creacion ?? new Date().toISOString()
+    const detalles = Array.isArray(detail.detalles) ? detail.detalles : []
+
+    return detalles.map((item, index) => ({
+        id: `${orderId}:${item.producto_id}:${index}`,
+        pedido_id: orderId,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        es_bonificacion: false,
+        precio_lista: item.precio_unitario,
+        precio_final: item.precio_unitario,
+        subtotal_linea: item.subtotal,
+        created_at: createdAt,
+        updated_at: createdAt,
+    }))
+}
+
+const rawService = {
+    normalizeOrder,
+    createOrder: async (_payload: CreateOrderPayload): Promise<Order> => {
+        void _payload
         throw new Error('CREATE_ORDER_NOT_SUPPORTED')
     },
 
     createOrderFromCart: async (
-        target: { type: 'me' } | { type: 'client', clientId: string },
+        target: { type: 'me' } | { type: 'client'; clientId: string },
         options?: {
             condicion_pago?: 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
             sucursal_id?: string
         }
     ): Promise<Order> => {
-        try {
-            const endpoint =
-                target.type === 'client'
-                    ? ordersEndpoint(endpoints.orders.orderFromCartClient(target.clientId))
-                    : ordersEndpoint(endpoints.orders.orderFromCartMe)
+        const endpoint =
+            target.type === 'client'
+                ? ordersEndpoint(endpoints.orders.orderFromCartClient(target.clientId))
+                : ordersEndpoint(endpoints.orders.orderFromCartMe)
 
-            const payload = {
-                forma_pago_solicitada: options?.condicion_pago || 'CONTADO',
-                ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
-            }
-
-            const order = await apiRequest<Order>(endpoint, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-            return OrderService.normalizeOrder(order)
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.createOrderFromCart', { target })
-            throw error
+        const payload = {
+            forma_pago_solicitada: options?.condicion_pago || 'CONTADO',
+            ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
         }
+
+        const order = await ApiService.post<Order>(endpoint, payload)
+        return normalizeOrder(order)
     },
 
     getOrderHistory: async (): Promise<Order[]> => {
-        try {
-            const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
-            return orders
-                .map(OrderService.normalizeOrder)
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.getOrderHistory')
-            throw error
-        }
+        const orders = await ApiService.get<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
+        return orders
+            .map(normalizeOrder)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
 
     getClientOrders: async (userId: string): Promise<Order[]> => {
-        try {
-            const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersByClientId(userId)))
-            return orders.map(OrderService.normalizeOrder).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.getClientOrders', { userId })
-            throw error
-        }
+        const orders = await ApiService.get<Order[]>(ordersEndpoint(endpoints.orders.ordersByClientId(userId)))
+        return orders.map(normalizeOrder).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     },
 
     getOrders: async (filters?: OrderFilters): Promise<Order[]> => {
         const baseUrl = ordersEndpoint(endpoints.orders.orders)
 
         if (filters?.cliente_id && !filters.vendedor_id) {
-            const orders = await OrderService.getClientOrders(filters.cliente_id)
+            const orders = await rawService.getClientOrders(filters.cliente_id)
             return applyOrderFilters(orders, filters)
         }
 
@@ -284,12 +324,12 @@ export const OrderService = {
         const url = `${baseUrl}${queryString ? `?${queryString}` : ''}`
 
         try {
-            const orders = await apiRequest<Order[]>(url, { method: 'GET' })
-            return applyOrderFilters(orders.map(OrderService.normalizeOrder), filters)
+            const orders = await ApiService.get<Order[]>(url)
+            return applyOrderFilters(orders.map(normalizeOrder), filters)
         } catch (error) {
             if (isApiError(error) && (error.status === 403 || error.status === 404)) {
-                const orders = await apiRequest<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
-                return applyOrderFilters(orders.map(OrderService.normalizeOrder), filters)
+                const orders = await ApiService.get<Order[]>(ordersEndpoint(endpoints.orders.ordersUserHistory))
+                return applyOrderFilters(orders.map(normalizeOrder), filters)
             }
             logErrorForDebugging(error, 'OrderService.getOrders', { filters })
             throw error
@@ -297,15 +337,15 @@ export const OrderService = {
     },
 
     getOrdersByClient: async (clientId: string): Promise<Order[]> => {
-        return OrderService.getClientOrders(clientId)
+        return rawService.getClientOrders(clientId)
     },
 
     getTrackingInfo: async (orderId?: string): Promise<TrackingInfo | null> => {
         if (!orderId) return null
-        const order = await OrderService.getOrderById(orderId)
+        const order = await rawService.getOrderById(orderId)
 
         try {
-            const tracking = await apiRequest<{
+            const tracking = await ApiService.get<{
                 orderId: string
                 currentStatus: string
                 lastUpdate: string
@@ -321,193 +361,95 @@ export const OrderService = {
             const shipped = timeline.find(t => t.status === 'EN_RUTA')?.time
             const delivered = timeline.find(t => t.status === 'ENTREGADO')?.time
 
-            const result: TrackingInfo = {
+            return {
                 id: order.codigo_visual ?? order.id,
                 status,
-                carrier: undefined as string | undefined,
+                carrier: undefined,
                 estimatedDelivery: order.fecha_entrega_solicitada ?? 'N/A',
-                evidence: undefined as { photo?: string; signature?: string } | undefined,
+                evidence: undefined,
                 dates: { confirmed, shipped, delivered }
             }
-            return result
         } catch (error) {
             if (isApiError(error) && error.status !== 0 && error.status !== 404) throw error
 
-            const normalized = OrderService.normalizeOrder(order)
+            const normalized = normalizeOrder(order)
             const status: TrackingInfo['status'] =
                 normalized.status === 'delivered' ? 'delivered' : normalized.status === 'shipped' ? 'shipped' : 'pending'
 
-            const result: TrackingInfo = {
+            return {
                 id: normalized.codigo_visual ?? normalized.id,
                 status,
-                carrier: undefined as string | undefined,
+                carrier: undefined,
                 estimatedDelivery: normalized.fecha_entrega_solicitada ?? 'N/A',
-                evidence: undefined as { photo?: string; signature?: string } | undefined,
+                evidence: undefined,
                 dates: {
                     confirmed: normalized.created_at,
                     shipped: normalized.estado_actual === 'EN_RUTA' || normalized.estado_actual === 'ENTREGADO' ? normalized.updated_at : undefined,
                     delivered: normalized.estado_actual === 'ENTREGADO' ? normalized.updated_at : undefined,
                 }
             }
-            return result
         }
     },
 
     getMyOrders: async (vendedorId: string, filters?: Omit<OrderFilters, 'vendedor_id'>): Promise<Order[]> => {
-        return OrderService.getOrders({
+        return rawService.getOrders({
             ...filters,
             vendedor_id: vendedorId
         })
     },
 
     getOrderById: async (orderId: string): Promise<Order> => {
-        try {
-            const order = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderById(orderId)), {
-                method: 'GET'
-            })
-            return OrderService.normalizeOrder(order)
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.getOrderById', { orderId })
-            throw error
-        }
+        const order = await ApiService.get<Order>(ordersEndpoint(endpoints.orders.orderById(orderId)))
+        return normalizeOrder(order)
     },
 
     getOrderDetails: async (orderId: string): Promise<OrderDetail[]> => {
-        try {
-            const detail = await apiRequest<{
-                id: string
-                detalles: { producto_id: string; cantidad: number; precio_unitario: number; subtotal: number }[]
-                fecha_creacion?: string
-            }>(ordersEndpoint(endpoints.orders.orderDetail(orderId)))
-
-            const createdAt = detail.fecha_creacion ?? new Date().toISOString()
-            const detalles = Array.isArray(detail.detalles) ? detail.detalles : []
-
-            return detalles.map((item, index) => ({
-                id: `${orderId}:${item.producto_id}:${index}`,
-                pedido_id: orderId,
-                producto_id: item.producto_id,
-                cantidad: item.cantidad,
-                es_bonificacion: false,
-                precio_lista: item.precio_unitario,
-                precio_final: item.precio_unitario,
-                subtotal_linea: item.subtotal,
-                created_at: createdAt,
-                updated_at: createdAt,
-            }))
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.getOrderDetails', { orderId })
-            throw error
-        }
+        return fetchOrderDetailsFromApi(orderId)
     },
 
     cancelOrder: async (orderId: string): Promise<Order> => {
-        try {
-            const cancelledOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderCancel(orderId)), {
-                method: 'PATCH'
-            })
-            return OrderService.normalizeOrder(cancelledOrder)
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.cancelOrder', { orderId })
-            throw error
-        }
+        const cancelledOrder = await ApiService.patch<Order>(ordersEndpoint(endpoints.orders.orderCancel(orderId)), {})
+        return normalizeOrder(cancelledOrder)
     },
 
-    /**
-     * Cambia el estado de un pedido
-     * @param orderId - ID del pedido
-     * @param newStatus - Nuevo estado
-     * @param comentario - Comentario opcional sobre el cambio
-     */
     changeOrderStatus: async (orderId: string, newStatus: OrderStatus, comentario?: string): Promise<Order> => {
-        try {
-            // Usar el endpoint correcto: /orders/estados/:orderId/state
-            const updatedOrder = await apiRequest<Order>(ordersEndpoint(endpoints.orders.orderEstadosChangeState(orderId)), {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    nuevoEstado: newStatus,
-                    comentario: comentario || `Cambio de estado a ${newStatus}`
-                })
-            })
-            return OrderService.normalizeOrder(updatedOrder)
-        } catch (error) {
-            logErrorForDebugging(error, 'OrderService.changeOrderStatus', { orderId, newStatus, comentario })
-            throw error
-        }
+        const updatedOrder = await ApiService.patch<Order>(ordersEndpoint(endpoints.orders.orderEstadosChangeState(orderId)), {
+            nuevoEstado: newStatus,
+            comentario: comentario || `Cambio de estado a ${newStatus}`
+        })
+        return normalizeOrder(updatedOrder)
     },
 
-    /**
-     * Obtiene el picking asociado a un pedido
-     * @param orderId - ID del pedido
-     * @returns Picking asociado o null si no existe
-     */
     getOrderPicking: async (orderId: string): Promise<any | null> => {
         try {
-            // Importación dinámica para evitar dependencia circular
             const { PickingService } = await import('./PickingService')
-
-            // Buscar pickings del pedido
             const pickings = await PickingService.list()
             const orderPicking = pickings.find(p => p.pedidoId === orderId)
-
             return orderPicking || null
         } catch (error) {
             logErrorForDebugging(error, 'OrderService.getOrderPicking', { orderId })
-            // No fallar si no se puede obtener el picking
             return null
         }
     },
 
     confirmPicking: async (orderId: string) => {
-        await OrderService.changeOrderStatus(orderId, 'EN_PREPARACION')
+        await rawService.changeOrderStatus(orderId, 'EN_PREPARACION')
     },
 
-    confirmDispatch: async (orderId: string, _carrierId?: string, _guideNumber?: string) => {
-        await OrderService.changeOrderStatus(orderId, 'EN_RUTA')
+    confirmDispatch: async (orderId: string) => {
+        await rawService.changeOrderStatus(orderId, 'EN_RUTA')
     },
 
     updateOrder: async (orderId: string, data: Partial<Order>): Promise<Order> => {
         if (typeof data.estado_actual === 'string') {
-            return OrderService.changeOrderStatus(orderId, data.estado_actual as OrderStatus)
+            return rawService.changeOrderStatus(orderId, data.estado_actual as OrderStatus)
         }
         throw new Error('UPDATE_ORDER_NOT_SUPPORTED')
     },
 
-    formatOrderDate: (dateString: string): string => {
-        const date = new Date(dateString)
-        const options: Intl.DateTimeFormatOptions = {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }
-        return date.toLocaleDateString('es-EC', options)
-    },
-
-    formatOrderDateShort: (dateString: string): string => {
-        const date = new Date(dateString)
-        const options: Intl.DateTimeFormatOptions = {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        }
-        return date.toLocaleDateString('es-EC', options)
-    },
-
-    getOrderStats: (orders: Order[]) => {
-        const total = orders.length
-        const porEstado = orders.reduce((acc, order) => {
-            acc[order.estado_actual] = (acc[order.estado_actual] || 0) + 1
-            return acc
-        }, {} as Record<OrderStatus, number>)
-
-        const totalVentas = orders.reduce((sum, order) => sum + order.total_final, 0)
-
-        return {
-            total,
-            porEstado,
-            totalVentas
-        }
-    }
+    formatOrderDate,
+    formatOrderDateShort,
+    getOrderStats
 }
+
+export const OrderService = createService('OrderService', rawService)

@@ -1,6 +1,7 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export interface Client {
     id: string
@@ -82,48 +83,28 @@ export interface CreateClientPayload {
     dias_plazo?: number
 }
 
-export const ClientService = {
-    getClients: async (): Promise<Client[]> => {
-        return apiRequest<Client[]>(endpoints.catalog.clientes)
-    },
+const rawService = {
+    getClients: async (): Promise<Client[]> => ApiService.get<Client[]>(endpoints.catalog.clientes),
 
-    getClient: async (id: string): Promise<Client> => {
-        return apiRequest<Client>(endpoints.catalog.clienteById(id))
-    },
+    getClient: async (id: string): Promise<Client> => ApiService.get<Client>(endpoints.catalog.clienteById(id)),
 
-    createClient: async (client: CreateClientPayload): Promise<Client> => {
-        return apiRequest<Client>(endpoints.catalog.clientes, {
-            method: 'POST',
-            body: JSON.stringify(client)
-        })
-    },
+    createClient: async (client: CreateClientPayload): Promise<Client> =>
+        ApiService.post<Client>(endpoints.catalog.clientes, client),
 
-    updateClient: async (id: string, client: Partial<Client>): Promise<Client> => {
-        return apiRequest<Client>(endpoints.catalog.clienteById(id), {
-            method: 'PUT',
-            body: JSON.stringify(client)
-        })
-    },
+    updateClient: async (id: string, client: Partial<Client>): Promise<Client> =>
+        ApiService.put<Client>(endpoints.catalog.clienteById(id), client),
 
-    deleteClient: async (id: string): Promise<void> => {
-        return apiRequest<void>(endpoints.catalog.clienteById(id), {
-            method: 'DELETE'
-        })
-    },
+    deleteClient: async (id: string): Promise<void> =>
+        ApiService.delete<void>(endpoints.catalog.clienteById(id)),
 
-    unblockClient: async (id: string): Promise<void> => {
-        return apiRequest<void>(endpoints.catalog.clienteDesbloquear(id), {
-            method: 'PUT'
-        })
-    },
+    unblockClient: async (id: string): Promise<void> =>
+        ApiService.put<void>(endpoints.catalog.clienteDesbloquear(id), {}),
 
-    getBlockedClients: async (): Promise<Client[]> => {
-        return apiRequest<Client[]>(endpoints.catalog.clientesBloqueados)
-    },
+    getBlockedClients: async (): Promise<Client[]> => ApiService.get<Client[]>(endpoints.catalog.clientesBloqueados),
 
     getMyClientData: async (): Promise<Client | null> => {
         try {
-            return await apiRequest<Client>(endpoints.catalog.clienteById('me'))
+            return await ApiService.get<Client>(endpoints.catalog.clienteById('me'))
         } catch (error: any) {
             logErrorForDebugging(error, 'ClientService.getMyClientData')
             return null
@@ -132,7 +113,7 @@ export const ClientService = {
 
     getMyClients: async (): Promise<Client[]> => {
         try {
-            return await apiRequest<Client[]>(endpoints.catalog.clientesMis)
+            return await ApiService.get<Client[]>(endpoints.catalog.clientesMis)
         } catch (error) {
             logErrorForDebugging(error, 'ClientService.getMyClients')
             return []
@@ -141,7 +122,7 @@ export const ClientService = {
 
     getPriceLists: async (): Promise<PriceList[]> => {
         try {
-            return await apiRequest<PriceList[]>(endpoints.catalog.preciosListas)
+            return await ApiService.get<PriceList[]>(endpoints.catalog.preciosListas)
         } catch (error) {
             logErrorForDebugging(error, 'ClientService.getPriceLists')
             return []
@@ -150,7 +131,7 @@ export const ClientService = {
 
     getCommercialZones: async (silent = false): Promise<CommercialZone[]> => {
         try {
-            return await apiRequest<CommercialZone[]>(endpoints.catalog.zonas, { silent })
+            return await ApiService.get<CommercialZone[]>(endpoints.catalog.zonas, { silent })
         } catch (error) {
             if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZones')
             return []
@@ -159,7 +140,7 @@ export const ClientService = {
 
     getCommercialZoneById: async (id: number, silent = false): Promise<CommercialZone | null> => {
         try {
-            return await apiRequest<CommercialZone>(endpoints.catalog.zonaById(id), { silent })
+            return await ApiService.get<CommercialZone>(endpoints.catalog.zonaById(id), { silent })
         } catch (error) {
             if (!silent) logErrorForDebugging(error, 'ClientService.getCommercialZoneById', { id })
             return null
@@ -168,42 +149,36 @@ export const ClientService = {
 
     getClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
         try {
-            return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesByClienteId(clientId))
+            return await ApiService.get<ClientBranch[]>(endpoints.catalog.sucursalesByClienteId(clientId))
         } catch (error) {
             logErrorForDebugging(error, 'ClientService.getClientBranches', { clientId })
             return []
         }
     },
 
-    createClientBranch: async (clientId: string, branch: Partial<ClientBranch>): Promise<ClientBranch> => {
-        return apiRequest<ClientBranch>(endpoints.catalog.sucursalesByClienteId(clientId), {
-            method: 'POST',
-            body: JSON.stringify(branch)
-        })
-    },
+    createClientBranch: async (clientId: string, branch: Partial<ClientBranch>): Promise<ClientBranch> =>
+        ApiService.post<ClientBranch>(endpoints.catalog.sucursalesByClienteId(clientId), branch),
 
     getDeactivatedClientBranches: async (clientId: string): Promise<ClientBranch[]> => {
         try {
-            return await apiRequest<ClientBranch[]>(endpoints.catalog.sucursalesDesactivadasByClienteId(clientId))
+            return await ApiService.get<ClientBranch[]>(endpoints.catalog.sucursalesDesactivadasByClienteId(clientId))
         } catch (error) {
             logErrorForDebugging(error, 'ClientService.getDeactivatedClientBranches', { clientId })
             return []
         }
     },
 
-    updateClientBranch: async (branchId: string, updates: Partial<ClientBranch>): Promise<ClientBranch> => {
-        return apiRequest<ClientBranch>(endpoints.catalog.sucursalById(branchId), {
-            method: 'PUT',
-            body: JSON.stringify(updates)
-        })
-    },
+    updateClientBranch: async (branchId: string, updates: Partial<ClientBranch>): Promise<ClientBranch> =>
+        ApiService.put<ClientBranch>(endpoints.catalog.sucursalById(branchId), updates),
 
     getClientBranchById: async (branchId: string): Promise<ClientBranch | null> => {
         try {
-            return await apiRequest<ClientBranch>(endpoints.catalog.sucursalById(branchId))
+            return await ApiService.get<ClientBranch>(endpoints.catalog.sucursalById(branchId))
         } catch (error) {
             logErrorForDebugging(error, 'ClientService.getClientBranchById', { branchId })
             return null
         }
     }
 }
+
+export const ClientService = createService('ClientService', rawService)

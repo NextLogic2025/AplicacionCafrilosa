@@ -1,26 +1,23 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
-import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export type PickingEstado = 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'COMPLETADO' | string
 export type PickingItemEstado = 'PENDIENTE' | 'PARCIAL' | 'COMPLETADO' | string
 
-// Ubicación sugerida enriquecida
 export type UbicacionSugerida = {
     id: string
     codigoVisual?: string
     nombre?: string
 }
 
-// Lote sugerido enriquecido
 export type LoteSugerido = {
     id: string
     numeroLote?: string
     fechaVencimiento?: string
 }
 
-// Item de picking con campos enriquecidos del backend
 export type PickingItem = {
     id: string
     pickingId?: string
@@ -33,7 +30,6 @@ export type PickingItem = {
     loteConfirmado?: string | null
     createdAt?: string
     updatedAt?: string
-    // Campos enriquecidos
     nombreProducto?: string
     sku?: string
     ubicacionSugerida?: UbicacionSugerida
@@ -42,20 +38,17 @@ export type PickingItem = {
     cantidadReservada?: number
 }
 
-// Información del pedido enriquecida
 export type PedidoInfo = {
     numero?: string | number
     clienteNombre?: string
     referenciaComercial?: string
 }
 
-// Información del bodeguero asignado
 export type BodegueroInfo = {
     id: string
     nombreCompleto?: string
 }
 
-// Stock alternativo para cambio de lote
 export type AlternativeStock = {
     ubicacion: {
         id: string
@@ -70,7 +63,6 @@ export type AlternativeStock = {
     cantidadDisponible: number
 }
 
-// Motivos de desviación predefinidos
 export const MOTIVOS_DESVIACION = [
     { value: 'FALTANTE', label: 'Faltante (No hay stock físico)' },
     { value: 'DANADO', label: 'Producto Dañado' },
@@ -79,7 +71,6 @@ export const MOTIVOS_DESVIACION = [
     { value: 'OTRO', label: 'Otro' },
 ] as const
 
-// Picking con campos enriquecidos del backend
 export type Picking = {
     id: string
     pedidoId?: string
@@ -91,13 +82,11 @@ export type Picking = {
     observacionesBodega?: string
     createdAt?: string
     updatedAt?: string
-    // Campos de asignación
     bodegueroAsignadoId?: string | null
-    bodegueroId?: string | null // alias para compatibilidad
-    // Campos enriquecidos
+    bodegueroId?: string | null
     pedido?: PedidoInfo
     bodegueroAsignado?: BodegueroInfo
-    bodegueroNombre?: string | null // alias para compatibilidad
+    bodegueroNombre?: string | null
     items?: PickingItem[]
 }
 
@@ -112,121 +101,67 @@ export type PickingListOptions = {
     all?: boolean
 }
 
-// Helper para normalizar el picking con compatibilidad hacia atrás
 const normalizePicking = (p: Picking): Picking => ({
     ...p,
-    // Asegurar que bodegueroId y bodegueroNombre estén disponibles
     bodegueroId: p.bodegueroId || p.bodegueroAsignadoId,
     bodegueroNombre: p.bodegueroNombre || p.bodegueroAsignado?.nombreCompleto,
 })
 
-export const PickingService = {
+const rawService = {
     async list(estado?: string, options?: PickingListOptions): Promise<Picking[]> {
-        try {
-            const queryParts: string[] = []
-            if (estado) queryParts.push(`estado=${encodeURIComponent(estado)}`)
-            if (options?.all) queryParts.push('all=1')
-            const qs = queryParts.length ? `?${queryParts.join('&')}` : ''
-            const result = await apiRequest<Picking[]>(warehouse(endpoints.warehouse.picking + qs))
-            return result.map(normalizePicking)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.list', { estado, options })
-            throw error
-        }
+        const queryParts: string[] = []
+        if (estado) queryParts.push(`estado=${encodeURIComponent(estado)}`)
+        if (options?.all) queryParts.push('all=1')
+        const qs = queryParts.length ? `?${queryParts.join('&')}` : ''
+        const result = await ApiService.get<Picking[]>(warehouse(endpoints.warehouse.picking + qs))
+        return result.map(normalizePicking)
     },
 
     async listMine(): Promise<Picking[]> {
-        try {
-            const result = await apiRequest<Picking[]>(warehouse(endpoints.warehouse.pickingMis))
-            return result.map(normalizePicking)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.listMine')
-            throw error
-        }
+        const result = await ApiService.get<Picking[]>(warehouse(endpoints.warehouse.pickingMis))
+        return result.map(normalizePicking)
     },
 
     async getById(id: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingById(id)))
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.getById', { id })
-            throw error
-        }
+        const result = await ApiService.get<Picking>(warehouse(endpoints.warehouse.pickingById(id)))
+        return normalizePicking(result)
     },
 
     async create(payload: CreatePickingPayload): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.picking), {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.create', { payload })
-            throw error
-        }
+        const result = await ApiService.post<Picking>(warehouse(endpoints.warehouse.picking), payload)
+        return normalizePicking(result)
     },
 
     async assign(id: string, bodegueroId: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingAssign(id)), {
-                method: 'PUT',
-                body: JSON.stringify({ bodegueroId }),
-            })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.assign', { id, bodegueroId })
-            throw error
-        }
+        const result = await ApiService.put<Picking>(warehouse(endpoints.warehouse.pickingAssign(id)), {
+            bodegueroId
+        })
+        return normalizePicking(result)
     },
 
     async take(id: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingTomar(id)), {
-                method: 'POST',
-            })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.take', { id })
-            throw error
-        }
+        const result = await ApiService.post<Picking>(warehouse(endpoints.warehouse.pickingTomar(id)), undefined)
+        return normalizePicking(result)
     },
 
     async confirmReservation(pedidoId: string | null, reservationId: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingConfirm), {
-                method: 'POST',
-                body: JSON.stringify({ pedidoId, reservation_id: reservationId }),
-            })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.confirmReservation', { pedidoId, reservationId })
-            throw error
-        }
+        const result = await ApiService.post<Picking>(warehouse(endpoints.warehouse.pickingConfirm), {
+            pedidoId,
+            reservation_id: reservationId
+        })
+        return normalizePicking(result)
     },
 
     async start(id: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingStart(id)), { method: 'POST' })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.start', { id })
-            throw error
-        }
+        const result = await ApiService.post<Picking>(warehouse(endpoints.warehouse.pickingStart(id)), undefined)
+        return normalizePicking(result)
     },
 
     async complete(id: string, observaciones?: string): Promise<Picking> {
-        try {
-            const result = await apiRequest<Picking>(warehouse(endpoints.warehouse.pickingComplete(id)), {
-                method: 'POST',
-                body: JSON.stringify({ observacionesBodega: observaciones }),
-            })
-            return normalizePicking(result)
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.complete', { id, observaciones })
-            throw error
-        }
+        const result = await ApiService.post<Picking>(warehouse(endpoints.warehouse.pickingComplete(id)), {
+            observacionesBodega: observaciones
+        })
+        return normalizePicking(result)
     },
 
     async pickItem(
@@ -240,33 +175,18 @@ export const PickingService = {
             ubicacionConfirmada?: string
         }
     ): Promise<PickingItem> {
-        try {
-            // Backend espera campos en snake_case
-            const payload: Record<string, unknown> = { cantidadPickeada }
-            if (options?.loteConfirmado) payload.loteConfirmado = options.loteConfirmado
-            if (options?.motivoDesviacion) payload.motivo_desviacion = options.motivoDesviacion
-            if (options?.notasBodeguero) payload.nota_bodeguero = options.notasBodeguero
-            if (options?.ubicacionConfirmada) payload.ubicacion_confirmada = options.ubicacionConfirmada
+        const payload: Record<string, unknown> = { cantidadPickeada }
+        if (options?.loteConfirmado) payload.loteConfirmado = options.loteConfirmado
+        if (options?.motivoDesviacion) payload.motivo_desviacion = options.motivoDesviacion
+        if (options?.notasBodeguero) payload.nota_bodeguero = options.notasBodeguero
+        if (options?.ubicacionConfirmada) payload.ubicacion_confirmada = options.ubicacionConfirmada
 
-            return await apiRequest<PickingItem>(warehouse(endpoints.warehouse.pickingPickItem(id, itemId)), {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.pickItem', { id, itemId, cantidadPickeada, ...options })
-            throw error
-        }
+        return ApiService.post<PickingItem>(warehouse(endpoints.warehouse.pickingPickItem(id, itemId)), payload)
     },
 
-    /**
-     * Obtiene stocks alternativos para un producto (otros lotes/ubicaciones disponibles)
-     */
     async getAlternativeStocks(productoId: string): Promise<AlternativeStock[]> {
-        try {
-            return await apiRequest<AlternativeStock[]>(warehouse(endpoints.warehouse.picking + `/products/${productoId}/stocks`))
-        } catch (error) {
-            logErrorForDebugging(error, 'PickingService.getAlternativeStocks', { productoId })
-            throw error
-        }
-    },
+        return ApiService.get<AlternativeStock[]>(warehouse(endpoints.warehouse.picking + `/products/${productoId}/stocks`))
+    }
 }
+
+export const PickingService = createService('PickingService', rawService)

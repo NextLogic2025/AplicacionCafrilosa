@@ -1,11 +1,8 @@
-import { apiRequest } from './client'
 import { env } from '../../config/env'
+import { ApiService } from './ApiService'
 import { endpoints } from './endpoints'
-import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
-/**
- * Entidad Conductor (Driver)
- */
 export interface Conductor {
     id: string
     usuario_id: string | null
@@ -19,9 +16,6 @@ export interface Conductor {
     deleted_at: string | null
 }
 
-/**
- * DTO para crear conductor
- */
 export interface CreateConductorDto {
     usuario_id?: string
     nombre_completo: string
@@ -31,177 +25,106 @@ export interface CreateConductorDto {
     activo?: boolean
 }
 
-/**
- * DTO para actualizar conductor
- */
 export type UpdateConductorDto = Partial<CreateConductorDto>
 
-/**
- * Filtros para listar conductores
- */
 export interface ConductorFilters {
     activo?: boolean
-    search?: string // Busca en nombre y cédula
+    search?: string
+}
+
+export interface ConductorStats {
+    total: number
+    activos: number
+    inactivos: number
+    conLicencia: number
+    sinLicencia: number
+    vinculados: number
 }
 
 const logisticsEndpoint = (path: string) => `${env.api.logisticsUrl}${path}`
 
-/**
- * Servicio para gestión de conductores (drivers)
- */
-export const ConductorService = {
-    /**
-     * Listar todos los conductores
-     */
-    async list(filters?: ConductorFilters): Promise<Conductor[]> {
-        try {
-            const conductores = await apiRequest<Conductor[]>(
-                logisticsEndpoint(endpoints.logistics.conductores)
-            )
+function normalizeText(value?: string): string {
+    return (value ?? '').toLowerCase()
+}
 
-            // Aplicar filtros del lado del cliente
-            let result = conductores
+function applyFilters(conductores: Conductor[], filters?: ConductorFilters): Conductor[] {
+    let result = conductores
 
-            if (filters?.activo !== undefined) {
-                result = result.filter(c => c.activo === filters.activo)
-            }
+    if (filters?.activo !== undefined) {
+        result = result.filter(c => c.activo === filters.activo)
+    }
 
-            if (filters?.search) {
-                const searchLower = filters.search.toLowerCase()
-                result = result.filter(c =>
-                    c.nombre_completo.toLowerCase().includes(searchLower) ||
-                    c.cedula.includes(searchLower)
-                )
-            }
+    if (filters?.search) {
+        const searchLower = filters.search.toLowerCase()
+        result = result.filter(c =>
+            normalizeText(c.nombre_completo).includes(searchLower) ||
+            normalizeText(c.cedula).includes(searchLower)
+        )
+    }
 
-            return result.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.list', { filters })
-            throw error
+    return result
+}
+
+function sortByCreation(conductores: Conductor[]): Conductor[] {
+    return [...conductores].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+}
+
+async function fetchAndFilter(filters?: ConductorFilters): Promise<Conductor[]> {
+    const conductores = await ApiService.get<Conductor[]>(logisticsEndpoint(endpoints.logistics.conductores))
+    const filtered = applyFilters(conductores, filters)
+    return sortByCreation(filtered)
+}
+
+const rawService = {
+    list: fetchAndFilter,
+
+    getById: async (id: string): Promise<Conductor> => {
+        return await ApiService.get<Conductor>(logisticsEndpoint(endpoints.logistics.conductorById(id)))
+    },
+
+    create: async (data: CreateConductorDto): Promise<Conductor> => {
+        return await ApiService.post<Conductor>(logisticsEndpoint(endpoints.logistics.conductores), data)
+    },
+
+    update: async (id: string, data: UpdateConductorDto): Promise<Conductor> => {
+        return await ApiService.put<Conductor>(logisticsEndpoint(endpoints.logistics.conductorById(id)), data)
+    },
+
+    delete: async (id: string): Promise<void> => {
+        await ApiService.delete<void>(logisticsEndpoint(endpoints.logistics.conductorById(id)))
+    },
+
+    getActivos: async (): Promise<Conductor[]> => {
+        return await fetchAndFilter({ activo: true })
+    },
+
+    getDisponibles: async (): Promise<Conductor[]> => {
+        const activos = await fetchAndFilter({ activo: true })
+        return activos.filter(c => !c.usuario_id)
+    },
+
+    getStats: async (): Promise<ConductorStats> => {
+        const conductores = await fetchAndFilter()
+        return {
+            total: conductores.length,
+            activos: conductores.filter(c => c.activo).length,
+            inactivos: conductores.filter(c => !c.activo).length,
+            conLicencia: conductores.filter(c => Boolean(c.licencia)).length,
+            sinLicencia: conductores.filter(c => !c.licencia).length,
+            vinculados: conductores.filter(c => Boolean(c.usuario_id)).length
         }
     },
 
-    /**
-     * Obtener conductor por ID
-     */
-    async getById(id: string): Promise<Conductor> {
-        try {
-            return await apiRequest<Conductor>(
-                logisticsEndpoint(endpoints.logistics.conductorById(id))
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.getById', { id })
-            throw error
-        }
-    },
-
-    /**
-     * Crear nuevo conductor
-     */
-    async create(data: CreateConductorDto): Promise<Conductor> {
-        try {
-            const url = logisticsEndpoint(endpoints.logistics.conductores);
-            return await apiRequest<Conductor>(
-                url,
-                {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.create', { data })
-            throw error
-        }
-    },
-
-    /**
-     * Actualizar conductor existente
-     */
-    async update(id: string, data: UpdateConductorDto): Promise<Conductor> {
-        try {
-            return await apiRequest<Conductor>(
-                logisticsEndpoint(endpoints.logistics.conductorById(id)),
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.update', { id, data })
-            throw error
-        }
-    },
-
-    /**
-     * Eliminar conductor (soft delete)
-     */
-    async delete(id: string): Promise<void> {
-        try {
-            await apiRequest<void>(
-                logisticsEndpoint(endpoints.logistics.conductorById(id)),
-                {
-                    method: 'DELETE'
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.delete', { id })
-            throw error
-        }
-    },
-
-    /**
-     * Obtener solo conductores activos
-     */
-    async getActivos(): Promise<Conductor[]> {
-        return this.list({ activo: true })
-    },
-
-    /**
-     * Obtener conductores disponibles (activos sin usuario vinculado)
-     */
-    async getDisponibles(): Promise<Conductor[]> {
-        const conductores = await this.getActivos()
-        return conductores.filter(c => !c.usuario_id)
-    },
-
-    /**
-     * Obtener estadísticas de conductores
-     */
-    async getStats(): Promise<{
-        total: number
-        activos: number
-        inactivos: number
-        conLicencia: number
-        sinLicencia: number
-        vinculados: number
-    }> {
-        try {
-            const conductores = await this.list()
-
-            return {
-                total: conductores.length,
-                activos: conductores.filter(c => c.activo).length,
-                inactivos: conductores.filter(c => !c.activo).length,
-                conLicencia: conductores.filter(c => c.licencia).length,
-                sinLicencia: conductores.filter(c => !c.licencia).length,
-                vinculados: conductores.filter(c => c.usuario_id).length
-            }
-        } catch (error) {
-            logErrorForDebugging(error, 'ConductorService.getStats')
-            throw error
-        }
-    },
-
-    /**
-     * Obtener iniciales del nombre para avatar
-     */
-    getInitials(nombreCompleto: string): string {
-        const parts = nombreCompleto.trim().split(' ')
-        if (parts.length >= 2) {
-            return (parts[0][0] + parts[1][0]).toUpperCase()
-        }
-        return nombreCompleto.substring(0, 2).toUpperCase()
+    getInitials: (nombreCompleto: string): string => {
+        return nombreCompleto
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(word => word.charAt(0).toUpperCase())
+            .join('')
     }
 }
+
+export const ConductorService = createService('ConductorService', rawService)

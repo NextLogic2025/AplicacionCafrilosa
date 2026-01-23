@@ -1,7 +1,7 @@
-import { apiRequest } from './client'
 import { env } from '../../config/env'
+import { ApiService } from './ApiService'
 import { endpoints } from './endpoints'
-import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export type DespachoEstadoViaje = 'PLANIFICACION' | 'CONFIRMADO' | 'EN_RUTA' | 'COMPLETADO' | 'CANCELADO'
 
@@ -19,7 +19,6 @@ export interface Despacho {
     created_at: string
     updated_at: string
     deleted_at: string | null
-    // Relaciones populadas (opcional, depende del backend)
     vehiculo?: {
         id: string
         placa: string
@@ -86,104 +85,74 @@ export const DESPACHO_ESTADO_LABELS: Record<DespachoEstadoViaje, string> = {
     CANCELADO: 'Cancelado',
 }
 
+function formatDespachoCodigoManifiesto(value?: number | null): string {
+    if (value === null || value === undefined) return '---'
+    return value.toString().padStart(6, '0')
+}
+
 const logisticsEndpoint = (path: string) => `${env.api.logisticsUrl}${path}`
 
-export const DespachosService = {
-    async list(filters?: DespachoFilters): Promise<Despacho[]> {
-        try {
-            const despachos = await apiRequest<Despacho[]>(
-                logisticsEndpoint(endpoints.logistics.despachos)
-            )
+function applyFilters(despachos: Despacho[], filters?: DespachoFilters): Despacho[] {
+    let result = despachos
 
-            let result = despachos
+    if (filters?.estado_viaje) {
+        result = result.filter(d => d.estado_viaje === filters.estado_viaje)
+    }
 
-            if (filters?.estado_viaje) {
-                result = result.filter(d => d.estado_viaje === filters.estado_viaje)
-            }
+    if (filters?.conductor_id) {
+        result = result.filter(d => d.conductor_id === filters.conductor_id)
+    }
 
-            if (filters?.conductor_id) {
-                result = result.filter(d => d.conductor_id === filters.conductor_id)
-            }
+    if (filters?.vehiculo_id) {
+        result = result.filter(d => d.vehiculo_id === filters.vehiculo_id)
+    }
 
-            if (filters?.vehiculo_id) {
-                result = result.filter(d => d.vehiculo_id === filters.vehiculo_id)
-            }
+    if (filters?.fecha_desde) {
+        const desde = new Date(filters.fecha_desde)
+        result = result.filter(d => d.fecha_programada && new Date(d.fecha_programada) >= desde)
+    }
 
-            if (filters?.fecha_desde) {
-                const desde = new Date(filters.fecha_desde)
-                result = result.filter(d => d.fecha_programada && new Date(d.fecha_programada) >= desde)
-            }
+    if (filters?.fecha_hasta) {
+        const hasta = new Date(filters.fecha_hasta)
+        result = result.filter(d => d.fecha_programada && new Date(d.fecha_programada) <= hasta)
+    }
 
-            if (filters?.fecha_hasta) {
-                const hasta = new Date(filters.fecha_hasta)
-                result = result.filter(d => d.fecha_programada && new Date(d.fecha_programada) <= hasta)
-            }
+    return result
+}
 
-            return result.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.list', { filters })
-            throw error
-        }
+function sortByCreation(despachos: Despacho[]): Despacho[] {
+    return [...despachos].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+}
+
+async function fetchAndFilter(filters?: DespachoFilters): Promise<Despacho[]> {
+    const data = await ApiService.get<Despacho[]>(logisticsEndpoint(endpoints.logistics.despachos))
+    return sortByCreation(applyFilters(data, filters))
+}
+
+async function updateDespacho(id: string, payload: UpdateDespachoDto): Promise<Despacho> {
+    return await ApiService.put<Despacho>(logisticsEndpoint(endpoints.logistics.despachoById(id)), payload)
+}
+
+const rawService = {
+    list: fetchAndFilter,
+
+    getById: async (id: string): Promise<Despacho> => {
+        return await ApiService.get<Despacho>(logisticsEndpoint(endpoints.logistics.despachoById(id)))
     },
 
-    async getById(id: string): Promise<Despacho> {
-        try {
-            return await apiRequest<Despacho>(
-                logisticsEndpoint(endpoints.logistics.despachoById(id))
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.getById', { id })
-            throw error
-        }
+    create: async (payload: CreateDespachoDto): Promise<Despacho> => {
+        return await ApiService.post<Despacho>(logisticsEndpoint(endpoints.logistics.despachos), payload)
     },
 
-    async create(data: CreateDespachoDto): Promise<Despacho> {
-        try {
-            return await apiRequest<Despacho>(
-                logisticsEndpoint(endpoints.logistics.despachos),
-                {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.create', { data })
-            throw error
-        }
+    update: updateDespacho,
+
+    delete: async (id: string): Promise<void> => {
+        await ApiService.delete<void>(logisticsEndpoint(endpoints.logistics.despachoById(id)))
     },
 
-    async update(id: string, data: UpdateDespachoDto): Promise<Despacho> {
-        try {
-            return await apiRequest<Despacho>(
-                logisticsEndpoint(endpoints.logistics.despachoById(id)),
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.update', { id, data })
-            throw error
-        }
-    },
-
-    async delete(id: string): Promise<void> {
-        try {
-            await apiRequest<void>(
-                logisticsEndpoint(endpoints.logistics.despachoById(id)),
-                {
-                    method: 'DELETE'
-                }
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.delete', { id })
-            throw error
-        }
-    },
-
-    async cambiarEstado(id: string, nuevoEstado: DespachoEstadoViaje): Promise<Despacho> {
+    cambiarEstado: async (id: string, nuevoEstado: DespachoEstadoViaje): Promise<Despacho> => {
         const update: UpdateDespachoDto = { estado_viaje: nuevoEstado }
 
         if (nuevoEstado === 'EN_RUTA') {
@@ -192,41 +161,16 @@ export const DespachosService = {
             update.hora_fin_real = new Date().toISOString()
         }
 
-        return this.update(id, update)
+        return await updateDespacho(id, update)
     },
 
-    async getEnRuta(): Promise<Despacho[]> {
-        return this.list({ estado_viaje: 'EN_RUTA' })
+    getEnRuta: async (): Promise<Despacho[]> => {
+        return await fetchAndFilter({ estado_viaje: 'EN_RUTA' })
     },
 
-    async getStats(): Promise<DespachoStats> {
-        try {
-            const despachos = await this.list()
-
-            return {
-                total: despachos.length,
-                planificacion: despachos.filter(d => d.estado_viaje === 'PLANIFICACION').length,
-                confirmado: despachos.filter(d => d.estado_viaje === 'CONFIRMADO').length,
-                enRuta: despachos.filter(d => d.estado_viaje === 'EN_RUTA').length,
-                completado: despachos.filter(d => d.estado_viaje === 'COMPLETADO').length,
-                cancelado: despachos.filter(d => d.estado_viaje === 'CANCELADO').length,
-                pesoTotalKg: despachos.reduce((sum, d) => sum + (parseFloat(d.peso_total_kg) || 0), 0),
-            }
-        } catch (error) {
-            logErrorForDebugging(error, 'DespachosService.getStats')
-            throw error
-        }
-    },
-
-    getEstadoBadgeColor(estado: DespachoEstadoViaje): string {
-        return DESPACHO_ESTADO_COLORS[estado] || '#6B7280'
-    },
-
-    getEstadoLabel(estado: DespachoEstadoViaje): string {
-        return DESPACHO_ESTADO_LABELS[estado] || estado
-    },
-
-    formatCodigoManifiesto(codigo: number | null): string {
-        return codigo ? `#${codigo.toString().padStart(4, '0')}` : 'Sin Código'
-    },
+    formatCodigoManifiesto: (codigo?: number | null): string => {
+        return formatDespachoCodigoManifiesto(codigo)
+    }
 }
+
+export const DespachosService = createService('DespachosService', rawService)

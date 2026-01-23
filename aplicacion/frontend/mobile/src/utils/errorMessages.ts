@@ -201,15 +201,58 @@ function isUserFriendlyMessage(message: string): boolean {
  * Registra el error en consola para debugging (solo en desarrollo)
  * sin exponer detalles al usuario
  */
+type SanitizedError = {
+    message: string
+    name?: string
+    stack?: string
+}
+
+function sanitizeError(error: unknown): SanitizedError {
+    if (error instanceof Error) {
+        const sanitized: SanitizedError = {
+            message: error.message || 'Error desconocido',
+            name: error.name,
+            stack: __DEV__ ? error.stack : undefined,
+        }
+        return sanitized
+    }
+
+    if (typeof error === 'string') {
+        return { message: error }
+    }
+
+    if (typeof error === 'object' && error !== null) {
+        return {
+            message: 'Error técnico',
+            name: (error as any).name,
+        }
+    }
+
+    return { message: 'Error desconocido' }
+}
+
+function reportError(context: string, sanitized: SanitizedError, additionalInfo?: Record<string, unknown>) {
+    if (__DEV__) {
+        console.error(`[${context}]`, {
+            error: sanitized,
+            ...(additionalInfo && { info: additionalInfo }),
+        })
+        return
+    }
+
+    const payload = {
+        context,
+        message: sanitized.message,
+        name: sanitized.name,
+    }
+    console.error(`[${context}]`, payload)
+}
+
 export function logErrorForDebugging(
     error: unknown,
     context: string,
     additionalInfo?: Record<string, unknown>
 ): void {
-    if (__DEV__) {
-        console.error(`[${context}] Error:`, {
-            error,
-            ...(additionalInfo && { info: additionalInfo }),
-        })
-    }
+    const sanitized = sanitizeError(error)
+    reportError(context, sanitized, additionalInfo)
 }

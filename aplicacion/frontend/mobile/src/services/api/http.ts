@@ -37,11 +37,81 @@ function getUserFriendlyHttpMessage(status: number, backendMessage?: string): st
   }
 }
 
+function sanitizeHeaders(rawHeaders?: Record<string, string>): Record<string, string> {
+  if (!rawHeaders) return {}
+  const headers: Record<string, string> = {}
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    if (value == null) continue
+    const trimmed = value.toString().trim()
+    if (trimmed.length === 0) continue
+    headers[key] = trimmed
+  }
+  return headers
+}
+
+function removeUnsafeValues(value: unknown): unknown {
+  if (value === null || value === undefined) return undefined
+
+  if (typeof value === 'function') return undefined
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+
+  if (Array.isArray(value)) {
+    const filtered = value.map(removeUnsafeValues).filter(item => item !== undefined)
+    return filtered
+  }
+
+  if (typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {}
+    for (const [key, raw] of Object.entries(value)) {
+      const cleaned = removeUnsafeValues(raw)
+      if (cleaned !== undefined) {
+        sanitized[key] = cleaned
+      }
+    }
+    return sanitized
+  }
+
+  return undefined
+}
+
+function sanitizeRequestBody(body: unknown): string | undefined {
+  if (body === null || body === undefined) return undefined
+  const cleaned = removeUnsafeValues(body)
+  try {
+    return cleaned === undefined ? undefined : JSON.stringify(cleaned)
+  } catch {
+    return undefined
+  }
+}
+
+function safeParseJson(text: string): unknown | null {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+function sanitizeResponsePayload(payload: unknown): unknown {
+  if (payload === null || payload === undefined) return payload
+  if (typeof payload === 'string' || typeof payload === 'number' || typeof payload === 'boolean') {
+    return payload
+  }
+  try {
+    return JSON.parse(JSON.stringify(payload))
+  } catch {
+    return payload
+  }
+}
+
 export async function http<T>(path: string, options: HttpOptions = {}): Promise<T> {
   const baseUrl = env.api.baseUrl
   if (!baseUrl) throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE)
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers ?? {}) }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...sanitizeHeaders(options.headers),
+  }
   if (options.auth !== false) {
     const token = await getValidToken()
     if (token && !('Authorization' in headers)) headers.Authorization = `Bearer ${token}`
@@ -52,7 +122,7 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
     res = await fetch(`${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body == null ? undefined : JSON.stringify(options.body),
+      body: sanitizeRequestBody(options.body),
     })
   } catch (networkError) {
     logErrorForDebugging(networkError, 'http.network', { path })
@@ -71,15 +141,13 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
 
   const text = await res.text().catch(() => '')
   const isJson = (res.headers.get('content-type') ?? '').includes('application/json')
-  const data = (isJson ? (() => { try { return JSON.parse(text) } catch { return null } })() : null) as
-    | T
-    | { message?: string }
-    | null
+  const parsedJson = isJson ? safeParseJson(text) : null
+  const sanitizedData = sanitizeResponsePayload(parsedJson ?? text) as T | { message?: string } | null
 
   if (!res.ok) {
-    const backendMessage = typeof (data as { message?: string } | null)?.message === 'string'
-      ? (data as { message: string }).message
-      : undefined
+  const backendMessage = typeof (sanitizedData as { message?: string } | null)?.message === 'string'
+    ? (sanitizedData as { message: string }).message
+    : undefined
 
     logErrorForDebugging(
       new Error(`HTTP ${res.status}`),
@@ -88,14 +156,14 @@ export async function http<T>(path: string, options: HttpOptions = {}): Promise<
     )
 
     const userMessage = getUserFriendlyHttpMessage(res.status, backendMessage)
-    throw new ApiError(userMessage, res.status, data ?? text)
+    throw new ApiError(userMessage, res.status, sanitizedData ?? text)
   }
 
-  if (data == null && !text) {
+  if (sanitizedData == null && !text) {
     logErrorForDebugging(new Error('Empty response'), 'http.emptyResponse', { path })
     throw new ApiError(ERROR_MESSAGES.SERVER_UNAVAILABLE, res.status)
   }
 
-  if (data == null) return {} as T
-  return data as T
+  if (sanitizedData == null) return {} as T
+  return sanitizedData as T
 }

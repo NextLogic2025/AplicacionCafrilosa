@@ -1,4 +1,5 @@
 import { httpCatalogo, httpUsuarios, httpOrders } from '../../../services/api/http'
+import { env } from '../../../config/env'
 import { getToken } from '../../../services/storage/tokenStorage'
 import type {
   PerfilCliente,
@@ -267,7 +268,9 @@ export async function getProductos(options?: { page?: number; per_page?: number;
   if (catalogResp && Array.isArray(catalogResp.items)) {
     const mapped = catalogResp.items.map((p: any) => {
       // El backend devuelve precio_lista y promociones
-      const precioLista = typeof p.precio_lista === 'number' ? p.precio_lista : 0
+      const precioListaRaw = p.precio_lista ?? p.price ?? 0
+      const precioLista = Number(precioListaRaw) // Robust parse
+      if (Number.isNaN(precioLista)) console.warn('[clientApi] Invalid price:', p)
 
       // Calcular precio de oferta desde promociones
       let precioOferta: number | null = null
@@ -282,17 +285,22 @@ export async function getProductos(options?: { page?: number; per_page?: number;
       const effectivePrice = precioOferta != null ? precioOferta : precioLista
       const ahorro = precioOferta != null && precioLista > 0 ? Math.round((precioLista - precioOferta) * 100) / 100 : null
 
+      // Map variable backend fields
+      const description = (p.descripcion ?? p.description ?? '').toString()
+      const rawImage = p.imagen_url ?? p.image_url ?? p.imagen ?? p.image ?? null
+      const image = rawImage ? (rawImage.startsWith('http') ? rawImage : `${env.api.catalogo}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`) : null
+
       return ({
         id: p.id,
         name: (p.nombre ?? p.codigo_sku ?? '').toString(),
-        description: (p.descripcion ?? '') as string,
+        description,
         price: effectivePrice,
         precio_original: precioLista,
         precio_oferta: precioOferta,
         ahorro: ahorro,
         promociones: Array.isArray(p.promociones) ? p.promociones : [],
         campania_aplicada_id: p.promociones?.[0]?.campana_id ?? null,
-        image: p.imagen_url ?? null,
+        image,
         category: (p.categoria && (p.categoria.nombre ?? p.categoria)) ?? '',
         inStock: Boolean(p.activo ?? true),
         unidad_medida: p.unidad_medida ?? undefined,

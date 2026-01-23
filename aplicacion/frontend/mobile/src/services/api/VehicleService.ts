@@ -1,4 +1,5 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
@@ -54,43 +55,48 @@ export const VEHICLE_ESTADO_COLORS: Record<VehicleEstado, string> = {
     DISPONIBLE: '#10B981',
     EN_RUTA: '#3B82F6',
     MANTENIMIENTO: '#F59E0B',
-    INACTIVO: '#6B7280',
+    INACTIVO: '#6B7280'
 }
 
 export const VEHICLE_ESTADO_LABELS: Record<VehicleEstado, string> = {
     DISPONIBLE: 'Disponible',
     EN_RUTA: 'En Ruta',
     MANTENIMIENTO: 'Mantenimiento',
-    INACTIVO: 'Inactivo',
+    INACTIVO: 'Inactivo'
 }
 
 const logisticsEndpoint = (path: string) => `${env.api.logisticsUrl}${path}`
 
-export const VehicleService = {
+async function fetchVehiclesFromApi(): Promise<Vehicle[]> {
+    return ApiService.get<Vehicle[]>(logisticsEndpoint(endpoints.logistics.vehiculos))
+}
+
+function applyFilters(vehicles: Vehicle[], filters?: VehicleFilters): Vehicle[] {
+    let result = vehicles
+
+    if (filters?.estado) {
+        result = result.filter(v => v.estado === filters.estado)
+    }
+
+    if (filters?.search) {
+        const searchLower = filters.search.toLowerCase()
+        result = result.filter(v =>
+            v.placa.toLowerCase().includes(searchLower) ||
+            (v.marca && v.marca.toLowerCase().includes(searchLower)) ||
+            (v.modelo && v.modelo.toLowerCase().includes(searchLower))
+        )
+    }
+
+    return result.sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+}
+
+const rawService = {
     async list(filters?: VehicleFilters): Promise<Vehicle[]> {
         try {
-            const vehicles = await apiRequest<Vehicle[]>(
-                logisticsEndpoint(endpoints.logistics.vehiculos)
-            )
-
-            let result = vehicles
-
-            if (filters?.estado) {
-                result = result.filter(v => v.estado === filters.estado)
-            }
-
-            if (filters?.search) {
-                const searchLower = filters.search.toLowerCase()
-                result = result.filter(v =>
-                    v.placa.toLowerCase().includes(searchLower) ||
-                    (v.marca && v.marca.toLowerCase().includes(searchLower)) ||
-                    (v.modelo && v.modelo.toLowerCase().includes(searchLower))
-                )
-            }
-
-            return result.sort((a, b) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )
+            const vehicles = await fetchVehiclesFromApi()
+            return applyFilters(vehicles, filters)
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.list', { filters })
             throw error
@@ -99,9 +105,7 @@ export const VehicleService = {
 
     async getById(id: string): Promise<Vehicle> {
         try {
-            return await apiRequest<Vehicle>(
-                logisticsEndpoint(endpoints.logistics.vehiculoById(id))
-            )
+            return await ApiService.get<Vehicle>(logisticsEndpoint(endpoints.logistics.vehiculoById(id)))
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.getById', { id })
             throw error
@@ -110,13 +114,7 @@ export const VehicleService = {
 
     async create(data: CreateVehicleDto): Promise<Vehicle> {
         try {
-            return await apiRequest<Vehicle>(
-                logisticsEndpoint(endpoints.logistics.vehiculos),
-                {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                }
-            )
+            return await ApiService.post<Vehicle>(logisticsEndpoint(endpoints.logistics.vehiculos), data)
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.create', { data })
             throw error
@@ -125,13 +123,7 @@ export const VehicleService = {
 
     async update(id: string, data: UpdateVehicleDto): Promise<Vehicle> {
         try {
-            return await apiRequest<Vehicle>(
-                logisticsEndpoint(endpoints.logistics.vehiculoById(id)),
-                {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                }
-            )
+            return await ApiService.put<Vehicle>(logisticsEndpoint(endpoints.logistics.vehiculoById(id)), data)
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.update', { id, data })
             throw error
@@ -140,12 +132,7 @@ export const VehicleService = {
 
     async delete(id: string): Promise<void> {
         try {
-            await apiRequest<void>(
-                logisticsEndpoint(endpoints.logistics.vehiculoById(id)),
-                {
-                    method: 'DELETE'
-                }
-            )
+            await ApiService.delete<void>(logisticsEndpoint(endpoints.logistics.vehiculoById(id)))
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.delete', { id })
             throw error
@@ -153,20 +140,19 @@ export const VehicleService = {
     },
 
     async getDisponibles(): Promise<Vehicle[]> {
-        return this.list({ estado: 'DISPONIBLE' })
+        return rawService.list({ estado: 'DISPONIBLE' })
     },
 
     async getStats(): Promise<VehicleStats> {
         try {
-            const vehicles = await this.list()
-
+            const vehicles = await rawService.list()
             return {
                 total: vehicles.length,
                 disponibles: vehicles.filter(v => v.estado === 'DISPONIBLE').length,
                 enRuta: vehicles.filter(v => v.estado === 'EN_RUTA').length,
                 mantenimiento: vehicles.filter(v => v.estado === 'MANTENIMIENTO').length,
                 inactivos: vehicles.filter(v => v.estado === 'INACTIVO').length,
-                capacidadTotal: vehicles.reduce((sum, v) => sum + (parseFloat(v.capacidad_kg || '0') || 0), 0),
+                capacidadTotal: vehicles.reduce((sum, v) => sum + (parseFloat(v.capacidad_kg || '0') || 0), 0)
             }
         } catch (error) {
             logErrorForDebugging(error, 'VehicleService.getStats')
@@ -184,5 +170,7 @@ export const VehicleService = {
 
     getEstadoLabel(estado: VehicleEstado): string {
         return VEHICLE_ESTADO_LABELS[estado] || estado
-    },
+    }
 }
+
+export const VehicleService = createService('VehicleService', rawService)

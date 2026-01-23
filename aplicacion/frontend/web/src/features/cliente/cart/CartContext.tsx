@@ -33,8 +33,8 @@ type CartContextValue = {
 
 const CartContext = React.createContext<CartContextValue | null>(null)
 
-const noop = () => {}
-const noopAsync = async () => {}
+const noop = () => { }
+const noopAsync = async () => { }
 
 const fallbackCartValue: CartContextValue = {
   items: [],
@@ -100,7 +100,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [removedItems, setRemovedItems] = React.useState<Array<{ producto_id: string; campania_aplicada_id?: number | null }>>([])
   const [lastAction, setLastAction] = React.useState<CartActionEvent | null>(null)
   const pendingRemovalsRef = React.useRef(new Set<string>())
+
   const inflightUpsertsRef = React.useRef(new Map<string, Promise<void>>())
+  const syncTimersRef = React.useRef(new Map<string, number>())
 
   const applyServerSnapshot = React.useCallback((cart: BackendCart) => {
     setItems(prev => {
@@ -140,17 +142,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const syncItemQuantity = React.useCallback(
     (productId: string, quantity: number) => {
       if (!getToken()) return
-      const operation = (async () => {
-        try {
-          const resp = await upsertCartItem({ producto_id: productId, cantidad: quantity })
-          if (resp) applyServerSnapshot(resp)
-        } catch {
-          // ignore server errors, keep optimistic state
-        } finally {
-          inflightUpsertsRef.current.delete(productId)
-        }
-      })()
-      inflightUpsertsRef.current.set(productId, operation)
+
+      // Debounce: Clear existing timer
+      if (syncTimersRef.current.has(productId)) {
+        window.clearTimeout(syncTimersRef.current.get(productId))
+      }
+
+      const timerId = window.setTimeout(() => {
+        syncTimersRef.current.delete(productId)
+        const operation = (async () => {
+          try {
+            const resp = await upsertCartItem({ producto_id: productId, cantidad: quantity })
+            if (resp) applyServerSnapshot(resp)
+          } catch {
+            // ignore server errors, keep optimistic state
+          } finally {
+            inflightUpsertsRef.current.delete(productId)
+          }
+        })()
+        inflightUpsertsRef.current.set(productId, operation)
+      }, 500) // 500ms debounce
+
+      syncTimersRef.current.set(productId, timerId)
     },
     [applyServerSnapshot],
   )
@@ -233,7 +246,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setRemovedItems([])
     setLastAction(null)
     if (!getToken()) return
-    clearCartRemote().catch(() => {})
+    clearCartRemote().catch(() => { })
   }, [])
 
   const total = React.useMemo(() => items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0), [items])
