@@ -77,16 +77,7 @@ export class OrderListenerService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`Pedido aprobado, notificando a logistica: ${id}`);
 
         try {
-            let reservationId: string | null = null;
-            try {
-                const res = await this.pgClient.query('SELECT reservation_id FROM pedidos WHERE id = $1', [id]);
-                if (res && res.rows && res.rows.length) reservationId = res.rows[0].reservation_id || null;
-            } catch (e) {
-                this.logger.warn('No se pudo obtener reservation_id del pedido', { pedidoId: id, error: e?.message || e });
-            }
-
-            const bodyToSend: any = reservationId ? { pedido_id: id, reservation_id: reservationId } : { pedido_id: id };
-
+            const bodyToSend: any = { pedido_id: id };
             try {
                 await this.warehouseExternal.confirmPicking(bodyToSend);
                 this.logger.debug('Warehouse picking confirmed for pedido', { pedidoId: id });

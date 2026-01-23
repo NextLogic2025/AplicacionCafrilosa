@@ -13,12 +13,4 @@ export class WarehouseExternalService {
   async getPicking(pickingId: string): Promise<any> {
     return this.serviceHttp.get<any>('warehouse-service', `/picking/internal/${pickingId}`);
   }
-
-  async reserveStock(payload: any): Promise<any> {
-    return this.serviceHttp.post<any>('warehouse-service', '/reservations/internal', payload);
-  }
-
-  async deleteReservation(reservationId: string): Promise<any> {
-    return this.serviceHttp.delete<any>('warehouse-service', `/reservations/internal/${reservationId}`);
-  }
 }

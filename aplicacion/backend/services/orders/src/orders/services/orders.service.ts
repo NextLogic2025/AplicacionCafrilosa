@@ -50,22 +50,6 @@ export class OrdersService {
     }
   }
 
-  private async _reserveStockInWarehouse(createOrderDto: CreateOrderDto): Promise<string | null> {
-    try {
-      // Map items to the Warehouse reservations contract (productId, quantity)
-      const payload = {
-        tempId: null,
-        items: (createOrderDto.items || []).map(i => ({ productId: (i as any).producto_id ?? (i as any).product_id, quantity: (i as any).cantidad ?? (i as any).quantity }))
-      };
-      const res = await this.warehouseExternal.reserveStock(payload);
-      // Warehouse returns { id }
-      return res?.id ?? null;
-    } catch (err) {
-      this.logger.warn('Error reserving stock in warehouse', { error: err?.message || err });
-      throw new BadRequestException('No se pudo reservar stock para el pedido');
-    }
-  }
-
   private async _resolveLocation(createOrderDto: CreateOrderDto) {
     try {
       if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) return createOrderDto.ubicacion;
@@ -80,15 +64,7 @@ export class OrdersService {
     }
   }
 
-  private async _rollbackReservation(reservationId: string | null) {
-    if (!reservationId) return;
-    try {
-      // The warehouse exposes DELETE /reservations/:id to cancel a reservation
-      await this.warehouseExternal.deleteReservation(reservationId);
-    } catch (e) {
-      this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
-    }
-  }
+  // Reservations are no longer created by Orders; reservation helpers removed
 
   async findAllByClient(userId: string): Promise<Pedido[]> {
     return this.pedidoRepo.find({
@@ -135,7 +111,7 @@ export class OrdersService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    let reservationId: string | null = null;
+    // Reservations are not created here anymore
 
     try {
       // Paralelizar: resolución de ubicación y cálculo de precios en batch
@@ -145,7 +121,6 @@ export class OrdersService {
 
       const results = await Promise.all(promises);
       // resultados posicionales: [ubicacion?, precios?]
-      reservationId = null; // Reservas en Warehouse ya no se crean al crear pedidos
       let ubicacionPedido: { lng: number; lat: number } | null = null;
       let preciosBatch: any[] = [];
       if (results.length === 1) {
@@ -195,7 +170,6 @@ export class OrdersService {
         impuestos_total,
         total_final,
         estado_actual: 'PENDIENTE',
-        reservation_id: reservationId || null,
       });
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
@@ -279,7 +253,6 @@ export class OrdersService {
 
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      try { await this._rollbackReservation(reservationId); } catch (e) { /* swallow */ }
 
       this.logger.error('Error al crear pedido', { error: err?.message || err, stack: err?.stack, dto: createOrderDto });
       if (err instanceof BadRequestException || err instanceof ConflictException || err instanceof NotFoundException || err instanceof HttpException) {
@@ -429,25 +402,7 @@ export class OrdersService {
 
       // Al hacer commit, se dispararán los triggers de pg_notify del SQL
       await queryRunner.commitTransaction();
-      // If the pedido was set to ANULADO, attempt to release warehouse reservation
-      try {
-        const estadoUpper = String(nuevoEstado).toUpperCase();
-        if (estadoUpper === 'ANULADO' || estadoUpper === 'RECHAZADO') {
-          // try to obtain reservation_id
-          try {
-            const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
-            const reservationId = res && res[0] ? res[0].reservation_id || null : null;
-            if (reservationId) {
-              await this.warehouseExternal.deleteReservation(reservationId);
-              this.logger.debug('Released warehouse reservation after pedido ' + estadoUpper, { pedidoId, reservationId });
-            }
-          } catch (err) {
-            this.logger.warn('Could not release warehouse reservation after pedido ' + estadoUpper, { pedidoId, error: err?.message || err });
-          }
-        }
-      } catch (e) {
-        this.logger.warn('Unexpected error in post-updateStatus release logic', { error: e?.message || e });
-      }
+      // No-op: reservation handling removed from Orders
 
       return this.findOne(pedidoId);
     } catch (err) {
@@ -525,21 +480,7 @@ export class OrdersService {
       await queryRunner.commitTransaction();
 
       this.logger.debug('Pedido ' + pedidoId + ' cancelado por usuario ' + (usuarioId || 'desconocido'));
-      // After successfully cancelling the pedido, attempt to release warehouse reservation if present
-      try {
-        try {
-          const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
-          const reservationId = res && res[0] ? res[0].reservation_id || null : null;
-          if (reservationId) {
-            await this.warehouseExternal.deleteReservation(reservationId);
-            this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
-          }
-        } catch (err) {
-          this.logger.warn('Could not release warehouse reservation after cancelOrder', { pedidoId, error: err?.message || err });
-        }
-      } catch (e) {
-        this.logger.warn('Unexpected error in post-cancel release logic', { error: e?.message || e });
-      }
+      // No-op: reservation handling removed from Orders
 
       return this.findOne(pedidoId);
     } catch (err) {
