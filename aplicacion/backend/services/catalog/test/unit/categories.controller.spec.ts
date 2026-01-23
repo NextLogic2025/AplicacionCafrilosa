@@ -25,9 +25,9 @@ describe('CategoriesController', () => {
   });
 
   it('should call findOne', async () => {
-    mockSvc.findOne.mockResolvedValue({ id: 'c1' });
-    const res = await controller.findOne('c1');
-    expect(mockSvc.findOne).toHaveBeenCalledWith('c1');
-    expect(res).toEqual({ id: 'c1' });
+    mockSvc.findOne.mockResolvedValue({ id: 1 });
+    const res = await controller.findOne(1);
+    expect(mockSvc.findOne).toHaveBeenCalledWith(1);
+    expect(res).toEqual({ id: 1 });
   });
 });

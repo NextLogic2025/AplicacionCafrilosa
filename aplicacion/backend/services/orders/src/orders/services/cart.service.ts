@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, DataSource, EntityManager } from 'typeorm';
 import { CarritoCabecera } from '../entities/carrito-cabecera.entity';
 import { CarritoItem } from '../entities/carrito-item.entity';
 import { UpdateCartItemDto } from '../dto/requests/update-cart.dto';
 import { ServiceHttpClient } from '../../common/http/service-http-client.service';
+import { CatalogExternalService } from '../../common/external/catalog.external.service';
 
 @Injectable()
 export class CartService {
@@ -13,7 +14,7 @@ export class CartService {
     constructor(
         @InjectRepository(CarritoCabecera) private readonly cartRepo: Repository<CarritoCabecera>,
         @InjectRepository(CarritoItem) private readonly itemRepo: Repository<CarritoItem>,
-        private readonly serviceHttp: ServiceHttpClient,
+        private readonly catalogExternal: CatalogExternalService,
     ) { }
 
     /**
@@ -30,10 +31,7 @@ export class CartService {
         // Si es vendedor, intentar resolver cliente desde Catalog usando el id del path (que puede ser cliente_id)
         if (vendedor_id) {
             try {
-                const body = await this.serviceHttp.get<any>(
-                    'catalog-service',
-                    `/internal/clients/${originalParamId}`,
-                );
+                const body = await this.catalogExternal.getClientByPath(originalParamId);
                 resolvedClienteId = body?.id ?? null;
                 resolvedUsuarioId = body?.usuario_principal_id ?? resolvedUsuarioId;
                 this.logger.debug('Resolved client for vendor cart', { originalParamId, cliente_id: resolvedClienteId, usuario_principal_id: resolvedUsuarioId, vendedor_id });
@@ -73,10 +71,7 @@ export class CartService {
 
             // Resolver cliente_id
             try {
-                const body = await this.serviceHttp.get<any>(
-                    'catalog-service',
-                    `/internal/clients/by-user/${resolvedUsuarioId}`,
-                );
+                const body = await this.catalogExternal.getClientByUser(resolvedUsuarioId);
                 if (body && body.id) {
                     cart.cliente_id = body.id;
                     await this.cartRepo.save(cart);
@@ -99,10 +94,7 @@ export class CartService {
             this.logger.debug('Found existing cart', { cartId: cart.id, usuario_id: resolvedUsuarioId, vendedor_id: vendedor_id || null, cliente_id: cart.cliente_id });
             if (vendedor_id && !cart.cliente_id) {
                 try {
-                    const body = await this.serviceHttp.get<any>(
-                        'catalog-service',
-                        `/internal/clients/by-user/${resolvedUsuarioId}`,
-                    );
+                    const body = await this.catalogExternal.getClientByUser(resolvedUsuarioId);
                     if (body && body.id) {
                         cart.cliente_id = body.id;
                         await this.cartRepo.save(cart);
@@ -130,11 +122,7 @@ export class CartService {
             if (cart.items && cart.items.length) {
                 try {
                     const ids = cart.items.map((it: any) => it.producto_id);
-                    const data = await this.serviceHttp.post<any[]>(
-                        'catalog-service',
-                        '/products/internal/batch',
-                        { ids, cliente_id: cart.cliente_id ?? undefined },
-                    );
+                    const data = await this.catalogExternal.batchProducts(ids, cart.cliente_id ?? undefined);
 
                     const map = new Map<string, any>();
                     (data || []).forEach((p: any) => map.set(String(p.id), p));
@@ -163,6 +151,29 @@ export class CartService {
                     (cart as any).warnings.push({ issue: 'catalog_batch_error', message: err?.message || String(err) });
                 }
             }
+        }
+
+        // Enriquecer items con nombre_producto y codigo_sku desde Catalog (para la respuesta al cliente)
+        try {
+            if (cart && cart.items && cart.items.length) {
+                const ids = cart.items.map((it: any) => it.producto_id);
+                const products = await this.catalogExternal.batchProducts(ids, cart.cliente_id ?? undefined);
+
+                const map = new Map<string, any>();
+                (products || []).forEach((p: any) => map.set(String(p.id), p));
+
+                for (const item of cart.items) {
+                    const prod = map.get(String(item.producto_id));
+                    if (prod) {
+                        (item as any).nombre_producto = prod.nombre ?? prod.nombre_producto ?? (item as any).nombre_producto ?? null;
+                        (item as any).codigo_sku = prod.codigo_sku ?? (item as any).codigo_sku ?? null;
+                    }
+                }
+            }
+        } catch (err) {
+            this.logger.warn('No se pudieron enriquecer los items del carrito desde Catalog', { cartId: cart?.id, error: err?.message || String(err) });
+            (cart as any).warnings = (cart as any).warnings || [];
+            (cart as any).warnings.push({ issue: 'catalog_enrich_error', message: err?.message || String(err) });
         }
 
         return cart;
@@ -202,11 +213,7 @@ export class CartService {
                 let campaniaAplicada = dto.campania_aplicada_id ?? null;
 
                 try {
-                    const arr = await this.serviceHttp.post<any[]>(
-                        'catalog-service',
-                        '/products/internal/batch',
-                        { ids: [dto.producto_id], cliente_id: cart.cliente_id ?? undefined },
-                    );
+                    const arr = await this.catalogExternal.batchProducts([dto.producto_id], cart.cliente_id ?? undefined);
                     const best = Array.isArray(arr) && arr.length ? arr[0] : null;
                     if (best) {
                         if (best.promocion?.precio_final != null) {
@@ -220,10 +227,7 @@ export class CartService {
                             let chosenPrice: number | null = null;
                             try {
                                 if (cart.cliente_id) {
-                                    const clientBody = await this.serviceHttp.get<any>(
-                                        'catalog-service',
-                                        `/internal/clients/${cart.cliente_id}`,
-                                    );
+                                    const clientBody = await this.catalogExternal.getClientByPath(cart.cliente_id);
                                     const listaId = clientBody?.lista_precios_id ?? null;
                                     if (listaId && Array.isArray(best.precios) && best.precios.length) {
                                         const match = best.precios.find((p: any) => Number(p.lista_id) === Number(listaId));
@@ -298,20 +302,9 @@ export class CartService {
     async removeItem(usuario_id: string, producto_id: string, vendedor_id?: string): Promise<{ success: boolean }> {
         this.logger.debug(`Eliminando producto ${producto_id} del carrito del usuario ${usuario_id} (vendedor_id=${vendedor_id || 'null'})`);
 
-        const whereCondition: any = {
-            usuario_id,
-            deleted_at: IsNull()
-        };
-
-        if (vendedor_id) {
-            whereCondition['vendedor_id'] = vendedor_id;
-        } else {
-            whereCondition['vendedor_id'] = IsNull();
-        }
-
-        const cart = await this.cartRepo.findOne({
-            where: whereCondition,
-        });
+        // Usar getOrCreateCart para asegurar que resolvemos el usuario/cliente correctamente (igual que al agregar)
+        // Esto maneja la lógica de si usuario_id es realmente un cliente_id
+        const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
         if (!cart) {
             this.logger.warn(`No se encontró carrito para usuario ${usuario_id}`);
@@ -332,20 +325,9 @@ export class CartService {
     async clearCart(usuario_id: string, vendedor_id?: string): Promise<void> {
         this.logger.debug(`Vaciando carrito del usuario ${usuario_id} (vendedor: ${vendedor_id || 'cliente'})`);
 
-        const whereCondition: any = {
-            usuario_id,
-            deleted_at: IsNull()
-        };
+        // Usar getOrCreateCart para asegurar consistencia en la búsqueda
+        const cart = await this.getOrCreateCart(usuario_id, vendedor_id);
 
-        if (vendedor_id) {
-            whereCondition['vendedor_id'] = vendedor_id;
-        } else {
-            whereCondition['vendedor_id'] = IsNull();
-        }
-
-        const cart = await this.cartRepo.findOne({
-            where: whereCondition,
-        });
 
         if (!cart) {
             this.logger.warn(`No se encontró carrito para usuario ${usuario_id} vendedor ${vendedor_id || 'cliente'}`);
@@ -398,21 +380,17 @@ export class CartService {
      * Se ejecuta después de cualquier modificación de items
      */
     async recalculateTotals(carrito_id: string): Promise<number> {
-        const items = await this.itemRepo.find({ where: { carrito_id } });
+        // Usar SUM en BD para evitar traer todos los items a memoria
+        const raw: any = await this.itemRepo
+            .createQueryBuilder('item')
+            .select('SUM(item.cantidad * item.precio_unitario_ref)', 'total')
+            .where('item.carrito_id = :id', { id: carrito_id })
+            .getRawOne();
 
-        const total_estimado = items.reduce((acc, item) => {
-            const cantidad = Number(item.cantidad) || 0;
-            const precio = Number(item.precio_unitario_ref) || 0;
-            return acc + (cantidad * precio);
-        }, 0);
+        const nuevoTotal = parseFloat(raw?.total) || 0;
 
-        this.logger.debug(`Recalculando totales para carrito ${carrito_id}: ${items.length} items, total=${total_estimado}`);
-
-        await this.cartRepo.update(carrito_id, { total_estimado });
-        return total_estimado;
+        await this.cartRepo.update(carrito_id, { total_estimado: nuevoTotal });
+        this.logger.debug(`Recalculando totales para carrito ${carrito_id}: total=${nuevoTotal}`);
+        return nuevoTotal;
     }
 }
-
-
-
-

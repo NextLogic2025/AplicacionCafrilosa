@@ -33,7 +33,7 @@ describe('ServiceHttpClient', () => {
     process.env.CATALOG_SERVICE_URL = 'http://localhost:3001';
     process.env.ORDERS_SERVICE_URL = 'http://localhost:3002';
     process.env.WAREHOUSE_SERVICE_URL = 'http://localhost:3003';
-    process.env.VENTAS_SERVICE_URL = 'http://localhost:3004';
+    process.env.FINANCE_SERVICE_URL = 'http://localhost:3004';
     process.env.AUTH_SERVICE_URL = 'http://localhost:3005';
     process.env.SERVICE_TOKEN = 'test-service-token';
 

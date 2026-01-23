@@ -1,15 +1,32 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, Req, Patch, Delete, Query, ParseIntPipe, BadRequestException, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
-
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ClientesService } from '../clientes/clientes.service';
-
 import { PreciosService } from './precios.service';
 import { CreatePrecioDto } from './dto/create-precio.dto';
 import { CreateListaPrecioDto } from './dto/create-lista-precio.dto';
+import { IsArray, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
+// DTO para validar el endpoint batch (S2S)
+class BatchItemDto {
+  @IsUUID()
+  id: string; // producto_id
+  @IsOptional()
+  cantidad?: number;
+}
+class BatchCalculationDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BatchItemDto)
+  items: BatchItemDto[];
+
+  @IsOptional()
+  @IsUUID()
+  cliente_id?: string;
+}
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('precios')
 export class PreciosController {
   constructor(
@@ -17,159 +34,110 @@ export class PreciosController {
     private readonly clientesService: ClientesService
   ) { }
 
-  // --- GESTIÓN DE PRECIOS ---
+  // --- GESTIÓN DE PRECIOS (ADMIN) ---
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   asignar(@Body() dto: CreatePrecioDto) {
     return this.preciosService.asignarPrecio(dto);
   }
 
-  @Get('producto/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor', 'cliente')
-  async verPrecios(@Param('id') id: string, @Req() req: any) {
-    // Verificar si es cliente y restringir
-    const clientListaId = await this.resolveClientListaId(req);
-
-    if (clientListaId) {
-      // Si es cliente, pedir directamente al servicio el precio para su lista
-      return this.preciosService.obtenerPreciosDeProductoParaLista(id, clientListaId);
-    }
-
-    // Admin/Staff ven todos
-    return this.preciosService.obtenerPreciosDeProducto(id);
-  }
-
-  // Internal S2S endpoint: permite llamadas desde otros servicios con SERVICE_TOKEN
-  @Get('internal/producto/:id')
-  @UseGuards(ServiceAuthGuard)
-  async verPreciosInternal(@Param('id') id: string, @Req() req: any) {
-    return this.preciosService.obtenerPreciosDeProducto(id);
-  }
-
   @Delete('lista/:listaId/producto/:productoId')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   removePrecio(
     @Param('listaId', ParseIntPipe) listaId: number,
-    @Param('productoId') productoId: string
+    @Param('productoId', ParseUUIDPipe) productoId: string
   ) {
     return this.preciosService.removePrecio(listaId, productoId);
   }
 
-  // --- GESTIÓN DE LISTAS ---
+  // --- CONSULTAS PÚBLICAS Y MIXTAS ---
 
-  @Get('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor')
-  listarListas() {
-    return this.preciosService.findAllListas();
-  }
-
-  @Post('listas')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  crearLista(@Body() dto: CreateListaPrecioDto) {
-    return this.preciosService.createLista(dto);
-  }
-
-  @Patch('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  actualizarLista(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateListaPrecioDto>) {
-    return this.preciosService.updateLista(id, dto);
-  }
-
-  @Delete('listas/:id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor')
-  eliminarLista(@Param('id', ParseIntPipe) id: number) {
-    return this.preciosService.deleteLista(id);
-  }
-
-  // --- VISTAS ESPECIALES ---
-
-  @Get('lista/:id/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('admin', 'supervisor', 'vendedor')
-  listarProductosConPrecio(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('page') page: string,
-    @Query('q') q: string
-  ) {
-    return this.preciosService.productosConPrecioParaLista(id, {
-      page: Number(page),
-      q
-    });
-  }
-
-  // Nueva ruta: Obtener productos con precio y promociones en base al cliente
-  // Soporta ambas rutas: cuando el cliente consulta desde su token
-  // y cuando un admin/supervisor/vendedor consulta para un cliente específico
-  @Get('cliente/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Get('producto/:id')
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
-  async listarProductosParaCliente(
-    @Query('page') page: string,
-    @Query('q') q: string,
-    @Req() req: any,
-    @Param('clienteId') clienteId?: string,
-  ) {
-
+  async verPrecios(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
     const user = req.user;
-    const roles = Array.isArray(user?.role)
-      ? user.role.map((r: any) => String(r).toLowerCase())
-      : [String(user?.role || '').toLowerCase()];
+    const isClient = this.checkRole(user, 'cliente');
 
-    if (!user || !roles.includes('cliente') || !user.userId) {
-      throw new BadRequestException('Cliente no proporcionado en token');
+    // Si es cliente, solo ve SU precio final calculado
+    if (isClient) {
+      const listaId = await this.resolveListaIdForUser(user.userId);
+      return this.preciosService.obtenerPreciosDeProductoParaLista(id, listaId);
     }
 
-    const clienteToken = await this.clientesService.findByUsuarioPrincipalId(user.userId);
-    if (!clienteToken) throw new NotFoundException('Cliente no encontrado');
-
-    const listaId = clienteToken.lista_precios_id ?? 1;
-    return this.preciosService.productosConPrecioParaLista(listaId, {
-      page: Number(page),
-      q,
-    });
+    // Admin/Vendedor ven la tabla cruda de precios de todas las listas
+    return this.preciosService.obtenerPreciosDeProducto(id);
   }
 
-  // Ruta explícita para consultar precios de un cliente por su id
-  // para ser usada por vendedores/supervisores (token del user no es necesario)
+  // --- VISTAS DE CATÁLOGO ---
+
+  // 1. Cliente viendo SU propio catálogo
+  @Get('mis-precios/productos')
+  @Roles('cliente')
+  async listarMisProductos(
+    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
+    @Query('q') q: string,
+    @Req() req: any,
+  ) {
+    const listaId = await this.resolveListaIdForUser(req.user.userId);
+    return this.preciosService.productosConPrecioParaLista(listaId, { page, q });
+  }
+
+  // 2. Vendedor simulando ver el catálogo de un cliente específico
   @Get('cliente/:clienteId/productos')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
-  async listarProductosParaClientePorId(
-    @Param('clienteId') clienteId: string,
-    @Query('page') page: string,
+  async listarProductosComoCliente(
+    @Param('clienteId', ParseUUIDPipe) clienteId: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('q') q: string,
   ) {
     const cliente = await this.clientesService.findOne(clienteId);
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
-
+    
     const listaId = cliente.lista_precios_id ?? 1;
-    return this.preciosService.productosConPrecioParaLista(listaId, {
-      page: Number(page),
-      q,
-    });
+    return this.preciosService.productosConPrecioParaLista(listaId, { page, q });
   }
 
-  // --- HELPER PRIVADO ---
+  // --- GESTIÓN DE LISTAS DE PRECIOS (ADMIN) ---
 
-  private async resolveClientListaId(req: any): Promise<number | null> {
-    const user = req.user;
-    const roles = Array.isArray(user?.role)
-      ? user.role.map((r: any) => String(r).toLowerCase())
-      : [String(user?.role || '').toLowerCase()];
+  @Get('listas')
+  @Roles('admin', 'supervisor', 'vendedor', 'bodeguero', 'transportista')
+  async listarListas() {
+    return this.preciosService.findAllListas();
+  }
 
-    if (roles.includes('cliente')) {
-      // Buscar lista asignada al cliente
-      const cliente = await this.clientesService.findByUsuarioPrincipalId(user.userId);
-      return cliente?.lista_precios_id || null;
-    }
-    return null;
+  @Post('listas')
+  @Roles('admin', 'supervisor')
+  async crearLista(@Body() dto: CreateListaPrecioDto) {
+    return this.preciosService.createLista(dto);
+  }
+
+  @Patch('listas/:id')
+  @Roles('admin', 'supervisor')
+  async editarLista(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: Partial<CreateListaPrecioDto>
+  ) {
+    return this.preciosService.updateLista(id, dto);
+  }
+
+  @Delete('listas/:id')
+  @Roles('admin', 'supervisor')
+  async eliminarLista(@Param('id', ParseIntPipe) id: number) {
+    return this.preciosService.deleteLista(id);
+  }
+
+  // --- HELPERS ---
+
+  private checkRole(user: any, role: string): boolean {
+      if (!user?.role) return false;
+      const roles = Array.isArray(user.role) ? user.role : [user.role];
+      return roles.map(r => String(r).toLowerCase()).includes(role.toLowerCase());
+  }
+
+  private async resolveListaIdForUser(usuarioId: string): Promise<number> {
+    const cliente = await this.clientesService.findByUsuarioPrincipalId(usuarioId);
+    if (!cliente) throw new NotFoundException('Perfil de cliente no encontrado');
+    return cliente.lista_precios_id ?? 1;
   }
 }

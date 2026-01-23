@@ -1,11 +1,11 @@
 import { IsString, IsIn, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateFromCartDto {
-  @IsString({ message: 'condicion_pago es requerido y debe ser string' })
+  @IsString({ message: 'forma_pago_solicitada es requerido y debe ser string' })
   @IsIn(['CONTADO', 'CREDITO', 'TRANSFERENCIA', 'CHEQUE'], {
-    message: 'condicion_pago debe ser uno de: CONTADO, CREDITO, TRANSFERENCIA, CHEQUE',
+    message: 'forma_pago_solicitada debe ser uno de: CONTADO, CREDITO, TRANSFERENCIA, CHEQUE',
   })
-  condicion_pago: string;
+  forma_pago_solicitada: string;
 
   @IsOptional()
   @IsUUID()

@@ -11,6 +11,9 @@ import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { ReservationItem } from '../reservations/entities/reservation-item.entity';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
+import { CatalogExternalService } from '../common/external/catalog.external.service';
+import { OrdersExternalService } from '../common/external/orders.external.service';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 @Injectable()
 export class PickingService {
@@ -31,16 +34,14 @@ export class PickingService {
         private readonly reservationRepo: Repository<Reservation>,
         @InjectRepository(ReservationItem)
         private readonly reservationItemRepo: Repository<ReservationItem>,
-        private readonly serviceHttp: ServiceHttpClient,
+        private readonly catalogExternal: CatalogExternalService,
+        private readonly ordersExternal: OrdersExternalService,
+        private readonly usuariosExternal: UsuariosExternalService,
     ) { }
 
     private async fetchProductInfo(productId: string) {
         try {
-            const arr = await this.serviceHttp.post<any[]>(
-                'catalog-service',
-                '/products/internal/batch',
-                { ids: [productId] },
-            );
+            const arr = await this.catalogExternal.batchProducts([productId]);
             if (Array.isArray(arr) && arr.length) {
                 const body = arr[0];
                 const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
@@ -57,10 +58,7 @@ export class PickingService {
 
     private async fetchOrderInfo(pedidoId: string) {
         try {
-            const body = await this.serviceHttp.get<any>(
-                'orders-service',
-                `/orders/${pedidoId}`,
-            );
+            const body = await this.ordersExternal.getOrder(pedidoId);
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
                 clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
@@ -74,11 +72,7 @@ export class PickingService {
 
     private async fetchUserInfo(userId: string) {
         try {
-            const body = await this.serviceHttp.post<any[]>(
-                'usuarios-service',
-                '/usuarios/batch/internal',
-                { ids: [userId] },
-            );
+            const body = await this.usuariosExternal.batchUsuarios([userId]);
             if (!Array.isArray(body) || body.length === 0) return null;
             const u = body[0];
             return {
@@ -297,6 +291,23 @@ export class PickingService {
         };
     }
 
+    async findAlternativeStocks(productoId: string) {
+        return this.stockRepo.createQueryBuilder('s')
+            .innerJoinAndSelect('s.lote', 'l')
+            .innerJoinAndSelect('s.ubicacion', 'u')
+            .where('l.producto_id = :productoId', { productoId })
+            .andWhere('l.estado_calidad = :estado', { estado: 'LIBERADO' })
+            .andWhere('s.cantidad_fisica - s.cantidad_reservada > 0')
+            .orderBy('l.fecha_vencimiento', 'ASC')
+            .addOrderBy('u.es_cuarentena', 'ASC')
+            .getMany()
+            .then(stocks => stocks.map(s => ({
+                ubicacion: s.ubicacion,
+                lote: s.lote,
+                cantidadDisponible: Number(s.cantidadFisica) - Number(s.cantidadReservada)
+            })));
+    }
+
     private async reservarStock(ubicacionId: string, loteId: string, cantidad: number) {
         const stock = await this.stockRepo.findOne({ where: { ubicacionId, loteId } });
         if (!stock) throw new NotFoundException('Stock no encontrado');
@@ -336,12 +347,7 @@ export class PickingService {
             const pedidoId = (orden as any).pedidoId;
             if (pedidoId) {
                 const headers = authHeader ? { Authorization: authHeader } : undefined;
-                await this.serviceHttp.patch(
-                    'orders-service',
-                    `/orders/${pedidoId}/status`,
-                    { status: 'EN_PREPARACION' },
-                    { headers },
-                );
+                await this.ordersExternal.patchStatus(pedidoId, { status: 'EN_PREPARACION' }, headers);
             }
         } catch (err) {
             this.logger.error('Error while notifying Orders service about picking assignment', err?.message || err);
@@ -370,7 +376,8 @@ export class PickingService {
         return this.findOne(id);
     }
 
-    async registrarPickeo(pickingId: string, itemId: string, cantidadPickeada: number, loteConfirmado?: string) {
+    async registrarPickeo(pickingId: string, itemId: string, cantidadPickeada: number, loteConfirmado?: string, motivoDesviacion?: string, notasBodeguero?: string, ubicacionConfirmada?: string) {
+        this.logger.log(`Registrar pickeo: id=${pickingId} item=${itemId} qty=${cantidadPickeada} dev=${motivoDesviacion} note=${notasBodeguero} loc=${ubicacionConfirmada}`);
         const item = await this.itemRepo.findOne({ where: { id: itemId, pickingId } });
         if (!item) throw new NotFoundException('Item de picking no encontrado');
 
@@ -381,10 +388,68 @@ export class PickingService {
         if (!lote) throw new BadRequestException('Lote no encontrado');
         if (lote.productoId !== item.productoId) throw new BadRequestException('El lote no corresponde al producto');
 
+        // If worker picked from a different lote than the suggested one, split the line
+        // creating a new picking item for the confirmed lote and adjusting the original
+        // requested quantity so inventory/kardex accounting works per-lote.
+        if (loteConfirmado && item.loteSugerido && loteConfirmado !== item.loteSugerido) {
+            return this.itemRepo.manager.transaction(async (manager) => {
+                const itemRepo = manager.getRepository(PickingItem);
+
+                // Create a new line representing the picked quantity from the different lote
+                const newLine = itemRepo.create({
+                    pickingId: item.pickingId,
+                    productoId: item.productoId,
+                    cantidadSolicitada: cantidadPickeada,
+                    cantidadPickeada: cantidadPickeada,
+                    loteSugerido: null,
+                    loteConfirmado: loteConfirmado,
+                    estadoLinea: Number(cantidadPickeada) >= Number(cantidadPickeada) ? 'COMPLETADO' : 'PARCIAL',
+                    motivoDesviacion,
+                    notasBodeguero,
+                    ubicacionOrigenSugerida: ubicacionConfirmada || item.ubicacionOrigenSugerida // Use new location if provided
+                    // But if we are splitting, we are saying "I found X amount here". 
+                    // If the user entered a deviation reason, it applies to this specific pick action. 
+                    // However, deviation usually implies "I couldn't find enough".
+                    // If I picked from a DIFFERENT lote, I presumably found what I looked for there?
+                    // Let's assume the reason/notes apply to the record we are creating/updating.
+                } as any);
+
+                await itemRepo.save(newLine);
+
+                // Decrement the original requested quantity by the amount already picked
+                const remaining = Math.max(0, Number(item.cantidadSolicitada) - Number(cantidadPickeada));
+                item.cantidadSolicitada = remaining as any;
+
+                // Ensure original picked amount does not exceed the new requested amount
+                if (Number(item.cantidadPickeada) > Number(item.cantidadSolicitada)) {
+                    item.cantidadPickeada = Number(item.cantidadSolicitada) as any;
+                }
+
+                // Update estadoLinea of original
+                item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : (Number(item.cantidadPickeada) === 0 ? 'PENDIENTE' : 'PARCIAL');
+                item.updatedAt = new Date();
+
+                // If the user provided notes/deviation, we might want to attach them to the original line too if it remains open/partial?
+                // But for now sticking to attaching to the action line (newLine) seems safest or just attaching to item?
+                // Actually, if I split, "item" is the original line (requested). "newLine" is what I actually picked.
+                // If I have a shortage, I am likely modifying "item" (saying I picked less).
+                // But this block is specifically "Picked from DIFFERENT lote".
+                // If I just picked less from the correct lote, we go to the ELSE block below.
+
+                await itemRepo.save(item as any);
+
+                return newLine;
+            });
+        }
+
+        // Default: same lote (or no suggested lote mismatch) => accumulate on the same line
         item.cantidadPickeada = (Number(item.cantidadPickeada) + cantidadPickeada) as any;
         item.loteConfirmado = loteId;
         item.estadoLinea = Number(item.cantidadPickeada) >= Number(item.cantidadSolicitada) ? 'COMPLETADO' : 'PARCIAL';
         item.updatedAt = new Date();
+
+        if (motivoDesviacion) item.motivoDesviacion = motivoDesviacion;
+        if (notasBodeguero) item.notasBodeguero = notasBodeguero;
 
         await this.itemRepo.save(item);
 
@@ -455,6 +520,34 @@ export class PickingService {
             }
         } catch (e) {
             this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
+        }
+
+        // Notify Orders service: first attempt to POST picking results for reconciliation,
+        // then PATCH the pedido status to PREPARADO. Use best-effort; failures are logged but don't block.
+        try {
+            const ordenRecord2: any = await this.ordenRepo.findOne({ where: { id } });
+            const pedidoId = ordenRecord2?.pedidoId || (orden as any).pedidoId || null;
+            if (pedidoId) {
+                // Build items payload (supporting motivoDesviacion -> motivo_ajuste)
+                const itemsPayload = (items || []).map(it => ({ producto_id: it.productoId, cantidad_pickeada: Number(it.cantidadPickeada || 0), motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion }));
+                try {
+                    await this.ordersExternal.applyPicking(pedidoId, { pickingId: id, items: itemsPayload });
+                    this.logger.log(`Notificado Orders apply-picking para pedido ${pedidoId} desde picking ${id}`);
+                } catch (postErr) {
+                    this.logger.warn('Fallo al notificar Orders apply-picking', { pickingId: id, pedidoId, error: postErr?.message || postErr });
+                }
+
+                try {
+                    await this.ordersExternal.patchStatus(pedidoId, { status: 'PREPARADO' });
+                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
+                } catch (notifyErr) {
+                    this.logger.warn('Fallo al notificar Orders para marcar PREPARADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
+                }
+            } else {
+                this.logger.warn('Picking completado sin pedido asociado - no se notificará Orders', { pickingId: id });
+            }
+        } catch (e) {
+            this.logger.warn('Error preparando notificacion a Orders tras completar picking', { pickingId: id, err: e?.message || e });
         }
 
         return this.findOne(id);

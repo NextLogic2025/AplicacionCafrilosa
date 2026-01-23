@@ -13,12 +13,12 @@ import { CreateClienteDto, UpdateClienteDto } from './dto/create-cliente.dto';
 
 @ApiTags('Clientes')
 @ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('clientes')
 export class ClientesController {
   constructor(private svc: ClientesService) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'transportista')
   @ApiOperation({ summary: 'Listar todos los clientes activos' })
   @ApiResponse({ status: 200, description: 'Lista de clientes enriquecida.', type: [Cliente] })
@@ -27,21 +27,18 @@ export class ClientesController {
   }
 
   @Get('bloqueados')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   listarBloqueados() {
     return this.svc.findBlocked();
   }
 
   @Put(':id/desbloquear')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   desbloquear(@Param('id') id: string) {
     return this.svc.unblock(id);
   }
 
   @Get('mis')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor')
   mis(@Req() req: any) {
     const vendedorId = req.user?.userId;
@@ -49,7 +46,6 @@ export class ClientesController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'vendedor', 'cliente')
   findOne(@Req() req: any, @Param('id') id: string) {
     const rawRole = req.user?.role;
@@ -69,7 +65,6 @@ export class ClientesController {
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   @ApiOperation({ summary: 'Crear nuevo cliente' })
   @ApiResponse({ status: 201, description: 'Cliente creado correctamente.', type: Cliente })
@@ -78,7 +73,6 @@ export class ClientesController {
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   @ApiOperation({ summary: 'Actualizar datos de cliente' })
   async update(
@@ -105,7 +99,6 @@ export class ClientesController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor', 'cliente')
   async remove(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const rawRole = req.user?.role;

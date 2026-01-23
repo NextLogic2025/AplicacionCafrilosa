@@ -5,6 +5,8 @@ import { Reservation } from './entities/reservation.entity';
 import { ReservationItem } from './entities/reservation-item.entity';
 import { StockUbicacion } from '../stock/entities/stock-ubicacion.entity';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
+import { CatalogExternalService } from '../common/external/catalog.external.service';
+import { OrdersExternalService } from '../common/external/orders.external.service';
 
 @Injectable()
 export class ReservationsService {
@@ -13,16 +15,14 @@ export class ReservationsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly serviceHttp: ServiceHttpClient,
+    private readonly catalogExternal: CatalogExternalService,
+    private readonly ordersExternal: OrdersExternalService,
   ) {}
 
   private async fetchProductInfo(productId: string) {
     try {
       this.logger.debug(`Calling catalog internal batch for product ${productId}`);
-      const arr = await this.serviceHttp.post<any[]>(
-        'catalog-service',
-        '/products/internal/batch',
-        { ids: [productId] },
-      );
+      const arr = await this.catalogExternal.batchProducts([productId]);
       if (Array.isArray(arr) && arr.length) {
         const body = arr[0];
         const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
@@ -41,10 +41,7 @@ export class ReservationsService {
 
   private async fetchOrderInfo(pedidoId: string) {
     try {
-      const body = await this.serviceHttp.get<any>(
-        'orders-service',
-        `/orders/${pedidoId}`,
-      );
+      const body = await this.ordersExternal.getOrder(pedidoId);
       return {
         numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
         clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,

@@ -33,14 +33,22 @@ export class Pedido {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   total_final: number;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  monto_pagado: number;
+  // Facturación
+  @Column({ type: 'uuid', nullable: true })
+  factura_id: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  factura_numero: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  url_pdf_factura: string | null;
+
+  @Column({ type: 'varchar', length: 20, default: 'CREDITO' })
+  forma_pago_solicitada: string;
 
   @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
   estado_pago: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  condicion_pago: string;
 
   @Column({ type: 'uuid', nullable: true })
   reservation_id: string | null;

@@ -8,6 +8,9 @@ import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { CartService } from './cart.service';
 import { ServiceHttpClient } from '../../common/http/service-http-client.service';
+import { CatalogExternalService } from '../../common/external/catalog.external.service';
+import { WarehouseExternalService } from '../../common/external/warehouse.external.service';
+import { FinanceExternalService } from '../../common/external/finance.external.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,7 +19,9 @@ export class OrdersService {
     private dataSource: DataSource,
     @InjectRepository(Pedido) private readonly pedidoRepo: Repository<Pedido>,
     @Inject(forwardRef(() => CartService)) private readonly cartService: CartService,
-    private readonly serviceHttp: ServiceHttpClient,
+    private readonly catalogExternal: CatalogExternalService,
+    private readonly warehouseExternal: WarehouseExternalService,
+    private readonly financeExternal: FinanceExternalService,
   ) { }
 
   // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
@@ -24,15 +29,64 @@ export class OrdersService {
     if (!campaniaId) return false;
     // Preferir llamada al servicio Catalog si está disponible
     try {
-      const data = await this.serviceHttp.get<any>(
-        'catalog-service',
-        `/promociones/${campaniaId}/productos`,
-      );
+      const data = await this.catalogExternal.getClientByPath(`/promociones/${campaniaId}/productos` as any);
       const items = Array.isArray(data?.items) ? data.items : [];
       return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
     } catch (err) {
       this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
       return false;
+    }
+  }
+
+  // Helpers para optimizaciones: batch prices, reserva y ubicación
+  private async _getBatchPricesFromCatalog(createOrderDto: CreateOrderDto) {
+    const productPayload = (createOrderDto.items || []).map(i => ({ id: i.producto_id, cantidad: i.cantidad }));
+    try {
+      const preciosBatch = await this.catalogExternal.calculateBatchPrices(productPayload, createOrderDto.cliente_id);
+      return preciosBatch || [];
+    } catch (err) {
+      this.logger.warn('Error fetching batch prices from catalog', { error: err?.message || err });
+      return [];
+    }
+  }
+
+  private async _reserveStockInWarehouse(createOrderDto: CreateOrderDto): Promise<string | null> {
+    try {
+      // Map items to the Warehouse reservations contract (productId, quantity)
+      const payload = {
+        tempId: null,
+        items: (createOrderDto.items || []).map(i => ({ productId: (i as any).producto_id ?? (i as any).product_id, quantity: (i as any).cantidad ?? (i as any).quantity }))
+      };
+      const res = await this.warehouseExternal.reserveStock(payload);
+      // Warehouse returns { id }
+      return res?.id ?? null;
+    } catch (err) {
+      this.logger.warn('Error reserving stock in warehouse', { error: err?.message || err });
+      throw new BadRequestException('No se pudo reservar stock para el pedido');
+    }
+  }
+
+  private async _resolveLocation(createOrderDto: CreateOrderDto) {
+    try {
+      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) return createOrderDto.ubicacion;
+      if (createOrderDto.sucursal_id) {
+        const suc = await this.catalogExternal.getSucursal(createOrderDto.sucursal_id);
+        if (suc?.location) return suc.location;
+      }
+      return null;
+    } catch (err) {
+      this.logger.warn('Error resolving location', { error: err?.message || err });
+      return null;
+    }
+  }
+
+  private async _rollbackReservation(reservationId: string | null) {
+    if (!reservationId) return;
+    try {
+      // The warehouse exposes DELETE /reservations/:id to cancel a reservation
+      await this.warehouseExternal.deleteReservation(reservationId);
+    } catch (e) {
+      this.logger.warn('Error rolling back reservation', { reservationId, error: e?.message || e });
     }
   }
 
@@ -76,102 +130,48 @@ export class OrdersService {
     return qb.orderBy('o.created_at', 'DESC').getMany();
   }
 
-  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false): Promise<Pedido> {
+  async create(createOrderDto: CreateOrderDto, usuarioId?: string, skipCartClear = false, skipPriceResolution = false): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    // Variables que deben estar en scope para manejar compensación en catch
     let reservationId: string | null = null;
 
     try {
-      // Antes de calcular totales, obtener precios canónicos desde Catalog
-      // Reserva síncrona en Warehouse (Camino Dorado)
-      try {
-        const tempId = (globalThis as any).crypto && typeof (globalThis as any).crypto.randomUUID === 'function'
-          ? (globalThis as any).crypto.randomUUID()
-          : ('resv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      // Paralelizar: reserva, resolución de ubicación y cálculo de precios en batch
+      const promises: Promise<any>[] = [];
+      promises.push(this._reserveStockInWarehouse(createOrderDto));
+      promises.push(this._resolveLocation(createOrderDto));
+      if (!skipPriceResolution) promises.push(this._getBatchPricesFromCatalog(createOrderDto));
 
-        const reservationBody = {
-          items: (createOrderDto.items || []).map((it: any) => ({
-            producto_id: it.producto_id ?? it.productId,
-            cantidad: it.cantidad ?? it.quantity,
-            // Propagar sku/codigo_sku tal cual vienen; NO adivinar valores alternativos
-            sku: it.sku ?? null,
-            codigo_sku: it.codigo_sku ?? null,
-          })),
-          temp_id: tempId,
-          pedido_temp_id: tempId
-        };
-
-        this.logger.debug('Attempting warehouse reservation', { items: reservationBody.items?.length });
-        // Log payload to help debugging propagation of sku to Warehouse
-        this.logger.debug('Reservation payload', { reservationBody });
-        const data = await this.serviceHttp.post<any>(
-          'warehouse-service',
-          '/reservations',
-          reservationBody,
-        );
-        reservationId = data?.id ?? tempId;
-        this.logger.debug('Warehouse reservation created', { reservationId });
-      } catch (resErr) {
-        this.logger.warn('Reservation error, aborting order create', { error: resErr?.message || resErr });
-        // Exponer error hacia el cliente: stock insuficiente o warehouse caído
-        if (resErr instanceof BadRequestException) throw resErr;
-        if (resErr instanceof HttpException && resErr.getStatus() === 409) {
-          throw new BadRequestException('Stock insuficiente para los items del pedido');
-        }
-        throw new BadRequestException('Stock insuficiente o servicio de Warehouse no disponible');
+      const results = await Promise.all(promises);
+      // resultados posicionales: [reservationId, ubicacion?, precios?]
+      reservationId = results[0] ?? null;
+      let ubicacionPedido: { lng: number; lat: number } | null = null;
+      let preciosBatch: any[] = [];
+      if (results.length === 2) {
+        if (Array.isArray(results[1])) preciosBatch = results[1]; else ubicacionPedido = results[1];
+      }
+      if (results.length === 3) {
+        ubicacionPedido = results[1];
+        preciosBatch = results[2];
       }
 
-      for (const item of createOrderDto.items) {
-        try {
-          // 1) Intentar obtener la mejor promoción para el cliente
-          let best: any = null;
-          try {
-            best = await this.serviceHttp.get<any>(
-              'catalog-service',
-              `/promociones/internal/mejor/producto/${item.producto_id}?cliente_id=${createOrderDto.cliente_id}`,
-            );
-          } catch (err) {
-            this.logger.debug('Catalog promo call not ok', { producto_id: item.producto_id, error: err?.message || err });
-          }
+      const preciosMap = new Map<string, any>();
+      (preciosBatch || []).forEach(p => preciosMap.set(String(p.producto_id), p));
 
-          if (best && best.precio_final != null) {
-            // Sobrescribir datos del item
-            (item as any).precio_original = best.precio_lista ?? null;
-            (item as any).precio_unitario = best.precio_final;
-            (item as any).campania_aplicada_id = best.campania_id ?? (item as any).campania_aplicada_id ?? null;
-          } else {
-            // 2) Fallback: solicitar precios desde /precios/producto/:id y escoger el menor
-            try {
-              const precios = await this.serviceHttp.get<any>(
-                'catalog-service',
-                `/precios/internal/producto/${item.producto_id}`,
-              );
-              const arr = Array.isArray(precios) ? precios : (precios || []);
-              if (arr.length) {
-                const min = Math.min(...arr.map((p: any) => Number(p.precio || p.price || 0)));
-                (item as any).precio_original = min;
-                (item as any).precio_unitario = min;
-              } else {
-                throw new BadRequestException('No hay precio disponible para el producto ' + item.producto_id);
-              }
-            } catch (err) {
-              this.logger.warn('Catalog precios call failed', { producto_id: item.producto_id, error: err?.message || err });
-              throw new BadRequestException('No se pudo obtener precio para producto ' + item.producto_id);
-            }
-          }
-        } catch (err) {
-          this.logger.warn('Error al resolver precio/campaña para item', { producto: item.producto_id, err: err?.message || err });
-          throw new BadRequestException('Error validando precio para producto ' + item.producto_id);
+      // Asignar precios desde map en memoria
+      for (const item of createOrderDto.items) {
+        if (!skipPriceResolution) {
+          const precioInfo = preciosMap.get(String(item.producto_id));
+          if (!precioInfo) throw new BadRequestException(`No se pudo obtener precio para ${item.producto_id}`);
+          (item as any).precio_unitario = precioInfo.precio_final;
+          (item as any).precio_original = precioInfo.precio_lista;
+          (item as any).campania_aplicada_id = precioInfo.campania_id ?? (item as any).campania_aplicada_id ?? null;
         }
       }
 
       const subtotal = createOrderDto.items.reduce((acc, item) => acc + (Number((item as any).precio_unitario) * item.cantidad), 0);
-
-      // CALCULAR DESCUENTO TOTAL basado en los descuentos de cada item
-      // descuento por item = (precio_original - precio_unitario) * cantidad
       const descuento_total_calculado = createOrderDto.items.reduce((acc, item) => {
         const precioOriginal = Number((item as any).precio_original) || 0;
         const precioFinal = Number((item as any).precio_unitario) || 0;
@@ -179,42 +179,16 @@ export class OrdersService {
         return acc + descuentoLinea;
       }, 0);
 
-      // Si el DTO tiene descuento_total explícito, sumarlo (descuentos adicionales)
       const descuento_total = (createOrderDto.descuento_total ?? 0) + descuento_total_calculado;
       const impuestos_total = (subtotal - descuento_total) * 0.12;
       const total_final = subtotal - descuento_total + impuestos_total;
-
-      // RESOLVER UBICACIÓN: Si hay sucursal_id → ubicación de sucursal, si no → ubicación del cliente
-      let ubicacionPedido: { lng: number; lat: number } | null = null;
-      if (createOrderDto.ubicacion?.lat && createOrderDto.ubicacion?.lng) {
-        // Si viene ubicación explícita en el DTO, usarla
-        ubicacionPedido = { lng: createOrderDto.ubicacion.lng, lat: createOrderDto.ubicacion.lat };
-      } else {
-        try {
-          // Intentar obtener ubicación desde Catalog (cliente o sucursal)
-          const path = createOrderDto.sucursal_id
-            ? `/internal/sucursales/${createOrderDto.sucursal_id}`
-            : `/internal/clients/${createOrderDto.cliente_id}`;
-          this.logger.debug('Fetching ubicaci▋ desde Catalog', { path });
-          const data = await this.serviceHttp.get<any>('catalog-service', path);
-          const ubicacion_gps = data?.ubicacion_gps || data?.ubicacion_direccion;
-          if (ubicacion_gps && typeof ubicacion_gps === 'object' && ubicacion_gps.coordinates) {
-            // GeoJSON format: [lng, lat]
-            ubicacionPedido = { lng: ubicacion_gps.coordinates[0], lat: ubicacion_gps.coordinates[1] };
-          } else if (data?.lat && data?.lng) {
-            ubicacionPedido = { lng: data.lng, lat: data.lat };
-          }
-        } catch (err) {
-          this.logger.debug('No se pudo obtener ubicación desde Catalog', { error: err?.message || err });
-        }
-      }
 
       const nuevoPedido = queryRunner.manager.create(Pedido, {
         cliente_id: createOrderDto.cliente_id,
         vendedor_id: createOrderDto.vendedor_id,
         sucursal_id: createOrderDto.sucursal_id || null,
         observaciones_entrega: createOrderDto.observaciones_entrega || null,
-        condicion_pago: createOrderDto.condicion_pago || 'CONTADO',
+        forma_pago_solicitada: createOrderDto.forma_pago_solicitada || 'CONTADO',
         fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
         origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
         subtotal,
@@ -227,20 +201,20 @@ export class OrdersService {
 
       const pedidoGuardado = await queryRunner.manager.save(nuevoPedido);
 
-      // Guardar ubicación si se resolvió
       if (ubicacionPedido) {
-        await queryRunner.manager.query(
-          `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
-          [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
-        );
+        try {
+          await queryRunner.manager.query(
+            `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
+            [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
+          );
+        } catch (e) { this.logger.warn('No se pudo guardar ubicacion en pedido', { error: e?.message || e }); }
       }
 
-      const detallesGuardados: DetallePedido[] = [];
+      // Validaciones de promoción y preparación de detalles en memoria
+      const detallesEntities = [] as DetallePedido[];
+      const promosEntities: any[] = [];
       for (const item of createOrderDto.items) {
         const tieneDescuento = (item as any).precio_original && (item as any).precio_original > (item as any).precio_unitario;
-
-        // Si el frontend declara una campaña aplicada Y hay descuento real, confiar en que fue validada en el carrito
-        // Solo hacer validación estricta si NO hay descuento (indica que la promo puede haber expirado)
         if ((item as any).campania_aplicada_id && !tieneDescuento) {
           const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id);
           if (!esValida) {
@@ -261,66 +235,58 @@ export class OrdersService {
           campania_aplicada_id: (item as any).campania_aplicada_id || null,
           motivo_descuento: item.motivo_descuento || null,
         });
-        const saved = await queryRunner.manager.save(DetallePedido, detalle);
-        detallesGuardados.push(saved);
+        detallesEntities.push(detalle as any);
 
-        // Guardar promoción aplicada si el frontend indicó una campaña
         if ((item as any).campania_aplicada_id) {
-          try {
-            const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
-            const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
-            const promocion = queryRunner.manager.create(PromocionAplicada, {
-              pedido_id: pedidoGuardado.id,
-              detalle_pedido_id: saved.id,
-              campania_id: (item as any).campania_aplicada_id,
-              tipo_descuento: 'PORCENTAJE',
-              valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
-              monto_aplicado: montoAplicado,
-            });
-            await queryRunner.manager.save(PromocionAplicada, promocion);
-          } catch (promoErr) {
-            this.logger.warn('No se pudo guardar la promoción aplicada', { error: promoErr?.message, campania_id: (item as any).campania_aplicada_id });
-          }
+          const descuentoLinea = ((item as any).precio_original || (item as any).precio_unitario) - (item as any).precio_unitario;
+          const montoAplicado = (descuentoLinea > 0 ? descuentoLinea * item.cantidad : 0);
+          promosEntities.push(queryRunner.manager.create(PromocionAplicada, {
+            pedido_id: pedidoGuardado.id,
+            detalle_pedido_id: null, // se seteará después
+            campania_id: (item as any).campania_aplicada_id,
+            tipo_descuento: 'PORCENTAJE',
+            valor_descuento: (item as any).precio_original != null ? ((item as any).precio_original - (item as any).precio_unitario) : 0,
+            monto_aplicado: montoAplicado,
+          }));
         }
+      }
+
+      // Guardar detalles en bulk
+      const detallesGuardados = await queryRunner.manager.save(DetallePedido, detallesEntities as any[]);
+
+      // Ajustar promociones para referenciar los detalles recién guardados
+      if (promosEntities.length) {
+        promosEntities.forEach((p, idx) => {
+          p.detalle_pedido_id = detallesGuardados[idx] ? detallesGuardados[idx].id : null;
+        });
+        await queryRunner.manager.save(PromocionAplicada, promosEntities as any[]);
       }
 
       await queryRunner.commitTransaction();
 
       if (!skipCartClear) {
         try {
-          // Limpiar carrito: si fue creado por vendedor, limpiar su carrito (vendedor_id)
-          // Si fue creado por cliente, limpiar su carrito (sin vendedor_id)
           if (usuarioId && createOrderDto.vendedor_id && usuarioId === createOrderDto.vendedor_id) {
-            // Carrito del vendedor
             await this.cartService.clearCart(createOrderDto.cliente_id || usuarioId, createOrderDto.vendedor_id);
           } else if (usuarioId) {
-            // Carrito del cliente
             await this.cartService.clearCart(usuarioId);
           }
         } catch (cartError) {
           this.logger.warn('No se pudo vaciar el carrito', { error: cartError.message });
         }
       }
+
       return this.findOne(pedidoGuardado.id);
 
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      // Intentar liberar la reserva en Warehouse si existe
-      try {
-        if (typeof reservationId !== 'undefined' && reservationId) {
-          try {
-              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
-              this.logger.debug('Released warehouse reservation after rollback', { reservationId });
-          } catch (releaseErr) {
-            this.logger.error('CRÍTICO: No se pudo liberar la reserva en Warehouse tras rollback', { reservationId, error: releaseErr?.message || releaseErr });
-          }
-        }
-      } catch (e) {
-        this.logger.warn('Error intentando liberar reserva', { error: e?.message || e });
-      }
+      try { await this._rollbackReservation(reservationId); } catch (e) { /* swallow */ }
 
-      this.logger.error('Error al crear pedido', { error: err.message, stack: err.stack, dto: createOrderDto });
-      throw new InternalServerErrorException('No se pudo procesar el pedido.');
+      this.logger.error('Error al crear pedido', { error: err?.message || err, stack: err?.stack, dto: createOrderDto });
+      if (err instanceof BadRequestException || err instanceof ConflictException || err instanceof NotFoundException || err instanceof HttpException) {
+        throw err;
+      }
+      throw new InternalServerErrorException(err?.message || 'No se pudo procesar el pedido.');
     } finally {
       await queryRunner.release();
     }
@@ -332,7 +298,7 @@ export class OrdersService {
    * - Construye un CreateOrderDto mínimo
    * - Llama a `create()` para persistir
    */
-  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, condicion_pago?: string, vendedorIdParam?: string | null): Promise<Pedido> {
+  async createFromCart(usuarioIdParam: string, actorUserId?: string, actorRole?: string, sucursal_id?: string, forma_pago_solicitada?: string, vendedorIdParam?: string | null): Promise<Pedido> {
     // 1. Obtener carrito EXACTO del actor
     // - Si vendedorIdParam es null -> cliente carrito (vendedor_id = null)
     // - Si vendedorIdParam tiene valor -> vendedor carrito (vendedor_id = vendedorIdParam)
@@ -356,10 +322,7 @@ export class OrdersService {
     // Si el actor es cliente, intentar resolver el `vendedor_asignado_id` desde Catalog internal
     if (actorRole === 'cliente') {
       try {
-        const clientInfo = await this.serviceHttp.get<any>(
-          'catalog-service',
-          `/internal/clients/${clienteId}`,
-        );
+        const clientInfo = await this.catalogExternal.getClientByPath(clienteId);
         pedidoVendedorId = clientInfo?.vendedor_asignado_id ?? null;
         this.logger.debug('Resolved vendedor_asignado_id from Catalog', { cliente_id: clienteId, vendedor_asignado_id: pedidoVendedorId });
       } catch (err) {
@@ -382,11 +345,7 @@ export class OrdersService {
     // Intentar enriquecer items con datos del Catalog (codigo_sku, nombre_producto)
     try {
       const productIds = items.map(i => i.producto_id);
-      const products = await this.serviceHttp.post<any[]>(
-        'catalog-service',
-        '/products/internal/batch',
-        { ids: productIds, cliente_id: clienteId },
-      );
+      const products = await this.catalogExternal.batchProducts(productIds, clienteId);
       const productMap = Array.isArray(products)
         ? products.reduce((acc: any, p: any) => { acc[p.id] = p; return acc; }, {})
         : {};
@@ -404,7 +363,7 @@ export class OrdersService {
       cliente_id: clienteId,
       vendedor_id: pedidoVendedorId,
       sucursal_id: sucursal_id || null,
-      condicion_pago: condicion_pago,
+      forma_pago_solicitada: forma_pago_solicitada,
       items,
       origen_pedido: 'FROM_CART',
       ubicacion: null,
@@ -489,7 +448,7 @@ export class OrdersService {
             const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
             const reservationId = res && res[0] ? res[0].reservation_id || null : null;
             if (reservationId) {
-              await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+              await this.warehouseExternal.deleteReservation(reservationId);
               this.logger.debug('Released warehouse reservation after pedido ' + estadoUpper, { pedidoId, reservationId });
             }
           } catch (err) {
@@ -582,7 +541,7 @@ export class OrdersService {
           const res = await queryRunner.manager.query('SELECT reservation_id FROM pedidos WHERE id = $1', [pedidoId]);
           const reservationId = res && res[0] ? res[0].reservation_id || null : null;
           if (reservationId) {
-            await this.serviceHttp.delete('warehouse-service', `/reservations/${reservationId}`);
+            await this.warehouseExternal.deleteReservation(reservationId);
             this.logger.debug('Released warehouse reservation after cancelOrder', { pedidoId, reservationId });
           }
         } catch (err) {
@@ -596,6 +555,155 @@ export class OrdersService {
     } catch (err) {
       await queryRunner.rollbackTransaction();
       this.logger.error('Error al cancelar pedido', { error: err.message, pedidoId });
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Aplica el resultado del picking al pedido: ajusta cantidades cuando difieren,
+   * escribe `motivo_ajuste`, recalcula totales y opcionalmente llama a Finance
+   * para crear la factura.
+   * Payload esperado: { pickingId?: string, items: [{ producto_id, cantidad_pickeada, motivo_ajuste? }] }
+   */
+  async applyPickingResult(pedidoId: string, payload: any) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId }, relations: ['detalles'] });
+      if (!pedido) throw new NotFoundException('Pedido no encontrado');
+
+      const itemsFromPicking: Array<any> = Array.isArray(payload.items) ? payload.items : [];
+
+      // Mapear por producto para facilidad. Soportar tanto `producto_id` como `productId`.
+      const pickingMap: Record<string, any> = {};
+      for (const it of itemsFromPicking) {
+        const key = String((it as any).producto_id ?? (it as any).productId ?? (it as any).productoId ?? (it as any).product_id);
+        pickingMap[key] = it;
+      }
+
+      // Ajustes por detalle (modificar en memoria y guardar en bulk)
+      let recalculatedSubtotal = 0;
+      const detallesToSave: any[] = [];
+      for (const detalle of pedido.detalles || []) {
+        const p = pickingMap[String(detalle.producto_id)];
+        if (p && p.cantidad_pickeada != null) {
+          const picked = Number(p.cantidad_pickeada);
+          const original = Number(detalle.cantidad);
+          if (picked !== original) {
+            detalle.cantidad_solicitada = original as any;
+            detalle.motivo_ajuste = p.motivo_ajuste || p.motivo_desviacion || ('Ajuste por picking ' + (payload.pickingId || ''));
+            detalle.cantidad = picked as any;
+            detallesToSave.push(detalle);
+            continue; // ya acumulado, sumar en siguiente sección
+          }
+        }
+        // No modificado: igualmente sumar al subtotal
+      }
+
+      // Recalcular subtotal sumando todas las cantidades actuales
+      for (const detalle of pedido.detalles || []) {
+        const precioFinal = Number(detalle.precio_final || 0);
+        const cantidad = Number(detalle.cantidad || 0);
+        recalculatedSubtotal += precioFinal * cantidad;
+      }
+
+      if (detallesToSave.length) {
+        await queryRunner.manager.save(DetallePedido, detallesToSave);
+      }
+
+      // Recalcular totales
+      const descuento_total = Number(pedido.descuento_total || 0);
+      const impuestos_total = Number((recalculatedSubtotal - descuento_total) * 0.12);
+      const total_final = recalculatedSubtotal - descuento_total + impuestos_total;
+
+      const previousEstado = pedido.estado_actual;
+
+      pedido.subtotal = recalculatedSubtotal as any;
+      pedido.impuestos_total = impuestos_total as any;
+      pedido.total_final = total_final as any;
+      pedido.estado_actual = 'PREPARADO';
+
+      await queryRunner.manager.save(pedido);
+
+      // Registrar en historial (usar estado anterior real)
+      const historial = queryRunner.manager.create(HistorialEstado, {
+        pedido_id: pedidoId,
+        estado_anterior: previousEstado,
+        estado_nuevo: 'PREPARADO',
+        usuario_id: null,
+        comentario: 'Reconciliado con resultado de picking' + (payload.pickingId ? (' id:' + payload.pickingId) : ''),
+      });
+      await queryRunner.manager.save(historial);
+
+      // Llamar a Finance para crear factura (idempotente si ya existe factura_id)
+      try {
+        if (!pedido.factura_id) {
+          // Enriquecer con datos fiscales del cliente desde Catalog (internal)
+          let clienteFiscal: any = null;
+          try {
+            clienteFiscal = await this.catalogExternal.getClientByPath(pedido.cliente_id);
+          } catch (e) {
+            this.logger.warn('No se pudo obtener datos fiscales del cliente desde catalog', { cliente_id: pedido.cliente_id, error: e?.message || e });
+          }
+
+          const rucCliente = clienteFiscal?.identificacion ?? clienteFiscal?.cliente_identificacion ?? '0000000000';
+          const razonSocialCliente = clienteFiscal?.razon_social ?? clienteFiscal?.razonSocial ?? ('Cliente ' + (pedido.cliente_id || '').slice(0, 8));
+
+          const facturaPayload: any = {
+            pedidoId: pedido.id,
+            clienteId: pedido.cliente_id,
+            vendedorId: pedido.vendedor_id || null,
+            rucCliente,
+            razonSocialCliente,
+            subtotal: pedido.subtotal,
+            impuestos: pedido.impuestos_total,
+            totalFinal: pedido.total_final,
+            detalles: (pedido.detalles || []).map((d: any) => ({
+              productoId: d.producto_id,
+              descripcion: d.nombre_producto || d.codigo_sku || null,
+              cantidad: Number(d.cantidad),
+              precioUnitario: Number(d.precio_final),
+              totalLinea: Number(d.cantidad) * Number(d.precio_final),
+            })),
+          };
+
+          let resp: any = null;
+          try {
+            // Use FinanceExternalService to call internal endpoint
+            resp = await this.financeExternal.createFactura(facturaPayload);
+          } catch (postErr) {
+            this.logger.warn('Error creating factura via finance internal POST', { error: postErr?.message || postErr });
+            // try to lookup existing factura by pedidoId as fallback using wrapper
+            try {
+              resp = await this.financeExternal.findByPedido(pedido.id);
+            } catch (getErr) {
+              this.logger.warn('Error looking up factura by pedidoId after failed create', { pedidoId: pedido.id, error: getErr?.message || getErr });
+              resp = null;
+            }
+          }
+
+          if (resp && resp.id) {
+            pedido.factura_id = resp.id;
+            pedido.factura_numero = resp.numeroCompleto || resp.numero || resp.facturaNumero || null;
+            pedido.url_pdf_factura = resp.urlPdf || resp.url_pdf || resp.url || null;
+            pedido.estado_actual = 'FACTURADO';
+            await queryRunner.manager.save(pedido);
+          }
+        }
+      } catch (finErr) {
+        this.logger.warn('No se pudo crear factura en finance-service', { error: finErr?.message || finErr });
+      }
+
+      await queryRunner.commitTransaction();
+
+      return this.findOne(pedidoId);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Error al aplicar resultado de picking', { error: err?.message || err, payload });
       throw err;
     } finally {
       await queryRunner.release();

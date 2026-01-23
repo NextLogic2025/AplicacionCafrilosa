@@ -45,6 +45,12 @@ export class PickingItem {
     @Column({ name: 'estado_linea', length: 20, default: 'PENDIENTE' })
     estadoLinea: string;
 
+    @Column({ name: 'motivo_desviacion', type: 'varchar', length: 50, nullable: true })
+    motivoDesviacion: string | null;
+
+    @Column({ name: 'notas_bodeguero', type: 'text', nullable: true })
+    notasBodeguero: string | null;
+
     @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
     createdAt: Date;
 

@@ -1,10 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  private readonly logger = new Logger(RolesGuard.name);
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -26,26 +26,14 @@ export class RolesGuard implements CanActivate {
 
     if (userRoles.some((ur) => required.includes(ur))) return true;
 
-    const ROLE_NAME_TO_ID: Record<string, number> = {
-      admin: 1,
-      supervisor: 2,
-      bodeguero: 3,
-      vendedor: 4,
-      transportista: 5,
-      cliente: 6,
-    };
-
-    if (user.rolId) {
-      const numericRolId = Number(user.rolId);
-      if (!Number.isNaN(numericRolId)) {
-        const neededIds = required
-          .map((r) => ROLE_NAME_TO_ID[r])
-          .filter((v) => typeof v === 'number') as number[];
-        if (neededIds.includes(numericRolId)) return true;
-      }
+    const ROLE_NAME_TO_ID: Record<string, number> = { admin: 1, supervisor: 2, bodeguero: 3, vendedor: 4, transportista: 5, cliente: 6 };
+    if (user.rolId && typeof user.rolId === 'number') {
+      const neededIds = required
+        .map((r) => ROLE_NAME_TO_ID[r])
+        .filter((v) => typeof v === 'number') as number[];
+      if (neededIds.includes(user.rolId)) return true;
     }
 
-    this.logger.warn('RolesGuard denied: insufficient roles');
     return false;
   }
 }

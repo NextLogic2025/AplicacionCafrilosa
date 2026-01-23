@@ -181,6 +181,8 @@ export class PreciosService {
         id: p.id,
         codigo_sku: p.codigoSku,
         nombre: p.nombre,
+        descripcion: p.descripcion,
+        imagen_url: p.imagenUrl,
         categoria: cat ? { id: cat.id, nombre: cat.nombre } : null,
         unidad_medida: p.unidadMedida,
         precio_lista: precioListaNum, // El precio viene de la tabla intermedia
@@ -215,4 +217,124 @@ export class PreciosService {
       order: { lista_id: 'ASC' },
     });
   }
-}
+
+  /**
+   * Calcula en bloque los precios finales para una lista dada.
+   * items: [{ id: productoId, cantidad? }]
+   */
+  // En PreciosService
+// ... imports y constructor ...
+
+  // --- REEMPLAZA TU MÉTODO calculateBatchForLista CON ESTE ---
+  async calculateBatchForLista(items: Array<{ id: string; cantidad?: number }>, listaId: number) {
+    // 1. Validar input
+    const productIds = Array.from(new Set((items || []).map(i => i.id)));
+    if (!productIds.length) return [];
+
+    // 2. Obtener precios base desde BD (SQL Aggregation)
+    // Busca precio en lista específica, si no existe, busca el mínimo global (fallback)
+    const preciosRaw = await this.precioRepo.createQueryBuilder('pi')
+      .select('pi.producto_id', 'producto_id')
+      .addSelect(`
+          COALESCE(
+              MAX(CASE WHEN pi.lista_id = :listaId THEN pi.precio END), 
+              MIN(pi.precio)
+          )
+      `, 'precio_base')
+      .where('pi.producto_id IN (:...ids)', { ids: productIds })
+      .groupBy('pi.producto_id')
+      .setParameters({ listaId })
+      .getRawMany();
+
+    const preciosMap = new Map<string, number>();
+    preciosRaw.forEach(row => {
+      // Nota: getRawMany devuelve strings para numeros en algunos drivers de PG
+      preciosMap.set(String(row.producto_id), Number(row.precio_base)); 
+    });
+
+    // 3. Cargar Promociones (Usando el método que YA EXISTE en tu PromocionesService)
+    // Filtramos solo productos que tienen precio base para no buscar de más
+    const validProductIds = productIds.filter(id => preciosMap.has(id));
+    let promos: any[] = [];
+    
+    if (validProductIds.length > 0) {
+      // CORRECCIÓN: Usamos findPromosForCliente que ya tenías definido
+      promos = await this.promocionesService.findPromosForCliente(validProductIds, undefined, listaId) as any[];
+    }
+
+    // 4. Calcular precio final en memoria
+    return items.map(item => {
+      const precioBase = preciosMap.get(item.id);
+      
+      // Si no hay precio base, retornamos nulls
+      if (precioBase === undefined || precioBase === null) {
+        return { 
+          producto_id: item.id, 
+          precio_lista: null, 
+          precio_final: null, 
+          campania_id: null 
+        };
+      }
+
+      // Filtrar promos para este producto
+      const misPromos = promos.filter(p => String(p.producto_id) === String(item.id));
+      
+      // CORRECCIÓN: Llamamos al helper privado implementado abajo
+      const mejorOpcion = this.calcularMejorDescuento(precioBase, misPromos);
+
+      return {
+        producto_id: item.id,
+        precio_lista: precioBase,
+        precio_final: mejorOpcion.precio_final,
+        campania_id: mejorOpcion.campania_id
+      };
+    });
+  }
+
+  // --- AGREGA ESTOS MÉTODOS PRIVADOS AL FINAL DE LA CLASE (ANTES DE LA ÚLTIMA }) ---
+
+  /**
+   * Helper para calcular el mejor precio posible dado un precio base y un array de promociones
+   */
+  private calcularMejorDescuento(precioBase: number, promos: any[]) {
+    let mejorPrecio = precioBase;
+    let mejorCampaniaId: number | null = null;
+
+    for (const pr of promos) {
+      const camp = pr.campania || null;
+      if (!camp) continue;
+
+      let precioOferta: number | null = null;
+      const tipo = (camp.tipo_descuento || '').toString().toUpperCase();
+      const valor = Number(camp.valor_descuento || 0);
+
+      // Calcular descuento según tipo
+      if (tipo === 'PORCENTAJE') {
+        precioOferta = precioBase * (1 - valor / 100);
+      } else if (tipo === 'MONTO_FIJO') {
+        precioOferta = precioBase - valor;
+      } else if (pr.precio_oferta_fijo != null) {
+        // Caso especial: precio fijo directo en la tabla intermedia
+        precioOferta = Number(pr.precio_oferta_fijo);
+      }
+
+      // Validar y comparar si es mejor oferta
+      if (precioOferta !== null) {
+        // Sanitizar (no negativos)
+        if (precioOferta < 0) precioOferta = 0;
+        
+        // Redondear a 2 decimales
+        precioOferta = Math.round(precioOferta * 100) / 100;
+
+        // Nos quedamos con el precio más bajo
+        if (precioOferta < mejorPrecio) {
+          mejorPrecio = precioOferta;
+          mejorCampaniaId = pr.campania_id;
+        }
+      }
+    }
+
+    return { precio_final: mejorPrecio, campania_id: mejorCampaniaId };
+  }
+
+} // <--- ASEGÚRATE DE QUE ESTA LLAVE CIERRE LA CLASE PreciosService
