@@ -281,7 +281,7 @@ export function SupervisorClientsScreen({ navigation }: any) {
                         />
                     </View>
                     <TouchableOpacity
-                        className="w-12 h-12 rounded-xl items-center justify-center shadow-lg"
+                        className="w-14 h-14 rounded-2xl items-center justify-center shadow-lg"
                         style={{ backgroundColor: BRAND_COLORS.red }}
                         onPress={() => (navigation as any).navigate('SupervisorClientForm')}
                     >

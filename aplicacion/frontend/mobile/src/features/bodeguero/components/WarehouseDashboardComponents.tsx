@@ -5,24 +5,14 @@ import { BRAND_COLORS } from '../../../shared/types'
 
 import type { RecentActivity, WarehouseStats } from '../../../services/api/WarehouseService'
 
+import { DashboardCard } from '../../../components/ui/DashboardCard'
+
 export function WarehouseKPIs({ stats }: { stats: WarehouseStats }) {
     return (
-        <View className="flex-row justify-between mx-4 mt-4">
-            <StatItem icon="download-outline" label="Pendientes" value={stats.pendingOrders.toString()} color="#3B82F6" />
-            <StatItem icon="cube-outline" label="En Prep." value={stats.preparingOrders.toString()} color="#F59E0B" />
-            <StatItem icon="bus-outline" label="Listos" value={stats.readyOrders.toString()} color="#10B981" />
-        </View>
-    )
-}
-
-function StatItem({ icon, label, value, color }: { icon: any, label: string, value: string, color: string }) {
-    return (
-        <View className="bg-white flex-1 mx-1.5 p-3 rounded-xl items-center shadow-sm border border-neutral-100">
-            <View className="h-8 w-8 rounded-full items-center justify-center mb-1" style={{ backgroundColor: `${color}15` }}>
-                <Ionicons name={icon} size={16} color={color} />
-            </View>
-            <Text className="text-lg font-bold text-neutral-800">{value}</Text>
-            <Text className="text-[10px] text-neutral-400 uppercase font-medium">{label}</Text>
+        <View className="flex-row justify-between mx-4 mt-4 -mx-1.5">
+            <DashboardCard icon="download" label="Pendientes" value={stats.pendingOrders.toString()} color="#3B82F6" columns={3} />
+            <DashboardCard icon="cube" label="En Prep." value={stats.preparingOrders.toString()} color="#F59E0B" columns={3} />
+            <DashboardCard icon="bus" label="Listos" value={stats.readyOrders.toString()} color="#10B981" columns={3} />
         </View>
     )
 }

@@ -1,4 +1,6 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
+import { endpoints } from './endpoints'
 
 export interface Sucursal {
     id: string
@@ -35,28 +37,25 @@ export interface UpdateSucursalPayload {
     activo?: boolean
 }
 
-export const SucursalService = {
+const rawService = {
     getSucursalesByClient: async (clienteId: string): Promise<Sucursal[]> => {
-        return apiRequest<Sucursal[]>(`/api/clientes/${clienteId}/sucursales`)
+        return ApiService.get<Sucursal[]>(endpoints.catalog.sucursalesByClienteId(clienteId))
     },
 
     createSucursal: async (clienteId: string, data: CreateSucursalPayload): Promise<Sucursal> => {
-        return apiRequest<Sucursal>(`/api/clientes/${clienteId}/sucursales`, {
-            method: 'POST',
-            body: JSON.stringify({ ...data, cliente_id: clienteId })
+        return ApiService.post<Sucursal>(endpoints.catalog.sucursalesByClienteId(clienteId), {
+            ...data,
+            cliente_id: clienteId
         })
     },
 
     updateSucursal: async (id: string, data: UpdateSucursalPayload): Promise<Sucursal> => {
-        return apiRequest<Sucursal>(`/api/sucursales/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data)
-        })
+        return ApiService.put<Sucursal>(endpoints.catalog.sucursalById(id), data)
     },
 
     deleteSucursal: async (id: string): Promise<void> => {
-        return apiRequest<void>(`/api/sucursales/${id}`, {
-            method: 'DELETE'
-        })
+        return ApiService.delete<void>(endpoints.catalog.sucursalById(id))
     }
 }
+
+export const SucursalService = createService('SucursalService', rawService)

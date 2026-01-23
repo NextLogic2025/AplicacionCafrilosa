@@ -1,6 +1,7 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export interface Category {
     id: number
@@ -72,42 +73,73 @@ export interface CommercialZone {
     activo: boolean
 }
 
-export interface AuditLog {
-    id: string
-    action: 'CREATE' | 'UPDATE' | 'DELETE'
-    entity: string
-    detail: string
-    user: string
-    time: string
+const defaultProductsResponse = (perPage: number): ProductsResponse => ({
+    metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
+    items: []
+})
+
+type FallbackContext = {
+    context: string
+    details?: Record<string, unknown>
 }
 
-export const CatalogService = {
+function enrichProductItem(item: any): Product {
+    const precioLista = Number(item.precio_lista || 0)
+    let precioOferta: number | undefined
+    let ahorro: number | undefined
+    let campaniaAplicadaId: number | undefined
+
+    if (item.promociones && Array.isArray(item.promociones) && item.promociones.length > 0) {
+        const mejorPromo = item.promociones[0]
+        precioOferta = Number(mejorPromo.precio_oferta || 0)
+        ahorro = precioLista - precioOferta
+        campaniaAplicadaId = mejorPromo.campana_id
+    }
+
+    return {
+        ...item,
+        codigo_sku: item.codigo_sku,
+        precio_original: precioLista,
+        precio_oferta: precioOferta,
+        ahorro,
+        campania_aplicada_id: campaniaAplicadaId,
+        promociones: item.promociones || []
+    }
+}
+
+async function fetchProducts(url: string, perPage: number, fallbackContext: FallbackContext): Promise<ProductsResponse> {
+    try {
+        const response: any = await ApiService.get(url)
+        const items = (response.items || []).map(enrichProductItem)
+        return {
+            metadata: response.metadata,
+            items
+        }
+    } catch (error) {
+        logErrorForDebugging(error, fallbackContext.context, fallbackContext.details)
+        return defaultProductsResponse(perPage)
+    }
+}
+
+const rawService = {
     getCategories: async (): Promise<Category[]> => {
-        return apiRequest<Category[]>(endpoints.catalog.categories)
+        return await ApiService.get<Category[]>(endpoints.catalog.categories)
     },
 
     createCategory: async (data: Partial<Category>): Promise<Category> => {
-        return apiRequest<Category>(endpoints.catalog.categories, {
-            method: 'POST',
-            body: JSON.stringify(data)
-        })
+        return await ApiService.post<Category>(endpoints.catalog.categories, data)
     },
 
     updateCategory: async (id: number, data: Partial<Category>): Promise<Category> => {
-        return apiRequest<Category>(endpoints.catalog.categoryById(id), {
-            method: 'PUT',
-            body: JSON.stringify(data)
-        })
+        return await ApiService.put<Category>(endpoints.catalog.categoryById(id), data)
     },
 
     deleteCategory: async (id: number): Promise<void> => {
-        return apiRequest<void>(endpoints.catalog.categoryById(id), {
-            method: 'DELETE'
-        })
+        await ApiService.delete<void>(endpoints.catalog.categoryById(id))
     },
 
     getProducts: async (): Promise<Product[]> => {
-        const response = await apiRequest<ProductsResponse>(`${endpoints.catalog.products}?per_page=1000`)
+        const response = await ApiService.get<ProductsResponse>(`${endpoints.catalog.products}?per_page=1000`)
         return response.items || []
     },
 
@@ -117,23 +149,16 @@ export const CatalogService = {
         searchQuery?: string,
         clienteId?: string
     ): Promise<ProductsResponse> => {
-        try {
-            const params = new URLSearchParams({
-                page: page.toString(),
-                per_page: perPage.toString()
-            })
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
 
-            if (searchQuery) params.append('q', searchQuery)
-            if (clienteId) params.append('cliente_id', clienteId)
+        if (searchQuery) params.append('q', searchQuery)
+        if (clienteId) params.append('cliente_id', clienteId)
 
-            return await apiRequest<ProductsResponse>(`${endpoints.catalog.products}?${params.toString()}`)
-        } catch (error) {
-            logErrorForDebugging(error, 'CatalogService.getProductsPaginated', { page, searchQuery })
-            return {
-                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
-                items: []
-            }
-        }
+        const url = `${endpoints.catalog.products}?${params.toString()}`
+        return await fetchProducts(url, perPage, { context: 'CatalogService.getProductsPaginated', details: { page, searchQuery } })
     },
 
     getClientProducts: async (
@@ -141,51 +166,42 @@ export const CatalogService = {
         perPage: number = 20,
         searchQuery?: string
     ): Promise<ProductsResponse> => {
-        try {
-            const params = new URLSearchParams({
-                page: page.toString(),
-                per_page: perPage.toString()
-            })
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
 
-            if (searchQuery) params.append('q', searchQuery)
+        if (searchQuery) params.append('q', searchQuery)
 
-            const response: any = await apiRequest(`${endpoints.catalog.preciosClienteProductos}?${params.toString()}`)
+        const url = `${endpoints.catalog.preciosClienteProductos}?${params.toString()}`
+        return await fetchProducts(url, perPage, {
+            context: 'CatalogService.getClientProducts',
+            details: { page, searchQuery }
+        })
+    },
 
-            const transformedItems = response.items.map((item: any) => {
-                const precioLista = Number(item.precio_lista || 0)
-                let precioOferta: number | undefined
-                let ahorro: number | undefined
-                let campaniaAplicadaId: number | undefined
+    getProductsForClient: async (
+        page: number = 1,
+        perPage: number = 20,
+        searchQuery?: string,
+        clientListId?: number
+    ): Promise<ProductsResponse> => {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
 
-                if (item.promociones && Array.isArray(item.promociones) && item.promociones.length > 0) {
-                    const mejorPromo = item.promociones[0]
-                    precioOferta = Number(mejorPromo.precio_oferta || 0)
-                    ahorro = precioLista - precioOferta
-                    campaniaAplicadaId = mejorPromo.campana_id
-                }
+        if (searchQuery) params.append('q', searchQuery)
 
-                return {
-                    ...item,
-                    codigo_sku: item.codigo_sku,
-                    precio_original: precioLista,
-                    precio_oferta: precioOferta,
-                    ahorro: ahorro,
-                    campania_aplicada_id: campaniaAplicadaId,
-                    promociones: item.promociones || []
-                }
-            })
+        const endpoint = clientListId
+            ? endpoints.catalog.preciosListaProductos(clientListId)
+            : endpoints.catalog.preciosClienteProductos
 
-            return {
-                metadata: response.metadata,
-                items: transformedItems
-            }
-        } catch (error) {
-            logErrorForDebugging(error, 'CatalogService.getClientProducts', { page, searchQuery })
-            return {
-                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
-                items: []
-            }
-        }
+        const url = `${endpoint}?${params.toString()}`
+        return await fetchProducts(url, perPage, {
+            context: 'CatalogService.getProductsForClient',
+            details: { page, searchQuery, clientListId }
+        })
     },
 
     getProductsByCategory: async (
@@ -195,30 +211,24 @@ export const CatalogService = {
         searchQuery?: string,
         clienteId?: string
     ): Promise<ProductsResponse> => {
-        try {
-            const params = new URLSearchParams({
-                page: page.toString(),
-                per_page: perPage.toString()
-            })
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString()
+        })
 
-            if (searchQuery) params.append('q', searchQuery)
-            if (clienteId) params.append('cliente_id', clienteId)
+        if (searchQuery) params.append('q', searchQuery)
+        if (clienteId) params.append('cliente_id', clienteId)
 
-            return await apiRequest<ProductsResponse>(
-                `${endpoints.catalog.productsByCategory(categoryId)}?${params.toString()}`
-            )
-        } catch (error) {
-            logErrorForDebugging(error, 'CatalogService.getProductsByCategory', { categoryId, page })
-            return {
-                metadata: { total_items: 0, page: 1, per_page: perPage, total_pages: 0 },
-                items: []
-            }
-        }
+        const url = `${endpoints.catalog.productsByCategory(categoryId)}?${params.toString()}`
+        return await fetchProducts(url, perPage, {
+            context: 'CatalogService.getProductsByCategory',
+            details: { categoryId, page }
+        })
     },
 
     getProductById: async (productId: string): Promise<Product | null> => {
         try {
-            return await apiRequest<Product>(endpoints.catalog.productById(productId))
+            return await ApiService.get<Product>(endpoints.catalog.productById(productId))
         } catch (error) {
             logErrorForDebugging(error, 'CatalogService.getProductById', { productId })
             return null
@@ -227,16 +237,16 @@ export const CatalogService = {
 
     getClientProductDetail: async (productId: string): Promise<Product | null> => {
         try {
-            const firstPage = await CatalogService.getClientProducts(1, 20)
-            const tryFind = (items: Product[]) => items.find((item) => item.id === productId) ?? null
+            const firstPage = await rawService.getClientProducts(1, 20)
+            const findItem = (items: Product[]) => items.find(item => item.id === productId) ?? null
 
-            const fromFirst = tryFind(firstPage.items)
+            const fromFirst = findItem(firstPage.items)
             if (fromFirst) return fromFirst
 
             const totalPages = firstPage.metadata.total_pages || 1
             for (let page = 2; page <= totalPages; page++) {
-                const next = await CatalogService.getClientProducts(page, 20)
-                const found = tryFind(next.items)
+                const next = await rawService.getClientProducts(page, 20)
+                const found = findItem(next.items)
                 if (found) return found
             }
 
@@ -248,48 +258,32 @@ export const CatalogService = {
     },
 
     createProduct: async (product: Partial<Product>): Promise<Product> => {
-        return apiRequest<Product>(endpoints.catalog.products, {
-            method: 'POST',
-            body: JSON.stringify(product)
-        })
+        return await ApiService.post<Product>(endpoints.catalog.products, product)
     },
 
     updateProduct: async (id: string, product: Partial<Product>): Promise<Product> => {
-        return apiRequest<Product>(endpoints.catalog.productById(id), {
-            method: 'PUT',
-            body: JSON.stringify(product)
-        })
+        return await ApiService.put<Product>(endpoints.catalog.productById(id), product)
     },
 
     deleteProduct: async (id: string): Promise<void> => {
-        return apiRequest<void>(endpoints.catalog.productById(id), {
-            method: 'DELETE'
-        })
+        await ApiService.delete<void>(endpoints.catalog.productById(id))
     },
 
     getPromotions: async (): Promise<Promotion[]> => {
-        return apiRequest<Promotion[]>(endpoints.catalog.promociones)
+        return await ApiService.get<Promotion[]>(endpoints.catalog.promociones)
     },
 
     createPromotion: async (promo: Partial<Promotion>): Promise<Promotion> => {
-        return apiRequest<Promotion>(endpoints.catalog.promociones, {
-            method: 'POST',
-            body: JSON.stringify(promo)
-        })
+        return await ApiService.post<Promotion>(endpoints.catalog.promociones, promo)
     },
 
     getZones: async (): Promise<CommercialZone[]> => {
-        return apiRequest<CommercialZone[]>(endpoints.catalog.zonas)
+        return await ApiService.get<CommercialZone[]>(endpoints.catalog.zonas)
     },
 
     createZone: async (zone: Partial<CommercialZone>): Promise<CommercialZone> => {
-        return apiRequest<CommercialZone>(endpoints.catalog.zonas, {
-            method: 'POST',
-            body: JSON.stringify(zone)
-        })
-    },
-
-    getAuditLogs: async (): Promise<AuditLog[]> => {
-        return apiRequest<AuditLog[]>('/api/audit')
+        return await ApiService.post<CommercialZone>(endpoints.catalog.zonas, zone)
     }
 }
+
+export const CatalogService = createService('CatalogService', rawService)

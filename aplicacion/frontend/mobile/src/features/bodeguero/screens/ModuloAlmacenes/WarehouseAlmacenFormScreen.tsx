@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TextInput } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { TextField } from '../../../../components/ui/TextField'
@@ -9,6 +9,8 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { AlmacenService, type AlmacenPayload } from '../../../../services/api/AlmacenService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
+
+const BOD_PREFIX = 'BOD-'
 
 type RouteParams = {
     almacenId?: number
@@ -24,7 +26,7 @@ export function WarehouseAlmacenFormScreen() {
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [nombre, setNombre] = useState('')
-    const [codigoRef, setCodigoRef] = useState('')
+    const [codigoRefSuffix, setCodigoRefSuffix] = useState('')
     const [requiereFrio, setRequiereFrio] = useState(false)
     const [direccionFisica, setDireccionFisica] = useState('')
     const [activo, setActivo] = useState(true)
@@ -34,6 +36,9 @@ export function WarehouseAlmacenFormScreen() {
         title: '',
         message: ''
     })
+
+    // El código completo es BOD_PREFIX + codigoRefSuffix
+    const getFullCodigoRef = () => `${BOD_PREFIX}${codigoRefSuffix}`
 
     useEffect(() => {
         if (isEdit) {
@@ -46,7 +51,13 @@ export function WarehouseAlmacenFormScreen() {
         try {
             const data = await AlmacenService.getById(almacenId as number)
             setNombre(data.nombre || '')
-            setCodigoRef(data.codigoRef || '')
+            // Si el código tiene prefijo BOD-, extraemos solo el sufijo
+            const rawCodigo = data.codigoRef || ''
+            if (rawCodigo.startsWith(BOD_PREFIX)) {
+                setCodigoRefSuffix(rawCodigo.replace(BOD_PREFIX, ''))
+            } else {
+                setCodigoRefSuffix(rawCodigo)
+            }
             setRequiereFrio(Boolean(data.requiereFrio))
             setDireccionFisica(data.direccionFisica || '')
             setActivo(Boolean(data.activo))
@@ -77,9 +88,11 @@ export function WarehouseAlmacenFormScreen() {
             return
         }
 
+        const fullCodigoRef = codigoRefSuffix.trim() ? getFullCodigoRef() : undefined
+
         const payload: AlmacenPayload = {
             nombre: nombre.trim(),
-            codigoRef: codigoRef.trim() || undefined,
+            codigoRef: fullCodigoRef,
             direccionFisica: direccionFisica.trim() || undefined,
             requiereFrio,
             ...(isEdit ? { activo } : {})
@@ -108,8 +121,8 @@ export function WarehouseAlmacenFormScreen() {
         } catch (error) {
             const rawMessage = error instanceof Error ? error.message.toLowerCase() : ''
             let customMessage: string | undefined
-            if (rawMessage.includes('codigo') || rawMessage.includes('codigo_ref')) {
-                customMessage = 'Ya existe un almacen con ese codigo de referencia.'
+            if (rawMessage.includes('codigo') || rawMessage.includes('codigo_ref') || rawMessage.includes('duplicad')) {
+                customMessage = `Ya existe un almacén con el código ${fullCodigoRef}. Usa otro número.`
             } else if (rawMessage.includes('nombre') && rawMessage.includes('existe')) {
                 customMessage = 'Ya existe un almacen con ese nombre.'
             }
@@ -175,13 +188,28 @@ export function WarehouseAlmacenFormScreen() {
                             onChangeText={setNombre}
                         />
 
-                        <TextField
-                            label="Código de referencia"
-                            placeholder="Ej. BOD-01"
-                            value={codigoRef}
-                            onChangeText={setCodigoRef}
-                            autoCapitalize="characters"
-                        />
+                        {/* Campo de código con prefijo quemado */}
+                        <View>
+                            <Text className="text-xs text-neutral-500 font-semibold uppercase mb-2">Código de referencia</Text>
+                            <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-2xl overflow-hidden">
+                                <View className="bg-neutral-200 px-4 py-4">
+                                    <Text className="text-base font-bold text-neutral-700">{BOD_PREFIX}</Text>
+                                </View>
+                                <TextInput
+                                    className="flex-1 px-4 py-4 text-base font-bold text-neutral-900"
+                                    placeholder="01"
+                                    value={codigoRefSuffix}
+                                    onChangeText={setCodigoRefSuffix}
+                                    autoCapitalize="characters"
+                                    placeholderTextColor="#9CA3AF"
+                                />
+                            </View>
+                            {codigoRefSuffix ? (
+                                <Text className="text-xs text-neutral-400 mt-1 ml-1">
+                                    Código completo: {getFullCodigoRef()}
+                                </Text>
+                            ) : null}
+                        </View>
 
                         <TextField
                             label="Dirección física"

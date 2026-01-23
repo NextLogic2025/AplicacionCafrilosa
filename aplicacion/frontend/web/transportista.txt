@@ -1,0 +1,19 @@
+📦 DespachosController
+- GET → /api/despachos
+- GET → /api/despachos/:id
+- POST → /api/despachos
+- PUT → /api/despachos/:id
+- DELETE → /api/despachos/:id
+🚗 VehiculosController
+- GET → /api/vehiculos
+- GET → /api/vehiculos/:id
+- POST → /api/vehiculos
+- PUT → /api/vehiculos/:id
+- DELETE → /api/vehiculos/:id
+👷 ConductoresController
+- GET → /api/conductores
+- GET → /api/conductores/:id
+- POST → /api/conductores
+- PUT → /api/conductores/:id
+- DELETE → /api/conductores/:id
+

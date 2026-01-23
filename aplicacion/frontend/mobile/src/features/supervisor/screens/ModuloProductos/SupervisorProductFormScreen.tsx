@@ -8,6 +8,21 @@ import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackM
 import { CatalogService, Category } from '../../../../services/api/CatalogService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import type { RootStackParamList } from '../../../../navigation/types'
+import { PickerModal, PickerOption } from '../../../../components/ui/PickerModal'
+import { BRAND_COLORS } from '../../../../shared/types'
+
+const UNIDADES_MEDIDA: PickerOption[] = [
+    { id: 'UNIDAD', label: 'Unidad', description: 'Piezas individuales', icon: 'cube' },
+    { id: 'KILO', label: 'Kilogramo', description: 'Peso en kg', icon: 'scale' },
+    { id: 'GRAMO', label: 'Gramo', description: 'Peso en gramos', icon: 'scale' },
+    { id: 'LIBRA', label: 'Libra', description: 'Peso en lb', icon: 'scale' },
+    { id: 'PAQUETE', label: 'Paquete', description: 'Embalaje multiple', icon: 'file-tray-full' },
+    { id: 'CAJA', label: 'Caja', description: 'Caja con multiples unidades', icon: 'cube' },
+    { id: 'BARRA', label: 'Barra', description: 'Barra de embutido', icon: 'barcode' },
+    { id: 'PIEZA', label: 'Pieza', description: 'Pieza cortada', icon: 'cut' },
+    { id: 'LONCHA', label: 'Loncha', description: 'Rebanadas', icon: 'layers' },
+    { id: 'OTRO', label: 'Otro', description: 'Especificar manualmente', icon: 'ellipsis-horizontal' },
+]
 
 type ProductFormRouteProp = RouteProp<RootStackParamList, 'SupervisorProductForm'>
 
@@ -19,6 +34,8 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
     const [categories, setCategories] = useState<Category[]>([])
     const [categoryModalVisible, setCategoryModalVisible] = useState(false)
     const [selectedCategoryName, setSelectedCategoryName] = useState('')
+    const [unitPickerVisible, setUnitPickerVisible] = useState(false)
+    const [customUnit, setCustomUnit] = useState('')
 
     const [activeLists, setActiveLists] = useState<PriceList[]>([])
     const [priceValues, setPriceValues] = useState<Record<number, string>>({})
@@ -89,6 +106,14 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     const c = cats.find(x => x.id === p.categoria_id)
                     if (c) setSelectedCategoryName(c.nombre)
                 }
+                const currentUnit = p.unidad_medida || 'UNIDAD'
+                const unitEncontrada = UNIDADES_MEDIDA.find(u => u.id === currentUnit)
+                if (!unitEncontrada || unitEncontrada.id === 'OTRO') {
+                    setForm(prev => ({ ...prev, unit: 'OTRO' }))
+                    setCustomUnit(currentUnit)
+                } else {
+                    setCustomUnit('')
+                }
                 loadExistingPrices(p.id)
             }
         } catch (error) {
@@ -123,8 +148,12 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
             showFeedback('warning', 'Campos Requeridos', 'El nombre y el SKU son obligatorios.')
             return
         }
+        if (form.unit === 'OTRO' && !customUnit.trim()) {
+            showFeedback('warning', 'Unidad requerida', 'Debes ingresar una unidad de medida personalizada.')
+            return
+        }
         if (!form.categoryId) {
-            showFeedback('warning', 'Campo Requerido', 'Debes seleccionar una categoría.')
+            showFeedback('warning', 'Campo Requerido', 'Debes seleccionar una categor\u00eda.')
             return
         }
         const weightVal = parseFloat(form.weight)
@@ -142,7 +171,7 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                 categoria_id: form.categoryId,
                 peso_unitario_kg: parseFloat(form.weight),
                 volumen_m3: parseFloat(form.volume) || 0,
-                unidad_medida: form.unit,
+                unidad_medida: form.unit === 'OTRO' && customUnit.trim() ? customUnit.trim() : form.unit,
                 requiere_frio: form.requiresCold,
                 activo: form.active,
                 imagen_url: form.imageUrl,
@@ -221,13 +250,33 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     <View className="flex-row gap-4 mb-4">
                         <View className="flex-1">
                             <Text className="text-neutral-500 font-medium mb-1.5">Cant. / U. Medida</Text>
-                            <TextInput className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900" placeholder="Ej. UNIDAD" value={form.unit} onChangeText={t => setForm({ ...form, unit: t })} autoCapitalize="characters" />
+                            <TouchableOpacity
+                                className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 flex-row justify-between items-center"
+                                onPress={() => setUnitPickerVisible(true)}
+                            >
+                                <Text className={form.unit ? "text-neutral-900" : "text-neutral-400"} numberOfLines={1}>
+                                    {form.unit === 'OTRO' && customUnit ? customUnit : UNIDADES_MEDIDA.find(u => u.id === form.unit)?.label || 'Seleccionar'}
+                                </Text>
+                                <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
+                            </TouchableOpacity>
                         </View>
                         <View className="flex-1">
                             <Text className="text-neutral-500 font-medium mb-1.5">Peso (kg)</Text>
                             <TextInput className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900" placeholder="0.00" keyboardType="numeric" value={form.weight} onChangeText={t => setForm({ ...form, weight: t })} />
                         </View>
                     </View>
+                    {form.unit === 'OTRO' ? (
+                        <View className="mb-4">
+                            <Text className="text-neutral-500 font-medium mb-1.5">Unidad personalizada</Text>
+                            <TextInput
+                                className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900"
+                                placeholder="Ingresa la unidad que deseas"
+                                value={customUnit}
+                                onChangeText={setCustomUnit}
+                                autoCapitalize="characters"
+                            />
+                        </View>
+                    ) : null}
                     <View className="flex-row gap-4 mb-4">
                         <View className="flex-1">
                             <Text className="text-neutral-500 font-medium mb-1.5">Volumen (m³)</Text>
@@ -273,11 +322,11 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                         <Switch value={form.active} onValueChange={v => setForm({ ...form, active: v })} trackColor={{ false: "#D1D5DB", true: "#16A34A" }} />
                     </View>
                 </View>
-                
+
                 <TouchableOpacity className="p-4 rounded-xl items-center shadow-lg shadow-red-500/30 mb-4" onPress={handleSave} disabled={loading} style={{ backgroundColor: '#EF4444' }}>
                     {loading ? (<ActivityIndicator color="white" />) : (<Text className="text-white font-bold text-lg">{isEditing ? 'Guardar Cambios' : 'Crear Producto'}</Text>)}
                 </TouchableOpacity>
-                
+
                 <View className="h-20" />
             </ScrollView>
             <GenericModal visible={categoryModalVisible} onClose={() => setCategoryModalVisible(false)} title="Seleccionar Categoría" height="70%">
@@ -294,6 +343,23 @@ export function SupervisorProductFormScreen({ navigation, route }: { navigation:
                     {categories.length === 0 && (<View className="items-center py-10"><Text className="text-neutral-400">No hay categorías disponibles</Text></View>)}
                 </ScrollView>
             </GenericModal>
+            <PickerModal
+                visible={unitPickerVisible}
+                title="Selecciona unidad de medida"
+                options={UNIDADES_MEDIDA}
+                selectedId={form.unit}
+                onSelect={(id) => {
+                    setForm({ ...form, unit: String(id) })
+                    if (id !== 'OTRO') {
+                        setCustomUnit('')
+                    }
+                    setUnitPickerVisible(false)
+                }}
+                onClose={() => setUnitPickerVisible(false)}
+                infoText="Selecciona la unidad o elige 'Otro' para personalizar."
+                infoIcon="cube-outline"
+                infoColor={BRAND_COLORS.red}
+            />
             <FeedbackModal visible={feedbackVisible} type={feedbackConfig.type} title={feedbackConfig.title} message={feedbackConfig.message} onClose={() => setFeedbackVisible(false)} onConfirm={feedbackConfig.onConfirm} showCancel={feedbackConfig.showCancel} />
         </View>
     )

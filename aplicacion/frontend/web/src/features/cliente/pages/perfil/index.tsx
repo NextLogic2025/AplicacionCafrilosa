@@ -1,64 +1,112 @@
-import React, { useEffect } from 'react'
-import { ShieldCheck, User2 } from 'lucide-react'
 
-import { useCliente } from '../../hooks/useCliente'
 import { LoadingSpinner } from 'components/ui/LoadingSpinner'
-import { Alert } from 'components/ui/Alert'
-import { InfoCard } from 'components/ui/InfoCard'
 import { PageHero } from 'components/ui/PageHero'
+import Steps from 'components/ui/Steps'
+
+import { usePerfilPage } from './hooks/usePerfilPage'
+import { ProfileHeader } from './components/ProfileHeader'
+import { UserTab } from './components/UserTab'
+import { ClientTab } from './components/ClientTab'
+import { ProfileStats } from './components/ProfileStats'
 
 export default function PerfilCliente() {
-  const { perfil, cargando, error, fetchPerfilCliente, limpiarError } = useCliente()
+  const {
+    profile, loading, error, client, clientLoading, clientError, vendedorMap,
+    activeStep, setActiveStep,
+    editing, setEditing, form, setForm,
+    clientEditing, setClientEditing, clientForm, setClientForm,
+    success, setSuccess,
+    name, email, phone, role, created,
+    handleSaveUser, handleSaveClient, formatGps
+  } = usePerfilPage()
 
-  useEffect(() => {
-    fetchPerfilCliente()
-  }, [fetchPerfilCliente])
-
-  if (cargando && !perfil) {
-    return <LoadingSpinner text="Cargando perfil..." />
-  }
+  if (loading && !profile) return <LoadingSpinner text="Cargando perfil..." />
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHero
         title="Mi Perfil"
-        subtitle="Administra tu informaci\u00f3n personal, contacto y preferencias"
-        chips={[
-          'Datos personales',
-          'Informaci\u00f3n de facturaci\u00f3n',
-          'Historial de compras',
-        ]}
+        subtitle="Administra tu información personal y de contacto"
+        chips={['Datos personales', 'Preferencias', 'Historial']}
       />
-    <div className="space-y-4">
-      {error && <Alert type="error" title="Error" message={error} onClose={limpiarError} />}
 
-      <div className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-4 py-3">
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-red text-white">
-          <User2 className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Mi Perfil</p>
-          <p className="text-lg font-bold text-neutral-900">{perfil?.contactName || 'Cliente Cafrilosa'}</p>
-        </div>
-      </div>
+      <Steps
+        steps={[
+          { id: 'usuario', title: 'Usuario', caption: 'Datos de usuario' },
+          { id: 'cliente', title: 'Cliente', caption: 'Datos del cliente' },
+        ]}
+        active={activeStep}
+        onSelect={(i) => setActiveStep(i)}
+      />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <InfoCard label="Razón social" value={perfil?.contactName || 'No disponible'} />
-        <InfoCard label="Email" value="juan@cafrilosa.com" />
-        <InfoCard label="RUC" value="20231234567" />
-        <InfoCard label="Zona asignada" value="Zona Centro" />
-        <InfoCard label="Vendedor asignado" value="María Gómez" />
-        <InfoCard label="Límite de crédito" value={`$${perfil?.creditLimit?.toFixed(2) || '0.00'}`} />
-        <InfoCard label="Saldo pendiente" value={`$${perfil?.currentDebt?.toFixed(2) || '0.00'}`} />
-      </div>
+      <ProfileHeader
+        name={name}
+        activeStep={activeStep}
+        setActiveStep={setActiveStep}
+        editing={editing}
+        setEditing={setEditing}
+        loading={loading}
+        profile={profile}
+        handleSaveUser={handleSaveUser}
+        handleCancelUser={() => {
+          setEditing(false);
+          setForm({
+            nombre: profile?.nombre ?? '',
+            telefono: profile?.telefono ?? '',
+            avatarUrl: profile?.avatarUrl ?? ''
+          });
+          setSuccess(null)
+        }}
+        clientEditing={clientEditing}
+        setClientEditing={setClientEditing}
+        handleSaveClient={handleSaveClient}
+        handleCancelClient={() => {
+          setClientEditing(false);
+          if (client) setClientForm({
+            identificacion: client.identificacion ?? '',
+            tipo_identificacion: client.tipo_identificacion ?? '',
+            razon_social: client.razon_social ?? '',
+            nombre_comercial: client.nombre_comercial ?? ''
+          });
+          setSuccess(null)
+        }}
+        clientLoading={clientLoading}
+        formNombre={form.nombre}
+        setFormNombre={(val) => setForm(s => ({ ...s, nombre: val }))}
+        error={error}
+        success={success}
+      />
 
-      <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-sm text-neutral-800">
-          <ShieldCheck className="h-4 w-4 text-brand-red" />
-          Datos editables: correo y contacto. Para cambios de zona, vendedor o límite de crédito, contacta a soporte.
-        </div>
-      </div>
-    </div>
+      {activeStep === 0 && (
+        <UserTab
+          email={email}
+          phone={phone}
+          role={role}
+          activeStatus={profile?.activo ? 'Activo' : 'Inactivo'}
+          name={name}
+          emailVerified={profile?.emailVerificado ? 'Sí' : 'No'}
+          editing={editing}
+          form={form}
+          setForm={setForm}
+        />
+      )}
+
+      {activeStep === 1 && (
+        <ClientTab
+          clientLoading={clientLoading}
+          clientError={clientError}
+          client={client}
+          vendedorMap={vendedorMap}
+          clientEditing={clientEditing}
+          clientForm={clientForm}
+          setClientForm={setClientForm}
+          formatGps={formatGps}
+        />
+      )}
+
+      <ProfileStats created={created} />
     </div>
   )
 }
+
+

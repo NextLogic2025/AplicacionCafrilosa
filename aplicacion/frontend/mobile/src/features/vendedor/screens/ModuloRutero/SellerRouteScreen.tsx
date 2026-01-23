@@ -10,6 +10,7 @@ import { RouteService, type RoutePlan } from '../../../../services/api/RouteServ
 import { ClientService, type Client } from '../../../../services/api/ClientService'
 import { SellerStackParamList } from '../../../../navigation/SellerNavigator'
 import { BRAND_COLORS } from '../../../../shared/types'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 
 type EnrichedRoute = RoutePlan & { cliente?: Client; isToday: boolean }
 
@@ -145,10 +146,10 @@ export function SellerRouteScreen() {
       <Header title="Mi Rutero" variant="standard" />
 
       <View className="px-5 pt-4 pb-3">
-        <View className="flex-row bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden">
-          <StatCard icon="map" label="Total" value={stats.total} />
-          <StatCard icon="today" label="Hoy" value={stats.today} />
-          <StatCard icon="flag" label="Prioritarias" value={stats.priority} />
+        <View className="flex-row justify-between -mx-1.5">
+          <DashboardCard icon="map" label="Total" value={stats.total} color={BRAND_COLORS.red} columns={3} />
+          <DashboardCard icon="calendar" label="Hoy" value={stats.today} color={BRAND_COLORS.red} columns={3} />
+          <DashboardCard icon="flag" label="Prioritarias" value={stats.priority} color={BRAND_COLORS.red} columns={3} />
         </View>
       </View>
 
@@ -216,17 +217,7 @@ export function SellerRouteScreen() {
   )
 }
 
-function StatCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: number }) {
-  return (
-    <View className="flex-1 py-3 px-3 items-center border-r border-neutral-100 last:border-r-0">
-      <View className="w-9 h-9 rounded-full bg-red-50 items-center justify-center mb-1.5">
-        <Ionicons name={icon} size={18} color={BRAND_COLORS.red} />
-      </View>
-      <Text className="text-xl font-extrabold text-neutral-900">{value}</Text>
-      <Text className="text-[11px] font-semibold text-neutral-500">{label}</Text>
-    </View>
-  )
-}
+
 
 function DaySelector({
   selectedDay,

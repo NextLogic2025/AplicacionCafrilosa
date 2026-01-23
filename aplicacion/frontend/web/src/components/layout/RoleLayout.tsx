@@ -7,7 +7,7 @@ type RoleLayoutProps = {
   avatarText: string
   systemLabel?: string
   navItems: SidebarItem[]
-  onSignOut: () => void
+  onSignOut: () => void | Promise<void>
   topRightSlot?: React.ReactNode
   children: React.ReactNode
 }

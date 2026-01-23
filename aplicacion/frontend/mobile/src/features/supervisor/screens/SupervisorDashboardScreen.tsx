@@ -8,7 +8,7 @@ import { Header } from '../../../components/ui/Header'
 import { getUserName } from '../../../storage/authStorage'
 import { DashboardAdapter } from '../adapters/DashboardAdapter'
 import { KPI, Alert } from '../../../services/api/SupervisorService'
-import { KpiCard } from '../../../components/ui/KpiCard'
+import { DashboardCard } from '../../../components/ui/DashboardCard'
 import { QuickActionsGrid } from '../../../components/ui/QuickActionsGrid'
 
 export function SupervisorDashboardScreen() {
@@ -55,26 +55,16 @@ export function SupervisorDashboardScreen() {
                     <RefreshControl refreshing={isLoading} onRefresh={loadData} colors={[BRAND_COLORS.red]} />
                 }
             >
-                <View className="bg-white p-4 rounded-xl border border-neutral-200 mb-6 shadow-sm flex-row items-center justify-between">
-                    <View>
-                        <Text className="text-lg font-bold text-neutral-800">Estado General</Text>
-                        <Text className="text-sm text-neutral-500">Todo operando correctamente</Text>
-                    </View>
-                    <View className="flex-row items-center bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 6 }} />
-                        <Text className="font-bold text-green-700 text-xs uppercase">ONLINE</Text>
-                    </View>
-                </View>
 
-                <View className="flex-row flex-wrap justify-between mb-4">
+
+                <View className="flex-row justify-between mb-6 -mx-1.5">
                     {kpis.map((kpi, index) => (
-                        <KpiCard
+                        <DashboardCard
                             key={index}
                             label={kpi.label}
                             value={kpi.value}
                             icon={kpi.icon}
                             color={kpi.color}
-                            fullWidth={index === 0}
                         />
                     ))}
                 </View>

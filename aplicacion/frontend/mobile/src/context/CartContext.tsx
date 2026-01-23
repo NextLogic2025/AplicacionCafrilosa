@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
 import { Alert } from 'react-native'
 import { CartService, CartItem as CartItemDto, AddToCartPayload } from '../services/api/CartService'
 import { getUserFriendlyMessage } from '../utils/errorMessages'
@@ -106,10 +106,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const isVendorMode = isVendorRole(userRole) && currentClient !== null
 
-    const getClientIdentifier = (): string => {
+    const getClientIdentifier = useCallback((): string => {
         if (!currentClient) return ''
         return currentClient.usuario_principal_id || currentClient.id
-    }
+    }, [currentClient])
 
     useEffect(() => {
         const initCart = async () => {
@@ -126,21 +126,121 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initCart()
     }, [])
 
-    useEffect(() => {
-        if (!userId) {
-            setCart(emptyCartState)
-            return
+    const recalculateCartTotals = (items: CartItem[]): Pick<Cart, 'subtotal' | 'descuento_total' | 'impuestos_total' | 'total_final' | 'total_estimado'> => {
+        const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
+        const descuento_total = items.reduce((acc, curr) => {
+            const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
+            return acc + (discountPerUnit * curr.cantidad)
+        }, 0)
+        const impuestos_total = subtotal * 0.12
+        const total_final = subtotal + impuestos_total
+
+        return {
+            subtotal,
+            descuento_total,
+            impuestos_total,
+            total_final,
+            total_estimado: total_final
+        }
+    }
+
+    const mapServerCartToState = useCallback(async (serverCart: any): Promise<Cart> => {
+        if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
+
+        const items: CartItem[] = []
+        let productsMap = new Map<string, any>()
+
+        try {
+            if (isVendorMode && currentClient && currentClient.lista_precios_id) {
+                const clientListId = currentClient.lista_precios_id
+                const productsResponse = await CatalogService.getProductsForClient(1, 1000, '', clientListId)
+                if (productsResponse?.items) {
+                    productsResponse.items.forEach(p => productsMap.set(p.id, p))
+                }
+            }
+        } catch (err) {
+            console.warn('Could not fetch products for cart enrichment (using snapshots)', err)
         }
 
-        if (!canUseCart(userRole)) {
-            setCart(emptyCartState)
-            return
+        for (const item of serverCart.items) {
+            try {
+                const catalogProduct = productsMap.get(item.producto_id)
+
+                const precioLista = Number(
+                    catalogProduct?.precio_original ??
+                    item.precio_original_snapshot ??
+                    item.precio_lista ??
+                    item.precio_unitario_ref ??
+                    0
+                )
+
+                let precioFinal = Number(
+                    catalogProduct?.precio_oferta ??
+                    catalogProduct?.precio ??
+                    item.precio_unitario_ref ??
+                    item.precio_final ??
+                    item.precio_unitario ??
+                    0
+                )
+
+                if (precioFinal <= 0 && precioLista > 0) precioFinal = precioLista
+
+                const tienePromocion = (precioLista > precioFinal) || !!item.campania_aplicada_id || !!catalogProduct?.precio_oferta
+
+                let descuentoPorcentaje = 0
+                if (tienePromocion && precioLista > 0) {
+                    descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100)
+                }
+
+                const cantidad = Number(item.cantidad || 0)
+
+                items.push({
+                    id: item.id || item.producto_id,
+                    producto_id: item.producto_id,
+                    nombre_producto: catalogProduct?.nombre || item.nombre_producto || 'Producto sin nombre',
+                    codigo_sku: catalogProduct?.codigo_sku || item.codigo_sku || 'N/A',
+                    imagen_url: catalogProduct?.imagen_url || item.imagen_url,
+                    cantidad,
+                    unidad_medida: catalogProduct?.unidad_medida || item.unidad_medida || 'UN',
+                    precio_lista: precioLista,
+                    precio_final: precioFinal,
+                    subtotal: cantidad * precioFinal,
+                    campania_aplicada_id: item.campania_aplicada_id,
+                    motivo_descuento: item.motivo_descuento,
+                    tiene_promocion: tienePromocion,
+                    descuento_porcentaje: descuentoPorcentaje
+                })
+
+            } catch (err) {
+                console.error(`Error processing cart item ${item.producto_id}`, err)
+                items.push({
+                    id: item.id || 'error-id-' + Math.random(),
+                    producto_id: item.producto_id,
+                    nombre_producto: item.nombre_producto || 'Error Producto',
+                    cantidad: Number(item.cantidad || 1),
+                    unidad_medida: 'UN',
+                    precio_lista: 0,
+                    precio_final: 0,
+                    subtotal: 0,
+                    codigo_sku: 'ERR',
+                    tiene_promocion: false
+                } as CartItem)
+            }
         }
 
-        loadCart(userId)
-    }, [userId, userRole])
+        const totals = recalculateCartTotals(items)
 
-    const loadCart = async (uid: string) => {
+        return {
+            items,
+            ...totals,
+            cliente_id: serverCart.cliente_id,
+            cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
+            sucursal_id: currentBranch?.id,
+            sucursal_nombre: currentBranch?.nombre_sucursal
+        }
+    }, [currentBranch, currentClient, isVendorMode])
+
+    const loadCart = useCallback(async (uid: string) => {
         if (!canUseCart(userRole)) return
 
         setLoading(true)
@@ -151,6 +251,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const serverCart = await CartService.getCart(target)
             const mappedCart = await mapServerCartToState(serverCart)
+
+            // Asegurar que si el servidor devuelve items pero el mapeo falla, no mostremos 0
+            if (serverCart?.items?.length > 0 && mappedCart.items.length === 0) {
+                console.warn('CartContext: Server returned items but mapped cart is empty. Retrying...')
+            }
+
             setCart(mappedCart)
         } catch (error) {
             console.warn('Error loading cart from server', error)
@@ -169,136 +275,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             setLoading(false)
         }
-    }
+    }, [currentBranch, currentClient, isVendorMode, mapServerCartToState, userRole, getClientIdentifier])
 
-    const mapServerCartToState = async (serverCart: any): Promise<Cart> => {
-        if (!serverCart || !serverCart.items) return { items: [], total_estimado: 0 }
-
-        const items: CartItem[] = []
-
-        const normalizePrice = (value: unknown) => {
-            if (value === undefined || value === null) return null
-            const numeric = Number(value)
-            return Number.isFinite(numeric) ? numeric : null
+    useEffect(() => {
+        if (!userId) {
+            setCart(emptyCartState)
+            return
         }
 
-        const resolvePrice = (candidates: unknown[]) => {
-            for (const candidate of candidates) {
-                const price = normalizePrice(candidate)
-                if (price !== null) return price
-            }
-            return 0
+        if (!canUseCart(userRole)) {
+            setCart(emptyCartState)
+            return
         }
 
-        let productsMap = new Map<string, any>()
-        try {
-            if (userRole?.toLowerCase() === 'cliente') {
-                const productsResponse = await CatalogService.getClientProducts(1, 1000)
-                productsResponse.items.forEach(p => productsMap.set(p.id, p))
-            } else {
-                const productsResponse = await CatalogService.getProductsPaginated(1, 1000)
-                productsResponse.items.forEach(p => productsMap.set(p.id, p))
-            }
-        } catch (err) {
-            console.warn('Could not fetch products for cart enrichment', err)
-        }
+        loadCart(userId)
+    }, [userId, userRole, currentClient?.id, loadCart])
 
-        for (const item of serverCart.items) {
-            try {
-                const productDetails = productsMap.get(item.producto_id)
-
-                
-                const precioLista = resolvePrice([
-                    item.precio_original_snapshot,
-                    item.precio_lista,
-                    productDetails?.precio_original,
-                    productDetails?.precio,
-                    productDetails?.precio_oferta
-                ])
-
-                let precioFinal = resolvePrice([
-                    item.precio_unitario_ref,
-                    item.precio_unitario,
-                    item.precio_final,
-                    item.precio,
-                    productDetails?.precio_oferta,
-                    productDetails?.precio_original,
-                    productDetails?.precio
-                ])
-                if (precioFinal === 0 && precioLista > 0) {
-                    precioFinal = precioLista
-                }
-
-                const tienePromocion = precioLista > precioFinal || !!item.campania_aplicada_id
-                let descuentoPorcentaje = 0
-                if (tienePromocion && precioLista > 0) {
-                    descuentoPorcentaje = Math.round(((precioLista - precioFinal) / precioLista) * 100)
-                }
-
-                const cantidad = Number(item.cantidad || 0)
-                const subtotal = cantidad * precioFinal
-
-                items.push({
-                    id: item.id,
-                    producto_id: item.producto_id,
-                    nombre_producto: productDetails?.nombre || item.nombre_producto || 'Producto',
-                    codigo_sku: productDetails?.codigo_sku || item.codigo_sku || 'N/A',
-                    imagen_url: productDetails?.imagen_url || item.imagen_url,
-                    cantidad,
-                    unidad_medida: productDetails?.unidad_medida || item.unidad_medida || 'UN',
-                    precio_lista: precioLista,
-                    precio_final: precioFinal,
-                    subtotal,
-                    campania_aplicada_id: item.campania_aplicada_id,
-                    motivo_descuento: item.motivo_descuento,
-                    tiene_promocion: tienePromocion,
-                    descuento_porcentaje: descuentoPorcentaje
-                })
-            } catch (err) {
-                console.error(`Error processing cart item ${item.producto_id}`, err)
-                items.push({
-                    id: item.id,
-                    producto_id: item.producto_id,
-                    nombre_producto: 'Producto',
-                    codigo_sku: 'N/A',
-                    imagen_url: undefined,
-                    cantidad: Number(item.cantidad || 0),
-                    unidad_medida: 'UN',
-                    precio_lista: 0,
-                    precio_final: 0,
-                    subtotal: 0,
-                    campania_aplicada_id: item.campania_aplicada_id,
-                    motivo_descuento: item.motivo_descuento,
-                    tiene_promocion: false,
-                    descuento_porcentaje: 0
-                })
-            }
-        }
-
-        const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)
-        const descuento_total = items.reduce((acc, curr) => {
-            const discountPerUnit = Math.max(0, curr.precio_lista - curr.precio_final)
-            return acc + (discountPerUnit * curr.cantidad)
-        }, 0)
-
-        const impuestos_total = (subtotal) * 0.12 // Example TAX
-        const total_final = subtotal + impuestos_total
-
-        return {
-            items,
-            total_estimado: total_final,
-            subtotal,
-            descuento_total,
-            impuestos_total,
-            total_final,
-            cliente_id: serverCart.cliente_id,
-            cliente_nombre: currentClient?.nombre_comercial || currentClient?.razon_social,
-            sucursal_id: currentBranch?.id,
-            sucursal_nombre: currentBranch?.nombre_sucursal
-        }
-    }
-
-    const setClient = (client: Client | null, branch?: ClientBranch | null) => {
+    const setClient = useCallback((client: Client | null, branch?: ClientBranch | null) => {
         setCurrentClient(client)
         setCurrentBranch(branch || null)
 
@@ -328,9 +321,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (p?.id) setUserId(p.id)
             }).catch(() => { })
         }
-    }
+    }, [])
 
-    const addToCart = async (product: any, quantity: number = 1) => {
+    const addToCart = useCallback(async (product: any, quantity: number = 1) => {
         let currentUserId = userId
 
         if (!currentUserId) {
@@ -405,17 +398,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             Alert.alert('Error', getUserFriendlyMessage(error, 'CART_ERROR'))
             await loadCart(currentUserId)
         }
-    }
+    }, [userId, isVendorMode, loadCart, getClientIdentifier])
 
     const existingItem = (prodId: string) => cart.items.some(i => i.producto_id === prodId)
 
-    const removeFromCart = async (productId: string) => {
+    const removeFromCart = useCallback(async (productId: string) => {
         if (!userId) return
 
-        setCart(prev => ({
-            ...prev,
-            items: prev.items.filter(i => i.producto_id !== productId)
-        }))
+        // ✅ MEJORADO: Recalcular totales al remover item
+        setCart(prev => {
+            const updatedItems = prev.items.filter(i => i.producto_id !== productId)
+            const totals = recalculateCartTotals(updatedItems)
+            return {
+                ...prev,
+                items: updatedItems,
+                ...totals
+            }
+        })
 
         try {
             const target = isVendorMode
@@ -433,17 +432,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             loadCart(userId)
         }
-    }
+    }, [userId, isVendorMode, loadCart, getClientIdentifier])
 
-    const updateQuantity = async (productId: string, quantity: number) => {
+    const updateQuantity = useCallback(async (productId: string, quantity: number) => {
         if (!userId || quantity <= 0) return
 
-        setCart(prev => ({
-            ...prev,
-            items: prev.items.map(i => i.producto_id === productId
+        // ✅ MEJORADO: Recalcular totales al actualizar cantidad
+        setCart(prev => {
+            const updatedItems = prev.items.map(i => i.producto_id === productId
                 ? { ...i, cantidad: quantity, subtotal: quantity * i.precio_final }
                 : i)
-        }))
+            const totals = recalculateCartTotals(updatedItems)
+            return {
+                ...prev,
+                items: updatedItems,
+                ...totals
+            }
+        })
 
         try {
             const payload: AddToCartPayload = {
@@ -460,25 +465,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Error updating quantity', error)
             loadCart(userId)
         }
-    }
+    }, [userId, isVendorMode, loadCart, getClientIdentifier])
 
-    const clearCart = async () => {
+    const clearCart = useCallback(async () => {
         if (!userId) return
-        setCart({ items: [], total_estimado: 0 })
+        // ✅ MEJORADO: Incluir todos los campos al limpiar carrito
+        setCart({
+            items: [],
+            total_estimado: 0,
+            subtotal: 0,
+            descuento_total: 0,
+            impuestos_total: 0,
+            total_final: 0
+        })
         try {
             const target = isVendorMode
                 ? { type: 'client' as const, clientId: getClientIdentifier() }
                 : { type: 'me' as const }
             await CartService.clearCart(target)
         } catch (e) { console.warn(e) }
-    }
+    }, [userId, isVendorMode, getClientIdentifier])
 
-    const getItemCount = () => cart.items.reduce((acc, item) => acc + item.cantidad, 0)
+    const getItemCount = useCallback(() => cart.items.reduce((acc, item) => acc + item.cantidad, 0), [cart.items])
 
-    const validatePriceList = (listId: number) => true
-    const recalculatePrices = () => { } 
+    const validatePriceList = useCallback((listId: number) => true, [])
+    const recalculatePrices = useCallback(() => { }, [])
 
-    const value: CartContextValue = {
+    const value: CartContextValue = useMemo(() => ({
         userId,
         userRole,
         cart,
@@ -496,7 +509,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getItemCount,
         validatePriceList,
         recalculatePrices
-    }
+    }), [
+        userId,
+        userRole,
+        cart,
+        currentClient,
+        currentBranch,
+        isVendorMode,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        setClient,
+        getItemCount,
+        validatePriceList,
+        recalculatePrices
+    ])
 
     return (
         <CartContext.Provider value={value}>

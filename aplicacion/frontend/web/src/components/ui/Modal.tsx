@@ -27,16 +27,22 @@ export function Modal({
   isOpen,
   title,
   onClose,
-  headerGradient = 'blue',
+  headerGradient = 'red',
   maxWidth = 'md',
   children,
 }: ModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className={`max-h-[90vh] w-full ${widths[maxWidth]} overflow-y-auto rounded-lg bg-white`}>
-        <div className={`sticky top-0 flex items-center justify-between ${gradients[headerGradient]} p-6 text-white`}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`max-h-[90vh] w-full ${widths[maxWidth]} overflow-y-auto rounded-lg bg-white shadow-2xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`sticky top-0 z-10 flex items-center justify-between ${gradients[headerGradient]} p-6 text-white`}>
           <h2 className="text-xl font-bold">{title}</h2>
           <button
             onClick={onClose}

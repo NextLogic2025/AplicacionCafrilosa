@@ -9,7 +9,7 @@ import { usePolling } from '../../../../hooks/useRealtimeSync'
 import { GenericTabs } from '../../../../components/ui/GenericTabs'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
-import { KpiCard } from '../../../../components/ui/KpiCard'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { PickingService, type Picking } from '../../../../services/api/PickingService'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
@@ -97,7 +97,7 @@ export function WarehousePickingListScreen() {
     useFocusEffect(
         useCallback(() => {
             loadDataWithLoading()
-            return () => {}
+            return () => { }
         }, [loadDataWithLoading]),
     )
 
@@ -323,24 +323,24 @@ export function WarehousePickingListScreen() {
             {/* KPIs */}
             <View className="mx-4 mt-4">
                 <View className="flex-row justify-between">
-                    <KpiCard
+                    <DashboardCard
                         label="Disponibles"
                         value={totals.disponibles}
-                        icon="list-outline"
+                        icon="list"
                         color="#D97706"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Mis Pickings"
                         value={totals.misPickings}
-                        icon="person-outline"
+                        icon="person"
                         color="#2563EB"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="En Proceso"
                         value={totals.enProceso}
-                        icon="sync-outline"
+                        icon="sync"
                         color="#7C3AED"
                         columns={3}
                     />

@@ -1,7 +1,7 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
-import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export type LotePayload = {
     productoId: string
@@ -24,56 +24,27 @@ export type Lote = {
 
 const warehouse = (path: string) => `${env.api.warehouseUrl}${path}`
 
-export const LoteService = {
+const rawService = {
     async list(productoId?: string): Promise<Lote[]> {
-        try {
-            const qs = productoId ? `?producto_id=${productoId}` : ''
-            return await apiRequest<Lote[]>(warehouse(endpoints.warehouse.lotes + qs))
-        } catch (error) {
-            logErrorForDebugging(error, 'LoteService.list', { productoId })
-            throw error
-        }
+        const qs = productoId ? `?producto_id=${productoId}` : ''
+        return ApiService.get<Lote[]>(warehouse(endpoints.warehouse.lotes + qs))
     },
 
     async getById(id: string): Promise<Lote> {
-        try {
-            return await apiRequest<Lote>(warehouse(endpoints.warehouse.loteById(id)))
-        } catch (error) {
-            logErrorForDebugging(error, 'LoteService.getById', { id })
-            throw error
-        }
+        return ApiService.get<Lote>(warehouse(endpoints.warehouse.loteById(id)))
     },
 
     async create(payload: LotePayload): Promise<Lote> {
-        try {
-            return await apiRequest<Lote>(warehouse(endpoints.warehouse.lotes), {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'LoteService.create', { payload })
-            throw error
-        }
+        return ApiService.post<Lote>(warehouse(endpoints.warehouse.lotes), payload)
     },
 
     async update(id: string, payload: Partial<LotePayload>): Promise<Lote> {
-        try {
-            return await apiRequest<Lote>(warehouse(endpoints.warehouse.loteById(id)), {
-                method: 'PUT',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'LoteService.update', { id, payload })
-            throw error
-        }
+        return ApiService.put<Lote>(warehouse(endpoints.warehouse.loteById(id)), payload)
     },
 
     async remove(id: string): Promise<void> {
-        try {
-            await apiRequest<void>(warehouse(endpoints.warehouse.loteById(id)), { method: 'DELETE' })
-        } catch (error) {
-            logErrorForDebugging(error, 'LoteService.remove', { id })
-            throw error
-        }
-    },
+        return ApiService.delete<void>(warehouse(endpoints.warehouse.loteById(id)))
+    }
 }
+
+export const LoteService = createService('LoteService', rawService)

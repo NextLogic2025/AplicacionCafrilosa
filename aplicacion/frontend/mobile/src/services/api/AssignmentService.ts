@@ -1,6 +1,8 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { UserProfile } from './UserService'
 import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export interface Allocation {
     id: number
@@ -21,76 +23,68 @@ export interface AssignVendorPayload {
     nombre_vendedor_cache?: string
 }
 
-export const AssignmentService = {
+const ASSIGNMENTS_ENDPOINT = endpoints.catalog.asignacion
+const ASSIGNMENT_BY_ID = endpoints.catalog.asignacionById
+
+const fetchAllAssignments = async (): Promise<Allocation[]> => {
+    try {
+        return await ApiService.get<Allocation[]>(ASSIGNMENTS_ENDPOINT)
+    } catch (error) {
+        logErrorForDebugging(error, 'AssignmentService.getAllAssignments')
+        return []
+    }
+}
+
+const buildPayload = (data: AssignVendorPayload, fallbackDate?: string) => ({
+    zona_id: Number(data.zona_id),
+    vendedor_usuario_id: String(data.vendedor_usuario_id),
+    es_principal: Boolean(data.es_principal ?? true),
+    nombre_vendedor_cache: data.nombre_vendedor_cache || null,
+    ...(data.fecha_inicio || fallbackDate ? { fecha_inicio: data.fecha_inicio ?? fallbackDate } : {})
+})
+
+const rawService = {
+    getAllAssignments: fetchAllAssignments,
+
     getAssignmentsByZone: async (zoneId: number): Promise<Allocation[]> => {
         try {
-            const allAssignments = await AssignmentService.getAllAssignments()
+            const allAssignments = await fetchAllAssignments()
             return allAssignments.filter(a => Number(a.zona_id) === Number(zoneId))
         } catch (error) {
-            console.error('Error fetching assignments by zone:', error)
-            return []
-        }
-    },
-
-    getAllAssignments: async (): Promise<Allocation[]> => {
-        try {
-            return await apiRequest<Allocation[]>(endpoints.catalog.asignacion)
-        } catch (error) {
-            console.error('Error fetching all assignments:', error)
+            logErrorForDebugging(error, 'AssignmentService.getAssignmentsByZone', { zoneId })
             return []
         }
     },
 
     assignVendor: async (data: AssignVendorPayload): Promise<{ success: boolean; message?: string }> => {
         try {
-            const payload = {
-                zona_id: Number(data.zona_id),
-                vendedor_usuario_id: String(data.vendedor_usuario_id),
-                es_principal: Boolean(data.es_principal ?? true),
-                fecha_inicio: new Date().toISOString().split('T')[0],
-                nombre_vendedor_cache: data.nombre_vendedor_cache || null
-            }
-
-            await apiRequest(endpoints.catalog.asignacion, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
+            await ApiService.post(ASSIGNMENTS_ENDPOINT, buildPayload(data, new Date().toISOString().split('T')[0]))
             return { success: true, message: 'Vendedor asignado exitosamente' }
         } catch (error: any) {
-            console.error('Error assigning vendor:', error)
+            logErrorForDebugging(error, 'AssignmentService.assignVendor', { data })
             return { success: false, message: error.message || 'Error al asignar vendedor' }
         }
     },
 
     updateAssignment: async (id: number, data: AssignVendorPayload): Promise<{ success: boolean; message?: string }> => {
         try {
-            const payload = {
-                zona_id: Number(data.zona_id),
-                vendedor_usuario_id: String(data.vendedor_usuario_id),
-                es_principal: Boolean(data.es_principal ?? true),
-                nombre_vendedor_cache: data.nombre_vendedor_cache || null
-            }
-
-            await apiRequest(endpoints.catalog.asignacionById(id), {
-                method: 'PUT',
-                body: JSON.stringify(payload)
-            })
+            await ApiService.put(ASSIGNMENT_BY_ID(id), buildPayload(data))
             return { success: true, message: 'Asignación actualizada correctamente' }
         } catch (error: any) {
-            console.error('Error updating assignment:', error)
+            logErrorForDebugging(error, 'AssignmentService.updateAssignment', { id, data })
             return { success: false, message: error.message || 'Error al actualizar asignación' }
         }
     },
 
     removeAssignment: async (id: number): Promise<{ success: boolean; message?: string }> => {
         try {
-            await apiRequest(endpoints.catalog.asignacionById(id), {
-                method: 'DELETE'
-            })
+            await ApiService.delete(ASSIGNMENT_BY_ID(id))
             return { success: true, message: 'Asignación eliminada correctamente' }
         } catch (error: any) {
-            console.error('Error removing assignment:', error)
+            logErrorForDebugging(error, 'AssignmentService.removeAssignment', { id })
             return { success: false, message: error.message || 'Error al eliminar asignación' }
         }
     }
 }
+
+export const AssignmentService = createService('AssignmentService', rawService)

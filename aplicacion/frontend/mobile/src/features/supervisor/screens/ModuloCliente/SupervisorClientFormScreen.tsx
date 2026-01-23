@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { View, Alert, TouchableOpacity, Text, Switch } from 'react-native'
+import { View, Alert, TouchableOpacity, Text } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { UserService, UserProfile } from '../../../../services/api/UserService'
+import { validatePassword } from '../../../../utils/passwordValidation'
 import { ClientService, Client } from '../../../../services/api/ClientService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { ZoneService, Zone } from '../../../../services/api/ZoneService'
@@ -164,6 +166,17 @@ export function SupervisorClientFormScreen() {
                 showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo electrónico válido (ej. usuario@dominio.com).')
                 return false
             }
+
+            // Password Security Validation
+            const passwordValidation = validatePassword(userData.password)
+            if (!passwordValidation.isValid) {
+                showFeedback(
+                    'warning',
+                    'Contraseña Insegura',
+                    `La contraseña debe cumplir los siguientes requisitos:\n\n${passwordValidation.errors.join('\n')}`
+                )
+                return false
+            }
         }
         return true
     }
@@ -198,13 +211,21 @@ export function SupervisorClientFormScreen() {
             }
 
             // B. Create/Update Client
+            // Solo enviamos los campos que acepta el DTO del backend
             const payload: any = {
-                ...clientData,
+                identificacion: clientData.identificacion,
+                tipo_identificacion: clientData.tipo_identificacion,
+                razon_social: clientData.razon_social,
+                nombre_comercial: clientData.nombre_comercial || undefined,
                 usuario_principal_id: userId,
+                zona_comercial_id: clientData.zona_comercial_id ? Number(clientData.zona_comercial_id) : undefined,
+                direccion_texto: clientData.direccion_texto || undefined,
+                tiene_credito: clientData.tiene_credito,
                 limite_credito: parseFloat(clientData.limite_credito) || 0,
                 dias_plazo: parseInt(clientData.dias_plazo) || 0,
-                lista_precios_id: Number(clientData.lista_precios_id),
-                zona_comercial_id: Number(clientData.zona_comercial_id)
+                // Campos adicionales que el backend acepta
+                lista_precios_id: clientData.lista_precios_id ? Number(clientData.lista_precios_id) : undefined,
+                ubicacion_gps: clientData.ubicacion_gps || undefined,
             }
 
             let savedClient: Client
@@ -422,11 +443,11 @@ export function SupervisorClientFormScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <Switch
-                            value={!client?.bloqueado}
-                            onValueChange={() => handleToggleBlock()}
-                            trackColor={{ false: "#EF4444", true: "#16A34A" }}
-                            thumbColor={"#ffffff"}
+                        <ToggleSwitch
+                            checked={!client?.bloqueado}
+                            onToggle={() => handleToggleBlock()}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
                         />
                     </View>
                 </View>

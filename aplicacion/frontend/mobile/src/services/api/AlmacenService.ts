@@ -1,7 +1,7 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { env } from '../../config/env'
-import { logErrorForDebugging } from '../../utils/errorMessages'
 import { endpoints } from './endpoints'
+import { createService } from './createService'
 
 export type AlmacenPayload = {
     nombre: string
@@ -26,55 +26,26 @@ function warehouseEndpoint(path: string) {
     return `${env.api.warehouseUrl}${path}`
 }
 
-export const AlmacenService = {
+const rawService = {
     async list(): Promise<Almacen[]> {
-        try {
-            return await apiRequest<Almacen[]>(warehouseEndpoint(endpoints.warehouse.almacenes))
-        } catch (error) {
-            logErrorForDebugging(error, 'AlmacenService.list')
-            throw error
-        }
+        return await ApiService.get<Almacen[]>(warehouseEndpoint(endpoints.warehouse.almacenes))
     },
 
     async getById(id: number): Promise<Almacen> {
-        try {
-            return await apiRequest<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenById(id)))
-        } catch (error) {
-            logErrorForDebugging(error, 'AlmacenService.getById', { id })
-            throw error
-        }
+        return await ApiService.get<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenById(id)))
     },
 
     async create(payload: AlmacenPayload): Promise<Almacen> {
-        try {
-            return await apiRequest<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenes), {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'AlmacenService.create', { payload })
-            throw error
-        }
+        return await ApiService.post<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenes), payload)
     },
 
     async update(id: number, payload: Partial<AlmacenPayload>): Promise<Almacen> {
-        try {
-            return await apiRequest<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenById(id)), {
-                method: 'PUT',
-                body: JSON.stringify(payload)
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'AlmacenService.update', { id, payload })
-            throw error
-        }
+        return await ApiService.put<Almacen>(warehouseEndpoint(endpoints.warehouse.almacenById(id)), payload)
     },
 
     async remove(id: number): Promise<void> {
-        try {
-            await apiRequest<void>(warehouseEndpoint(endpoints.warehouse.almacenById(id)), { method: 'DELETE' })
-        } catch (error) {
-            logErrorForDebugging(error, 'AlmacenService.remove', { id })
-            throw error
-        }
+        await ApiService.delete<void>(warehouseEndpoint(endpoints.warehouse.almacenById(id)))
     }
 }
+
+export const AlmacenService = createService('AlmacenService', rawService)

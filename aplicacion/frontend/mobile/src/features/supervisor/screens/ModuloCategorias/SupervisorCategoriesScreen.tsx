@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, Switch } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { CatalogService, Category } from '../../../../services/api/CatalogService'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { SearchBar } from '../../../../components/ui/SearchBar'
@@ -179,7 +180,20 @@ export function SupervisorCategoriesScreen() {
                     <TextInput className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 text-neutral-900 mb-3" placeholder="URL de imagen (opcional)" value={imageUrl} onChangeText={setImageUrl} />
                     <View className="flex-row items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-200">
                         <Text className="text-neutral-700 font-medium">Activa</Text>
-                        <Switch value={active} onValueChange={setActive} trackColor={{ false: '#D1D5DB', true: '#16A34A' }} />
+                        <ToggleSwitch
+                            checked={active}
+                            onToggle={() => {
+                                const newState = !active
+                                showFeedback(
+                                    'warning',
+                                    `¿${newState ? 'Activar' : 'Desactivar'} categoría?`,
+                                    `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} esta categoría?`,
+                                    () => setActive(newState)
+                                )
+                            }}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
+                        />
                     </View>
                     <TouchableOpacity className="mt-4 py-3 rounded-xl items-center" style={{ backgroundColor: BRAND_COLORS.red }} onPress={handleSave}>
                         <Text className="text-white font-bold">Guardar</Text>

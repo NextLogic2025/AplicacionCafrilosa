@@ -1,7 +1,7 @@
-import { 
-  Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw, 
-  BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart, 
-  Percent, MessageCircle, Users, FileText, Map, Calendar
+import {
+  Home, Package, Boxes, ClipboardList, ListChecks, Truck, RotateCcw,
+  BarChart3, User, Bell, CreditCard, LifeBuoy, ShoppingCart,
+  Percent, MessageCircle, Users, FileText, Map, Calendar, BookOpen, Route, Archive
 } from 'lucide-react'
 import type { SidebarItem } from '../components/ui/SidebarNav'
 
@@ -21,6 +21,7 @@ export const CLIENTE_NAV_ITEMS: SidebarItem[] = [
   { id: 'mensajes', label: 'Mensajes', to: '/cliente/mensajes', icon: MessageCircle },
   { id: 'notificaciones', label: 'Notificaciones', to: '/cliente/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/cliente/perfil', icon: User },
+  { id: 'sucursal', label: 'Sucursal', to: '/cliente/sucursal', icon: Map },
 ]
 
 // ========================================
@@ -28,13 +29,17 @@ export const CLIENTE_NAV_ITEMS: SidebarItem[] = [
 // ========================================
 export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/bodeguero', icon: Home, end: true },
-  { id: 'pendientes', label: 'Pedidos Pendientes', to: '/bodeguero/pendientes', icon: ClipboardList },
-  { id: 'inventario', label: 'Inventario', to: '/bodeguero/inventario', icon: Package },
+
+  { id: 'picking', label: 'Picking', to: '/bodeguero/picking', icon: Boxes },
+  { id: 'almacenes', label: 'Almacenes', to: '/bodeguero/almacenes', icon: Package },
+  { id: 'ubicaciones', label: 'Ubicaciones', to: '/bodeguero/ubicaciones', icon: Map },
   { id: 'lotes', label: 'Lotes y Vencimientos', to: '/bodeguero/lotes', icon: Boxes },
-  { id: 'pedidos', label: 'Preparación de Pedidos', to: '/bodeguero/pedidos', icon: ListChecks },
+  { id: 'stock', label: 'Stock', to: '/bodeguero/stock', icon: BarChart3 },
+  { id: 'inventario', label: 'Inventario', to: '/bodeguero/inventario', icon: Package },
   { id: 'despachos', label: 'Despachos', to: '/bodeguero/despachos', icon: Truck },
   { id: 'devoluciones', label: 'Devoluciones', to: '/bodeguero/devoluciones', icon: RotateCcw },
   { id: 'reportes', label: 'Reportes', to: '/bodeguero/reportes', icon: BarChart3 },
+  { id: 'reservas', label: 'Reservas', to: '/bodeguero/reservas', icon: Archive },
   { id: 'notificaciones', label: 'Notificaciones', to: '/bodeguero/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/bodeguero/perfil', icon: User },
 ]
@@ -45,13 +50,18 @@ export const BODEGUERO_NAV_ITEMS: SidebarItem[] = [
 export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/supervisor', icon: Home, end: true },
   { id: 'clientes', label: 'Clientes', to: '/supervisor/clientes', icon: Users },
-  { id: 'vendedores', label: 'Vendedores', to: '/supervisor/vendedores', icon: Users },
+  { id: 'conductores', label: 'Conductores', to: '/supervisor/conductores', icon: Truck },
+  { id: 'equipo', label: 'Equipo', to: '/supervisor/equipo', icon: Users },
+  { id: 'catalogo', label: 'Catálogo', to: '/supervisor/catalogo', icon: BookOpen },
+  { id: 'zonas', label: 'Zonas', to: '/supervisor/zonas', icon: Map },
+  { id: 'rutas', label: 'Rutas', to: '/supervisor/rutas', icon: Route },
   { id: 'pedidos', label: 'Pedidos', to: '/supervisor/pedidos', icon: ClipboardList },
   { id: 'bodega', label: 'Bodega', to: '/supervisor/bodega', icon: Package },
   { id: 'entregas', label: 'Entregas', to: '/supervisor/entregas', icon: Truck },
   { id: 'devoluciones', label: 'Devoluciones', to: '/supervisor/devoluciones', icon: RotateCcw },
   { id: 'reportes', label: 'Reportes', to: '/supervisor/reportes', icon: BarChart3 },
   { id: 'alertas', label: 'Alertas', to: '/supervisor/alertas', icon: Bell },
+  { id: 'notificaciones', label: 'Notificaciones', to: '/supervisor/notificaciones', icon: Bell },
   { id: 'perfil', label: 'Mi Perfil', to: '/supervisor/perfil', icon: User },
 ]
 
@@ -61,6 +71,7 @@ export const SUPERVISOR_NAV_ITEMS: SidebarItem[] = [
 export const VENDEDOR_NAV_ITEMS: SidebarItem[] = [
   { id: 'dashboard', label: 'Inicio', to: '/vendedor', icon: Home, end: true },
   { id: 'clientes', label: 'Clientes', to: '/vendedor/clientes', icon: Users },
+  { id: 'rutas', label: 'Rutas', to: '/vendedor/rutas', icon: Route },
   { id: 'productos', label: 'Productos', to: '/vendedor/productos', icon: Boxes },
   { id: 'promociones', label: 'Promociones', to: '/vendedor/promociones', icon: Percent },
   { id: 'crear-pedido', label: 'Crear Pedido', to: '/vendedor/crear-pedido', icon: ShoppingCart },

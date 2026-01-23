@@ -31,7 +31,7 @@ export const endpoints = {
 
     precios: '/api/precios',
     preciosProducto: (productId: string) => `/api/precios/producto/${productId}`,
-    preciosClienteProductos: '/api/precios/cliente/productos',
+    preciosClienteProductos: '/api/precios/mis-precios/productos',
     preciosListas: '/api/precios/listas',
     preciosListaById: (id: number | string) => `/api/precios/listas/${id}`,
     preciosListaProductos: (id: number | string) => `/api/precios/lista/${id}/productos`,
@@ -97,5 +97,19 @@ export const endpoints = {
     reservations: '/api/reservations',
     reservationById: (id: string) => `/api/reservations/${id}`,
     reservationConfirm: (id: string) => `/api/reservations/${id}/confirm`,
+  },
+  logistics: {
+    conductores: '/api/conductores',
+    conductorById: (id: string) => `/api/conductores/${id}`,
+    vehiculos: '/api/vehiculos',
+    vehiculoById: (id: string) => `/api/vehiculos/${id}`,
+    despachos: '/api/despachos',
+    despachoById: (id: string) => `/api/despachos/${id}`,
+  },
+  finance: {
+    facturas: '/api/facturas',
+    facturaById: (id: string) => `/api/facturas/${id}`,
+    facturaPdf: (id: string) => `/api/facturas/${id}/pdf`,
+    cuentasPorCobrar: '/api/cuentas-por-cobrar',
   },
 } as const

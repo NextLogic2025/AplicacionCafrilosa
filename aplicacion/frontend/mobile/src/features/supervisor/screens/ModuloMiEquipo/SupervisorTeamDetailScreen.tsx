@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, ActivityIndicator, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { BRAND_COLORS } from '../../../../shared/types'
@@ -7,9 +7,12 @@ import { Ionicons } from '@expo/vector-icons'
 import { UserProfile, UserService } from '../../../../services/api/UserService'
 import { ZoneService, Zone } from '../../../../services/api/ZoneService'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
+import { ConductorService } from '../../../../services/api/ConductorService'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
+import { validatePassword } from '../../../../utils/passwordValidation'
 
 export function SupervisorTeamDetailScreen() {
     const navigation = useNavigation()
@@ -29,7 +32,13 @@ export function SupervisorTeamDetailScreen() {
     const [zones, setZones] = useState<Zone[]>([])
     const [selectedZone, setSelectedZone] = useState<Zone | null>(null)
     const [currentAssignmentId, setCurrentAssignmentId] = useState<number | null>(null)
-    const [occupiedZones, setOccupiedZones] = useState<Map<number, string>>(new Map()) // ZoneID -> VendorName
+    const [occupiedZones, setOccupiedZones] = useState<Map<number, string>>(new Map())
+
+    // Conductor State (Only for Transportistas)
+    const [conductorCedula, setConductorCedula] = useState('')
+    const [conductorTelefono, setConductorTelefono] = useState('')
+    const [conductorLicencia, setConductorLicencia] = useState('')
+    const [existingConductorId, setExistingConductorId] = useState<string | null>(null) // ZoneID -> VendorName
 
     // UI State
     const [showRoleModal, setShowRoleModal] = useState(false)
@@ -51,10 +60,10 @@ export function SupervisorTeamDetailScreen() {
         message: '',
     })
     const [deleteModalVisible, setDeleteModalVisible] = useState(false)
+    const [pendingActiveState, setPendingActiveState] = useState<boolean | null>(null)
 
     // Roles map
     const roles = [
-        { id: '1', name: 'admin', label: 'Administrador' },
         { id: '2', name: 'supervisor', label: 'Supervisor' },
         { id: '3', name: 'bodeguero', label: 'Bodeguero' },
         { id: '4', name: 'vendedor', label: 'Vendedor' },
@@ -125,21 +134,34 @@ export function SupervisorTeamDetailScreen() {
         if (!name.trim() || !email.trim()) {
             return showFeedback('warning', 'Faltan datos', 'Por favor completa nombre y correo.')
         }
-        
+
         // Validar formato de email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(email.trim())) {
             return showFeedback('warning', 'Email Inválido', 'Por favor ingresa un correo válido (ej: usuario@dominio.com)')
         }
-        
-        if (!isEditing && !password) {
-            return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
+
+        if (!isEditing) {
+            if (!password) {
+                return showFeedback('warning', 'Faltan datos', 'La contraseña es obligatoria para nuevos usuarios.')
+            }
+
+            // Validar seguridad de contraseña
+            const passwordValidation = validatePassword(password)
+            if (!passwordValidation.isValid) {
+                return showFeedback(
+                    'warning',
+                    'Contraseña Insegura',
+                    `La contraseña debe cumplir los siguientes requisitos:\n\n${passwordValidation.errors.join('\n')}`
+                )
+            }
         }
 
         setLoading(true)
         try {
             const selectedRoleObj = roles.find(r => r.name.toLowerCase() === role.toLowerCase())
             const rolId = selectedRoleObj ? parseInt(selectedRoleObj.id) : 4 // Default Vendedor
+            const isTransportista = role.toLowerCase() === 'transportista'
 
             let targetUserId = user?.id
 
@@ -193,6 +215,24 @@ export function SupervisorTeamDetailScreen() {
                         es_principal: true,
                         nombre_vendedor_cache: name
                     })
+                }
+            }
+
+            // --- HANDLE CONDUCTOR LOGIC (For Transportistas) ---
+            if (isTransportista && targetUserId) {
+                const conductorData = {
+                    nombre_completo: name,
+                    cedula: conductorCedula.trim() || `ID-${targetUserId}`,
+                    telefono: conductorTelefono.trim() || undefined,
+                    licencia: conductorLicencia.trim() || undefined,
+                    activo: isActive,
+                    usuario_id: targetUserId
+                }
+
+                if (existingConductorId) {
+                    await ConductorService.update(existingConductorId, conductorData)
+                } else {
+                    await ConductorService.create(conductorData)
                 }
             }
 
@@ -355,6 +395,56 @@ export function SupervisorTeamDetailScreen() {
                         </View>
                     )}
 
+                    {/* Conductor Fields (Only for Transportistas) */}
+                    {role.toLowerCase() === 'transportista' && (
+                        <View className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-2xl border-2 border-orange-200 mb-6">
+                            <View className="flex-row items-center mb-4">
+                                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: BRAND_COLORS.red }}>
+                                    <Ionicons name="car-sport" size={20} color="white" />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-neutral-900 font-bold text-base">Datos del Conductor</Text>
+                                    <Text className="text-neutral-600 text-xs">Información para perfil de conductor</Text>
+                                </View>
+                            </View>
+
+                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Cédula *</Text>
+                            <TextInput
+                                className="bg-white p-4 rounded-xl border border-orange-200 mb-4 text-neutral-900"
+                                value={conductorCedula}
+                                onChangeText={setConductorCedula}
+                                placeholder="Ej: 1234567890"
+                                keyboardType="numeric"
+                            />
+
+                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Teléfono</Text>
+                            <TextInput
+                                className="bg-white p-4 rounded-xl border border-orange-200 mb-4 text-neutral-900"
+                                value={conductorTelefono}
+                                onChangeText={setConductorTelefono}
+                                placeholder="Ej: 0999888777"
+                                keyboardType="phone-pad"
+                            />
+
+                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Licencia de Conducir</Text>
+                            <TextInput
+                                className="bg-white p-4 rounded-xl border border-orange-200 text-neutral-900"
+                                value={conductorLicencia}
+                                onChangeText={setConductorLicencia}
+                                placeholder="Ej: LIC-12345"
+                            />
+
+                            <View className="bg-orange-100 p-3 rounded-xl mt-4 border border-orange-300">
+                                <View className="flex-row items-start">
+                                    <Ionicons name="information-circle" size={18} color="#ea580c" style={{ marginTop: 1, marginRight: 8 }} />
+                                    <Text className="text-orange-800 text-xs flex-1">
+                                        Se creará automáticamente un perfil de conductor vinculado a este usuario al guardar.
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
                     {/* Status Toggle - Only show if editing */}
                     {isEditing && (
                         <View className="flex-row items-center justify-between p-4 bg-neutral-50 rounded-xl border border-neutral-200">
@@ -367,10 +457,23 @@ export function SupervisorTeamDetailScreen() {
                                     <Text className="text-neutral-500 text-xs">Habilitar acceso al sistema</Text>
                                 </View>
                             </View>
-                            <Switch
-                                value={isActive}
-                                onValueChange={setIsActive}
-                                trackColor={{ false: "#d1d5db", true: "#22c55e" }}
+                            <ToggleSwitch
+                                checked={isActive}
+                                onToggle={() => {
+                                    const newState = !isActive
+                                    setPendingActiveState(newState)
+                                    showFeedback(
+                                        'warning',
+                                        `¿${newState ? 'Activar' : 'Desactivar'} empleado?`,
+                                        `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} el acceso al sistema para este empleado?`,
+                                        () => {
+                                            setIsActive(newState)
+                                            setPendingActiveState(null)
+                                        }
+                                    )
+                                }}
+                                colorOn="#22c55e"
+                                colorOff="#d1d5db"
                             />
                         </View>
                     )}

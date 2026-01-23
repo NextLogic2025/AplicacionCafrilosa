@@ -1,7 +1,7 @@
 import { env } from '../../config/env'
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { endpoints } from './endpoints'
-import { logErrorForDebugging } from '../../utils/errorMessages'
+import { createService } from './createService'
 
 export interface CartItemDto {
     producto_id: string
@@ -59,65 +59,44 @@ export interface Cart {
     warnings?: any[]
 }
 
-type CartTarget = { type: 'me' } | { type: 'client', clientId: string }
+type CartTarget = { type: 'me' } | { type: 'client'; clientId: string }
 
-export const CartService = {
+const rawService = {
     getCart: async (target: CartTarget): Promise<any> => {
-        try {
-            const endpoint =
-                target.type === 'client'
-                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
-                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
+        const endpoint =
+            target.type === 'client'
+                ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
-            return await apiRequest(endpoint)
-        } catch (error) {
-            logErrorForDebugging(error, 'CartService.getCart', { target })
-            throw error
-        }
+        return await ApiService.get(endpoint)
     },
 
     addToCart: async (target: CartTarget, item: AddToCartPayload): Promise<any> => {
-        try {
-            const endpoint =
-                target.type === 'client'
-                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
-                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
+        const endpoint =
+            target.type === 'client'
+                ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
-            return await apiRequest(endpoint, {
-                method: 'POST',
-                body: JSON.stringify(item)
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'CartService.addToCart', { target, productId: item.producto_id })
-            throw error
-        }
+        return await ApiService.post(endpoint, item)
     },
 
     removeFromCart: async (target: CartTarget, productId: string): Promise<void> => {
-        try {
-            const endpoint =
-                target.type === 'client'
-                    ? `${env.api.ordersUrl}${endpoints.orders.cartClientItem(target.clientId, productId)}`
-                    : `${env.api.ordersUrl}${endpoints.orders.cartMeItem(productId)}`
+        const endpoint =
+            target.type === 'client'
+                ? `${env.api.ordersUrl}${endpoints.orders.cartClientItem(target.clientId, productId)}`
+                : `${env.api.ordersUrl}${endpoints.orders.cartMeItem(productId)}`
 
-            await apiRequest(endpoint, { method: 'DELETE' })
-        } catch (error) {
-            logErrorForDebugging(error, 'CartService.removeFromCart', { target, productId })
-            throw error
-        }
+        await ApiService.delete(endpoint)
     },
 
     clearCart: async (target: CartTarget): Promise<void> => {
-        try {
-            const endpoint =
-                target.type === 'client'
-                    ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
-                    : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
+        const endpoint =
+            target.type === 'client'
+                ? `${env.api.ordersUrl}${endpoints.orders.cartClient(target.clientId)}`
+                : `${env.api.ordersUrl}${endpoints.orders.cartMe}`
 
-            await apiRequest(endpoint, { method: 'DELETE' })
-        } catch (error) {
-            logErrorForDebugging(error, 'CartService.clearCart', { target })
-            throw error
-        }
+        await ApiService.delete(endpoint)
     }
 }
+
+export const CartService = createService('CartService', rawService)

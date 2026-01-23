@@ -1,0 +1,93 @@
+// Obtener todos los usuarios desde /auth/usuarios
+export async function obtenerUsuarios(): Promise<Usuario[]> {
+  // Cambiado a la ruta correcta
+  return httpUsuarios<Usuario[]>('/usuarios/me');
+}
+import { httpAuth, httpUsuarios } from '../../../services/api/http'
+
+export interface CreateUsuarioDto {
+  email: string
+  password: string
+  nombre: string
+  rolId: number
+}
+
+export interface CreateUsuarioResponse {
+  mensaje: string
+  id: string
+}
+
+export interface Usuario {
+  id: string
+  email: string
+  nombre: string
+  /** Nombre completo, si está disponible */
+  nombreCompleto?: string
+  telefono: string | null
+  avatarUrl: string | null
+  emailVerificado: boolean
+  activo: boolean
+  createdAt: string
+  rol: {
+    id: number
+    nombre: string
+  }
+}
+
+export interface UpdateUsuarioDto {
+  email?: string
+  password?: string
+  nombre?: string
+  telefono?: string | null
+  rolId?: number
+  activo?: boolean
+}
+
+export interface Vendedor extends Usuario { }
+
+// Registro de usuario - usa la ruta de autenticación en puerto 3001
+export async function createUsuario(data: CreateUsuarioDto): Promise<CreateUsuarioResponse> {
+  const response = await httpAuth<CreateUsuarioResponse>('/auth/registro', {
+    method: 'POST',
+    body: data,
+    auth: false,
+  })
+  return response
+}
+
+// Operaciones de usuarios - usan puerto 3002
+export async function obtenerEquipo(): Promise<Usuario[]> {
+  return httpUsuarios<Usuario[]>('/usuarios')
+}
+
+export async function getUsuario(id: string): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}`)
+}
+
+export async function updateUsuario(id: string, data: UpdateUsuarioDto): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}`, {
+    method: 'PUT',
+    body: data,
+  })
+}
+
+export async function desactivarUsuario(id: string): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}/desactivar`, {
+    method: 'PUT',
+  })
+}
+
+export async function activarUsuario(id: string): Promise<Usuario> {
+  return httpUsuarios<Usuario>(`/usuarios/${id}/activar`, {
+    method: 'PUT',
+  })
+}
+
+export async function obtenerVendedores(): Promise<Vendedor[]> {
+  return httpUsuarios<Vendedor[]>('/usuarios/vendedores')
+}
+
+export async function listarUsuariosDesactivados(): Promise<Usuario[]> {
+  return httpUsuarios<Usuario[]>('/usuarios/desactivados')
+}
+

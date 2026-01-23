@@ -3,9 +3,10 @@ import { Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { OrderDetailTemplate } from '../../../../components/orders/OrderDetailTemplate'
 import { OrderService, Order } from '../../../../services/api/OrderService'
+import { InvoiceService } from '../../../../services/api/InvoiceService'
 
 export function ClientOrderDetailScreen() {
-    const navigation = useNavigation()
+    const navigation = useNavigation<any>()
     const route = useRoute()
     const { orderId } = (route.params as any) || {}
 
@@ -60,6 +61,26 @@ export function ClientOrderDetailScreen() {
         )
     }
 
+    const handleViewInvoice = async (invoiceId: string) => {
+        if (invoiceId) {
+            navigation.navigate('InvoiceDetail', { invoiceId })
+        } else if (order?.factura_numero) {
+            // Si no tenemos factura_id, buscar por número
+            try {
+                const invoices = await InvoiceService.getInvoices()
+                const invoice = invoices.find(inv => inv.number === order.factura_numero)
+                if (invoice) {
+                    navigation.navigate('InvoiceDetail', { invoiceId: invoice.id })
+                } else {
+                    Alert.alert('Información', 'Factura no encontrada en el sistema.')
+                }
+            } catch (error) {
+                console.error('Error buscando factura:', error)
+                Alert.alert('Error', 'No se pudo cargar la factura.')
+            }
+        }
+    }
+
     return (
         <OrderDetailTemplate
             roleType="cliente"
@@ -79,6 +100,7 @@ export function ClientOrderDetailScreen() {
                 }
             ]}
             onBackPress={() => navigation.goBack()}
+            onViewInvoice={handleViewInvoice}
         />
     )
 }

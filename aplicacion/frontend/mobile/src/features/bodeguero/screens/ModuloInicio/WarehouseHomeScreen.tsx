@@ -101,6 +101,12 @@ export function WarehouseHomeScreen() {
             label: 'Alertas',
             // @ts-expect-error - Navigation is typed but routes are dynamic
             onPress: () => navigation.navigate('WarehouseNotifications')
+        },
+        {
+            icon: 'receipt-outline',
+            label: 'Facturas',
+            // @ts-expect-error - Navigation is typed but routes are dynamic
+            onPress: () => navigation.navigate('WarehouseInvoices')
         }
     ]
 

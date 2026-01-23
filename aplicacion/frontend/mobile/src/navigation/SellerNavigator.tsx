@@ -31,6 +31,7 @@ import { SellerPromotionsScreen } from '../features/vendedor/screens/ModuloPromo
 
 // ModuloFacturas
 import { SellerInvoicesScreen } from '../features/vendedor/screens/ModuloFacturas/SellerInvoicesScreen'
+import { SellerInvoiceDetailScreen } from '../features/vendedor/screens/ModuloFacturas/SellerInvoiceDetailScreen'
 
 // ModuloEntregas
 import { SellerDeliveriesScreen } from '../features/vendedor/screens/ModuloEntregas/SellerDeliveriesScreen'
@@ -57,6 +58,7 @@ export type SellerStackParamList = {
     SellerOrdersHistory: undefined
     SellerOrderDetail: { orderId: string }
     SellerInvoices: undefined
+    SellerInvoiceDetail: { invoiceId: string }
     SellerDeliveries: undefined
     SellerReturns: undefined
     SellerNotifications: undefined
@@ -104,6 +106,7 @@ export function SellerNavigator() {
             <Stack.Screen name="SellerOrdersHistory" component={SellerOrderHistoryScreen} />
             <Stack.Screen name="SellerOrderDetail" component={SellerOrderDetailScreen} />
             <Stack.Screen name="SellerInvoices" component={SellerInvoicesScreen} />
+            <Stack.Screen name="SellerInvoiceDetail" component={SellerInvoiceDetailScreen} />
             <Stack.Screen name="SellerDeliveries" component={SellerDeliveriesScreen} />
             <Stack.Screen name="SellerReturns" component={SellerReturnsScreen} />
             <Stack.Screen name="SellerNotifications" component={SellerNotificationsScreen} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, Switch, TextInput } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
@@ -9,6 +9,7 @@ import { SearchBar } from '../../../../components/ui/SearchBar'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 
 export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) {
     const [lists, setLists] = useState<PriceList[]>([])
@@ -244,11 +245,19 @@ export function SupervisorPriceListsScreen({ navigation }: { navigation: any }) 
                             <Text className="text-neutral-700 font-medium">Estado Activo</Text>
                             <Text className="text-neutral-400 text-xs">Visible para asignar precios</Text>
                         </View>
-                        <Switch
-                            value={isActive}
-                            onValueChange={setIsActive}
-                            trackColor={{ false: "#d1d5db", true: "#22c55e" }}
-                            thumbColor={isActive ? "#ffffff" : "#f4f3f4"}
+                        <ToggleSwitch
+                            checked={isActive}
+                            onToggle={() => {
+                                const newState = !isActive
+                                showFeedback(
+                                    'warning',
+                                    `¿${newState ? 'Activar' : 'Desactivar'} lista?`,
+                                    `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} esta lista de precios?`,
+                                    () => setIsActive(newState)
+                                )
+                            }}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
                         />
                     </View>
 

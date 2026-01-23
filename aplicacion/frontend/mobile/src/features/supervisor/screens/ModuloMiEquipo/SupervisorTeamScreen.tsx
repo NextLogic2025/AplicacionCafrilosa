@@ -61,8 +61,8 @@ export function SupervisorTeamScreen() {
                     <View className="flex-1 mr-3">
                         <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Buscar miembro..." onClear={() => setSearchQuery('')} />
                     </View>
-                    <TouchableOpacity className="w-12 h-12 rounded-xl items-center justify-center shadow-sm" style={{ backgroundColor: BRAND_COLORS.red }} onPress={() => navigation.navigate('SupervisorTeamDetail', { user: null })}>
-                        <Ionicons name="add" size={24} color="white" />
+                    <TouchableOpacity className="w-14 h-14 rounded-2xl items-center justify-center shadow-sm" style={{ backgroundColor: BRAND_COLORS.red }} onPress={() => navigation.navigate('SupervisorTeamDetail', { user: null })}>
+                        <Ionicons name="add" size={28} color="white" />
                     </TouchableOpacity>
                 </View>
                 <View className="mb-2">

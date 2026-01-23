@@ -1,6 +1,8 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
 import { ClientService, type Client } from './ClientService'
+import { createService } from './createService'
 import { endpoints } from './endpoints'
+import { logErrorForDebugging } from '../../utils/errorMessages'
 
 export interface RoutePlan {
     id: string
@@ -25,55 +27,49 @@ export interface ScheduledVisit {
     status: 'pending' | 'completed' | 'cancelled'
 }
 
-export const RouteService = {
+const ROUTES_ENDPOINT = endpoints.catalog.rutero
+const ROUTE_BY_ID = (id: string) => endpoints.catalog.ruteroById(id)
+const ROUTES_BY_CLIENT = (clientId: string) => endpoints.catalog.ruteroByClienteId(clientId)
+
+async function fetchAllRoutes(): Promise<RoutePlan[]> {
+    return ApiService.get<RoutePlan[]>(ROUTES_ENDPOINT)
+}
+
+const rawService = {
     getAll: async (): Promise<RoutePlan[]> => {
-        return apiRequest<RoutePlan[]>(endpoints.catalog.rutero)
+        return fetchAllRoutes()
     },
 
     getByClient: async (clientId: string): Promise<RoutePlan[]> => {
-        return apiRequest<RoutePlan[]>(endpoints.catalog.ruteroByClienteId(clientId))
+        return ApiService.get<RoutePlan[]>(ROUTES_BY_CLIENT(clientId))
     },
 
     getMyRoute: async (): Promise<RoutePlan[]> => {
-        return apiRequest<RoutePlan[]>(endpoints.catalog.ruteroMio)
+        return ApiService.get<RoutePlan[]>(endpoints.catalog.ruteroMio)
     },
 
     create: async (data: Partial<RoutePlan>): Promise<RoutePlan> => {
-        return apiRequest<RoutePlan>(endpoints.catalog.rutero, {
-            method: 'POST',
-            body: JSON.stringify(data)
-        })
+        return ApiService.post<RoutePlan>(ROUTES_ENDPOINT, data)
     },
 
     update: async (id: string, data: Partial<RoutePlan>): Promise<RoutePlan> => {
-        return apiRequest<RoutePlan>(endpoints.catalog.ruteroById(id), {
-            method: 'PUT',
-            body: JSON.stringify(data)
-        })
+        return ApiService.put<RoutePlan>(ROUTE_BY_ID(id), data)
     },
 
     delete: async (id: string): Promise<void> => {
-        return apiRequest<void>(endpoints.catalog.ruteroById(id), {
-            method: 'DELETE'
-        })
+        return ApiService.delete<void>(ROUTE_BY_ID(id))
     },
 
     deactivate: async (id: string): Promise<RoutePlan> => {
-        return apiRequest<RoutePlan>(endpoints.catalog.ruteroById(id), {
-            method: 'PUT',
-            body: JSON.stringify({ activo: false })
-        })
+        return ApiService.put<RoutePlan>(ROUTE_BY_ID(id), { activo: false })
     },
 
     reactivate: async (id: string): Promise<RoutePlan> => {
-        return apiRequest<RoutePlan>(endpoints.catalog.ruteroById(id), {
-            method: 'PUT',
-            body: JSON.stringify({ activo: true })
-        })
+        return ApiService.put<RoutePlan>(ROUTE_BY_ID(id), { activo: true })
     },
 
     getInactive: async (): Promise<RoutePlan[]> => {
-        const allRoutes = await RouteService.getAll()
+        const allRoutes = await fetchAllRoutes()
         return allRoutes.filter(r => !r.activo)
     },
 
@@ -84,7 +80,7 @@ export const RouteService = {
         sucursalId?: string
     ): Promise<RoutePlan | null> => {
         try {
-            const allRoutes = await RouteService.getAll()
+            const allRoutes = await fetchAllRoutes()
             const duplicate = allRoutes.find(r =>
                 r.activo &&
                 r.cliente_id === clienteId &&
@@ -94,21 +90,19 @@ export const RouteService = {
             )
             return duplicate || null
         } catch (error) {
-            console.error('Error checking duplicate route:', error)
+            logErrorForDebugging(error, 'RouteService.checkDuplicate', { clienteId, diaSemana, hora, sucursalId })
             return null
         }
     },
 
     getTodayVisits: async (): Promise<ScheduledVisit[]> => {
         try {
-            const routes = await RouteService.getMyRoute()
+            const routes = await rawService.getMyRoute()
             const currentDay = new Date().getDay()
 
             const todayRoutes = routes.filter(
                 route => route.activo && route.dia_semana === currentDay
-            )
-
-            todayRoutes.sort((a, b) => (a.orden_sugerido || 0) - (b.orden_sugerido || 0))
+            ).sort((a, b) => (a.orden_sugerido || 0) - (b.orden_sugerido || 0))
 
             const visits: ScheduledVisit[] = await Promise.all(
                 todayRoutes.map(async (route) => {
@@ -119,16 +113,16 @@ export const RouteService = {
                             clientName: client.nombre_comercial || client.razon_social,
                             address: client.direccion_texto || 'Sin dirección',
                             time: route.hora_estimada_arribo || '00:00:00',
-                            status: 'pending' as const
+                            status: 'pending'
                         }
                     } catch (error) {
-                        console.error(`Error loading client ${route.cliente_id}:`, error)
+                        logErrorForDebugging(error, 'RouteService.getTodayVisits.clientLookup', { routeId: route.id })
                         return {
                             id: route.id,
                             clientName: 'Cliente desconocido',
                             address: 'Sin dirección',
                             time: route.hora_estimada_arribo || '00:00:00',
-                            status: 'pending' as const
+                            status: 'pending'
                         }
                     }
                 })
@@ -136,15 +130,14 @@ export const RouteService = {
 
             return visits
         } catch (error) {
-            console.error('Error loading scheduled visits:', error)
+            logErrorForDebugging(error, 'RouteService.getTodayVisits')
             return []
         }
     },
 
     getClientsInZone: async (zoneId: number): Promise<any[]> => {
         try {
-            const allRoutes = await RouteService.getAll()
-
+            const allRoutes = await fetchAllRoutes()
             const clientIdsInZone = [...new Set(
                 allRoutes
                     .filter(route => Number(route.zona_id) === Number(zoneId))
@@ -156,7 +149,7 @@ export const RouteService = {
                     try {
                         return await ClientService.getClient(clientId)
                     } catch (error) {
-                        console.error(`Error loading client ${clientId}:`, error)
+                        logErrorForDebugging(error, 'RouteService.getClientsInZone.clientLookup', { clientId })
                         return null
                     }
                 })
@@ -164,8 +157,10 @@ export const RouteService = {
 
             return clients.filter(client => client !== null)
         } catch (error) {
-            console.error('Error loading clients in zone:', error)
+            logErrorForDebugging(error, 'RouteService.getClientsInZone', { zoneId })
             return []
         }
     }
 }
+
+export const RouteService = createService('RouteService', rawService)

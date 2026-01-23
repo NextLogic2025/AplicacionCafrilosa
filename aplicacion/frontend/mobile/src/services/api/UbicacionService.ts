@@ -1,4 +1,5 @@
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
@@ -23,60 +24,29 @@ export type Ubicacion = {
     almacen?: { id: number; nombre: string }
 }
 
-function warehouse(path: string) {
-    return `${env.api.warehouseUrl}${path}`
-}
+const warehouse = (path: string) => `${env.api.warehouseUrl}${path}`
 
-export const UbicacionService = {
+const rawService = {
     async list(almacenId?: number): Promise<Ubicacion[]> {
-        try {
-            const qs = almacenId ? `?almacen_id=${almacenId}` : ''
-            return await apiRequest<Ubicacion[]>(warehouse(endpoints.warehouse.ubicaciones + qs))
-        } catch (error) {
-            logErrorForDebugging(error, 'UbicacionService.list', { almacenId })
-            throw error
-        }
+        const qs = almacenId ? `?almacen_id=${almacenId}` : ''
+        return ApiService.get<Ubicacion[]>(warehouse(endpoints.warehouse.ubicaciones + qs))
     },
 
     async getById(id: string): Promise<Ubicacion> {
-        try {
-            return await apiRequest<Ubicacion>(warehouse(endpoints.warehouse.ubicacionById(id)))
-        } catch (error) {
-            logErrorForDebugging(error, 'UbicacionService.getById', { id })
-            throw error
-        }
+        return ApiService.get<Ubicacion>(warehouse(endpoints.warehouse.ubicacionById(id)))
     },
 
     async create(payload: UbicacionPayload): Promise<Ubicacion> {
-        try {
-            return await apiRequest<Ubicacion>(warehouse(endpoints.warehouse.ubicaciones), {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'UbicacionService.create', { payload })
-            throw error
-        }
+        return ApiService.post<Ubicacion>(warehouse(endpoints.warehouse.ubicaciones), payload)
     },
 
     async update(id: string, payload: Partial<UbicacionPayload>): Promise<Ubicacion> {
-        try {
-            return await apiRequest<Ubicacion>(warehouse(endpoints.warehouse.ubicacionById(id)), {
-                method: 'PUT',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'UbicacionService.update', { id, payload })
-            throw error
-        }
+        return ApiService.put<Ubicacion>(warehouse(endpoints.warehouse.ubicacionById(id)), payload)
     },
 
     async remove(id: string): Promise<void> {
-        try {
-            await apiRequest<void>(warehouse(endpoints.warehouse.ubicacionById(id)), { method: 'DELETE' })
-        } catch (error) {
-            logErrorForDebugging(error, 'UbicacionService.remove', { id })
-            throw error
-        }
-    },
+        return ApiService.delete<void>(warehouse(endpoints.warehouse.ubicacionById(id)))
+    }
 }
+
+export const UbicacionService = createService('UbicacionService', rawService)

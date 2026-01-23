@@ -1,5 +1,6 @@
 import { jwtDecode } from 'jwt-decode'
-import { apiRequest } from './client'
+import { ApiService } from './ApiService'
+import { createService } from './createService'
 import { env } from '../../config/env'
 import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
@@ -44,44 +45,21 @@ async function getCurrentUserId(): Promise<string | null> {
     }
 }
 
-export const StockService = {
+const rawService = {
     async list(): Promise<StockItem[]> {
-        try {
-            return await apiRequest<StockItem[]>(warehouse(endpoints.warehouse.stock))
-        } catch (error) {
-            logErrorForDebugging(error, 'StockService.list')
-            throw error
-        }
+        return ApiService.get<StockItem[]>(warehouse(endpoints.warehouse.stock))
     },
 
     async listByUbicacion(ubicacionId: string): Promise<StockItem[]> {
-        try {
-            return await apiRequest<StockItem[]>(warehouse(endpoints.warehouse.stockByUbicacion(ubicacionId)))
-        } catch (error) {
-            logErrorForDebugging(error, 'StockService.listByUbicacion', { ubicacionId })
-            throw error
-        }
+        return ApiService.get<StockItem[]>(warehouse(endpoints.warehouse.stockByUbicacion(ubicacionId)))
     },
 
     async listByProducto(productoId: string): Promise<StockItem[]> {
-        try {
-            return await apiRequest<StockItem[]>(warehouse(endpoints.warehouse.stockByProducto(productoId)))
-        } catch (error) {
-            logErrorForDebugging(error, 'StockService.listByProducto', { productoId })
-            throw error
-        }
+        return ApiService.get<StockItem[]>(warehouse(endpoints.warehouse.stockByProducto(productoId)))
     },
 
     async create(payload: CreateStockPayload): Promise<StockItem> {
-        try {
-            return await apiRequest<StockItem>(warehouse(endpoints.warehouse.stock), {
-                method: 'POST',
-                body: JSON.stringify(payload),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'StockService.create', { payload })
-            throw error
-        }
+        return ApiService.post<StockItem>(warehouse(endpoints.warehouse.stock), payload)
     },
 
     async ajustar(payload: AjusteStockPayload): Promise<StockItem> {
@@ -91,14 +69,11 @@ export const StockService = {
             logErrorForDebugging(err, 'StockService.ajustar', { payload })
             throw err
         }
-        try {
-            return await apiRequest<StockItem>(warehouse(endpoints.warehouse.stockAjustar), {
-                method: 'POST',
-                body: JSON.stringify({ ...payload, usuarioResponsableId: userId }),
-            })
-        } catch (error) {
-            logErrorForDebugging(error, 'StockService.ajustar', { payload })
-            throw error
-        }
-    },
+        return ApiService.post<StockItem>(warehouse(endpoints.warehouse.stockAjustar), {
+            ...payload,
+            usuarioResponsableId: userId
+        })
+    }
 }
+
+export const StockService = createService('StockService', rawService)

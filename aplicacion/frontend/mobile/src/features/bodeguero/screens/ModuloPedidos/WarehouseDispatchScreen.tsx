@@ -9,7 +9,7 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { StatusBadge } from '../../../../components/ui/StatusBadge'
 import { PrimaryButton } from '../../../../components/ui/PrimaryButton'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { KpiCard } from '../../../../components/ui/KpiCard'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { OrderService, type Order } from '../../../../services/api/OrderService'
 
 export function WarehouseDispatchScreen() {
@@ -54,7 +54,7 @@ export function WarehouseDispatchScreen() {
     useFocusEffect(
         useCallback(() => {
             loadOrders()
-            return () => {}
+            return () => { }
         }, [loadOrders]),
     )
 
@@ -153,24 +153,24 @@ export function WarehouseDispatchScreen() {
             {/* KPIs */}
             <View className="mx-4 mt-4">
                 <View className="flex-row justify-between">
-                    <KpiCard
+                    <DashboardCard
                         label="Por Despachar"
                         value={totals.pedidos}
-                        icon="cube-outline"
+                        icon="cube"
                         color="#2563EB"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Productos"
                         value={totals.items}
-                        icon="layers-outline"
+                        icon="layers"
                         color="#7C3AED"
                         columns={3}
                     />
-                    <KpiCard
+                    <DashboardCard
                         label="Valor Total"
                         value={`$${totals.valor.toFixed(0)}`}
-                        icon="cash-outline"
+                        icon="cash"
                         color="#059669"
                         columns={3}
                     />

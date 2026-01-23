@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 interface PaginationState {
     page: number
@@ -56,6 +56,9 @@ export function usePagination<T>(
     })
 
     const isLoadingRef = useRef(false)
+    const lastTriggerRef = useRef(0)
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const THROTTLE_WINDOW = 400
 
     const fetchPage = useCallback(async (pageNum: number, isRefresh: boolean = false) => {
         if (isLoadingRef.current) return
@@ -91,10 +94,36 @@ export function usePagination<T>(
         }
     }, [fetchFn, perPage])
 
-    const loadMore = useCallback(async () => {
+    const loadMoreInternal = useCallback(async () => {
         if (!pagination.hasMore || isLoadingRef.current) return
         await fetchPage(pagination.page + 1, false)
     }, [fetchPage, pagination.hasMore, pagination.page])
+
+    const scheduleLoadMore = useCallback(() => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current)
+            debounceTimerRef.current = null
+        }
+
+        const now = Date.now()
+        const wait = Math.max(THROTTLE_WINDOW - (now - lastTriggerRef.current), 0)
+
+        if (wait === 0) {
+            lastTriggerRef.current = now
+            loadMoreInternal()
+            return
+        }
+
+        debounceTimerRef.current = setTimeout(() => {
+            lastTriggerRef.current = Date.now()
+            loadMoreInternal()
+            debounceTimerRef.current = null
+        }, wait)
+    }, [loadMoreInternal])
+
+    const loadMore = useCallback(async () => {
+        scheduleLoadMore()
+    }, [scheduleLoadMore])
 
     const refresh = useCallback(async () => {
         await fetchPage(1, true)
@@ -111,6 +140,15 @@ export function usePagination<T>(
         })
         setError(null)
     }, [initialPage, perPage])
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current)
+                debounceTimerRef.current = null
+            }
+        }
+    }, [])
 
     return {
         data,

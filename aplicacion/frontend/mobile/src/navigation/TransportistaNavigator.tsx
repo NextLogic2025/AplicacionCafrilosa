@@ -17,6 +17,8 @@ import { TransportistaRoutesScreen } from '../features/transportista/screens/Mod
 import { TransportistaReturnsScreen } from '../features/transportista/screens/ModuloDevoluciones/TransportistaReturnsScreen'
 import { TransportistaHistoryScreen } from '../features/transportista/screens/ModuloOrdenes/TransportistaHistoryScreen'
 import { TransportistaNotificationsScreen } from '../features/transportista/screens/ModuloNotificaciones/TransportistaNotificationsScreen'
+import { DriverInvoicesScreen } from '../features/transportista/screens/ModuloFacturas/DriverInvoicesScreen'
+import { DriverInvoiceDetailScreen } from '../features/transportista/screens/ModuloFacturas/DriverInvoiceDetailScreen'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
@@ -66,6 +68,8 @@ export function TransportistaNavigator() {
                 <Stack.Screen name="Devoluciones" component={TransportistaReturnsScreen} />
                 <Stack.Screen name="Historial" component={TransportistaHistoryScreen} />
                 <Stack.Screen name="Notificaciones" component={TransportistaNotificationsScreen} />
+                <Stack.Screen name="DriverInvoices" component={DriverInvoicesScreen} />
+                <Stack.Screen name="InvoiceDetail" component={DriverInvoiceDetailScreen} />
             </Stack.Group>
         </Stack.Navigator>
     )

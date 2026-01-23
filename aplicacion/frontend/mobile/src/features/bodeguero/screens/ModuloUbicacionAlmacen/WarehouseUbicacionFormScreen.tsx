@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, TextInput } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -14,6 +14,19 @@ import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { BRAND_COLORS } from '../../../../shared/types'
 
+const UBI_PREFIX = 'UBI-'
+
+// Opciones de tipo de ubicación
+const TIPOS_UBICACION: PickerOption[] = [
+    { id: 'RACK', label: 'Rack', description: 'Estantería metálica multinivel', icon: 'grid' },
+    { id: 'PISO', label: 'Piso', description: 'Almacenamiento a nivel de suelo', icon: 'layers' },
+    { id: 'CAMARA_FRIA', label: 'Cámara Fría', description: 'Espacio refrigerado', icon: 'snow' },
+    { id: 'CONGELADOR', label: 'Congelador', description: 'Espacio de congelación', icon: 'thermometer' },
+    { id: 'ESTANTE', label: 'Estante', description: 'Estante para productos pequeños', icon: 'albums' },
+    { id: 'PALLET', label: 'Pallet', description: 'Zona de pallets', icon: 'cube' },
+    { id: 'OTRO', label: 'Otro', description: 'Especificar manualmente', icon: 'ellipsis-horizontal' },
+]
+
 type RouteParams = {
     ubicacionId?: string
     almacenId?: number
@@ -26,13 +39,21 @@ export function WarehouseUbicacionFormScreen() {
     const isEdit = Boolean(ubicacionId)
 
     const [almacenId, setAlmacenId] = useState<number | null>(initialAlmacen ?? null)
-    const [codigoVisual, setCodigoVisual] = useState('')
+    const [codigoVisualSuffix, setCodigoVisualSuffix] = useState('')
     const [tipo, setTipo] = useState('RACK')
+    const [tipoCustom, setTipoCustom] = useState('')
     const [capacidad, setCapacidad] = useState('')
     const [esCuarentena, setEsCuarentena] = useState(false)
 
     const [almacenPickerVisible, setAlmacenPickerVisible] = useState(false)
+    const [tipoPickerVisible, setTipoPickerVisible] = useState(false)
     const [almacenOptions, setAlmacenOptions] = useState<PickerOption[]>([])
+
+    // El código completo es UBI_PREFIX + codigoVisualSuffix
+    const getFullCodigoVisual = () => `${UBI_PREFIX}${codigoVisualSuffix}`
+
+    // El tipo final (si es OTRO usa el custom)
+    const getTipoFinal = () => tipo === 'OTRO' && tipoCustom.trim() ? tipoCustom.trim() : tipo
 
     const [saving, setSaving] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -77,8 +98,22 @@ export function WarehouseUbicacionFormScreen() {
         try {
             const data = await UbicacionService.getById(id)
             setAlmacenId(data.almacenId)
-            setCodigoVisual(data.codigoVisual || '')
-            setTipo(data.tipo || 'RACK')
+            // Si el código tiene prefijo UBI-, extraemos solo el sufijo
+            const rawCodigo = data.codigoVisual || ''
+            if (rawCodigo.startsWith(UBI_PREFIX)) {
+                setCodigoVisualSuffix(rawCodigo.replace(UBI_PREFIX, ''))
+            } else {
+                setCodigoVisualSuffix(rawCodigo)
+            }
+            // Si el tipo no está en las opciones predefinidas, es custom
+            const rawTipo = data.tipo || 'RACK'
+            const tipoEncontrado = TIPOS_UBICACION.find(t => t.id === rawTipo)
+            if (tipoEncontrado) {
+                setTipo(rawTipo)
+            } else {
+                setTipo('OTRO')
+                setTipoCustom(rawTipo)
+            }
             setCapacidad(data.capacidadMaxKg ? String(data.capacidadMaxKg) : '')
             setEsCuarentena(Boolean(data.esCuarentena))
         } catch (error) {
@@ -104,20 +139,32 @@ export function WarehouseUbicacionFormScreen() {
             })
             return
         }
-        if (!codigoVisual.trim()) {
+        if (!codigoVisualSuffix.trim()) {
             setFeedback({
                 visible: true,
                 type: 'warning',
                 title: 'Falta codigo',
-                message: 'Ingresa el codigo visual de la ubicacion.',
+                message: 'Ingresa el codigo visual de la ubicacion (ej: A1-01).',
+            })
+            return
+        }
+        if (tipo === 'OTRO' && !tipoCustom.trim()) {
+            setFeedback({
+                visible: true,
+                type: 'warning',
+                title: 'Falta tipo',
+                message: 'Ingresa el tipo personalizado de ubicación.',
             })
             return
         }
 
+        const fullCodigoVisual = getFullCodigoVisual()
+        const tipoFinal = getTipoFinal()
+
         const basePayload: UbicacionPayload = {
             almacenId,
-            codigoVisual: codigoVisual.trim(),
-            tipo: tipo.trim() || 'RACK',
+            codigoVisual: fullCodigoVisual,
+            tipo: tipoFinal,
             esCuarentena,
         }
         if (capacidad) basePayload.capacidadMaxKg = Number(capacidad)
@@ -126,8 +173,8 @@ export function WarehouseUbicacionFormScreen() {
         try {
             if (isEdit && ubicacionId) {
                 const updatePayload: Partial<UbicacionPayload> = {
-                    codigoVisual: basePayload.codigoVisual,
-                    tipo: basePayload.tipo,
+                    codigoVisual: fullCodigoVisual,
+                    tipo: tipoFinal,
                     esCuarentena: basePayload.esCuarentena,
                     ...(capacidad ? { capacidadMaxKg: Number(capacidad) } : { capacidadMaxKg: undefined }),
                 }
@@ -140,8 +187,8 @@ export function WarehouseUbicacionFormScreen() {
         } catch (error) {
             const rawMessage = error instanceof Error ? error.message.toLowerCase() : ''
             let customMessage: string | undefined
-            if (rawMessage.includes('codigo') || rawMessage.includes('codigo_visual')) {
-                customMessage = 'Ya existe una ubicacion con ese codigo en este almacen.'
+            if (rawMessage.includes('codigo') || rawMessage.includes('codigo_visual') || rawMessage.includes('duplicad')) {
+                customMessage = `Ya existe una ubicación con el código ${fullCodigoVisual}. Usa otro código.`
             } else if (rawMessage.includes('nombre') && rawMessage.includes('existe')) {
                 customMessage = 'Ya existe una ubicacion con ese nombre.'
             }
@@ -155,6 +202,8 @@ export function WarehouseUbicacionFormScreen() {
             setSaving(false)
         }
     }
+
+    const selectedTipo = TIPOS_UBICACION.find(t => t.id === tipo)
 
     return (
         <KeyboardAvoidingView className="flex-1 bg-neutral-50" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -180,15 +229,51 @@ export function WarehouseUbicacionFormScreen() {
                         <Ionicons name="chevron-down" size={18} color="#6B7280" />
                     </TouchableOpacity>
 
-                    <TextField
-                        label="Codigo visual"
-                        placeholder="Ej. A1-01-01"
-                        value={codigoVisual}
-                        onChangeText={setCodigoVisual}
-                        autoCapitalize="characters"
-                    />
+                    <View>
+                        <Text className="text-xs text-neutral-500 font-semibold uppercase mb-2">Codigo visual</Text>
+                        <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-2xl overflow-hidden">
+                            <View className="bg-neutral-200 px-4 py-4">
+                                <Text className="text-base font-bold text-neutral-700">{UBI_PREFIX}</Text>
+                            </View>
+                            <TextInput
+                                className="flex-1 px-4 py-4 text-base font-bold text-neutral-900"
+                                placeholder="A1-01-01"
+                                value={codigoVisualSuffix}
+                                onChangeText={setCodigoVisualSuffix}
+                                autoCapitalize="characters"
+                                placeholderTextColor="#9CA3AF"
+                            />
+                        </View>
+                        {codigoVisualSuffix ? (
+                            <Text className="text-xs text-neutral-400 mt-1 ml-1">
+                                Código completo: {getFullCodigoVisual()}
+                            </Text>
+                        ) : null}
+                    </View>
 
-                    <TextField label="Tipo" placeholder="RACK, PISO..." value={tipo} onChangeText={setTipo} />
+                    <TouchableOpacity
+                        className="p-4 rounded-2xl border border-neutral-200 bg-neutral-50 flex-row items-center justify-between"
+                        onPress={() => setTipoPickerVisible(true)}
+                        activeOpacity={0.7}
+                    >
+                        <View>
+                            <Text className="text-xs text-neutral-500 font-semibold uppercase">Tipo de ubicación</Text>
+                            <Text className="text-base font-bold text-neutral-900 mt-1">
+                                {tipo === 'OTRO' && tipoCustom ? tipoCustom : selectedTipo?.label || 'Seleccionar'}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    </TouchableOpacity>
+
+                    {tipo === 'OTRO' ? (
+                        <TextField
+                            label="Tipo personalizado"
+                            placeholder="Ingresa el tipo que deseas"
+                            value={tipoCustom}
+                            onChangeText={setTipoCustom}
+                            autoCapitalize="characters"
+                        />
+                    ) : null}
 
                     <TextField label="Capacidad max. (kg)" placeholder="Ej. 1500" value={capacidad} onChangeText={setCapacidad} />
 
@@ -228,6 +313,24 @@ export function WarehouseUbicacionFormScreen() {
                 onClose={() => setAlmacenPickerVisible(false)}
                 infoText="Solo puedes crear ubicaciones en almacenes activos."
                 infoIcon="business-outline"
+                infoColor={BRAND_COLORS.red}
+            />
+
+            <PickerModal
+                visible={tipoPickerVisible}
+                title="Selecciona tipo de ubicación"
+                options={TIPOS_UBICACION}
+                selectedId={tipo}
+                onSelect={(id) => {
+                    setTipo(String(id))
+                    if (id !== 'OTRO') {
+                        setTipoCustom('')
+                    }
+                    setTipoPickerVisible(false)
+                }}
+                onClose={() => setTipoPickerVisible(false)}
+                infoText="Selecciona el tipo o elige 'Otro' para personalizar."
+                infoIcon="grid-outline"
                 infoColor={BRAND_COLORS.red}
             />
 

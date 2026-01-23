@@ -8,6 +8,7 @@ import { CatalogService, type Product } from '../../../../services/api/CatalogSe
 import { useCart } from '../../../../context/CartContext'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../../shared/types'
+import { DashboardCard } from '../../../../components/ui/DashboardCard'
 
 import { getUserName } from '../../../../storage/authStorage'
 
@@ -108,10 +109,10 @@ export function SellerHomeScreen() {
                 contentContainerStyle={{ paddingBottom: 100 }}
             >
                 {/* 1. KPIs */}
-                <View className="flex-row justify-between mb-6">
-                    <KPICard icon="receipt" value={kpis?.todayOrders || 0} label="Pedidos Hoy" color="#10B981" />
-                    <KPICard icon="people" value={kpis?.activeClients || 0} label="Clientes Activos" color="#3B82F6" />
-                    <KPICard icon="alert-circle" value={kpis?.overdueInvoices || 0} label="Fac. Vencidas" color="#EF4444" />
+                <View className="flex-row justify-between mb-6 -mx-1.5">
+                    <DashboardCard icon="receipt" value={kpis?.todayOrders || 0} label="Pedidos Hoy" color="#10B981" columns={3} />
+                    <DashboardCard icon="people" value={kpis?.activeClients || 0} label="Clientes Activos" color="#3B82F6" columns={3} />
+                    <DashboardCard icon="alert-circle" value={kpis?.overdueInvoices || 0} label="Fac. Vencidas" color="#EF4444" columns={3} />
                 </View>
 
                 {/* 2. Próxima Visita */}
@@ -314,14 +315,4 @@ export function SellerHomeScreen() {
     )
 }
 
-function KPICard({ icon, value, label, color }: { icon: any, value: number, label: string, color: string }) {
-    return (
-        <View className="bg-white p-3 rounded-2xl w-[31%] shadow-sm border border-neutral-100 items-center">
-            <View className={`p-2 rounded-full mb-2`} style={{ backgroundColor: `${color}15` }}>
-                <Ionicons name={icon} size={20} color={color} />
-            </View>
-            <Text className="text-2xl font-bold text-neutral-900">{value}</Text>
-            <Text className="text-[10px] text-neutral-500 text-center font-medium mt-1">{label}</Text>
-        </View>
-    )
-}
+

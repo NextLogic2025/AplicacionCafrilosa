@@ -10,6 +10,7 @@ interface OrderStatusModalProps {
     allowedStatuses: OrderStatus[]
     onStatusChange: (status: OrderStatus) => Promise<void>
     onClose: () => void
+    isProcessing?: boolean
 }
 
 export function OrderStatusModal({
@@ -17,7 +18,8 @@ export function OrderStatusModal({
     order,
     allowedStatuses,
     onStatusChange,
-    onClose
+    onClose,
+    isProcessing = false
 }: OrderStatusModalProps) {
     const [changing, setChanging] = useState(false)
     const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(null)
@@ -41,6 +43,8 @@ export function OrderStatusModal({
                 return 'close-circle'
             case 'EN_PREPARACION':
                 return 'cube'
+            case 'PREPARADO':
+                return 'checkbox'
             case 'FACTURADO':
                 return 'receipt'
             case 'EN_RUTA':
@@ -57,11 +61,13 @@ export function OrderStatusModal({
     const getStatusDescription = (status: OrderStatus): string => {
         switch (status) {
             case 'APROBADO':
-                return 'Validar y aprobar pedido'
+                return 'Aprobar pedido. Se creará automáticamente una orden de picking para bodega'
             case 'RECHAZADO':
-                return 'Rechazar pedido'
+                return 'Rechazar pedido. No se creará picking'
             case 'EN_PREPARACION':
                 return 'Marcar como en preparación'
+            case 'PREPARADO':
+                return 'Marcar como preparado'
             case 'FACTURADO':
                 return 'Marcar como facturado'
             case 'EN_RUTA':
@@ -119,21 +125,22 @@ export function OrderStatusModal({
 
                             {allowedStatuses.map((status) => {
                                 const isCurrentStatus = order.estado_actual === status
-                                const isProcessing = changing && selectedStatus === status
+                                const isProcessingThis = (changing || isProcessing) && selectedStatus === status
+                                const allDisabled = changing || isProcessing
 
                                 return (
                                     <TouchableOpacity
                                         key={status}
                                         onPress={() => handleStatusChange(status)}
                                         className="flex-row items-center justify-between p-4 mb-2 bg-neutral-50 rounded-xl border border-neutral-100 active:bg-neutral-100"
-                                        disabled={isCurrentStatus || changing}
+                                        disabled={isCurrentStatus || allDisabled}
                                     >
                                         <View className="flex-row items-center gap-3">
                                             <View
                                                 className="w-10 h-10 rounded-full items-center justify-center"
                                                 style={{ backgroundColor: `${ORDER_STATUS_COLORS[status]}20` }}
                                             >
-                                                {isProcessing ? (
+                                                {isProcessingThis ? (
                                                     <ActivityIndicator size="small" color={ORDER_STATUS_COLORS[status]} />
                                                 ) : (
                                                     <Ionicons

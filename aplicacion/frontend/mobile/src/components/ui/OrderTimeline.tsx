@@ -12,65 +12,67 @@ interface OrderTimelineProps {
 interface TimelineStep {
     status: OrderStatus
     label: string
+    icon: keyof typeof Ionicons.glyphMap
     color: string
     isCompleted: boolean
     isCurrent: boolean
-    date: string | null
+    isPending: boolean
 }
 
 const STATUS_FLOW: OrderStatus[] = [
     'PENDIENTE',
     'APROBADO',
     'EN_PREPARACION',
+    'PREPARADO',
     'FACTURADO',
     'EN_RUTA',
     'ENTREGADO'
 ]
 
+const STATUS_ICONS: Record<OrderStatus, keyof typeof Ionicons.glyphMap> = {
+    PENDIENTE: 'time-outline',
+    APROBADO: 'checkmark-circle-outline',
+    EN_PREPARACION: 'cube-outline',
+    PREPARADO: 'checkbox-outline',
+    FACTURADO: 'document-text-outline',
+    EN_RUTA: 'car-outline',
+    ENTREGADO: 'checkmark-done-circle-outline',
+    ANULADO: 'close-circle-outline',
+    RECHAZADO: 'close-circle-outline'
+}
+
 export function OrderTimeline({ currentStatus, createdAt, compact = false }: OrderTimelineProps) {
-    const getStatusHistory = (): TimelineStep[] => {
-        const history: TimelineStep[] = []
-        const createdDate = createdAt ? new Date(createdAt) : new Date()
+    const isTerminalStatus = currentStatus === 'ANULADO' || currentStatus === 'RECHAZADO'
 
-        if (isNaN(createdDate.getTime())) {
-            createdDate.setTime(Date.now())
-        }
-
+    const getStatusSteps = (): TimelineStep[] => {
         const currentIndex = STATUS_FLOW.indexOf(currentStatus)
 
-        for (let i = 0; i < STATUS_FLOW.length; i++) {
-            const status = STATUS_FLOW[i]
-            const isCompleted = i <= currentIndex
+        return STATUS_FLOW.map((status, index) => {
+            const isCompleted = index < currentIndex
             const isCurrent = status === currentStatus
+            const isPending = index > currentIndex && !isTerminalStatus
 
-            const statusDate = new Date(createdDate.getTime() + (i * 24 * 60 * 60 * 1000))
-
-            history.push({
+            return {
                 status,
                 label: ORDER_STATUS_LABELS[status],
+                icon: STATUS_ICONS[status],
                 color: ORDER_STATUS_COLORS[status],
                 isCompleted,
                 isCurrent,
-                date: isCompleted ? statusDate.toISOString() : null
-            })
-
-            if (status === currentStatus) break
-        }
-
-        return history
+                isPending
+            }
+        })
     }
 
-    const statusHistory = getStatusHistory()
+    const steps = getStatusSteps()
 
-    const formatDate = (dateStr: string | null): string => {
-        if (!dateStr) return ''
+    const formatDate = (dateStr: string): string => {
         try {
             const date = new Date(dateStr)
             if (isNaN(date.getTime())) return ''
             return date.toLocaleDateString('es-EC', {
                 day: '2-digit',
                 month: 'short',
-                year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
             })
@@ -79,51 +81,94 @@ export function OrderTimeline({ currentStatus, createdAt, compact = false }: Ord
         }
     }
 
-    return (
-        <View>
-            {statusHistory.map((step, index) => (
-                <View key={step.status} className="flex-row items-start mb-4 last:mb-0">
-                    <View className="mr-4">
-                        {step.isCompleted ? (
-                            <View
-                                className="w-8 h-8 rounded-full items-center justify-center"
-                                style={{ backgroundColor: step.color }}
-                            >
-                                <Ionicons name="checkmark" size={16} color="white" />
-                            </View>
-                        ) : step.isCurrent ? (
-                            <View
-                                className="w-8 h-8 rounded-full items-center justify-center border-2"
-                                style={{ borderColor: step.color, backgroundColor: `${step.color}20` }}
-                            >
-                                <View
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: step.color }}
-                                />
-                            </View>
-                        ) : (
-                            <View className="w-8 h-8 rounded-full border-2 border-neutral-300 bg-neutral-50" />
-                        )}
-                    </View>
-
-                    <View className="flex-1">
-                        <Text
-                            className={`font-bold text-base ${step.isCompleted || step.isCurrent ? 'text-neutral-900' : 'text-neutral-400'}`}
-                        >
-                            {step.label}
-                        </Text>
-                        {!compact && step.date && (
-                            <Text className="text-neutral-500 text-sm mt-1">
-                                {formatDate(step.date)}
-                            </Text>
-                        )}
-                    </View>
-
-                    {index < statusHistory.length - 1 && (
-                        <View className="absolute left-4 top-8 w-0.5 h-8 bg-neutral-200" />
-                    )}
+    if (isTerminalStatus) {
+        const terminalColor = ORDER_STATUS_COLORS[currentStatus]
+        return (
+            <View className="items-center py-4">
+                <View
+                    className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: `${terminalColor}15` }}
+                >
+                    <Ionicons name="close-circle" size={40} color={terminalColor} />
                 </View>
-            ))}
+                <Text className="text-lg font-bold" style={{ color: terminalColor }}>
+                    {ORDER_STATUS_LABELS[currentStatus]}
+                </Text>
+                <Text className="text-neutral-500 text-sm mt-1">
+                    {formatDate(createdAt)}
+                </Text>
+            </View>
+        )
+    }
+
+    return (
+        <View className="py-2">
+            {steps.map((step, index) => {
+                const isLast = index === steps.length - 1
+
+                return (
+                    <View key={step.status} className="flex-row">
+                        {/* Columna izquierda: Icono y linea */}
+                        <View className="items-center mr-4" style={{ width: 40 }}>
+                            {/* Icono del paso */}
+                            {step.isCompleted ? (
+                                <View
+                                    className="w-10 h-10 rounded-full items-center justify-center"
+                                    style={{ backgroundColor: step.color }}
+                                >
+                                    <Ionicons name="checkmark" size={22} color="white" />
+                                </View>
+                            ) : step.isCurrent ? (
+                                <View
+                                    className="w-10 h-10 rounded-full items-center justify-center border-[3px]"
+                                    style={{ borderColor: step.color, backgroundColor: `${step.color}15` }}
+                                >
+                                    <Ionicons name={step.icon} size={20} color={step.color} />
+                                </View>
+                            ) : (
+                                <View className="w-10 h-10 rounded-full items-center justify-center border-2 border-neutral-200 bg-neutral-50">
+                                    <Ionicons name={step.icon} size={18} color="#D1D5DB" />
+                                </View>
+                            )}
+
+                            {/* Linea conectora */}
+                            {!isLast && (
+                                <View
+                                    className="w-[3px] flex-1 my-1 rounded-full"
+                                    style={{
+                                        backgroundColor: step.isCompleted ? step.color : '#E5E7EB',
+                                        minHeight: compact ? 20 : 28
+                                    }}
+                                />
+                            )}
+                        </View>
+
+                        {/* Columna derecha: Texto */}
+                        <View className="flex-1 pb-4" style={{ minHeight: compact ? 48 : 60 }}>
+                            <Text
+                                className={`font-bold text-[15px] ${
+                                    step.isCompleted || step.isCurrent
+                                        ? 'text-neutral-900'
+                                        : 'text-neutral-400'
+                                }`}
+                            >
+                                {step.label}
+                            </Text>
+                            {!compact && (
+                                <Text className={`text-xs mt-0.5 ${
+                                    step.isCompleted || step.isCurrent
+                                        ? 'text-neutral-500'
+                                        : 'text-neutral-300'
+                                }`}>
+                                    {step.isCurrent && createdAt ? formatDate(createdAt) :
+                                     step.isCompleted ? 'Completado' :
+                                     'Pendiente'}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                )
+            })}
         </View>
     )
 }

@@ -9,7 +9,9 @@ import { TabNavigation } from '../components/ui/TabNavigation'
 import { SupervisorDashboardScreen } from '../features/supervisor/screens/SupervisorDashboardScreen'
 import { SupervisorOrdersScreen } from '../features/supervisor/screens/ModuloOrders/SupervisorOrdersScreen'
 import { SupervisorOrderDetailScreen } from '../features/supervisor/screens/ModuloOrders/SupervisorOrderDetailScreen'
-import { SupervisorDeliveriesScreen } from '../features/supervisor/screens/ModuloDeliveries/SupervisorDeliveriesScreen'
+import { SupervisorVehiclesListScreen } from '../features/supervisor/screens/ModuloVehiculos/SupervisorVehiclesListScreen'
+import { SupervisorVehicleFormScreen } from '../features/supervisor/screens/ModuloVehiculos/SupervisorVehicleFormScreen'
+import { SupervisorVehicleDetailScreen } from '../features/supervisor/screens/ModuloVehiculos/SupervisorVehicleDetailScreen'
 import { SupervisorTeamScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamScreen'
 import { SupervisorTeamDetailScreen } from '../features/supervisor/screens/ModuloMiEquipo/SupervisorTeamDetailScreen'
 import { SupervisorProfileScreen } from '../features/supervisor/screens/ModuloPerfil/SupervisorProfileScreen'
@@ -50,8 +52,15 @@ import { SupervisorRouteCreateScreen } from '../features/supervisor/screens/Modu
 import { SupervisorRouteScheduleScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteScheduleScreen'
 import { SupervisorRouteDetailScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRouteDetailScreen'
 import { SupervisorRoutesInactiveScreen } from '../features/supervisor/screens/ModuloRutas/SupervisorRoutesInactiveScreen'
+import { SupervisorConductoresListScreen } from '../features/supervisor/screens/ModuloConductores/SupervisorConductoresListScreen'
+import { SupervisorConductorFormScreen } from '../features/supervisor/screens/ModuloConductores/SupervisorConductorFormScreen'
+import { SupervisorConductorDetailScreen } from '../features/supervisor/screens/ModuloConductores/SupervisorConductorDetailScreen'
+import { SupervisorDespachosListScreen } from '../features/supervisor/screens/ModuloDespachos/SupervisorDespachosListScreen'
+import { SupervisorDespachoFormScreen } from '../features/supervisor/screens/ModuloDespachos/SupervisorDespachoFormScreen'
+import { SupervisorDespachoDetailScreen } from '../features/supervisor/screens/ModuloDespachos/SupervisorDespachoDetailScreen'
 
-import { SupervisorAuditScreen } from '../features/supervisor/screens/ModuloAuditoria/SupervisorAuditScreen'
+import { SupervisorInvoicesScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoicesScreen'
+import { SupervisorInvoiceDetailScreen } from '../features/supervisor/screens/ModuloFacturas/SupervisorInvoiceDetailScreen'
 
 const Tab = createBottomTabNavigator()
 const Stack = createNativeStackNavigator()
@@ -65,7 +74,7 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
             >
                 <Tab.Screen name="Inicio" component={SupervisorDashboardScreen} />
                 <Tab.Screen name="Pedidos" component={SupervisorOrdersScreen} />
-                <Tab.Screen name="Entregas" component={SupervisorDeliveriesScreen} />
+                <Tab.Screen name="Vehículos" component={SupervisorVehiclesListScreen} />
                 <Tab.Screen name="Equipo" component={SupervisorTeamScreen} />
                 <Tab.Screen name="Perfil" component={SupervisorProfileScreen} />
             </Tab.Navigator>
@@ -81,9 +90,9 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                     { label: 'Promociones', icon: 'pricetag', onPress: () => navigation.navigate('SupervisorPromotions') },
                     { label: 'Clientes', icon: 'people', onPress: () => navigation.navigate('SupervisorClients') },
                     {
-                        icon: 'cube',
-                        label: 'Bodega',
-                        onPress: () => navigation.navigate('SupervisorWarehouse'),
+                        icon: 'document-text',
+                        label: 'Despacho',
+                        onPress: () => navigation.navigate('SupervisorDespachosList'),
                     },
                     {
                         icon: 'arrow-undo',
@@ -106,9 +115,9 @@ function SupervisorTabs({ navigation }: { navigation: any }) {
                         onPress: () => navigation.navigate('SupervisorAlerts'),
                     },
                     {
-                        icon: 'shield-checkmark-outline',
-                        label: 'Auditoría',
-                        onPress: () => navigation.navigate('SupervisorAudit'),
+                        icon: 'receipt-outline',
+                        label: 'Facturas',
+                        onPress: () => navigation.navigate('SupervisorInvoices'),
                     },
                 ]}
             />
@@ -163,7 +172,25 @@ export function SupervisorNavigator() {
             <Stack.Screen name="SupervisorZoneDetail" component={SupervisorZoneDetailScreen} />
             <Stack.Screen name="SupervisorZoneForm" component={SupervisorZoneFormScreen} />
             <Stack.Screen name="SupervisorZoneMap" component={SupervisorZoneMapScreen} />
-            <Stack.Screen name="SupervisorAudit" component={SupervisorAuditScreen} />
+
+            {/* Conductor Module */}
+            <Stack.Screen name="SupervisorConductoresList" component={SupervisorConductoresListScreen} />
+            <Stack.Screen name="SupervisorConductorForm" component={SupervisorConductorFormScreen} />
+            <Stack.Screen name="SupervisorConductorDetail" component={SupervisorConductorDetailScreen} />
+
+            {/* Vehicle Module */}
+            <Stack.Screen name="SupervisorVehiclesList" component={SupervisorVehiclesListScreen} />
+            <Stack.Screen name="SupervisorVehicleForm" component={SupervisorVehicleFormScreen} />
+            <Stack.Screen name="SupervisorVehicleDetail" component={SupervisorVehicleDetailScreen} />
+
+            {/* Despachos Module */}
+            <Stack.Screen name="SupervisorDespachosList" component={SupervisorDespachosListScreen} />
+            <Stack.Screen name="SupervisorDespachoForm" component={SupervisorDespachoFormScreen} />
+            <Stack.Screen name="SupervisorDespachoDetail" component={SupervisorDespachoDetailScreen} />
+
+            {/* Facturas Module */}
+            <Stack.Screen name="SupervisorInvoices" component={SupervisorInvoicesScreen} />
+            <Stack.Screen name="InvoiceDetail" component={SupervisorInvoiceDetailScreen} />
         </Stack.Navigator>
     )
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../shared/types'
+import { DashboardCard } from '../../../components/ui/DashboardCard'
 
 export function AccountOverview() {
     return (
@@ -26,22 +27,10 @@ export function AccountOverview() {
 
 export function QuickStats() {
     return (
-        <View className="flex-row justify-between mx-4 mt-4">
-            <StatItem icon="receipt" label="Pedidos" value="0" color="#3B82F6" />
-            <StatItem icon="wallet" label="Facturas" value="0" color="#EF4444" />
-            <StatItem icon="time" label="Entregas" value="0" color="#F59E0B" />
-        </View>
-    )
-}
-
-function StatItem({ icon, label, value, color }: { icon: any, label: string, value: string, color: string }) {
-    return (
-        <View className="bg-white flex-1 mx-1.5 p-3 rounded-xl items-center shadow-sm border border-neutral-100">
-            <View className="h-8 w-8 rounded-full items-center justify-center mb-1" style={{ backgroundColor: `${color}15` }}>
-                <Ionicons name={icon} size={16} color={color} />
-            </View>
-            <Text className="text-lg font-bold text-neutral-800">{value}</Text>
-            <Text className="text-[10px] text-neutral-400 uppercase font-medium">{label}</Text>
+        <View className="flex-row justify-between mx-4 mt-4 -mx-1.5 ">
+            <DashboardCard icon="receipt" label="Pedidos" value="0" color="#3B82F6" columns={3} />
+            <DashboardCard icon="wallet" label="Facturas" value="0" color="#EF4444" columns={3} />
+            <DashboardCard icon="time" label="Entregas" value="0" color="#F59E0B" columns={3} />
         </View>
     )
 }

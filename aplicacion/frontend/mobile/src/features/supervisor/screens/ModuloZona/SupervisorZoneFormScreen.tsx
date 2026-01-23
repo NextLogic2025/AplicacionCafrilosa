@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Switch, Alert } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Zone, ZoneService, ZoneHelpers, LatLng, ZoneEditState } from '../../../../services/api/ZoneService'
@@ -9,8 +9,12 @@ import { GenericList } from '../../../../components/ui/GenericList'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { Ionicons } from '@expo/vector-icons'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ECUADOR_LOCATIONS, type EcuadorCity } from '../../../../data/ecuadorLocations'
+
+const ZON_PREFIX = 'ZON-'
+
 type ZoneFormParams = { zone?: Zone | null }
 export function SupervisorZoneFormScreen() {
     const navigation = useNavigation<any>()
@@ -20,11 +24,13 @@ export function SupervisorZoneFormScreen() {
     const [loading, setLoading] = useState(false)
     const [zoneData, setZoneData] = useState({
         nombre: initialZone?.nombre || '',
-        codigo: initialZone?.codigo || '',
+        codigoSuffix: initialZone?.codigo?.startsWith(ZON_PREFIX) ? initialZone.codigo.replace(ZON_PREFIX, '') : (initialZone?.codigo || ''),
         ciudad: initialZone?.ciudad || '',
         macrorregion: initialZone?.macrorregion || '',
         activo: initialZone?.activo ?? true,
     })
+
+    const getFullCodigo = () => `${ZON_PREFIX}${zoneData.codigoSuffix}`
     const initialCityMatch = useMemo(() => {
         const name = initialZone?.ciudad?.toLowerCase()
         if (!name) return null
@@ -130,9 +136,10 @@ export function SupervisorZoneFormScreen() {
     }
     const handleSave = async () => {
         const nombre = zoneData.nombre.trim()
-        const codigo = zoneData.codigo.trim()
+        const codigoSuffix = zoneData.codigoSuffix.trim()
+        const fullCodigo = getFullCodigo()
         const ciudad = zoneData.ciudad.trim()
-        if (!nombre || !codigo) {
+        if (!nombre || !codigoSuffix) {
             showFeedback('warning', 'Validación', 'El Nombre y el Código de Zona son obligatorios.')
             return
         }
@@ -141,7 +148,7 @@ export function SupervisorZoneFormScreen() {
             let zoneId = initialZone?.id
             const zonePayload = {
                 nombre,
-                codigo,
+                codigo: fullCodigo,
                 ciudad: ciudad || undefined,
                 macrorregion: zoneData.macrorregion.trim() || undefined,
                 poligono_geografico: ZoneHelpers.toGeoJson(polygon),
@@ -174,7 +181,9 @@ export function SupervisorZoneFormScreen() {
             showFeedback('success', successTitle, successMsg, () => navigation.goBack())
         } catch (error: any) {
             let msg = error.message || 'Error desconocido'
-            if (msg.includes('500')) msg = 'Error del servidor. Verifica que el CÓDIGO no esté duplicado.'
+            if (msg.includes('500') || msg.includes('duplicad') || msg.includes('ya existe')) {
+                msg = `Ya existe una zona con el código ${fullCodigo}. Usa otro código.`
+            }
             showFeedback('error', 'Error', msg)
         } finally {
             setLoading(false)
@@ -186,13 +195,27 @@ export function SupervisorZoneFormScreen() {
             <ScrollView className="flex-1 px-4 pt-4">
                 <View className={`bg-white p-5 rounded-2xl border mb-6 shadow-sm ${!zoneData.activo ? 'border-neutral-200 opacity-80' : 'border-neutral-100'}`}>
                     <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Código de Zona</Text>
-                    <TextInput
-                        className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900"
-                        value={zoneData.codigo}
-                        onChangeText={t => setZoneData(prev => ({ ...prev, codigo: t }))}
-                        placeholder="EJ: UIO-N-01"
-                        editable={zoneData.activo}
-                    />
+                    <View className="flex-row items-center bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden mb-1">
+                        <View className="bg-neutral-200 px-4 py-4">
+                            <Text className="text-base font-bold text-neutral-700">{ZON_PREFIX}</Text>
+                        </View>
+                        <TextInput
+                            className="flex-1 px-4 py-4 text-neutral-900 text-base font-bold"
+                            value={zoneData.codigoSuffix}
+                            onChangeText={t => setZoneData(prev => ({ ...prev, codigoSuffix: t }))}
+                            placeholder="UIO-N-01"
+                            editable={zoneData.activo}
+                            placeholderTextColor="#9CA3AF"
+                            autoCapitalize="characters"
+                        />
+                    </View>
+                    {zoneData.codigoSuffix ? (
+                        <Text className="text-xs text-neutral-400 mb-4 ml-1">
+                            Código completo: {getFullCodigo()}
+                        </Text>
+                    ) : (
+                        <View className="mb-4" />
+                    )}
                     <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Nombre de Zona</Text>
                     <TextInput
                         className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 mb-4 text-neutral-900"
@@ -366,12 +389,19 @@ export function SupervisorZoneFormScreen() {
                                 </Text>
                             </View>
                         </View>
-                        <Switch
-                            trackColor={{ false: '#767577', true: '#16A34A' }}
-                            thumbColor={zoneData.activo ? '#ffffff' : '#f4f3f4'}
-                            ios_backgroundColor="#3e3e3e"
-                            onValueChange={(val) => setZoneData(prev => ({ ...prev, activo: val }))}
-                            value={zoneData.activo}
+                        <ToggleSwitch
+                            checked={zoneData.activo}
+                            onToggle={() => {
+                                const newState = !zoneData.activo
+                                showFeedback(
+                                    'warning',
+                                    `¿${newState ? 'Activar' : 'Desactivar'} zona?`,
+                                    `¿Estás seguro de ${newState ? 'activar' : 'desactivar'} esta zona?`,
+                                    () => setZoneData(prev => ({ ...prev, activo: newState }))
+                                )
+                            }}
+                            colorOn="#22c55e"
+                            colorOff="#d1d5db"
                         />
                     </View>
                 </View>

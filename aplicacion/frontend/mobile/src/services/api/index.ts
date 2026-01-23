@@ -1,4 +1,6 @@
 export { apiRequest } from './client'
+export { ApiService } from './ApiService'
+export { createService } from './createService'
 
 export { AssignmentService } from './AssignmentService'
 export { CartService } from './CartService'
@@ -37,8 +39,7 @@ export type {
     ProductsResponse,
     PriceList as CatalogPriceList,
     Promotion,
-    CommercialZone as CatalogZone,
-    AuditLog
+    CommercialZone as CatalogZone
 } from './CatalogService'
 
 export type {

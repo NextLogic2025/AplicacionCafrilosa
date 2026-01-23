@@ -7,13 +7,32 @@ export interface PerfilCliente {
   contactName: string
   currentDebt: number
   creditLimit: number
+  direccion?: string
+  direccion_texto?: string
+  ciudad?: string
+  estado?: string
+}
+
+export interface SucursalCliente {
+  id: string
+  nombre: string
+  direccion?: string | null
+  ciudad?: string | null
+  estado?: string | null
 }
 
 export interface Producto {
   id: string
   name: string
   description: string
+  // `price` represents the effective unit price the customer will pay
   price: number
+  // Optional fields provided by the catalog service when there are promotions
+  precio_original?: number | null
+  precio_oferta?: number | null
+  ahorro?: number | null
+  promociones?: any[]
+  campania_aplicada_id?: number | null
   image?: string
   category: string
   inStock: boolean
@@ -81,6 +100,8 @@ export interface ItemPedido {
   unit: string
   unitPrice: number
   subtotal: number
+  cantidad_solicitada?: number | null
+  motivo_ajuste?: string | null
 }
 
 export interface Pedido {

@@ -1,5 +1,6 @@
 export { default as VendedorDashboard } from './Dashboard'
 export { default as VendedorClientes } from './Clientes'
+export { default as VendedorRutas } from './Rutas'
 export { default as VendedorProductos } from './Productos'
 export { default as VendedorPromociones } from './Promociones'
 export { default as VendedorCrearPedido } from './CrearPedido'
