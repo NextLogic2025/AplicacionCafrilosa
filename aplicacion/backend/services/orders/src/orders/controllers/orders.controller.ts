@@ -112,7 +112,9 @@ export class OrdersController {
         const usuarioId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
         const sucursal_id = body.sucursal_id;
-        const ubicacion = (body as any).ubicacion || null;
+            // Registrar body crudo para diagnostico de ubicacion
+            this.logger.debug('createFromMyCart body', body as any);
+            const ubicacion = (body as any).ubicacion ?? (body as any).ubicacion_pedido ?? (body as any).ubicacionPedido ?? null;
         // Para carrito propio: usuario_id=<JWT>, vendedor_id=null
         return this.ordersService.createFromCart(usuarioId, usuarioId, role, sucursal_id, ubicacion, (body as any).forma_pago_solicitada || null, null);
     }
@@ -132,7 +134,8 @@ export class OrdersController {
         const vendedorId = req?.user?.userId || req?.user?.sub || null;
         const role = (req?.user?.role || '').toString().toLowerCase();
         const sucursal_id = body.sucursal_id;
-        const ubicacion = (body as any).ubicacion || null;
+        this.logger.debug('createFromClientCart body', body as any);
+        const ubicacion = (body as any).ubicacion ?? (body as any).ubicacion_pedido ?? (body as any).ubicacionPedido ?? null;
         // Para carrito de cliente desde vendedor: usuario_id=<cliente_id>, vendedor_id=<JWT>
         return this.ordersService.createFromCart(clienteId, vendedorId, role, sucursal_id, ubicacion, (body as any).forma_pago_solicitada || null, vendedorId);
     }

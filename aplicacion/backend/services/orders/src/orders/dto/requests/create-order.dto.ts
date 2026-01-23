@@ -82,7 +82,6 @@ export class CreateOrderDto {
   @IsString()
   origen_pedido?: string;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => UbicacionDto)
   ubicacion_pedido?: UbicacionDto;

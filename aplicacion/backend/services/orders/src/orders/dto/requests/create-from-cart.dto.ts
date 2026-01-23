@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UbicacionSimpleDto {
   @IsNumber()
@@ -18,5 +19,7 @@ export class CreateFromCartDto {
   forma_pago_solicitada?: string;
 
   @IsOptional()
+  @ValidateNested()
+  @Type(() => UbicacionSimpleDto)
   ubicacion?: UbicacionSimpleDto;
 }
