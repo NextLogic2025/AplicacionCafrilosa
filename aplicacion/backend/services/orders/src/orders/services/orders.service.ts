@@ -205,7 +205,19 @@ export class OrdersService {
 
     try {
       // Use frontend-provided location (ubicacion) directly; resolve prices if needed
+      this.logger.debug('create() received ubicacion fields', { ubicacion: createOrderDto.ubicacion, ubicacion_pedido: createOrderDto.ubicacion_pedido });
       let ubicacionPedido: { lng: number; lat: number } | null = createOrderDto.ubicacion || createOrderDto.ubicacion_pedido || null;
+      // Normalizar/validar tipo (coercionar strings a números)
+      if (ubicacionPedido) {
+        const lat = Number((ubicacionPedido as any).lat);
+        const lng = Number((ubicacionPedido as any).lng);
+        if (isNaN(lat) || isNaN(lng)) {
+          this.logger.warn('Ubicacion recibida no contiene coordenadas numericas; se ignorará', { ubicacionPedido });
+          ubicacionPedido = null;
+        } else {
+          ubicacionPedido = { lat, lng } as any;
+        }
+      }
       let preciosBatch: any[] = [];
       if (!skipPriceResolution) preciosBatch = await this._getBatchPricesFromCatalog(createOrderDto);
 
@@ -217,6 +229,22 @@ export class OrdersService {
         if (!skipPriceResolution) {
           const precioInfo = preciosMap.get(String(item.producto_id));
           if (!precioInfo) throw new BadRequestException(`No se pudo obtener precio para ${item.producto_id}`);
+          // Si el batch-calculator no devolvió campania pero el item ya trae una campania_aplicada_id
+          // intentamos validar explícitamente contra el endpoint de promociones interno para no perder descuentos.
+          if ((!precioInfo.campania_id || precioInfo.campania_id == null) && (item as any).campania_aplicada_id) {
+            try {
+              const validation = await this.catalogExternal.validatePromotion(item.producto_id, (item as any).campania_aplicada_id, createOrderDto.cliente_id);
+              this.logger.debug('validatePromotion during price assign', { productoId: item.producto_id, campaniaId: (item as any).campania_aplicada_id, validation });
+              if (validation && validation.valid && validation.best) {
+                // Ajustar precio final desde la validación si corresponde
+                if (typeof validation.best.precio_final !== 'undefined') precioInfo.precio_final = validation.best.precio_final;
+                if (typeof validation.best.precio_lista !== 'undefined') precioInfo.precio_lista = validation.best.precio_lista;
+                if (typeof validation.best.campania_id !== 'undefined') precioInfo.campania_id = validation.best.campania_id;
+              }
+            } catch (valErr) {
+              this.logger.warn('validatePromotion failed during price assign', { productoId: item.producto_id, err: valErr?.message || valErr });
+            }
+          }
           (item as any).precio_unitario = precioInfo.precio_final;
           (item as any).precio_original = precioInfo.precio_lista;
           (item as any).campania_aplicada_id = precioInfo.campania_id ?? (item as any).campania_aplicada_id ?? null;
@@ -379,6 +407,9 @@ export class OrdersService {
     if (actorRole === 'cliente') {
       pedidoVendedorId = null;
     }
+
+    // Log de diagnóstico: ubicación recibida desde controller/front
+    this.logger.debug('createFromCart received ubicacion', { ubicacion });
 
     // 3. Construir CreateOrderDto con items del carrito (sin precios, el create() los resolverá)
     // ADEMÁS: Resolver codigo_sku y nombre_producto desde Catalog
