@@ -15,9 +15,6 @@ export class Pedido {
   @Column({ type: 'uuid', nullable: true })
   vendedor_id: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  // removed: sucursal handling moved to frontend and no longer persisted here
-
   @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
   estado_actual: string;
 
@@ -41,8 +38,7 @@ export class Pedido {
   @Column({ type: 'date', nullable: true })
   fecha_entrega_solicitada: Date;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  origen_pedido: string;
+  // origen_pedido removed from entity: application-level only
 
   // Manejo de PostGIS para ubicación del pedido
   @Column({
