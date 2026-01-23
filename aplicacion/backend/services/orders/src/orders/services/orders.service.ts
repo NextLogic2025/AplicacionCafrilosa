@@ -29,10 +29,26 @@ export class OrdersService {
     // Preferir usar el batch-prices del servicio Catalog (más eficiente y seguro)
     try {
       const items = await this.catalogExternal.calculateBatchPrices([{ id: productoId, cantidad: 1 }], clienteId);
-      if (!Array.isArray(items) || items.length === 0) return false;
+      this.logger.debug('calculateBatchPrices response', { productoId, clienteId, items });
+      if (!Array.isArray(items) || items.length === 0) {
+        this.logger.warn('calculateBatchPrices returned empty for producto', { productoId, clienteId });
+        return false;
+      }
       const info = items[0] || {};
       // El batch-calculator devuelve info sobre la promo aplicada (campania_id / precio_final)
       const campaniaAplicada = info?.campania_id ?? info?.promocion?.campania_id ?? null;
+
+      // Además, intentar validar explícitamente contra el endpoint de promociones interna (si existe)
+      try {
+        const validation = await this.catalogExternal.validatePromotion(productoId, campaniaId, clienteId);
+        this.logger.debug('validatePromotion response', { productoId, campaniaId, clienteId, validation });
+        if (validation && typeof validation.valid !== 'undefined') {
+          return !!validation.valid;
+        }
+      } catch (valErr) {
+        this.logger.warn('validatePromotion call failed, falling back to batch result', { productoId, campaniaId, clienteId, err: valErr?.message || valErr });
+      }
+
       return campaniaAplicada != null && Number(campaniaAplicada) === Number(campaniaId);
     } catch (err) {
       this.logger.warn('Error calling Catalog calculateBatchPrices to verify promo; falling back to invalid', { error: err?.message || err });
@@ -238,6 +254,7 @@ export class OrdersService {
 
       if (ubicacionPedido) {
         try {
+          this.logger.debug('Guardando ubicacion en pedido', { ubicacionPedido });
           await queryRunner.manager.query(
             `UPDATE pedidos SET ubicacion_pedido = ST_SetSRID(ST_MakePoint($1, $2), 4326) WHERE id = $3`,
             [ubicacionPedido.lng, ubicacionPedido.lat, pedidoGuardado.id]
@@ -399,7 +416,7 @@ export class OrdersService {
       items,
       // origen_pedido kept in DTO for application logic but not persisted to DB
       // Use frontend-provided location as `ubicacion_pedido` (DB column expects ubicacion_pedido)
-      ubicacion_pedido: ubicacion || null,
+      ubicacion: ubicacion || null,
     };
 
     // 4. Crear pedido

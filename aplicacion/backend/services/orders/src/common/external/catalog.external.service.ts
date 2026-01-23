@@ -42,6 +42,19 @@ export class CatalogExternalService {
     }
   }
 
+  async validatePromotion(productId: string, campaniaId?: number | string, cliente_id?: string): Promise<any> {
+    try {
+      const qs = [] as string[];
+      if (campaniaId != null) qs.push('campania_id=' + encodeURIComponent(String(campaniaId)));
+      if (cliente_id) qs.push('cliente_id=' + encodeURIComponent(String(cliente_id)));
+      const query = qs.length ? ('?' + qs.join('&')) : '';
+      return await this.serviceHttp.get('catalog-service', `/promociones/internal/validar/producto/${productId}${query}`);
+    } catch (err) {
+      this.logger.warn('validatePromotion failed', { productId, campaniaId, cliente_id, err: err?.message || err });
+      throw err;
+    }
+  }
+
   async getSucursal(sucursalId: string): Promise<any> {
     try {
       return await this.serviceHttp.get('catalog-service', `/sucursales/${sucursalId}`);
