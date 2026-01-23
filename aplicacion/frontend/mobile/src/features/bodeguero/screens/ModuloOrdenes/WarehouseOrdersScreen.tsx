@@ -7,8 +7,7 @@ import { DashboardCard } from '../../../../components/ui/DashboardCard'
 import { GenericTabs } from '../../../../components/ui/GenericTabs'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { FeedbackModal, type FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { OrderService, Order, OrderDetail } from '../../../../services/api/OrderService'
-import { PickingService } from '../../../../services/api/PickingService'
+import { OrderService, Order } from '../../../../services/api/OrderService'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { getUserFriendlyMessage } from '../../../../utils/errorMessages'
 import { OrderCard, ActionButton } from '../../../../components/ui/OrderCard'
@@ -63,63 +62,16 @@ export function WarehouseOrdersScreen() {
         }, [loadOrders])
     )
 
-    const getDetails = async (order: Order): Promise<OrderDetail[]> => {
-        if (order.detalles && order.detalles.length > 0) {
-            return order.detalles
-        }
-        const orderDetails = await OrderService.getOrderById(order.id)
-        return orderDetails.detalles || []
-    }
-
     const handlePrepareOrder = async (order: Order) => {
         setProcessingOrderId(order.id)
         try {
-            const details = await getDetails(order)
             await OrderService.changeOrderStatus(order.id, 'EN_PREPARACION')
-
-            const pickingItems = details
-                .map(d => ({
-                    productoId: d.producto_id,
-                    cantidad: typeof d.cantidad === 'number'
-                        ? d.cantidad
-                        : Number(d.cantidad ?? d.cantidad_solicitada ?? d.subtotal_linea ?? 0)
-                }))
-                .filter(item => item.productoId && Number(item.cantidad) > 0)
-                .map(item => ({
-                    productoId: item.productoId,
-                    cantidadSolicitada: Number(item.cantidad)
-                }))
-
-            let pickingCreated = null
-            let pickingError: unknown = null
-            if (pickingItems.length) {
-                try {
-                    pickingCreated = await PickingService.create({
-                        pedidoId: order.id,
-                        items: pickingItems
-                    })
-                } catch (err) {
-                    console.error('Picking creation failed:', err)
-                    pickingError = err
-                }
-            }
-
-            if (pickingError) {
-                setFeedbackModal({
-                    visible: true,
-                    type: 'error',
-                    title: 'Preparación incompleta',
-                    message: `Pedido #${order.codigo_visual} está en preparación, pero no se pudo crear el picking. ${getUserFriendlyMessage(pickingError, 'UPDATE_ERROR')}`
-                })
-            } else {
-                const pickingMsg = pickingCreated ? ` Se generó el picking ${pickingCreated.id.slice(0, 8).toUpperCase()}.` : ''
-                setFeedbackModal({
-                    visible: true,
-                    type: 'success',
-                    title: 'Pedido en preparación',
-                    message: `Pedido #${order.codigo_visual} ahora está en preparación.${pickingMsg}`
-                })
-            }
+            setFeedbackModal({
+                visible: true,
+                type: 'success',
+                title: 'Pedido en preparación',
+                message: `Pedido #${order.codigo_visual} ahora está en preparación. El picking será generado automáticamente.`
+            })
 
             await loadOrders()
             setActiveTab('mis-ordenes')

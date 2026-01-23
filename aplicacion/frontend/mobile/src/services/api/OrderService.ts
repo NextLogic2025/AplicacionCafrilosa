@@ -4,6 +4,8 @@ import { endpoints } from './endpoints'
 import { isApiError } from './ApiError'
 import { logErrorForDebugging } from '../../utils/errorMessages'
 import { createService } from './createService'
+import jwtDecode from 'jwt-decode'
+import { getToken } from '../../storage/authStorage'
 
 const ordersEndpoint = (path: string) => `${env.api.ordersUrl}${path}`
 
@@ -274,6 +276,32 @@ const fetchOrderDetailsFromApi = async (orderId: string): Promise<OrderDetail[]>
     }))
 }
 
+const normalizeTokenForDecode = (token?: string | null): string | null => {
+    if (!token) return null
+    const cleaned = token.trim().replace(/^Bearer\s+/i, '')
+    if (!cleaned) return null
+    const parts = cleaned.split('.')
+    if (parts.length !== 3 || parts.some(part => !part)) return null
+    return cleaned
+}
+
+const getCurrentUserIdFromToken = async (): Promise<string | null> => {
+    const rawToken = await getToken().catch((error) => {
+        logErrorForDebugging(error, 'OrderService.getCurrentUserIdFromToken.token')
+        return null
+    })
+    const token = normalizeTokenForDecode(rawToken)
+    if (!token) return null
+
+    try {
+        const decoded = jwtDecode<{ sub?: string; userId?: string }>(token)
+        return decoded.userId || decoded.sub || null
+    } catch (error) {
+        logErrorForDebugging(error, 'OrderService.getCurrentUserIdFromToken.decode')
+        return null
+    }
+}
+
 const rawService = {
     normalizeOrder,
     createOrder: async (_payload: CreateOrderPayload): Promise<Order> => {
@@ -426,10 +454,12 @@ const rawService = {
     },
 
     changeOrderStatus: async (orderId: string, newStatus: OrderStatus, comentario?: string): Promise<Order> => {
+        const userId = await getCurrentUserIdFromToken()
+        const options = userId ? { headers: { 'x-user-id': userId } } : undefined
         const updatedOrder = await ApiService.patch<Order>(ordersEndpoint(endpoints.orders.orderEstadosChangeState(orderId)), {
             nuevoEstado: newStatus,
             comentario: comentario || `Cambio de estado a ${newStatus}`
-        })
+        }, options)
         return normalizeOrder(updatedOrder)
     },
 
