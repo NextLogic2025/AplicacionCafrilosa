@@ -24,15 +24,18 @@ export class OrdersService {
   ) { }
 
   // Verifica en la base de datos si una promoción (campaña) está vigente para un producto
-  private async verificarVigenciaPromo(campaniaId: number, productoId: string): Promise<boolean> {
+  private async verificarVigenciaPromo(campaniaId: number, productoId: string, clienteId?: string): Promise<boolean> {
     if (!campaniaId) return false;
-    // Preferir llamada al servicio Catalog si está disponible
+    // Preferir usar el batch-prices del servicio Catalog (más eficiente y seguro)
     try {
-      const data = await this.catalogExternal.getClientByPath(`/promociones/${campaniaId}/productos` as any);
-      const items = Array.isArray(data?.items) ? data.items : [];
-      return items.some((it: any) => String(it.id) === String(productoId) || String(it.producto_id) === String(productoId));
+      const items = await this.catalogExternal.calculateBatchPrices([{ id: productoId, cantidad: 1 }], clienteId);
+      if (!Array.isArray(items) || items.length === 0) return false;
+      const info = items[0] || {};
+      // El batch-calculator devuelve info sobre la promo aplicada (campania_id / precio_final)
+      const campaniaAplicada = info?.campania_id ?? info?.promocion?.campania_id ?? null;
+      return campaniaAplicada != null && Number(campaniaAplicada) === Number(campaniaId);
     } catch (err) {
-      this.logger.warn('Error calling Catalog service to verify promo; falling back to invalid', { error: err?.message || err });
+      this.logger.warn('Error calling Catalog calculateBatchPrices to verify promo; falling back to invalid', { error: err?.message || err });
       return false;
     }
   }
