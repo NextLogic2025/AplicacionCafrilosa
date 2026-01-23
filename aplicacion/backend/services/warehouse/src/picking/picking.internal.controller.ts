@@ -3,6 +3,7 @@ import { Controller, Post, UseGuards, Body, Get, Param, BadRequestException } fr
 
 import { PickingService } from './picking.service';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
+import { CreatePickingDto } from './dto/create-picking.dto';
 
 @Controller('picking/internal')
 @UseGuards(ServiceAuthGuard)
@@ -21,5 +22,9 @@ export class PickingInternalController {
         // Return minimal picking records (pedidoId + picking id) for a given bodeguero
         const rows = await this.service.findByBodeguero(bodegueroId);
         return rows.map(r => ({ id: (r as any).id, pedidoId: (r as any).pedidoId }));
+    }
+    @Post()
+    create(@Body() dto: CreatePickingDto) {
+        return this.service.create(dto);
     }
 }

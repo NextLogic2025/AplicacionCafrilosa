@@ -494,7 +494,7 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId } });
+      const pedido = await queryRunner.manager.findOne(Pedido, { where: { id: pedidoId }, relations: ['detalles'] });
       if (!pedido) throw new NotFoundException('Pedido no encontrado');
 
       const estadoAnterior = pedido.estado_actual;
@@ -520,6 +520,22 @@ export class OrdersService {
 
       // Al hacer commit, se dispararán los triggers de pg_notify del SQL
       await queryRunner.commitTransaction();
+
+      // Si se cambió a EN_PREPARACION, crear picking en Warehouse
+      try {
+        if (String(nuevoEstado).toUpperCase() === 'EN_PREPARACION') {
+          const items = (pedido.detalles || []).map(d => ({
+            productoId: d.producto_id,
+            cantidadSolicitada: Number(d.cantidad_solicitada ?? d.cantidad)
+          }));
+          this.logger.debug('Creating picking in Warehouse', { pedidoId, itemsCount: items.length });
+          const pickingResp = await this.warehouseExternal.createPicking({ pedidoId: pedido.id, items });
+          this.logger.log('Picking creado en Warehouse', { pedidoId: pedido.id, picking: pickingResp?.id ?? pickingResp });
+        }
+      } catch (whErr) {
+        this.logger.warn('Fallo al crear picking en Warehouse; no se revierte la transacción', { pedidoId: pedido.id, error: whErr?.message || whErr });
+      }
+
       // reservation handling removed from Orders
 
       return this.findOne(pedidoId);

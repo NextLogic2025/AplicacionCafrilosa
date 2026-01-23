@@ -13,4 +13,8 @@ export class WarehouseExternalService {
   async getPicking(pickingId: string): Promise<any> {
     return this.serviceHttp.get<any>('warehouse-service', `/picking/internal/${pickingId}`);
   }
+
+  async createPicking(payload: any): Promise<any> {
+    return this.serviceHttp.post<any>('warehouse-service', '/picking/internal', payload);
+  }
 }

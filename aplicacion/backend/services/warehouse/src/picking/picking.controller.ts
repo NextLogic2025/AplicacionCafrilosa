@@ -56,11 +56,6 @@ export class PickingController {
         return this.service.findOne(id);
     }
 
-    @Post()
-    @Roles('admin', 'supervisor')
-    create(@Body() dto: CreatePickingDto) {
-        return this.service.create(dto);
-    }
 
     @Put(':id/asignar')
     @Roles('admin', 'supervisor')
