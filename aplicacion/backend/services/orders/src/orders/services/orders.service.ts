@@ -222,7 +222,7 @@ export class OrdersService {
         observaciones_entrega: createOrderDto.observaciones_entrega || null,
         forma_pago_solicitada: createOrderDto.forma_pago_solicitada || null,
         fecha_entrega_solicitada: createOrderDto.fecha_entrega_solicitada || null,
-        origen_pedido: createOrderDto.origen_pedido || 'APP_MOVIL',
+        // origen_pedido is not sent to DB (column not present in schema); handled at application level
         subtotal,
         descuento_total,
         impuestos_total,
@@ -390,7 +390,7 @@ export class OrdersService {
       vendedor_id: actorRole === 'vendedor' ? pedidoVendedorId : null,
       forma_pago_solicitada: forma_pago_solicitada || null,
       items,
-      origen_pedido: 'FROM_CART',
+      // origen_pedido kept in DTO for application logic but not persisted to DB
       // Use frontend-provided location as `ubicacion_pedido` (DB column expects ubicacion_pedido)
       ubicacion_pedido: ubicacion || null,
     };
