@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
-@Entity('puntos_emision')
+@Index(['codigoEstablecimiento', 'codigoPuntoEmision'], { unique: true })
+@Entity('punto_emision')
 export class PuntoEmision {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -16,4 +17,10 @@ export class PuntoEmision {
 
   @Column({ default: true })
   activo: boolean;
+
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  createdAt: Date;
+
+  @Column({ name: 'updated_at', type: 'timestamptz', default: () => 'NOW()' })
+  updatedAt: Date;
 }

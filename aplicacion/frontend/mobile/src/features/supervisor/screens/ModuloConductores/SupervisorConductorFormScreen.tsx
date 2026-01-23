@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, ScrollView, Pressable, Switch, ActivityIndicator } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
@@ -23,17 +23,19 @@ const TIPOS_LICENCIA: PickerOption[] = [
     { id: 'G', label: 'Tipo G', description: 'Maquinaria agrícola/pesada', icon: 'hardware-chip' },
 ]
 
-interface RouteParams {
+type RouteParams = {
     conductorId?: string
+    origin?: 'supervisor' | 'other'
 }
 
 export function SupervisorConductorFormScreen() {
     const navigation = useNavigation<any>()
     const route = useRoute<any>()
     const insets = useStableInsets()
-    const params = route.params as RouteParams
+    const params = (route.params as RouteParams) ?? {}
 
     const isEditing = !!params?.conductorId
+    const origin = params.origin ?? 'supervisor'
     const [loading, setLoading] = useState(false)
     const [loadingData, setLoadingData] = useState(isEditing)
     const [conductor, setConductor] = useState<Conductor | null>(null)
@@ -45,8 +47,6 @@ export function SupervisorConductorFormScreen() {
     const [isPasswordVisible, setIsPasswordVisible] = useState(false)
 
     // Form state - Conductor
-    const [cedula, setCedula] = useState('')
-    const [telefono, setTelefono] = useState('')
     const [tipoLicencia, setTipoLicencia] = useState('')
     const [numeroLicencia, setNumeroLicencia] = useState('')
     const [activo, setActivo] = useState(true)
@@ -61,12 +61,27 @@ export function SupervisorConductorFormScreen() {
         type: FeedbackType
         title: string
         message: string
+        onConfirm?: () => void
     }>({
         visible: false,
         type: 'info',
         title: '',
         message: '',
     })
+
+    const handleAfterSave = useCallback(() => {
+        if (isEditing) {
+            navigation.goBack()
+            return
+        }
+
+        if (origin === 'supervisor') {
+            navigation.navigate('SupervisorConductoresList')
+            return
+        }
+
+        navigation.goBack()
+    }, [isEditing, navigation, origin])
 
     // Cargar conductor si está editando
     useEffect(() => {
@@ -81,8 +96,6 @@ export function SupervisorConductorFormScreen() {
             const data = await ConductorService.getById(id)
             setConductor(data)
             setNombreUsuario(data.nombre_completo)
-            setCedula(data.cedula)
-            setTelefono(data.telefono || '')
             // Parse licencia like "B-LIC123" => tipo: B, numero: LIC123
             if (data.licencia) {
                 const parts = data.licencia.split('-')
@@ -146,16 +159,6 @@ export function SupervisorConductorFormScreen() {
             newErrors.nombreUsuario = 'El nombre debe tener al menos 3 caracteres'
         }
 
-        if (!cedula.trim()) {
-            newErrors.cedula = 'La cédula es requerida'
-        } else if (cedula.trim().length < 10) {
-            newErrors.cedula = 'La cédula debe tener al menos 10 dígitos'
-        }
-
-        if (telefono && telefono.length < 7) {
-            newErrors.telefono = 'El teléfono debe tener al menos 7 dígitos'
-        }
-
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
     }
@@ -195,8 +198,6 @@ export function SupervisorConductorFormScreen() {
             // B. Crear/Actualizar Conductor
             const formData: any = {
                 nombre_completo: nombreUsuario.trim(),
-                cedula: cedula.trim(),
-                telefono: telefono.trim() || undefined,
                 licencia: tipoLicencia && numeroLicencia
                     ? `${tipoLicencia}-${numeroLicencia.trim()}`
                     : numeroLicencia.trim() || undefined,
@@ -215,6 +216,7 @@ export function SupervisorConductorFormScreen() {
                     type: 'success',
                     title: 'Conductor Actualizado',
                     message: `${nombreUsuario} ha sido actualizado exitosamente.`,
+                    onConfirm: handleAfterSave,
                 })
             } else {
                 await ConductorService.create(formData)
@@ -223,13 +225,9 @@ export function SupervisorConductorFormScreen() {
                     type: 'success',
                     title: 'Conductor y Usuario Creados',
                     message: `${nombreUsuario} ha sido registrado exitosamente con acceso a la app.`,
+                    onConfirm: handleAfterSave,
                 })
             }
-
-            // Volver a la lista después de 1.5 segundos
-            setTimeout(() => {
-                navigation.goBack()
-            }, 1500)
         } catch (error) {
             setFeedbackModal({
                 visible: true,
@@ -260,7 +258,8 @@ export function SupervisorConductorFormScreen() {
                 title={isEditing ? 'Editar Conductor' : 'Nuevo Conductor'}
                 variant="standard"
                 onBackPress={() => navigation.goBack()}
-            />        <ScrollView
+            />
+            <ScrollView
                 className="flex-1"
                 contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
             >
@@ -380,44 +379,6 @@ export function SupervisorConductorFormScreen() {
                             </View>
                         )}
 
-                        {/* Cédula */}
-                        <View className="mb-4">
-                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Cédula *</Text>
-                            <TextInput
-                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
-                                value={cedula}
-                                onChangeText={(text) => {
-                                    setCedula(text)
-                                    if (errors.cedula) {
-                                        setErrors(prev => ({ ...prev, cedula: '' }))
-                                    }
-                                }}
-                                placeholder="Ej: 1234567890"
-                                keyboardType="numeric"
-                                editable={!loading}
-                            />
-                            {errors.cedula ? <Text className="text-red-600 text-xs mt-1">{errors.cedula}</Text> : null}
-                        </View>
-
-                        {/* Teléfono */}
-                        <View className="mb-4">
-                            <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Teléfono</Text>
-                            <TextInput
-                                className="bg-neutral-50 p-4 rounded-xl border border-neutral-200 text-neutral-900"
-                                value={telefono}
-                                onChangeText={(text) => {
-                                    setTelefono(text)
-                                    if (errors.telefono) {
-                                        setErrors(prev => ({ ...prev, telefono: '' }))
-                                    }
-                                }}
-                                placeholder="Ej: 0999888777"
-                                keyboardType="phone-pad"
-                                editable={!loading}
-                            />
-                            {errors.telefono ? <Text className="text-red-600 text-xs mt-1">{errors.telefono}</Text> : null}
-                        </View>
-
                         {/* Tipo de Licencia */}
                         <View className="mb-4">
                             <Text className="text-neutral-500 text-xs font-bold mb-1 uppercase">Tipo de Licencia</Text>
@@ -530,6 +491,10 @@ export function SupervisorConductorFormScreen() {
                 title={feedbackModal.title}
                 message={feedbackModal.message}
                 onClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+                onConfirm={() => {
+                    setFeedbackModal(prev => ({ ...prev, visible: false }))
+                    feedbackModal.onConfirm?.()
+                }}
             />
 
             {/* License Type Picker */}

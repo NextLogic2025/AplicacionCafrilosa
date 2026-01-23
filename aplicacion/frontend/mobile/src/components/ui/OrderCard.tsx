@@ -1,14 +1,18 @@
 import React from 'react'
-import { View, Text, Pressable, TouchableOpacity } from 'react-native'
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../shared/types'
 import { Order, ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '../../services/api/OrderService'
 
-interface ActionButton {
+export interface ActionButton {
+    id: string
     label: string
     icon: keyof typeof Ionicons.glyphMap
     onPress: () => void
-    variant: 'primary' | 'danger' | 'secondary'
+    variant?: 'primary' | 'danger' | 'secondary'
+    visible?: boolean
+    disabled?: boolean
+    loading?: boolean
 }
 
 interface OrderCardProps {
@@ -42,6 +46,7 @@ export function OrderCard({ order, onPress, onCancel, actionButtons, showClientI
     })()
 
     const itemsCount = order.detalles?.length || 0
+    const visibleButtons = actionButtons?.filter(btn => btn.visible ?? true) ?? []
 
     const getButtonStyles = (variant: ActionButton['variant']) => {
         switch (variant) {
@@ -112,7 +117,7 @@ export function OrderCard({ order, onPress, onCancel, actionButtons, showClientI
                         </View>
                     </View>
 
-                    {order.estado_actual === 'PENDIENTE' && onCancel && !actionButtons && (
+                    {order.estado_actual === 'PENDIENTE' && onCancel && !visibleButtons.length && (
                         <Pressable
                             onPress={(e) => {
                                 e.stopPropagation()
@@ -132,20 +137,26 @@ export function OrderCard({ order, onPress, onCancel, actionButtons, showClientI
                 </View>
             </Pressable>
 
-            {actionButtons && actionButtons.length > 0 && (
+            {visibleButtons.length > 0 && (
                 <View className="mt-2">
-                    {actionButtons.map((button, index) => {
-                        const styles = getButtonStyles(button.variant)
+                    {visibleButtons.map((button, index) => {
+                        const styles = getButtonStyles(button.variant ?? 'primary')
                         return (
                             <TouchableOpacity
-                                key={index}
+                                key={button.id}
                                 onPress={(e) => {
+                                    if (button.disabled || button.loading) return
                                     e.stopPropagation()
                                     button.onPress()
                                 }}
-                                className={`flex-row items-center justify-center py-3 rounded-xl border ${styles.bg} ${styles.border} ${index > 0 ? 'mt-2' : ''}`}
+                                className={`flex-row items-center justify-center py-3 rounded-xl border ${styles.bg} ${styles.border} ${index > 0 ? 'mt-2' : ''} ${button.disabled ? 'opacity-60' : ''}`}
+                                disabled={button.disabled}
                             >
-                                <Ionicons name={button.icon} size={20} color={BRAND_COLORS.red} />
+                                {button.loading ? (
+                                    <ActivityIndicator size="small" color={BRAND_COLORS.red} />
+                                ) : (
+                                    <Ionicons name={button.icon} size={20} color={BRAND_COLORS.red} />
+                                )}
                                 <Text className={`${styles.text} font-bold ml-2`}>{button.label}</Text>
                             </TouchableOpacity>
                         )

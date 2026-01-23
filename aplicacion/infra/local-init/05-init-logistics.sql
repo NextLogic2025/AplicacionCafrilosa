@@ -1,10 +1,21 @@
 -- ==================================================================================
--- MICROSERVICIO: LOGISTICS SERVICE (svc-logistics) - VERSIÓN MULTI-PEDIDO
+-- MICROSERVICIO: LOGISTICS SERVICE (svc-logistics) - VERSIÓN ROBUSTA & RESILIENTE
 -- BASE DE DATOS: logistics_db
 -- MOTOR: PostgreSQL 14+
 -- ==================================================================================
 
-\c logistics_db;
+\c logistics_db 
+
+-- 1.a LIMPIEZA INICIAL (Orden inverso de dependencias)
+DROP TABLE IF EXISTS audit_log_logistics CASCADE;
+DROP TABLE IF EXISTS novedades_ruta CASCADE;
+DROP TABLE IF EXISTS vehiculo_movimientos CASCADE;
+DROP TABLE IF EXISTS pruebas_entrega CASCADE;
+DROP TABLE IF EXISTS entregas_despacho CASCADE;
+DROP TABLE IF EXISTS despachos CASCADE;
+DROP TABLE IF EXISTS conductores CASCADE;
+DROP TABLE IF EXISTS vehiculos CASCADE;
+DROP VIEW IF EXISTS reporte_efectividad_conductores;
 
 -- =========================================
 -- 1. EXTENSIONES
@@ -29,15 +40,13 @@ CREATE TABLE vehiculos (
 );
 
 -- =========================================
--- 3. CONDUCTORES (CORREGIDO: Con Auth Link)
+-- 3. CONDUCTORES
 -- =========================================
 CREATE TABLE conductores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID UNIQUE,             -- Referencia lógica a auth_db.usuarios (LOGIN APP)
-    nombre_completo VARCHAR(150) NOT NULL,
-    cedula VARCHAR(15) UNIQUE NOT NULL,
-    telefono VARCHAR(20),
-    licencia VARCHAR(20),
+    usuario_id UUID UNIQUE,             -- Referencia lógica a auth_db.usuarios
+    nombre_completo VARCHAR(150),       -- Agregado para reporte de efectividad
+    licencia VARCHAR(20), 
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -47,10 +56,9 @@ CREATE TABLE conductores (
 -- =========================================
 -- 4. DESPACHOS (CABECERA - EL VIAJE)
 -- =========================================
--- Esta tabla agrupa el viaje completo. Un camión sale de bodega una vez.
 CREATE TABLE despachos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    codigo_manifiesto SERIAL,            -- Número legible (ej. Despacho #1054)
+    codigo_manifiesto SERIAL,            -- Es SERIAL (INT), la auditoría lo manejará como TEXT
     vehiculo_id UUID REFERENCES vehiculos(id),
     conductor_id UUID REFERENCES conductores(id),
     
@@ -58,8 +66,8 @@ CREATE TABLE despachos (
     
     peso_total_kg NUMERIC(10,2) DEFAULT 0,
     fecha_programada DATE,
-    hora_inicio_real TIMESTAMPTZ,        -- Cuando el camión sale de bodega
-    hora_fin_real TIMESTAMPTZ,           -- Cuando el camión regresa o termina
+    hora_inicio_real TIMESTAMPTZ,
+    hora_fin_real TIMESTAMPTZ,
     
     observaciones_ruta TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -67,75 +75,36 @@ CREATE TABLE despachos (
     deleted_at TIMESTAMPTZ
 );
 
--- Regla: Un vehículo solo puede tener UN viaje activo (En Ruta o Cargando)
 CREATE UNIQUE INDEX ux_vehiculo_viaje_activo
 ON despachos(vehiculo_id)
 WHERE estado_viaje IN ('CARGANDO', 'EN_RUTA') AND deleted_at IS NULL;
 
 -- =========================================
--- 5. ENTREGAS DEL DESPACHO (DETALLE - LOS PEDIDOS)
+-- 5. ENTREGAS DEL DESPACHO (DETALLE)
 -- =========================================
--- Aquí vinculamos N pedidos a 1 despacho.
 CREATE TABLE entregas_despacho (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     despacho_id UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
     
-    pedido_id UUID NOT NULL,            -- Referencia lógica a orders_db.pedidos
-    cliente_id UUID NOT NULL,           -- Referencia lógica a catalog_db.clientes
-    sucursal_id UUID,                   -- Referencia lógica a catalog_db.sucursales
+    pedido_id UUID NOT NULL,            -- Referencia a orders_db.pedidos
+    cliente_id UUID,                    -- AGREGADO: Necesario para índices y filtros
     
-    -- SECUENCIA DE RUTA (OPTIMIZACIÓN)
-    orden_visita INT NOT NULL,          -- 1 = Primera parada, 2 = Segunda, etc.
+    orden_visita INT NOT NULL,
     
-    -- SNAPSHOT DE DIRECCIÓN (Congelado al momento de planificar)
+    -- ESTADOS Y DATOS
+    estado_entrega VARCHAR(20) DEFAULT 'PENDIENTE', -- AGREGADO: PENDIENTE | ENTREGADO | RECHAZADO
     direccion_texto TEXT,
-    coordenadas_entrega GEOGRAPHY(POINT, 4326),
-    contacto_nombre VARCHAR(100),
-    contacto_telefono VARCHAR(20),
-    
-    -- ESTADO INDIVIDUAL DEL PEDIDO
-    estado_entrega VARCHAR(20) DEFAULT 'PENDIENTE', -- PENDIENTE | ENTREGADO | RECHAZADO | REPROGRAMADO
-
-    -- CAMPOS FINANCIEROS (INLINED PARA EJECUCIONES IDÉNTICAS)
-    valor_declarado DECIMAL(12,2) DEFAULT 0,
-    requiere_cobro BOOLEAN DEFAULT FALSE,
-    monto_a_cobrar DECIMAL(12,2) DEFAULT 0,
-    numero_factura_fisica VARCHAR(50),
+    coordenadas_entrega GEOMETRY(POINT, 4326),      -- AGREGADO: Necesario para PostGIS
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
-    UNIQUE(despacho_id, pedido_id) -- Un pedido no puede estar duplicado en el mismo viaje
+    UNIQUE(despacho_id, pedido_id)
 );
 
-CREATE INDEX idx_entregas_pedido ON entregas_despacho(pedido_id);
-CREATE INDEX idx_entregas_geo ON entregas_despacho USING GIST(coordenadas_entrega);
-
--- Nota: Los campos financieros fueron definidos inline en la tabla `entregas_despacho`.
-
--- Corregir índice erróneo si existe y crear índice de seguimiento correcto
-DROP INDEX IF EXISTS idx_entregas_efectividad;
-
-CREATE INDEX IF NOT EXISTS idx_entregas_seguimiento 
-ON entregas_despacho(despacho_id, estado_entrega);
-
--- Vista de efectividad por conductor y vehículo
-CREATE OR REPLACE VIEW reporte_efectividad_conductores AS
-SELECT 
-    c.nombre_completo AS conductor,
-    v.placa AS vehiculo,
-    e.estado_entrega,
-    COUNT(*) as total_paquetes
-FROM entregas_despacho e
-JOIN despachos d ON e.despacho_id = d.id
-JOIN conductores c ON d.conductor_id = c.id
-JOIN vehiculos v ON d.vehiculo_id = v.id
-GROUP BY c.nombre_completo, v.placa, e.estado_entrega;
-
 -- =========================================
--- 6. PRUEBAS DE ENTREGA (POD) - POR PEDIDO
+-- 6. PRUEBAS DE ENTREGA (POD)
 -- =========================================
--- La prueba de entrega se vincula a la LÍNEA (entregas_despacho), no al viaje general.
 CREATE TABLE pruebas_entrega (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     entrega_id UUID NOT NULL UNIQUE REFERENCES entregas_despacho(id) ON DELETE CASCADE,
@@ -145,17 +114,15 @@ CREATE TABLE pruebas_entrega (
     firma_url TEXT,
     foto_evidencia_url TEXT,
     
-    latitud_confirmacion NUMERIC(10,8), -- GPS donde se firmó (para validar vs coordenadas_entrega)
-    longitud_confirmacion NUMERIC(10,8),
+    ubicacion_confirmacion GEOMETRY(POINT, 4326),
     
     fecha_confirmacion TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- =========================================
--- 7. VEHÍCULO MOVIMIENTOS (TRACKING GPS)
+-- 7. VEHÍCULO MOVIMIENTOS (TRACKING)
 -- =========================================
--- Esto rastrea al camión (Despacho Padre)
 CREATE TABLE vehiculo_movimientos (
     id BIGSERIAL PRIMARY KEY,
     despacho_id UUID NOT NULL REFERENCES despachos(id) ON DELETE CASCADE,
@@ -171,8 +138,8 @@ CREATE TABLE vehiculo_movimientos (
 -- =========================================
 CREATE TABLE novedades_ruta (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    despacho_id UUID REFERENCES despachos(id) ON DELETE CASCADE, -- Novedad del viaje (ej. llanta baja)
-    entrega_id UUID REFERENCES entregas_despacho(id),            -- Novedad de un pedido (ej. cliente cerrado)
+    despacho_id UUID REFERENCES despachos(id) ON DELETE CASCADE, 
+    entrega_id UUID REFERENCES entregas_despacho(id),            
     
     motivo VARCHAR(50),
     descripcion TEXT,
@@ -181,54 +148,101 @@ CREATE TABLE novedades_ruta (
 );
 
 -- =========================================
--- 9. AUDITORÍA (Estándar)
+-- 9. AUDITORÍA ROBUSTA
 -- =========================================
 CREATE TABLE audit_log_logistics (
     id BIGSERIAL PRIMARY KEY,
-    table_name VARCHAR(100),
-    record_id TEXT,
-    operation VARCHAR(10),
+    table_name VARCHAR(100) NOT NULL,
+    record_id TEXT DEFAULT 'UNKNOWN', -- Soporta UUID y SERIAL
+    operation VARCHAR(10) NOT NULL,
     old_data JSONB,
     new_data JSONB,
     changed_by UUID,
-    changed_at TIMESTAMPTZ DEFAULT NOW()
+    changed_at TIMESTAMPTZ DEFAULT NOW(),
+    ip_address INET
 );
 
+-- ==================================================================================
+-- 10. FUNCIONES "DEFENSIVAS" & LÓGICA DE NEGOCIO
+-- ==================================================================================
+
+-- 10.1 Auditoría Resiliente (JSONB)
 CREATE OR REPLACE FUNCTION fn_audit_logistics()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_changed_by UUID := NULL; -- Simulado, obtener de config si existe
+    v_changed_by UUID;
+    v_ip INET := inet_client_addr();
+    v_record_id TEXT;
+    v_new_json JSONB;
+    v_old_json JSONB;
 BEGIN
-    INSERT INTO audit_log_logistics (table_name, record_id, operation, old_data, new_data, changed_by)
-    VALUES (TG_TABLE_NAME, COALESCE(NEW.id::text, OLD.id::text), TG_OP, 
-            CASE WHEN TG_OP IN ('UPDATE','DELETE') THEN to_jsonb(OLD) END, 
-            CASE WHEN TG_OP IN ('INSERT','UPDATE') THEN to_jsonb(NEW) END, v_changed_by);
+    BEGIN
+        v_changed_by := current_setting('app.current_user', true)::uuid;
+    EXCEPTION WHEN OTHERS THEN
+        v_changed_by := NULL;
+    END;
+
+    v_new_json := to_jsonb(NEW);
+    v_old_json := to_jsonb(OLD);
+
+    -- Extracción segura de ID (Cubre Despachos-Serial y UUIDs)
+    v_record_id := COALESCE(v_new_json->>'id', v_old_json->>'id', 'NO_PK');
+
+    INSERT INTO audit_log_logistics (
+        table_name, record_id, operation, old_data, new_data, changed_by, ip_address
+    )
+    VALUES (
+        TG_TABLE_NAME,
+        v_record_id,
+        TG_OP,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN v_old_json END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN v_new_json END,
+        v_changed_by,
+        v_ip
+    );
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_audit_despachos AFTER INSERT OR UPDATE OR DELETE ON despachos FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
-CREATE TRIGGER trg_audit_entregas AFTER INSERT OR UPDATE OR DELETE ON entregas_despacho FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
-CREATE TRIGGER trg_audit_pod AFTER INSERT OR UPDATE OR DELETE ON pruebas_entrega FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+-- 10.2 Notificación Unificada
+CREATE OR REPLACE FUNCTION notify_logistics_cambio()
+RETURNS TRIGGER AS $$
+DECLARE
+    payload JSON;
+    v_record_id TEXT;
+    v_data JSONB;
+BEGIN
+    v_data := to_jsonb(COALESCE(NEW, OLD));
+    v_record_id := COALESCE(v_data->>'id', 'GENERIC');
 
--- =========================================
--- 10. AUTOMATIZACIÓN DE ESTADOS (Trigger Inteligente)
--- =========================================
--- Si todas las entregas de un despacho están finalizadas, completamos el viaje automáticamente.
+    payload := json_build_object(
+        'table', TG_TABLE_NAME,
+        'action', TG_OP,
+        'id', v_record_id,
+        'data', v_data
+    );
+
+    PERFORM pg_notify('logistics-cambio', payload::text);
+    
+    IF (TG_OP = 'DELETE') THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 10.3 Lógica de Negocio: Auto-Completar Viaje
 CREATE OR REPLACE FUNCTION fn_check_fin_despacho()
 RETURNS TRIGGER AS $$
 DECLARE
     v_total INT;
     v_completados INT;
 BEGIN
-    -- Contar total de entregas en este despacho
+    -- Defensivo: Si se borra la columna estado_entrega, esto fallaría. 
+    -- Se asume que columnas CORE de lógica de negocio se mantienen.
+    
     SELECT COUNT(*) INTO v_total FROM entregas_despacho WHERE despacho_id = NEW.despacho_id;
     
-    -- Contar cuántas ya no están PENDIENTE
     SELECT COUNT(*) INTO v_completados FROM entregas_despacho 
     WHERE despacho_id = NEW.despacho_id AND estado_entrega IN ('ENTREGADO', 'RECHAZADO', 'REPROGRAMADO');
     
-    -- Si coinciden, cerrar el viaje
     IF v_total > 0 AND v_total = v_completados THEN
         UPDATE despachos SET estado_viaje = 'COMPLETADO', hora_fin_real = NOW() 
         WHERE id = NEW.despacho_id AND estado_viaje = 'EN_RUTA';
@@ -238,125 +252,94 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_auto_completar_viaje
-AFTER UPDATE ON entregas_despacho
-FOR EACH ROW EXECUTE FUNCTION fn_check_fin_despacho();
-
--- =========================================
--- 11. EVENTOS ASÍNCRONOS (NOTIFICACIONES)
--- =========================================
-
--- A. NOTIFICAR AL CLIENTE CUANDO EL CAMIÓN SALE (Despacho EN_RUTA)
-CREATE OR REPLACE FUNCTION notify_inicio_ruta()
+-- 10.4 Lógica de Negocio: Actualizar estado al recibir POD
+CREATE OR REPLACE FUNCTION fn_update_estado_entrega_pod()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.estado_viaje = 'EN_RUTA' AND OLD.estado_viaje <> 'EN_RUTA' THEN
-        PERFORM pg_notify('viaje-iniciado', NEW.id::text);
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_notify_inicio_ruta AFTER UPDATE ON despachos FOR EACH ROW EXECUTE FUNCTION notify_inicio_ruta();
-
--- B. NOTIFICAR ENTREGA INDIVIDUAL CONFIRMADA (Actualizar Pedido en Orders)
-CREATE OR REPLACE FUNCTION notify_entrega_realizada()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_pedido_id UUID;
-BEGIN
-    -- Obtenemos el ID del pedido original
-    SELECT pedido_id INTO v_pedido_id FROM entregas_despacho WHERE id = NEW.entrega_id;
-    
-    -- Enviamos notificación con el ID del PEDIDO para que orders_db se actualice
-    PERFORM pg_notify('entrega-confirmada', v_pedido_id::text);
-    
-    -- Actualizamos estado local en entregas_despacho a ENTREGADO
-    UPDATE entregas_despacho SET estado_entrega = 'ENTREGADO', updated_at = NOW() 
+    -- Actualiza la entrega a ENTREGADO cuando se inserta una prueba
+    UPDATE entregas_despacho 
+    SET estado_entrega = 'ENTREGADO', updated_at = NOW() 
     WHERE id = NEW.entrega_id;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_notify_pod_ok AFTER INSERT ON pruebas_entrega FOR EACH ROW EXECUTE FUNCTION notify_entrega_realizada();
+-- 10.5 Timestamps
+CREATE OR REPLACE FUNCTION fn_update_timestamp_logistics()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 10.6 Soft Delete
+CREATE OR REPLACE FUNCTION fn_soft_delete_logistics()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.deleted_at := NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- =========================================
--- FIN DEL MICROSERVICIO LOGISTICS (MULTI-PEDIDO)
+-- 11. APLICACIÓN DE TRIGGERS
 -- =========================================
 
+-- Auditoría
+CREATE TRIGGER trg_audit_despachos AFTER INSERT OR UPDATE OR DELETE ON despachos FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+CREATE TRIGGER trg_audit_entregas AFTER INSERT OR UPDATE OR DELETE ON entregas_despacho FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+CREATE TRIGGER trg_audit_pod AFTER INSERT OR UPDATE OR DELETE ON pruebas_entrega FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+CREATE TRIGGER trg_audit_vehiculos AFTER INSERT OR UPDATE OR DELETE ON vehiculos FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+CREATE TRIGGER trg_audit_conductores AFTER INSERT OR UPDATE OR DELETE ON conductores FOR EACH ROW EXECUTE FUNCTION fn_audit_logistics();
+
+-- Notificaciones
+CREATE TRIGGER trg_notify_despachos AFTER INSERT OR UPDATE OR DELETE ON despachos FOR EACH ROW EXECUTE FUNCTION notify_logistics_cambio();
+CREATE TRIGGER trg_notify_entregas AFTER INSERT OR UPDATE OR DELETE ON entregas_despacho FOR EACH ROW EXECUTE FUNCTION notify_logistics_cambio();
+CREATE TRIGGER trg_notify_novedades AFTER INSERT OR UPDATE OR DELETE ON novedades_ruta FOR EACH ROW EXECUTE FUNCTION notify_logistics_cambio();
+
+-- Lógica de Negocio
+CREATE TRIGGER trg_auto_completar_viaje AFTER UPDATE ON entregas_despacho FOR EACH ROW EXECUTE FUNCTION fn_check_fin_despacho();
+CREATE TRIGGER trg_pod_update_estado AFTER INSERT ON pruebas_entrega FOR EACH ROW EXECUTE FUNCTION fn_update_estado_entrega_pod();
+
+-- Timestamps
+CREATE TRIGGER tr_upd_vehiculos BEFORE UPDATE ON vehiculos FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_logistics();
+CREATE TRIGGER tr_upd_conductores BEFORE UPDATE ON conductores FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_logistics();
+CREATE TRIGGER tr_upd_despachos BEFORE UPDATE ON despachos FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_logistics();
+CREATE TRIGGER tr_upd_entregas BEFORE UPDATE ON entregas_despacho FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp_logistics();
+
+-- Soft Delete
+CREATE TRIGGER trg_soft_delete_vehiculos BEFORE DELETE ON vehiculos FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_logistics();
+CREATE TRIGGER trg_soft_delete_conductores BEFORE DELETE ON conductores FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_logistics();
+CREATE TRIGGER trg_soft_delete_despachos BEFORE DELETE ON despachos FOR EACH ROW EXECUTE FUNCTION fn_soft_delete_logistics();
+
 -- =========================================
--- 12. ÍNDICES OPTIMIZADOS (PERFORMANCE PACK)
+-- 12. ÍNDICES OPTIMIZADOS
 -- =========================================
+CREATE INDEX idx_entregas_pedido ON entregas_despacho(pedido_id);
+CREATE INDEX idx_entregas_despacho_id ON entregas_despacho(despacho_id);
+CREATE INDEX idx_entregas_geo ON entregas_despacho USING GIST(coordenadas_entrega);
+CREATE INDEX idx_entregas_cliente ON entregas_despacho(cliente_id);
+CREATE INDEX idx_entregas_estado ON entregas_despacho(estado_entrega);
 
--- ---------------------------------------------------------
--- A. ÍNDICES PARA DESPACHOS (La Cabecera del Viaje)
--- ---------------------------------------------------------
--- Buscar viajes activos rápidamente (para el dashboard de tráfico)
-CREATE INDEX idx_despachos_estado 
-ON despachos(estado_viaje) 
-WHERE deleted_at IS NULL;
+CREATE INDEX idx_despachos_estado ON despachos(estado_viaje) WHERE deleted_at IS NULL;
+CREATE INDEX idx_movimientos_geo ON vehiculo_movimientos USING GIST(ubicacion);
+CREATE INDEX idx_movimientos_despacho ON vehiculo_movimientos(despacho_id, fecha_registro DESC);
 
--- Buscar historial por fechas (reportes mensuales)
-CREATE INDEX idx_despachos_fecha_prog 
-ON despachos(fecha_programada DESC);
+CREATE INDEX idx_audit_logistics ON audit_log_logistics(table_name, record_id, changed_at DESC);
 
--- Buscar historial por conductor y vehículo (FKs)
-CREATE INDEX idx_despachos_conductor 
-ON despachos(conductor_id) WHERE deleted_at IS NULL;
-
-CREATE INDEX idx_despachos_vehiculo 
-ON despachos(vehiculo_id) WHERE deleted_at IS NULL;
-
-
--- ---------------------------------------------------------
--- B. ÍNDICES PARA ENTREGAS (El Detalle de Pedidos)
--- ---------------------------------------------------------
--- CRÍTICO: Para unir rápidamente el viaje con sus pedidos (JOIN)
-CREATE INDEX idx_entregas_despacho_id 
-ON entregas_despacho(despacho_id);
-
--- Buscar por estado del pedido individual (¿Cuántos rechazados hubo hoy?)
-CREATE INDEX idx_entregas_estado 
-ON entregas_despacho(estado_entrega);
-
--- Historial por Cliente (¿Qué tan cumplidos somos con el Cliente X?)
-CREATE INDEX idx_entregas_cliente 
-ON entregas_despacho(cliente_id);
-
--- Optimización Geoespacial: Buscar entregas cercanas a un punto (PostGIS)
--- (Ya tenías uno similar, aseguramos que sea GIST)
-CREATE INDEX IF NOT EXISTS idx_entregas_geo_location 
-ON entregas_despacho USING GIST(coordenadas_entrega);
-
-
--- ---------------------------------------------------------
--- C. ÍNDICES PARA TRACKING (GPS en tiempo real)
--- ---------------------------------------------------------
--- Consultar la ruta histórica de un viaje específico (ordenado por tiempo)
-CREATE INDEX idx_movimientos_despacho_tiempo 
-ON vehiculo_movimientos(despacho_id, fecha_registro DESC);
-
--- Última ubicación conocida (para mapas en vivo)
-CREATE INDEX idx_movimientos_vehiculo_tiempo 
-ON vehiculo_movimientos(vehiculo_id, fecha_registro DESC);
-
--- Búsquedas espaciales sobre el rastro (ej: ¿Pasó algún camión por esta zona?)
-CREATE INDEX idx_movimientos_geo 
-ON vehiculo_movimientos USING GIST(ubicacion);
-
-
--- ---------------------------------------------------------
--- D. ÍNDICES PARA NOVEDADES Y AUDITORÍA
--- ---------------------------------------------------------
--- Ver novedades de un viaje específico
-CREATE INDEX idx_novedades_despacho 
-ON novedades_ruta(despacho_id);
-
--- Auditoría: Ver cambios recientes primero
-CREATE INDEX idx_audit_logistics_time 
-ON audit_log_logistics(changed_at DESC);
-
--- Auditoría: Buscar cambios sobre un registro específico (ej. ¿Quién modificó el despacho X?)
-CREATE INDEX idx_audit_logistics_record 
-ON audit_log_logistics(table_name, record_id);
+-- =========================================
+-- 13. VISTA DE REPORTE
+-- =========================================
+CREATE OR REPLACE VIEW reporte_efectividad_conductores AS
+SELECT 
+    c.nombre_completo AS conductor,
+    v.placa AS vehiculo,
+    e.estado_entrega,
+    COUNT(*) as total_paquetes
+FROM entregas_despacho e
+JOIN despachos d ON e.despacho_id = d.id
+JOIN conductores c ON d.conductor_id = c.id
+JOIN vehiculos v ON d.vehiculo_id = v.id
+GROUP BY c.nombre_completo, v.placa, e.estado_entrega;

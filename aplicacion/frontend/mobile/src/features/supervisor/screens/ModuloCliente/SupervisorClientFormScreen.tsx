@@ -60,10 +60,7 @@ export function SupervisorClientFormScreen() {
         zona_comercial_id: null as number | null,
         vendedor_asignado_id: null as string | null,
         direccion_texto: '',
-        ubicacion_gps: null as any, // { type: 'Point', coordinates: [lng, lat] }
-        tiene_credito: false,
-        limite_credito: '0',
-        dias_plazo: '0'
+        ubicacion_gps: null as any // { type: 'Point', coordinates: [lng, lat] }
     })
 
     const [branches, setBranches] = useState<any[]>([])
@@ -75,6 +72,18 @@ export function SupervisorClientFormScreen() {
             setupEditingData()
         }
     }, [])
+
+    const buildBranchPayloads = () => {
+        return branches.map(branch => ({
+            nombre_sucursal: branch.nombre_sucursal,
+            direccion_entrega: branch.direccion_entrega || undefined,
+            contacto_nombre: branch.contacto_nombre || undefined,
+            contacto_telefono: branch.contacto_telefono || undefined,
+            zona_id: branch.zona_id,
+            ubicacion_gps: branch.ubicacion_gps,
+            activo: branch.activo ?? true
+        }))
+    }
 
     const loadDependencies = async () => {
         try {
@@ -103,10 +112,7 @@ export function SupervisorClientFormScreen() {
             zona_comercial_id: client.zona_comercial_id || null,
             vendedor_asignado_id: client.vendedor_asignado_id || null,
             direccion_texto: client.direccion_texto || '',
-            ubicacion_gps: client.ubicacion_gps || null, // Assuming backend sends GeoJSON
-            tiene_credito: client.tiene_credito,
-            limite_credito: client.limite_credito.toString(),
-            dias_plazo: client.dias_plazo.toString()
+            ubicacion_gps: client.ubicacion_gps || null
         })
 
         // Fetch existing branches
@@ -212,6 +218,8 @@ export function SupervisorClientFormScreen() {
 
             // B. Create/Update Client
             // Solo enviamos los campos que acepta el DTO del backend
+            const branchPayloads = buildBranchPayloads()
+
             const payload: any = {
                 identificacion: clientData.identificacion,
                 tipo_identificacion: clientData.tipo_identificacion,
@@ -220,12 +228,13 @@ export function SupervisorClientFormScreen() {
                 usuario_principal_id: userId,
                 zona_comercial_id: clientData.zona_comercial_id ? Number(clientData.zona_comercial_id) : undefined,
                 direccion_texto: clientData.direccion_texto || undefined,
-                tiene_credito: clientData.tiene_credito,
-                limite_credito: parseFloat(clientData.limite_credito) || 0,
-                dias_plazo: parseInt(clientData.dias_plazo) || 0,
                 // Campos adicionales que el backend acepta
                 lista_precios_id: clientData.lista_precios_id ? Number(clientData.lista_precios_id) : undefined,
                 ubicacion_gps: clientData.ubicacion_gps || undefined,
+            }
+
+            if (!isEditing && branchPayloads.length > 0) {
+                payload.sucursales = branchPayloads
             }
 
             let savedClient: Client
@@ -237,7 +246,7 @@ export function SupervisorClientFormScreen() {
             }
 
             // C. Create/Update Branches
-            if (clientId && branches.length > 0) {
+            if (isEditing && clientId && branches.length > 0) {
                 for (const branch of branches) {
                     if (branch.id) {
                         // Update existing branch

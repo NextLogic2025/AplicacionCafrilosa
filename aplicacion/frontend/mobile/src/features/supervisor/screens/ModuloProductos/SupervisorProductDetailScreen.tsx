@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { Header } from '../../../../components/ui/Header'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
+import { PrimaryButton } from '../../../../components/ui/PrimaryButton'
 import { CatalogService, Product } from '../../../../services/api/CatalogService'
 import { PriceService, PriceList } from '../../../../services/api/PriceService'
 import { PromotionService, PromotionCampaign } from '../../../../services/api/PromotionService'
@@ -55,7 +56,7 @@ export function SupervisorProductDetailScreen() {
   }, [])
 
   const formatPrice = useCallback((price: number) => {
-    return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(price)
+    return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
   }, [])
 
   const calculateDiscountedPrice = useCallback((basePrice: number, campaign: PromotionCampaign): number => {
@@ -169,7 +170,7 @@ export function SupervisorProductDetailScreen() {
     <View className="flex-1 bg-neutral-50">
       <Header title="Detalle de producto" variant="standard" onBackPress={() => navigation.goBack()} />
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 220 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[BRAND_COLORS.red]} tintColor={BRAND_COLORS.red} />}
       >
         <View className="bg-white border-b border-neutral-100">
@@ -317,27 +318,28 @@ export function SupervisorProductDetailScreen() {
             </View>
           </View>
         </View>
+
       </ScrollView>
 
-      <TouchableOpacity
-        onPress={() => navigation.navigate('SupervisorProductForm', { product })}
-        className="absolute right-5 bottom-6 shadow-xl"
+      <View
+        className="absolute inset-x-0 bottom-0 px-4 pb-6 pt-3"
         style={{
-          backgroundColor: BRAND_COLORS.red,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          alignItems: 'center',
-          justifyContent: 'center',
-          elevation: 8,
+          backgroundColor: 'rgba(255,255,255,0.98)',
+          borderTopWidth: 1,
+          borderTopColor: '#F1F5F9',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+          elevation: 10,
         }}
       >
-        <Ionicons name="create-outline" size={26} color="white" />
-      </TouchableOpacity>
+        <PrimaryButton
+          title="Editar producto"
+          onPress={() => navigation.navigate('SupervisorProductForm', { product })}
+          style={{ borderRadius: 20 }}
+        />
+      </View>
 
       <FeedbackModal
         visible={feedbackModal.visible}

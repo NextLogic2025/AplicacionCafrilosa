@@ -3,6 +3,11 @@ import { endpoints } from './endpoints'
 import { logErrorForDebugging } from '../../utils/errorMessages'
 import { createService } from './createService'
 
+export interface GeoPoint {
+    type: 'Point'
+    coordinates: [number, number]
+}
+
 export interface Client {
     id: string
     usuario_principal_id?: string
@@ -69,18 +74,30 @@ export interface ClientBranch {
 }
 
 export interface CreateClientPayload {
-    usuario_principal_id: string
+    usuario_principal_id?: string
     identificacion: string
-    tipo_identificacion: string
+    tipo_identificacion?: string
     razon_social: string
-    nombre_comercial: string
-    lista_precios_id: number
-    direccion_texto: string
+    nombre_comercial?: string
+    lista_precios_id?: number
+    direccion_texto?: string
     zona_comercial_id?: number
     vendedor_asignado_id?: string | null
     tiene_credito?: boolean
     limite_credito?: number
     dias_plazo?: number
+    ubicacion_gps?: GeoPoint | null
+    sucursales?: CreateBranchPayload[]
+}
+
+export interface CreateBranchPayload {
+    nombre_sucursal: string
+    direccion_entrega?: string
+    contacto_nombre?: string
+    contacto_telefono?: string
+    zona_id?: number
+    ubicacion_gps?: GeoPoint
+    activo?: boolean
 }
 
 const rawService = {

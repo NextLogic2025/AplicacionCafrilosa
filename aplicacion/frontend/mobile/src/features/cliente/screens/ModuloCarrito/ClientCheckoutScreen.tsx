@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { useCart } from '../../../../context/CartContext'
-import { OrderService } from '../../../../services/api/OrderService'
+import { OrderService, OrderFromCartOptions } from '../../../../services/api/OrderService'
 import { UserService } from '../../../../services/api/UserService'
 import { ClientService, ClientBranch, Client } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
@@ -17,13 +17,6 @@ import { BRAND_COLORS } from '../../../../shared/types'
 import { useStableInsets } from '../../../../hooks/useStableInsets'
 
 type DeliveryOption = 'MATRIZ' | string // MATRIZ or Branch ID
-
-const diasPlazoToCondicion = (dias: number): string => {
-    if (dias <= 0) return 'CONTADO'
-    if (dias <= 15) return 'CREDITO_15D'
-    if (dias <= 30) return 'CREDITO_30D'
-    return 'CREDITO'
-}
 
 export function ClientCheckoutScreen() {
     const navigation = useNavigation()
@@ -37,7 +30,6 @@ export function ClientCheckoutScreen() {
     const [clienteData, setClienteData] = useState<Client | null>(null)
     const [sucursales, setSucursales] = useState<ClientBranch[]>([])
 
-    const [condicionPago, setCondicionPago] = useState('CONTADO')
     const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<DeliveryOption>('MATRIZ')
 
     const [loading, setLoading] = useState(false)
@@ -61,12 +53,6 @@ export function ClientCheckoutScreen() {
 
                 if (cliente) {
                     setClienteData(cliente)
-
-                    if (cliente.tiene_credito && cliente.dias_plazo > 0) {
-                        setCondicionPago(diasPlazoToCondicion(cliente.dias_plazo))
-                    } else {
-                        setCondicionPago('CONTADO')
-                    }
 
                     try {
                         const branches = await ClientService.getClientBranches(cliente.id)
@@ -98,9 +84,15 @@ export function ClientCheckoutScreen() {
 
         setLoading(true)
         try {
-            const payload = {
-                condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
-                sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
+            const payload: OrderFromCartOptions = {}
+            if (selectedDeliveryOption !== 'MATRIZ') {
+                payload.sucursal_id = selectedDeliveryOption
+            }
+            if (clienteData?.ubicacion_gps?.coordinates?.length === 2) {
+                payload.ubicacion = {
+                    lat: clienteData.ubicacion_gps.coordinates[1],
+                    lng: clienteData.ubicacion_gps.coordinates[0]
+                }
             }
 
             // Client always uses 'me' endpoint - their own cart, their own order
@@ -115,21 +107,9 @@ export function ClientCheckoutScreen() {
             setShowSuccessModal(true)
 
         } catch (error: any) {
-            console.error('Checkout error:', error);
-            let errorMessage = error?.info?.backendMessage || error?.message || 'No se pudo procesar el pedido.';
-
-            // Manejo de errores específicos para el usuario
-            if (errorMessage.includes('reservar stock') || errorMessage.includes('stock')) {
-                errorMessage = '⚠️ No hay suficiente stock disponible para completar tu pedido. Por favor revisa las cantidades.';
-            } else if (errorMessage.includes('crédito') || errorMessage.includes('credit')) {
-                errorMessage = '💳 Tu límite de crédito es insuficiente para realizar esta compra.';
-            } else if (errorMessage.includes('monto mínimo')) {
-                errorMessage = '📉 El pedido no alcanza el monto mínimo requerido.';
-            } else if (errorMessage.includes('500') || errorMessage.includes('network')) {
-                errorMessage = '🔌 Error de conexión con el servidor. Por favor intenta más tarde.';
-            }
-            // Si no cae en ninguno, muestra el mensaje original del backend o un genérico
-
+            console.error('Checkout error:', error)
+            // El mensaje amigable ya viene procesado desde client.ts
+            const errorMessage = error?.message || 'No se pudo procesar el pedido. Intenta nuevamente.'
             setErrorModalMessage(errorMessage)
             setShowErrorModal(true)
         } finally {
@@ -239,36 +219,10 @@ export function ClientCheckoutScreen() {
                 </View>
 
                 <View className="bg-white mt-4 mx-4 p-4 rounded-2xl shadow-sm border border-neutral-100">
-                    <Text className="text-lg font-bold text-neutral-800 mb-3">💳 Pago</Text>
-
-                    {clienteData?.tiene_credito ? (
-                        <View>
-                            <View className="flex-row gap-2 mb-3">
-                                <TouchableOpacity
-                                    onPress={() => setCondicionPago('CONTADO')}
-                                    className={`flex-1 py-2 rounded-lg border items-center ${condicionPago === 'CONTADO' ? 'bg-green-50 border-green-200' : 'bg-white border-neutral-200'}`}
-                                >
-                                    <Text className={`font-bold ${condicionPago === 'CONTADO' ? 'text-green-700' : 'text-neutral-600'}`}>Contado</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => setCondicionPago(diasPlazoToCondicion(clienteData.dias_plazo))}
-                                    className={`flex-1 py-2 rounded-lg border items-center ${condicionPago.includes('CREDITO') ? 'bg-blue-50 border-blue-200' : 'bg-white border-neutral-200'}`}
-                                >
-                                    <Text className={`font-bold ${condicionPago.includes('CREDITO') ? 'text-blue-700' : 'text-neutral-600'}`}>Crédito</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {condicionPago.includes('CREDITO') && (
-                                <Text className="text-xs text-blue-600 text-center">
-                                    Plazo disponible: {clienteData.dias_plazo} días
-                                </Text>
-                            )}
-                        </View>
-                    ) : (
-                        <View className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex-row items-center">
-                            <Ionicons name="alert-circle" size={20} color="#EA580C" />
-                            <Text className="ml-2 text-orange-800 text-sm font-medium">Solo pago de Contado</Text>
-                        </View>
-                    )}
+                    <Text className="text-lg font-bold text-neutral-800 mb-2">💳 Pago</Text>
+                    <Text className="text-sm text-neutral-600">
+                        El método de pago se seleccionará una vez que el pedido esté confirmado por nuestro equipo de bodegas. Te avisaremos para que completes la forma de pago correspondiente.
+                    </Text>
                 </View>
 
                 <View className="mt-6 mx-6 mb-8">

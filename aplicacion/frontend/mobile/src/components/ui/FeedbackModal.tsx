@@ -130,7 +130,11 @@ export const FeedbackModal = ({
                             onPress={() => {
                                 onClose()
                                 if (onConfirm) {
-                                    onConfirm()
+                                    // Delay navigation to allow modal to close completely
+                                    // This prevents "Couldn't find navigation context" errors
+                                    setTimeout(() => {
+                                        onConfirm()
+                                    }, 150)
                                 }
                             }}
                             activeOpacity={0.8}

@@ -15,9 +15,6 @@ export class Pedido {
   @Column({ type: 'uuid', nullable: true })
   vendedor_id: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  sucursal_id: string;
-
   @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
   estado_actual: string;
 
@@ -36,28 +33,12 @@ export class Pedido {
   // Facturación
   @Column({ type: 'uuid', nullable: true })
   factura_id: string | null;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  factura_numero: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  url_pdf_factura: string | null;
-
-  @Column({ type: 'varchar', length: 20, default: 'CREDITO' })
-  forma_pago_solicitada: string;
-
-  @Column({ type: 'varchar', length: 20, default: 'PENDIENTE' })
-  estado_pago: string;
-
-
-  @Column({ type: 'uuid', nullable: true })
-  reservation_id: string | null;
+  
 
   @Column({ type: 'date', nullable: true })
   fecha_entrega_solicitada: Date;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  origen_pedido: string;
+  // origen_pedido removed from entity: application-level only
 
   // Manejo de PostGIS para ubicación del pedido
   @Column({

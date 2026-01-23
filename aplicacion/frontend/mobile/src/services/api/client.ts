@@ -29,6 +29,26 @@ function safeJsonParse(text: string): unknown {
 function getUserFriendlyApiMessage(status: number, backendMessage?: string): string {
     if (backendMessage) {
         const msg = backendMessage.toLowerCase()
+
+        // Errores de stock - prioridad alta
+        if (msg.includes('stock') || msg.includes('reservar') || msg.includes('inventario') || msg.includes('disponible')) {
+            if (msg.includes('insuficiente') || msg.includes('no hay') || msg.includes('sin stock') ||
+                msg.includes('no se pudo reservar') || msg.includes('insufficient') || msg.includes('unavailable')) {
+                return 'No hay suficiente stock disponible para completar tu pedido. Revisa las cantidades.'
+            }
+        }
+
+        // Errores de crédito
+        if (msg.includes('crédito') || msg.includes('credito') || msg.includes('credit') || msg.includes('límite')) {
+            return 'Tu límite de crédito es insuficiente para realizar esta compra.'
+        }
+
+        // Errores de monto mínimo
+        if (msg.includes('monto mínimo') || msg.includes('monto minimo') || msg.includes('minimum amount')) {
+            return 'El pedido no alcanza el monto mínimo requerido.'
+        }
+
+        // Otros errores de negocio
         if (msg.includes('credenciales') || msg.includes('inválid')) return ERROR_MESSAGES.INVALID_CREDENTIALS
         if (msg.includes('desactivado') || msg.includes('bloqueado')) return ERROR_MESSAGES.ACCOUNT_DISABLED
         if (msg.includes('no encontrado') || msg.includes('not found')) return ERROR_MESSAGES.NOT_FOUND

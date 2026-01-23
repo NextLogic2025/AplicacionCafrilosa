@@ -70,8 +70,7 @@ export function SupervisorConductoresListScreen() {
     const filteredConductores = conductores.filter((conductor) => {
         const matchesSearch =
             !searchQuery ||
-            conductor.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            conductor.cedula.includes(searchQuery)
+            conductor.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
 
         const matchesFilter =
             filterStatus === 'todos' ||
@@ -121,7 +120,7 @@ export function SupervisorConductoresListScreen() {
                     />
                 </View>
                 <Pressable
-                    onPress={() => navigation.navigate('SupervisorConductorForm')}
+                    onPress={() => navigation.navigate('SupervisorConductorForm', { origin: 'supervisor' })}
                     className="w-14 h-14 rounded-2xl items-center justify-center active:opacity-80"
                     style={{ backgroundColor: BRAND_COLORS.red, elevation: 4 }}
                 >
@@ -150,6 +149,7 @@ export function SupervisorConductoresListScreen() {
                         onEdit={() =>
                             navigation.navigate('SupervisorConductorForm', {
                                 conductorId: conductor.id,
+                                origin: 'supervisor',
                             })
                         }
                         onDelete={() => setDeletingId(conductor.id)}

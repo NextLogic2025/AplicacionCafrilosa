@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, Alert, FlatList, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, TouchableOpacity, Alert, FlatList, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Header } from '../../../../components/ui/Header'
 import { SearchBar } from '../../../../components/ui/SearchBar'
@@ -11,7 +11,6 @@ import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { CategoryFilter } from '../../../../components/ui/CategoryFilter'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
-import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 
 export function SupervisorClientsScreen({ navigation }: any) {
     const [clients, setClients] = useState<Client[]>([])
@@ -188,76 +187,55 @@ export function SupervisorClientsScreen({ navigation }: any) {
     const renderItem = ({ item }: { item: any }) => {
         const displayName = item.usuario_principal_nombre || item._linkedUserName || 'Usuario no asignado'
         const commercialName = item.nombre_comercial || item.razon_social
+        const isBlocked = item.bloqueado
 
         return (
             <TouchableOpacity
-                className="bg-white mb-3 rounded-2xl overflow-hidden"
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 onPress={() => (navigation as any).navigate('SupervisorClientDetail', { client: item })}
-                style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 8,
-                    elevation: 3,
-                    borderWidth: 1,
-                    borderColor: '#f3f4f6'
-                }}
+                style={[styles.card, isBlocked && styles.cardDisabled]}
             >
-                <View className="px-4 pt-4 pb-3" style={{ backgroundColor: '#fafafa' }}>
-                    <View className="flex-row justify-between items-start">
-                        <View className="flex-1 mr-3">
-                            <Text className="font-bold text-neutral-900 text-xl mb-1.5" numberOfLines={1}>
+                <View style={[styles.accent, isBlocked && styles.accentDisabled]} />
+                <View style={styles.cardContent}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.avatarContainer}>
+                            <View style={[styles.avatar, isBlocked && styles.avatarDisabled]}>
+                                <Ionicons name="business" size={22} color={isBlocked ? '#9CA3AF' : BRAND_COLORS.red} />
+                            </View>
+                        </View>
+                        <View style={styles.headerInfo}>
+                            <Text style={[styles.clientName, isBlocked && styles.textDisabled]} numberOfLines={1}>
                                 {displayName}
                             </Text>
-
-                            <View className="flex-row items-center mb-2">
-                                <Ionicons name="business-outline" size={14} color="#9ca3af" style={{ marginRight: 6 }} />
-                                <Text className="text-neutral-500 text-sm font-medium" numberOfLines={1}>
-                                    {commercialName}
-                                </Text>
-                            </View>
-
-                            <View className="flex-row items-center">
-                                <Ionicons name="card-outline" size={12} color="#6b7280" style={{ marginRight: 4 }} />
-                                <Text className="text-neutral-600 text-xs font-semibold">{item.identificacion}</Text>
+                            <Text style={styles.clientMeta} numberOfLines={1}>{commercialName}</Text>
+                            <View style={styles.idRow}>
+                                <Ionicons name="card-outline" size={12} color="#9CA3AF" />
+                                <Text style={styles.clientId}>{item.identificacion}</Text>
                             </View>
                         </View>
-
-                        <ToggleSwitch
-                            checked={!item.bloqueado}
-                            onToggle={() => confirmToggleStatus(item)}
-                            size="sm"
-                            colorOn="#22c55e"
-                            colorOff="#d1d5db"
-                        />
-                    </View>
-                </View>
-
-                <View className="px-4 pb-4 pt-2">
-                    <View className="flex-row flex-wrap">
-                        <View className="bg-teal-50 px-3 py-2 rounded-xl border border-teal-200 flex-row items-center mr-2 mb-2">
-                            <Ionicons name="pricetag" size={14} color="#0d9488" />
-                            <Text className="text-teal-700 text-xs font-bold ml-1.5">
-                                {getListName(item.lista_precios_id)}
+                        <View style={[styles.statusBadge, isBlocked ? styles.statusBadgeBlocked : styles.statusBadgeActive]}>
+                            <View style={[styles.statusDot, isBlocked ? styles.statusDotBlocked : styles.statusDotActive]} />
+                            <Text style={[styles.statusText, isBlocked ? styles.statusTextBlocked : styles.statusTextActive]}>
+                                {isBlocked ? 'Suspendido' : 'Activo'}
                             </Text>
                         </View>
-
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.badgeRow}>
+                        <View style={[styles.badge, styles.badgeBlue]}>
+                            <Ionicons name="pricetag" size={13} color="#2563EB" />
+                            <Text style={[styles.badgeText, styles.badgeTextBlue]}>{getListName(item.lista_precios_id)}</Text>
+                        </View>
                         {(item.zona_comercial_nombre || item._zoneName) && (
-                            <View className="bg-orange-50 px-3 py-2 rounded-xl border border-orange-200 flex-row items-center mr-2 mb-2">
-                                <Ionicons name="map-outline" size={14} color="#ea580c" />
-                                <Text className="text-orange-700 text-xs font-bold ml-1.5">
-                                    {item.zona_comercial_nombre || item._zoneName}
-                                </Text>
+                            <View style={[styles.badge, styles.badgeOrange]}>
+                                <Ionicons name="map-outline" size={13} color="#EA580C" />
+                                <Text style={[styles.badgeText, styles.badgeTextOrange]}>{item.zona_comercial_nombre || item._zoneName}</Text>
                             </View>
                         )}
-
                         {(item.vendedor_nombre || item._vendorName) && (
-                            <View className="bg-blue-50 px-3 py-2 rounded-xl border border-blue-200 flex-row items-center mr-2 mb-2">
-                                <Ionicons name="person-circle-outline" size={14} color="#2563EB" />
-                                <Text className="text-blue-700 text-xs font-bold ml-1.5">
-                                    {item.vendedor_nombre || item._vendorName}
-                                </Text>
+                            <View style={[styles.badge, styles.badgeGreen]}>
+                                <Ionicons name="person-circle-outline" size={13} color="#059669" />
+                                <Text style={[styles.badgeText, styles.badgeTextGreen]}>{item.vendedor_nombre || item._vendorName}</Text>
                             </View>
                         )}
                     </View>
@@ -339,3 +317,156 @@ export function SupervisorClientsScreen({ navigation }: any) {
         </View>
     )
 }
+
+const styles = StyleSheet.create({
+    card: {
+        marginBottom: 14,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+        flexDirection: 'row'
+    },
+    cardDisabled: {
+        opacity: 0.7,
+        backgroundColor: '#FAFAFA'
+    },
+    accent: {
+        width: 5,
+        backgroundColor: BRAND_COLORS.red
+    },
+    accentDisabled: {
+        backgroundColor: '#D1D5DB'
+    },
+    cardContent: {
+        flex: 1,
+        padding: 16
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start'
+    },
+    avatarContainer: {
+        marginRight: 12
+    },
+    avatar: {
+        width: 46,
+        height: 46,
+        borderRadius: 12,
+        backgroundColor: '#FEF2F2',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    avatarDisabled: {
+        backgroundColor: '#F3F4F6'
+    },
+    headerInfo: {
+        flex: 1,
+        marginRight: 8
+    },
+    clientName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111827',
+        marginBottom: 2
+    },
+    textDisabled: {
+        color: '#6B7280'
+    },
+    clientMeta: {
+        fontSize: 13,
+        color: '#6B7280',
+        marginBottom: 4
+    },
+    idRow: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    clientId: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        marginLeft: 4
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 20
+    },
+    statusBadgeActive: {
+        backgroundColor: '#ECFDF5'
+    },
+    statusBadgeBlocked: {
+        backgroundColor: '#FEF2F2'
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        marginRight: 5
+    },
+    statusDotActive: {
+        backgroundColor: '#10B981'
+    },
+    statusDotBlocked: {
+        backgroundColor: BRAND_COLORS.red
+    },
+    statusText: {
+        fontSize: 11,
+        fontWeight: '600'
+    },
+    statusTextActive: {
+        color: '#059669'
+    },
+    statusTextBlocked: {
+        color: BRAND_COLORS.red
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F3F4F6',
+        marginVertical: 12
+    },
+    badgeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap'
+    },
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 8,
+        marginRight: 8,
+        marginBottom: 4
+    },
+    badgeBlue: {
+        backgroundColor: '#EFF6FF'
+    },
+    badgeOrange: {
+        backgroundColor: '#FFF7ED'
+    },
+    badgeGreen: {
+        backgroundColor: '#ECFDF5'
+    },
+    badgeText: {
+        fontSize: 11,
+        fontWeight: '600',
+        marginLeft: 5
+    },
+    badgeTextBlue: {
+        color: '#1D4ED8'
+    },
+    badgeTextOrange: {
+        color: '#C2410C'
+    },
+    badgeTextGreen: {
+        color: '#047857'
+    }
+})

@@ -8,9 +8,10 @@ import { PickingItem } from './entities/picking-item.entity';
 import { StockUbicacion } from '../stock/entities/stock-ubicacion.entity';
 import { Lote } from '../lotes/entities/lote.entity';
 import { KardexMovimiento } from '../kardex/entities/kardex-movimiento.entity';
-import { Reservation } from '../reservations/entities/reservation.entity';
-import { ReservationItem } from '../reservations/entities/reservation-item.entity';
 import { ServiceHttpClient } from '../common/http/service-http-client.service';
+import { CatalogExternalService } from '../common/external/catalog.external.service';
+import { OrdersExternalService } from '../common/external/orders.external.service';
+import { UsuariosExternalService } from '../common/external/usuarios.external.service';
 
 @Injectable()
 export class PickingService {
@@ -27,20 +28,15 @@ export class PickingService {
         private readonly loteRepo: Repository<Lote>,
         @InjectRepository(KardexMovimiento)
         private readonly kardexRepo: Repository<KardexMovimiento>,
-        @InjectRepository(Reservation)
-        private readonly reservationRepo: Repository<Reservation>,
-        @InjectRepository(ReservationItem)
-        private readonly reservationItemRepo: Repository<ReservationItem>,
-        private readonly serviceHttp: ServiceHttpClient,
+        // reservation repos removed (reservations handled externally)
+        private readonly catalogExternal: CatalogExternalService,
+        private readonly ordersExternal: OrdersExternalService,
+        private readonly usuariosExternal: UsuariosExternalService,
     ) { }
 
     private async fetchProductInfo(productId: string) {
         try {
-            const arr = await this.serviceHttp.post<any[]>(
-                'catalog-service',
-                '/products/internal/batch',
-                { ids: [productId] },
-            );
+            const arr = await this.catalogExternal.batchProducts([productId]);
             if (Array.isArray(arr) && arr.length) {
                 const body = arr[0];
                 const nombre = body.nombre || body.name || body.nombre_producto || body.nombreProducto || body.title || null;
@@ -57,10 +53,7 @@ export class PickingService {
 
     private async fetchOrderInfo(pedidoId: string) {
         try {
-            const body = await this.serviceHttp.get<any>(
-                'orders-service',
-                `/internal/${pedidoId}`,
-            );
+            const body = await this.ordersExternal.getOrder(pedidoId);
             return {
                 numero: body.codigoVisual || body.codigo_visual || body.numero || body.id,
                 clienteNombre: body.clienteNombre || body.cliente_nombre || body.cliente?.nombre || null,
@@ -74,11 +67,7 @@ export class PickingService {
 
     private async fetchUserInfo(userId: string) {
         try {
-            const body = await this.serviceHttp.post<any[]>(
-                'usuarios-service',
-                '/usuarios/batch/internal',
-                { ids: [userId] },
-            );
+            const body = await this.usuariosExternal.batchUsuarios([userId]);
             if (!Array.isArray(body) || body.length === 0) return null;
             const u = body[0];
             return {
@@ -218,7 +207,22 @@ export class PickingService {
         });
         const saved: PickingOrden = await this.ordenRepo.save(orden);
 
+        // If caller provided a bodegueroId in the DTO (or the controller injected it from token),
+        // set it as the assigned bodeguero on creation.
+        if ((dto as any).bodegueroId) {
+            try {
+                await this.ordenRepo.update(saved.id, { bodegueroAsignadoId: (dto as any).bodegueroId, estado: 'ASIGNADO', updatedAt: new Date() } as any);
+            } catch (e) {
+                this.logger.warn('No se pudo asignar bodeguero al crear picking', e?.message || e);
+            }
+        }
+
         for (const item of dto.items) {
+            // Normalize quantity field: support different payload shapes coming from callers
+            const cantidad = Number(item.cantidad ?? item.cantidadSolicitada ?? item.cantidad_solicitada ?? 0);
+            if (!cantidad || Number.isNaN(cantidad) || cantidad <= 0) {
+                throw new BadRequestException(`Cantidad inválida para producto ${item.productoId}`);
+            }
             // Preferir una ubicación/lote provista en el item (por ejemplo from reservation.item.stock_ubicacion_id)
             let sugerencia: any = null;
             if (item.stockUbicacionId) {
@@ -234,13 +238,13 @@ export class PickingService {
 
             // Si no tenemos sugerencia por stockUbicacionId, usar la lógica normal de sugerencia
             if (!sugerencia) {
-                sugerencia = await this.sugerirUbicacionLote(item.productoId, item.cantidad);
+                sugerencia = await this.sugerirUbicacionLote(item.productoId, cantidad);
             }
 
             const pickingItem = this.itemRepo.create({
                 pickingId: saved.id,
                 productoId: item.productoId,
-                cantidadSolicitada: item.cantidad,
+                cantidadSolicitada: cantidad,
                 ubicacionOrigenSugerida: sugerencia?.ubicacionId || null,
                 loteSugerido: sugerencia?.loteId || null,
                 estadoLinea: 'PENDIENTE',
@@ -250,7 +254,7 @@ export class PickingService {
 
             if (sugerencia) {
                 // Reservar solo la cantidad disponible (puede ser parcial)
-                const cantidadAReservar = Math.min(Number(item.cantidad), Number(sugerencia.cantidadDisponible));
+                const cantidadAReservar = Math.min(Number(cantidad), Number(sugerencia.cantidadDisponible));
                 if (cantidadAReservar > 0) {
                     await this.reservarStock(sugerencia.ubicacionId, sugerencia.loteId, cantidadAReservar);
                 }
@@ -353,12 +357,7 @@ export class PickingService {
             const pedidoId = (orden as any).pedidoId;
             if (pedidoId) {
                 const headers = authHeader ? { Authorization: authHeader } : undefined;
-                await this.serviceHttp.patch(
-                    'orders-service',
-                    `/orders/${pedidoId}/status`,
-                    { status: 'EN_PREPARACION' },
-                    { headers },
-                );
+                await this.ordersExternal.patchStatus(pedidoId, { status: 'EN_PREPARACION' }, headers);
             }
         } catch (err) {
             this.logger.error('Error while notifying Orders service about picking assignment', err?.message || err);
@@ -521,17 +520,7 @@ export class PickingService {
 
         await this.ordenRepo.update(id, updatePayload as any);
 
-        // If this picking was created from a reservation, mark that reservation as COMPLETED
-        try {
-            const ordenRecord: any = await this.ordenRepo.findOne({ where: { id } });
-            const reservationId = ordenRecord?.reservationId || (orden as any).reservationId || null;
-            if (reservationId) {
-                await this.reservationRepo.update(reservationId, { status: 'COMPLETED' } as any);
-                this.logger.log(`Reserva ${reservationId} marcada como COMPLETED por picking ${id}`);
-            }
-        } catch (e) {
-            this.logger.warn('No se pudo actualizar el status de la reserva tras completar picking', { pickingId: id, err: e?.message || e });
-        }
+            // Reservation lifecycle is now managed by the originating service; no local update performed.
 
         // Notify Orders service: first attempt to POST picking results for reconciliation,
         // then PATCH the pedido status to PREPARADO. Use best-effort; failures are logged but don't block.
@@ -542,17 +531,18 @@ export class PickingService {
                 // Build items payload (supporting motivoDesviacion -> motivo_ajuste)
                 const itemsPayload = (items || []).map(it => ({ producto_id: it.productoId, cantidad_pickeada: Number(it.cantidadPickeada || 0), motivo_ajuste: it.motivoDesviacion || it.motivoDesviacion }));
                 try {
-                    await this.serviceHttp.post('orders-service', `/internal/${pedidoId}/apply-picking`, { pickingId: id, items: itemsPayload });
+                    await this.ordersExternal.applyPicking(pedidoId, { pickingId: id, items: itemsPayload });
                     this.logger.log(`Notificado Orders apply-picking para pedido ${pedidoId} desde picking ${id}`);
                 } catch (postErr) {
                     this.logger.warn('Fallo al notificar Orders apply-picking', { pickingId: id, pedidoId, error: postErr?.message || postErr });
                 }
 
                 try {
-                    await this.serviceHttp.patch('orders-service', `/internal/${pedidoId}/status`, { status: 'PREPARADO' });
-                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
+                    // Notify Orders that the pedido is approved after picking
+                    await this.ordersExternal.patchStatus(pedidoId, { status: 'APROBADO' });
+                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como APROBADO tras picking ${id}`);
                 } catch (notifyErr) {
-                    this.logger.warn('Fallo al notificar Orders para marcar PREPARADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
+                    this.logger.warn('Fallo al notificar Orders para marcar APROBADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
                 }
             } else {
                 this.logger.warn('Picking completado sin pedido asociado - no se notificará Orders', { pickingId: id });
@@ -594,40 +584,9 @@ export class PickingService {
      * Expects a reservation id previously created via /reservations.
      */
     async confirmFromReservation(pedidoId: string, reservationId: string) {
-        if (!reservationId) throw new BadRequestException('reservation_id requerido');
-
-        const reservation = await this.reservationRepo.findOne({ where: { id: reservationId }, relations: ['items'] as any });
-        if (!reservation) throw new NotFoundException('Reservation no encontrada');
-        if (reservation.status !== 'ACTIVE') throw new BadRequestException('Reservation no está en estado ACTIVE');
-
-
-        const items = (reservation.items || []).map((it: ReservationItem) => ({
-            productoId: it.productId,
-            cantidad: Number(it.quantity),
-            stockUbicacionId: (it as any).stockUbicacionId || (it as any).stock_ubicacion_id || null,
-            loteId: (it as any).lote_id || (it as any).loteId || null,
-        }));
-
-        // If no pedidoId provided, fallback to reservation id so DB constraint is satisfied
-        const effectivePedidoId = pedidoId || reservation.tempId || reservation.id;
-
-        // Create picking using existing create logic (will reserve stock where possible)
-        const picking = await this.create({ pedidoId: effectivePedidoId, items, estado: 'PENDIENTE' });
-
-        // Mark reservation as CONFIRMED
-        await this.reservationRepo.update(reservationId, { status: 'CONFIRMED' } as any);
-
-        // Persist mapping between picking and reservation so completarPicking can update it later
-        try {
-            const pickingId = (picking as any)?.id || (picking && (picking as any).id);
-            if (pickingId) {
-                await this.ordenRepo.update(pickingId, { reservationId } as any);
-            }
-        } catch (e) {
-            this.logger.warn('No se pudo guardar reservationId en picking_ordenes', { err: e?.message || e });
-        }
-
-        return picking;
+        // Confirmation via external reservation system is deprecated here.
+        // The warehouse now expects an external service to trigger picking creation via the regular create flow.
+        throw new BadRequestException('confirmFromReservation is removed; use create() with explicit items');
     }
 
     async getStatsPorBodeguero() {

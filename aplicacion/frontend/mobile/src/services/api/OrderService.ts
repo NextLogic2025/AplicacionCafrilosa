@@ -129,6 +129,17 @@ export interface CreateOrderPayload {
     descuento_total?: number
 }
 
+export interface OrderFromCartOptions {
+    condicion_pago?: PaymentMethod
+    sucursal_id?: string
+    ubicacion?: {
+        lat: number
+        lng: number
+    }
+}
+
+export type PaymentMethod = 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
+
 export type TrackingInfo = {
     id: string | number
     status: 'pending' | 'shipped' | 'delivered'
@@ -272,10 +283,7 @@ const rawService = {
 
     createOrderFromCart: async (
         target: { type: 'me' } | { type: 'client'; clientId: string },
-        options?: {
-            condicion_pago?: 'CONTADO' | 'CREDITO' | 'TRANSFERENCIA' | 'CHEQUE'
-            sucursal_id?: string
-        }
+        options?: OrderFromCartOptions
     ): Promise<Order> => {
         const endpoint =
             target.type === 'client'
@@ -284,11 +292,16 @@ const rawService = {
 
         const payload = {
             forma_pago_solicitada: options?.condicion_pago || 'CONTADO',
-            ...(options?.sucursal_id && { sucursal_id: options.sucursal_id })
+            ...(options?.sucursal_id && { sucursal_id: options.sucursal_id }),
+            ...(options?.ubicacion && { ubicacion: options.ubicacion })
         }
 
         const order = await ApiService.post<Order>(endpoint, payload)
         return normalizeOrder(order)
+    },
+
+    setPaymentMethod: async (orderId: string, method: PaymentMethod): Promise<void> => {
+        await ApiService.post(endpoints.orders.orderPaymentMethod(orderId), { metodo: method })
     },
 
     getOrderHistory: async (): Promise<Order[]> => {

@@ -68,6 +68,7 @@ export const endpoints = {
     orderCancel: (id: string) => `/orders/${id}/cancel`,
     orderStatus: (id: string) => `/orders/${id}/status`,
     orderEstadosChangeState: (orderId: string) => `/orders/estados/${orderId}/state`,
+    orderPaymentMethod: (orderId: string) => `/orders/${orderId}/payment-method`,
 
     cartMe: '/orders/cart/me',
     cartMeItem: (productId: string) => `/orders/cart/me/item/${productId}`,

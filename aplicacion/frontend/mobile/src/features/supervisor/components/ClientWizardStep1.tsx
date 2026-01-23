@@ -1,6 +1,6 @@
 
 import React from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Switch } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native'
 import MapView, { Polygon, PROVIDER_GOOGLE } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../shared/types'
@@ -189,37 +189,6 @@ export function ClientWizardStep1({
                     )}
                 </View>
 
-                <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-neutral-700 font-medium">Tiene Crédito</Text>
-                    <Switch
-                        value={clientData.tiene_credito}
-                        onValueChange={v => setClientData({ ...clientData, tiene_credito: v })}
-                        trackColor={{ false: "#d1d5db", true: "#ef4444" }}
-                    />
-                </View>
-
-                {clientData.tiene_credito && (
-                    <View className="flex-row gap-4">
-                        <View className="flex-1">
-                            <Text className="text-neutral-500 font-medium mb-1">Cupo ($)</Text>
-                            <TextInput
-                                className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900"
-                                value={clientData.limite_credito}
-                                onChangeText={t => setClientData({ ...clientData, limite_credito: t })}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                        <View className="flex-1">
-                            <Text className="text-neutral-500 font-medium mb-1">Días Plazo</Text>
-                            <TextInput
-                                className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-neutral-900"
-                                value={clientData.dias_plazo}
-                                onChangeText={t => setClientData({ ...clientData, dias_plazo: t })}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                    </View>
-                )}
             </View>
 
             {showNav && (

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Zone, ZoneHelpers, ZoneEditState, ZoneService } from '../../../../services/api/ZoneService'
 import { AssignmentService } from '../../../../services/api/AssignmentService'
@@ -9,13 +8,13 @@ import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { MiniMapPreview } from '../../../../components/ui/MiniMapPreview'
 import { ECUADOR_LOCATIONS } from '../../../../data/ecuadorLocations'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import type { SupervisorZoneStackParamList, ZoneWithVendor } from './zoneStack.types'
 
-type ZoneWithVendor = Zone & { vendorName?: string }
+type Props = NativeStackScreenProps<SupervisorZoneStackParamList, 'SupervisorZoneDetail'>
 
-export function SupervisorZoneDetailScreen() {
-    const navigation = useNavigation<any>()
-    const route = useRoute<any>()
-    const zoneParam = route.params?.zone as ZoneWithVendor | null
+export function SupervisorZoneDetailScreen({ navigation, route }: Props) {
+    const zoneParam = route.params.zone
 
     const [zone, setZone] = useState<ZoneWithVendor | null>(zoneParam)
     const [vendorName, setVendorName] = useState(zoneParam?.vendorName || 'Sin asignar')

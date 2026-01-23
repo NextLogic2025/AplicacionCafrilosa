@@ -16,7 +16,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
             return isFocused ? 'person' : 'person-outline'
         case 'Carrito':
         case 'Cart':
-            return isFocused ? 'car-sport' : 'car-sport-outline'
+            return isFocused ? 'cart' : 'cart-outline'
         case 'Pedidos':
         case 'Orders':
             return isFocused ? 'receipt' : 'receipt-outline'
@@ -49,7 +49,7 @@ const getIconName = (routeName: string, isFocused: boolean): keyof typeof Ionico
         case 'SellerProductList':
             return isFocused ? 'cube' : 'cube-outline'
         case 'SellerCart':
-            return isFocused ? 'car-sport' : 'car-sport-outline'
+            return isFocused ? 'cart' : 'cart-outline'
         case 'SellerOrder':
             return isFocused ? 'receipt' : 'receipt-outline'
         case 'SellerProfile':

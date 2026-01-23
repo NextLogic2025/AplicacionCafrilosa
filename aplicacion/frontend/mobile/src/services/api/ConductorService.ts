@@ -7,8 +7,6 @@ export interface Conductor {
     id: string
     usuario_id: string | null
     nombre_completo: string
-    cedula: string
-    telefono: string | null
     licencia: string | null
     activo: boolean
     created_at: string
@@ -19,8 +17,6 @@ export interface Conductor {
 export interface CreateConductorDto {
     usuario_id?: string
     nombre_completo: string
-    cedula: string
-    telefono?: string
     licencia?: string
     activo?: boolean
 }
@@ -57,8 +53,7 @@ function applyFilters(conductores: Conductor[], filters?: ConductorFilters): Con
     if (filters?.search) {
         const searchLower = filters.search.toLowerCase()
         result = result.filter(c =>
-            normalizeText(c.nombre_completo).includes(searchLower) ||
-            normalizeText(c.cedula).includes(searchLower)
+            normalizeText(c.nombre_completo).includes(searchLower)
         )
     }
 

@@ -17,6 +17,7 @@ import { ClientCartScreen } from '../features/cliente/screens/ModuloCarrito/Clie
 import { ClientCheckoutScreen } from '../features/cliente/screens/ModuloCarrito/ClientCheckoutScreen'
 import { ClientOrdersScreen } from '../features/cliente/screens/ModuloPedidos/ClientOrdersScreen'
 import { ClientOrderDetailScreen } from '../features/cliente/screens/ModuloPedidos/ClientOrderDetailScreen'
+import { ClientPaymentMethodScreen } from '../features/cliente/screens/ModuloPedidos/ClientPaymentMethodScreen'
 import { ClientInvoicesScreen } from '../features/cliente/screens/ModuloFacturas/ClientInvoicesScreen'
 import { ClientInvoiceDetailScreen } from '../features/cliente/screens/ModuloFacturas/ClientInvoiceDetailScreen'
 import { ClientSupportScreen } from '../features/cliente/screens/ModuloSoporte/ClientSupportScreen'
@@ -40,6 +41,7 @@ function OrdersStack() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="OrdersList" component={ClientOrdersScreen} />
             <Stack.Screen name="OrderDetail" component={ClientOrderDetailScreen} />
+            <Stack.Screen name="ClientPaymentMethod" component={ClientPaymentMethodScreen} />
         </Stack.Navigator>
     )
 }

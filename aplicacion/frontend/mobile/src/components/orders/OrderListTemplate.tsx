@@ -10,6 +10,17 @@ import { Order, OrderStatus, ORDER_STATUS_LABELS } from '../../services/api/Orde
 import { Client } from '../../services/api/ClientService'
 import { BRAND_COLORS } from '../../shared/types'
 
+type OrderListActionConfig = {
+    id: string
+    label: string
+    icon: keyof typeof Ionicons.glyphMap
+    color: string
+    variant?: 'primary' | 'danger' | 'secondary'
+    visible?: boolean
+    disabled?: boolean
+    loading?: boolean
+}
+
 interface OrderListTemplateProps {
     roleType: 'cliente' | 'supervisor' | 'vendedor'
     orders: Order[]
@@ -21,13 +32,9 @@ interface OrderListTemplateProps {
     showClientFilter?: boolean
     clients?: Client[]
 
-    actionButtons?: Array<{
-        id: string
-        label: string
-        icon: keyof typeof Ionicons.glyphMap
-        color: string
-    }>
+    actionButtons?: OrderListActionConfig[]
     onActionPress?: (order: Order, actionId: string) => void
+    renderOrderActions?: (order: Order) => OrderListActionConfig[] | undefined
 }
 
 const STATUS_FILTERS: Array<{ id: OrderStatus | 'ALL'; label: string }> = [
@@ -52,7 +59,8 @@ export function OrderListTemplate({
     showClientFilter = false,
     clients = [],
     actionButtons,
-    onActionPress
+    onActionPress,
+    renderOrderActions
 }: OrderListTemplateProps) {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'ALL'>('ALL')
@@ -204,38 +212,49 @@ export function OrderListTemplate({
                     <ActivityIndicator size="large" color={BRAND_COLORS.red} />
                 </View>
             ) : (
-                <FlatList
-                    data={filteredOrders}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
+            <FlatList
+                data={filteredOrders}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => {
+                    const configs = renderOrderActions ? renderOrderActions(item) : actionButtons
+                    return (
                         <View className="px-5 mb-3">
                             <OrderCard
                                 order={item}
                                 onPress={() => onOrderPress(item.id)}
                                 showClientInfo={roleType !== 'cliente'}
-                                actionButtons={actionButtons?.map(btn => ({
-                                    ...btn,
-                                    onPress: () => onActionPress?.(item, btn.id),
-                                    variant: 'primary' as const
-                                }))}
+                            actionButtons={
+                                configs?.map(btn => ({
+                                    id: btn.id,
+                                    label: btn.label,
+                                    icon: btn.icon,
+                                    color: btn.color,
+                                    variant: btn.variant,
+                                    visible: btn.visible,
+                                    disabled: btn.disabled,
+                                    loading: btn.loading,
+                                    onPress: () => onActionPress?.(item, btn.id)
+                                }))
+                            }
                             />
                         </View>
-                    )}
-                    contentContainerStyle={{ paddingTop: 12, paddingBottom: 100 }}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <EmptyState
-                            icon="receipt-outline"
-                            title={searchQuery || hasActiveFilters ? "No hay resultados" : "Sin pedidos"}
-                            description={searchQuery || hasActiveFilters ? "No se encontraron pedidos con los filtros actuales." : "No hay pedidos para mostrar."}
-                            actionLabel={searchQuery || hasActiveFilters ? "Limpiar filtros" : "Recargar"}
-                            onAction={searchQuery || hasActiveFilters ? handleClearFilters : onRefresh}
-                            style={{ marginTop: 20 }}
-                        />
-                    }
-                    refreshing={refreshing}
-                    onRefresh={onRefresh}
-                />
+                    )
+                }}
+                contentContainerStyle={{ paddingTop: 12, paddingBottom: 100 }}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                    <EmptyState
+                        icon="receipt-outline"
+                        title={searchQuery || hasActiveFilters ? "No hay resultados" : "Sin pedidos"}
+                        description={searchQuery || hasActiveFilters ? "No se encontraron pedidos con los filtros actuales." : "No hay pedidos para mostrar."}
+                        actionLabel={searchQuery || hasActiveFilters ? "Limpiar filtros" : "Recargar"}
+                        onAction={searchQuery || hasActiveFilters ? handleClearFilters : onRefresh}
+                        style={{ marginTop: 20 }}
+                    />
+                }
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+            />
             )}
 
             {showClientFilter && (

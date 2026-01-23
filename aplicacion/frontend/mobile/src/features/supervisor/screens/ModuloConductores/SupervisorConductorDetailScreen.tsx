@@ -170,20 +170,6 @@ export function SupervisorConductorDetailScreen() {
                             </Text>
                         </View>
 
-                        <InfoRow
-                            icon="id-card-outline"
-                            label="Cédula"
-                            value={conductor.cedula}
-                        />
-
-                        {conductor.telefono && (
-                            <InfoRow
-                                icon="call-outline"
-                                label="Teléfono"
-                                value={conductor.telefono}
-                            />
-                        )}
-
                         {conductor.licencia ? (
                             <InfoRow
                                 icon="card-outline"
@@ -252,7 +238,12 @@ export function SupervisorConductorDetailScreen() {
                 <View className="flex-row gap-3">
                     {/* Editar */}
                     <Pressable
-                        onPress={() => navigation.navigate('SupervisorConductorForm', { conductorId: conductor.id })}
+                        onPress={() =>
+                            navigation.navigate('SupervisorConductorForm', {
+                                conductorId: conductor.id,
+                                origin: 'supervisor',
+                            })
+                        }
                         className="flex-1 py-3 rounded-xl items-center justify-center active:opacity-80"
                         style={{ backgroundColor: '#3B82F6' }}
                     >

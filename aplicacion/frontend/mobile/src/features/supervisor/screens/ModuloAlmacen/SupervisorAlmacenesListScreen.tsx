@@ -20,8 +20,8 @@ export function SupervisorAlmacenesListScreen() {
                 title="Almacenes"
                 allowToggle
                 onBack={() => navigation.goBack()}
-                onCreate={() => navigation.navigate('SupervisorAlmacenForm')}
-                onOpen={(id) => navigation.navigate('SupervisorAlmacenForm', { almacenId: id })}
+                onCreate={() => navigation.navigate('SupervisorAlmacenForm', { origin: 'supervisor' })}
+                onOpen={(id) => navigation.navigate('SupervisorAlmacenForm', { almacenId: id, origin: 'supervisor' })}
                 refreshToken={refreshToken}
             />
             <ExpandableFab

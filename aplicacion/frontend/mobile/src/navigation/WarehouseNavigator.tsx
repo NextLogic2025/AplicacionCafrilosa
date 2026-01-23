@@ -26,7 +26,8 @@ import { WarehouseUbicacionFormScreen } from '../features/bodeguero/screens/Modu
 import { WarehousePickingListScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingListScreen'
 import { WarehousePickingDetailScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingDetailScreen'
 import { WarehousePickingHistoryScreen } from '../features/bodeguero/screens/ModuloPicking/WarehousePickingHistoryScreen'
-import { WarehouseReservationsScreen } from '../features/bodeguero/screens/ModuloReservas/WarehouseReservationsScreen'
+import { WarehouseOrdersScreen } from '../features/bodeguero/screens/ModuloOrdenes/WarehouseOrdersScreen'
+import { WarehouseOrderDetailScreen } from '../features/bodeguero/screens/ModuloOrdenes/WarehouseOrderDetailScreen'
 import { WarehouseInvoicesScreen } from '../features/bodeguero/screens/ModuloFacturas/WarehouseInvoicesScreen'
 import { WarehouseInvoiceDetailScreen } from '../features/bodeguero/screens/ModuloFacturas/WarehouseInvoiceDetailScreen'
 
@@ -100,7 +101,8 @@ export function WarehouseNavigator() {
             <Stack.Screen name="WarehousePickingList" component={WarehousePickingListScreen} />
             <Stack.Screen name="WarehousePickingDetail" component={WarehousePickingDetailScreen} />
             <Stack.Screen name="WarehousePickingHistory" component={WarehousePickingHistoryScreen} />
-            <Stack.Screen name="WarehouseReservations" component={WarehouseReservationsScreen} />
+            <Stack.Screen name="WarehouseOrders" component={WarehouseOrdersScreen} />
+            <Stack.Screen name="WarehouseOrderDetail" component={WarehouseOrderDetailScreen} />
             <Stack.Screen name="WarehouseInvoices" component={WarehouseInvoicesScreen} />
             <Stack.Screen name="InvoiceDetail" component={WarehouseInvoiceDetailScreen} />
         </Stack.Navigator>

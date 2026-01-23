@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { CategoryFilter } from '../../../../components/ui/CategoryFilter'
 
 import { View, TouchableOpacity, Text } from 'react-native'
-import { useNavigation, useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { GenericList } from '../../../../components/ui/GenericList'
 import { SearchBar } from '../../../../components/ui/SearchBar'
@@ -11,9 +11,12 @@ import { AssignmentService } from '../../../../services/api/AssignmentService'
 import { UserService } from '../../../../services/api/UserService'
 import { Ionicons } from '@expo/vector-icons'
 import { BRAND_COLORS } from '../../../../shared/types'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import type { SupervisorZoneStackParamList } from './zoneStack.types'
 
-export function SupervisorZonesScreen() {
-    const navigation = useNavigation<any>()
+type Props = NativeStackScreenProps<SupervisorZoneStackParamList, 'SupervisorZones'>
+
+export function SupervisorZonesScreen({ navigation }: Props) {
     const [zones, setZones] = useState<any[]>([])
     const [filteredZones, setFilteredZones] = useState<any[]>([])
     const [loading, setLoading] = useState(false)

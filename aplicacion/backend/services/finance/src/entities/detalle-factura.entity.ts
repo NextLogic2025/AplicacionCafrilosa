@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { Factura } from './factura.entity';
 
-@Entity('detalles_factura')
+@Entity('factura_detalle')
 export class DetalleFactura {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -13,18 +13,27 @@ export class DetalleFactura {
   @JoinColumn({ name: 'factura_id' })
   factura: Factura;
 
-  @Column({ name: 'producto_id', type: 'uuid', nullable: true })
-  productoId: string | null;
+  @Column({ name: 'producto_id', type: 'uuid' })
+  productoId: string;
 
-  @Column({ length: 300, nullable: true })
-  descripcion: string | null;
+  @Column({ name: 'descripcion', length: 300 })
+  descripcion: string;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
-  cantidad: number | null;
+  @Column({ name: 'cantidad', type: 'numeric', precision: 12, scale: 2 })
+  cantidad: number;
 
-  @Column({ name: 'precio_unitario', type: 'decimal', precision: 12, scale: 2, nullable: true })
-  precioUnitario: number | null;
+  @Column({ name: 'precio_unitario', type: 'numeric', precision: 12, scale: 2 })
+  precioUnitario: number;
 
-  @Column({ name: 'total_linea', type: 'decimal', precision: 12, scale: 2, nullable: true })
-  totalLinea: number | null;
+  @Column({ name: 'descuento', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  descuento: number;
+
+  @Column({ name: 'impuesto_pct', type: 'numeric', precision: 5, scale: 2, default: 0 })
+  impuestoPct: number;
+
+  @Column({ name: 'total_linea', type: 'numeric', precision: 12, scale: 2, default: 0 })
+  totalLinea: number;
+
+  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'NOW()' })
+  createdAt: Date;
 }

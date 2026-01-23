@@ -14,12 +14,13 @@ const BOD_PREFIX = 'BOD-'
 
 type RouteParams = {
     almacenId?: number
+    origin?: 'supervisor' | 'warehouse'
 }
 
 export function WarehouseAlmacenFormScreen() {
     const navigation = useNavigation()
     const route = useRoute()
-    const { almacenId } = (route.params as RouteParams) ?? {}
+    const { almacenId, origin = 'warehouse' } = (route.params as RouteParams) ?? {}
 
     const isEdit = typeof almacenId === 'number'
 
@@ -77,6 +78,19 @@ export function WarehouseAlmacenFormScreen() {
         }
     }
 
+    const handleAfterSave = () => {
+        if (isEdit) {
+            navigation.goBack()
+            return
+        }
+
+        if (origin === 'supervisor') {
+            navigation.navigate('SupervisorAlmacenes')
+        } else {
+            navigation.goBack()
+        }
+    }
+
     const handleSubmit = async () => {
         if (!nombre.trim()) {
             setFeedbackConfig({
@@ -106,7 +120,7 @@ export function WarehouseAlmacenFormScreen() {
                     type: 'success',
                     title: 'Almacén actualizado',
                     message: 'Los datos se guardaron correctamente.',
-                    onConfirm: () => navigation.goBack()
+                    onConfirm: () => handleAfterSave()
                 })
             } else {
                 await AlmacenService.create(payload)
@@ -114,7 +128,7 @@ export function WarehouseAlmacenFormScreen() {
                     type: 'success',
                     title: 'Almacén creado',
                     message: 'El nuevo almacén ya está disponible.',
-                    onConfirm: () => navigation.goBack()
+                    onConfirm: () => handleAfterSave()
                 })
             }
             setFeedbackVisible(true)

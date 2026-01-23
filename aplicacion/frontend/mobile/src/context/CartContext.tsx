@@ -6,6 +6,7 @@ import { UserService } from '../services/api/UserService'
 import { CatalogService } from '../services/api/CatalogService'
 import { Client, ClientBranch } from '../services/api/ClientService'
 import { isApiError } from '../services/api/ApiError'
+import { subscribeToTokenChanges } from '../storage/authStorage'
 
 export interface CartItem {
     id: string
@@ -111,20 +112,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return currentClient.usuario_principal_id || currentClient.id
     }, [currentClient])
 
-    useEffect(() => {
-        const initCart = async () => {
-            try {
-                const user = await UserService.getProfile()
-                if (user?.id) {
-                    setUserId(prev => prev || user.id) // Only set if not already set (e.g. by setClient)
-                    setUserRole(user.role)
-                }
-            } catch (error) {
-                console.warn('Error loading user profile for cart', error)
+    const initCart = useCallback(async () => {
+        try {
+            const user = await UserService.getProfile()
+            if (user?.id) {
+                setUserId(user.id)
+                setUserRole(user.role)
+            } else {
+                setUserId(null)
+                setUserRole(null)
             }
+        } catch (error) {
+            console.warn('Error loading user profile for cart', error)
+            setUserId(null)
+            setUserRole(null)
         }
-        initCart()
     }, [])
+
+    useEffect(() => {
+        initCart()
+        const unsubscribe = subscribeToTokenChanges(() => {
+            initCart()
+        })
+        return unsubscribe
+    }, [initCart])
 
     const recalculateCartTotals = (items: CartItem[]): Pick<Cart, 'subtotal' | 'descuento_total' | 'impuestos_total' | 'total_final' | 'total_estimado'> => {
         const subtotal = items.reduce((acc, curr) => acc + (curr.subtotal || 0), 0)

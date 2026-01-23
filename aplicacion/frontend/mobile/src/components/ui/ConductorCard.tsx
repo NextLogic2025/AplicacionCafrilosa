@@ -83,38 +83,17 @@ export function ConductorCard({
                     </View>
                 </View>
 
-                {/* Información de contacto */}
+                {/* Información */}
                 <View className="space-y-2">
-                    {/* Cédula */}
-                    <View className="flex-row items-center">
-                        <Ionicons name="id-card-outline" size={16} color="#6B7280" />
-                        <Text className="text-sm text-neutral-600 ml-2">
-                            Cédula: <Text className="font-semibold text-neutral-900">{conductor.cedula}</Text>
-                        </Text>
-                    </View>
-
-                    {/* Teléfono */}
-                    {conductor.telefono && (
-                        <View className="flex-row items-center mt-1">
-                            <Ionicons name="call-outline" size={16} color="#6B7280" />
-                            <Text className="text-sm text-neutral-600 ml-2">
-                                {conductor.telefono}
-                            </Text>
-                        </View>
-                    )}
-
-                    {/* Licencia */}
-                    {conductor.licencia && (
-                        <View className="flex-row items-center mt-1">
+                    {conductor.licencia ? (
+                        <View className="flex-row items-center">
                             <Ionicons name="card-outline" size={16} color="#6B7280" />
                             <Text className="text-sm text-neutral-600 ml-2">
                                 Licencia: <Text className="font-semibold text-neutral-900">{conductor.licencia}</Text>
                             </Text>
                         </View>
-                    )}
-
-                    {!conductor.licencia && (
-                        <View className="flex-row items-center mt-1">
+                    ) : (
+                        <View className="flex-row items-center">
                             <Ionicons name="alert-circle-outline" size={16} color="#F59E0B" />
                             <Text className="text-sm text-amber-600 ml-2">
                                 Sin licencia registrada

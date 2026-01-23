@@ -8,16 +8,18 @@ import { ExpandableFab } from '../../../../components/ui/ExpandableFab'
 import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackModal'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { SearchBar } from '../../../../components/ui/SearchBar'
-import { CategoryFilter } from '../../../../components/ui/CategoryFilter'
+import { ComboBox, type ComboBoxOption } from '../../../../components/ui/ComboBox'
 import { CatalogService, Product, Category } from '../../../../services/api/CatalogService'
 import { PromotionService, PromotionCampaign } from '../../../../services/api/PromotionService'
+
+type CatalogCategoryValue = number | 'all'
 
 export function SupervisorCatalogScreen() {
   const navigation = useNavigation<any>()
   const isFocused = useIsFocused()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | string>('all')
+  const [selectedCategoryId, setSelectedCategoryId] = useState<CatalogCategoryValue>('all')
 
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -70,8 +72,19 @@ export function SupervisorCatalogScreen() {
     })
   }, [products, searchQuery, selectedCategoryId])
 
-  const filterCategories = useMemo(() => {
-    return [{ id: 'all', name: 'Todas' }, ...categories.map(c => ({ id: c.id, name: c.nombre }))]
+  const categoryOptions = useMemo<ComboBoxOption<CatalogCategoryValue>[]>(() => {
+    const baseOption: ComboBoxOption<CatalogCategoryValue> = {
+      value: 'all',
+      label: 'Todas',
+      description: 'Mostrar todo el catálogo',
+    }
+    const categoryEntries = categories.map(category => ({
+      value: category.id,
+      label: category.nombre,
+      description: category.descripcion,
+    }))
+
+    return [baseOption, ...categoryEntries]
   }, [categories])
 
   const getTotalPromotionsForProduct = (item: Product): number => {
@@ -179,7 +192,7 @@ export function SupervisorCatalogScreen() {
     <View className="flex-1 bg-neutral-50 relative">
       <Header title="Catalogo general" variant="standard" onBackPress={() => navigation.goBack()} />
 
-      <View className="bg-white shadow-sm z-10 pb-2">
+      <View className="bg-white shadow-sm z-10 pb-3">
         <View className="px-5 py-4 flex-row items-center">
           <View className="flex-1 mr-3">
             <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Buscar producto..." onClear={() => setSearchQuery('')} />
@@ -193,7 +206,17 @@ export function SupervisorCatalogScreen() {
           </TouchableOpacity>
         </View>
 
-        <CategoryFilter categories={filterCategories} selectedId={selectedCategoryId} onSelect={id => setSelectedCategoryId(id)} />
+        <View className="px-5 pb-4">
+          <View className="border border-[#F1F3F5] rounded-3xl shadow-sm bg-white" style={{ maxWidth: 520, width: '100%', alignSelf: 'center' }}>
+          <ComboBox
+            options={categoryOptions}
+            value={selectedCategoryId}
+            onValueChange={setSelectedCategoryId}
+            placeholder="Todas"
+            description="Elige una categoría para filtrar"
+          />
+          </View>
+        </View>
       </View>
 
       <View className="flex-1 mt-4">

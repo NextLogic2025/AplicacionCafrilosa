@@ -19,6 +19,7 @@ interface Branch {
     contacto_nombre?: string
     contacto_telefono?: string
     zona_id?: number
+    activo?: boolean
 }
 
 interface Props {
@@ -158,7 +159,8 @@ export function ClientWizardStep3({ branches, setBranches, onSubmit, onBack, loa
             ubicacion_gps: markerCoord ? {
                 type: 'Point',
                 coordinates: [markerCoord.longitude, markerCoord.latitude]
-            } : undefined
+            } : undefined,
+            activo: editingBranch?.activo ?? true
         }
 
         if (editingBranch) {

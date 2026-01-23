@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'
 import MapView, { Polygon, Marker, PROVIDER_GOOGLE, MapPressEvent } from 'react-native-maps'
-import { useNavigation, useRoute } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../../../../components/ui/Header'
@@ -13,16 +12,17 @@ import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackM
 import { ECUADOR_LOCATIONS } from '../../../../data/ecuadorLocations'
 import { GenericModal } from '../../../../components/ui/GenericModal'
 import { GenericList } from '../../../../components/ui/GenericList'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import type { SupervisorZoneStackParamList } from './zoneStack.types'
 
 // Extended Zone interface for map display
 interface ZoneWithVendor extends Zone {
     vendorName?: string
 }
 
-export function SupervisorZoneMapScreen() {
-    const navigation = useNavigation()
-    const route = useRoute<any>()
+type Props = NativeStackScreenProps<SupervisorZoneStackParamList, 'SupervisorZoneMap'>
 
+export function SupervisorZoneMapScreen({ navigation, route }: Props) {
     // Simple Params
     const mode = route.params?.mode || 'view'
     const isEditMode = mode === 'edit'

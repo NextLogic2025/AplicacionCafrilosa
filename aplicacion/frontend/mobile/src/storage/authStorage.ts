@@ -9,6 +9,18 @@ let volatileAccessToken: string | null = null
 let volatileRefreshToken: string | null = null
 let volatileUserName: string | null = null
 
+type TokenListener = () => void
+const tokenListeners = new Set<TokenListener>()
+
+function notifyTokenChange() {
+  tokenListeners.forEach(listener => listener())
+}
+
+export function subscribeToTokenChanges(listener: TokenListener) {
+  tokenListeners.add(listener)
+  return () => tokenListeners.delete(listener)
+}
+
 export async function getToken() {
   try {
     if (volatileAccessToken) return volatileAccessToken
@@ -23,6 +35,7 @@ export async function setToken(token: string, opts?: { persist?: boolean }) {
   volatileAccessToken = token
   if (persist) await secureSetItem(ACCESS_TOKEN_KEY, token)
   else await secureDeleteItem(ACCESS_TOKEN_KEY)
+  notifyTokenChange()
 }
 
 export async function getRefreshToken() {
@@ -66,5 +79,6 @@ export async function clearTokens() {
     secureDeleteItem(REFRESH_TOKEN_KEY),
     secureDeleteItem(USER_NAME_KEY)
   ])
+  notifyTokenChange()
 }
 

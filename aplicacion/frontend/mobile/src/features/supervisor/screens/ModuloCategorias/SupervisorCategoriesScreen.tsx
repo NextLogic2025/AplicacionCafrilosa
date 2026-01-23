@@ -50,6 +50,29 @@ export function SupervisorCategoriesScreen() {
         c.nombre.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    const buildCategoryPayload = (): Partial<Category> => {
+        const payload: Partial<Category> = {
+            nombre: name.trim(),
+            activo: active
+        }
+
+        const trimmedDescription = description.trim()
+        if (trimmedDescription) {
+            payload.descripcion = trimmedDescription
+        } else if (editingCategory?.descripcion) {
+            payload.descripcion = null
+        }
+
+        const trimmedImageUrl = imageUrl.trim()
+        if (trimmedImageUrl) {
+            payload.imagen_url = trimmedImageUrl
+        } else if (editingCategory?.imagen_url) {
+            payload.imagen_url = null
+        }
+
+        return payload
+    }
+
     const fetchCategories = async () => {
         setLoading(true)
         try {
@@ -87,20 +110,16 @@ export function SupervisorCategoriesScreen() {
             return
         }
         try {
+            const payload = buildCategoryPayload()
             if (editingCategory) {
-                await CatalogService.updateCategory(editingCategory.id, {
-                    nombre: name,
-                    descripcion: description,
-                    imagen_url: imageUrl,
-                    activo: active
-                })
+                await CatalogService.updateCategory(editingCategory.id, payload)
                 showFeedback('success', 'Exito', 'Categoria actualizada correctamente', () => {
                     setFeedbackVisible(false)
                     setModalVisible(false)
                     fetchCategories()
                 })
             } else {
-                await CatalogService.createCategory({ nombre: name, descripcion: description, imagen_url: imageUrl, activo: active })
+                await CatalogService.createCategory(payload)
                 showFeedback('success', 'Exito', 'Categoria creada correctamente', () => {
                     setFeedbackVisible(false)
                     setModalVisible(false)

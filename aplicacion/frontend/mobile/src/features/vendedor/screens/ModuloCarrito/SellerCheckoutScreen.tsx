@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 
 import { useCart } from '../../../../context/CartContext'
-import { OrderService } from '../../../../services/api/OrderService'
+import { OrderService, OrderFromCartOptions } from '../../../../services/api/OrderService'
 import { ClientService, ClientBranch } from '../../../../services/api/ClientService'
 import { Header } from '../../../../components/ui/Header'
 import { SuccessModal } from '../../../../components/ui/SuccessModal'
@@ -109,10 +109,24 @@ export default function SellerCheckoutScreen() {
         setLoading(true)
         try {
             // Payload for Backend
-            const payload = {
-                condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO') as 'CREDITO' | 'CONTADO',
-                sucursal_id: selectedDeliveryOption !== 'MATRIZ' ? selectedDeliveryOption : undefined
+        const resolveLocation = (): OrderFromCartOptions['ubicacion'] | undefined => {
+            const branchMatch = sucursales.find(branch => branch.id === selectedDeliveryOption)
+            const locationSource = branchMatch?.ubicacion_gps ?? currentClient.ubicacion_gps
+            if (locationSource?.coordinates?.length === 2) {
+                return {
+                    lat: locationSource.coordinates[1],
+                    lng: locationSource.coordinates[0]
+                }
             }
+            return undefined
+        }
+
+        const ubicacion = resolveLocation()
+        const payload: OrderFromCartOptions = {
+            condicion_pago: (condicionPago.includes('CREDITO') ? 'CREDITO' : 'CONTADO'),
+            ...(selectedDeliveryOption !== 'MATRIZ' && { sucursal_id: selectedDeliveryOption }),
+            ...(ubicacion && { ubicacion })
+        }
 
             // Vendedor crea pedido desde carrito del cliente
             // Use usuario_principal_id if available, otherwise fall back to client.id
@@ -130,13 +144,8 @@ export default function SellerCheckoutScreen() {
 
         } catch (error: any) {
             console.error('Checkout error:', error)
-            const backendMsg = error?.info?.backendMessage || error?.message
-            let errorMessage = backendMsg || 'No se pudo procesar el pedido'
-
-            if (errorMessage.includes('500')) {
-                errorMessage = 'Error del servidor. Por favor verifica tu conexión.'
-            }
-
+            // El mensaje amigable ya viene procesado desde client.ts
+            const errorMessage = error?.message || 'No se pudo procesar el pedido. Intenta nuevamente.'
             Alert.alert('Error', errorMessage)
         } finally {
             setLoading(false)

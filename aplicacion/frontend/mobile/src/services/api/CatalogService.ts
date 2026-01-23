@@ -6,8 +6,8 @@ import { createService } from './createService'
 export interface Category {
     id: number
     nombre: string
-    descripcion?: string
-    imagen_url?: string
+    descripcion?: string | null
+    imagen_url?: string | null
     activo?: boolean
 }
 

@@ -4,43 +4,41 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConductoresService } from './conductores.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateConductorDto } from './dto/create-conductor.dto';
+import { UpdateConductorDto } from './dto/update-conductor.dto';
 
 @ApiTags('Conductores')
 @ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('conductores')
 export class ConductoresController {
   constructor(private readonly svc: ConductoresService) {}
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   findAll() {
     return this.svc.findAll();
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   findOne(@Param('id') id: string) {
     return this.svc.findOne(id);
   }
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  create(@Body() dto: any) {
-    return this.svc.create(dto);
+  create(@Body() dto: CreateConductorDto) {
+    return this.svc.create(dto as any);
   }
 
   @Put(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.svc.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateConductorDto) {
+    return this.svc.update(id, dto as any);
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin', 'supervisor')
   remove(@Param('id') id: string) {
     return this.svc.remove(id);

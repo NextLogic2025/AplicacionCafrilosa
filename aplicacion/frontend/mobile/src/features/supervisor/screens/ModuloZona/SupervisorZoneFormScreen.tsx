@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
 import { Header } from '../../../../components/ui/Header'
 import { Zone, ZoneService, ZoneHelpers, LatLng, ZoneEditState } from '../../../../services/api/ZoneService'
 import { AssignmentService, Allocation } from '../../../../services/api/AssignmentService'
@@ -12,14 +11,14 @@ import { FeedbackModal, FeedbackType } from '../../../../components/ui/FeedbackM
 import { ToggleSwitch } from '../../../../components/ui/ToggleSwitch'
 import { BRAND_COLORS } from '../../../../shared/types'
 import { ECUADOR_LOCATIONS, type EcuadorCity } from '../../../../data/ecuadorLocations'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import type { SupervisorZoneStackParamList } from './zoneStack.types'
 
 const ZON_PREFIX = 'ZON-'
 
-type ZoneFormParams = { zone?: Zone | null }
-export function SupervisorZoneFormScreen() {
-    const navigation = useNavigation<any>()
-    const route = useRoute<any>()
-    const initialZone = (route.params as ZoneFormParams | undefined)?.zone || null
+type Props = NativeStackScreenProps<SupervisorZoneStackParamList, 'SupervisorZoneForm'>
+export function SupervisorZoneFormScreen({ navigation, route }: Props) {
+    const initialZone = route.params?.zone || null
     const isEditing = !!initialZone
     const [loading, setLoading] = useState(false)
     const [zoneData, setZoneData] = useState({
