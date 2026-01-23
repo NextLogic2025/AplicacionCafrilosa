@@ -1,6 +1,7 @@
 import { env } from '../../config/env'
 import { apiRequest } from './client'
 import { getUserFriendlyMessage, logErrorForDebugging } from '../../utils/errorMessages'
+import { getValidToken } from '../auth/authClient'
 
 export interface UserProfile {
     id: string
@@ -16,6 +17,8 @@ export interface UserProfile {
 export const UserService = {
     getProfile: async (): Promise<UserProfile | null> => {
         try {
+            const token = await getValidToken()
+            if (!token) return null
             const data = await apiRequest<any>(`${env.api.usersUrl}/usuarios/me`)
 
             return {
