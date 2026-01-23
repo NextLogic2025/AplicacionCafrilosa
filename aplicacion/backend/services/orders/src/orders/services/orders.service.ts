@@ -251,10 +251,14 @@ export class OrdersService {
       for (const item of createOrderDto.items) {
         const tieneDescuento = (item as any).precio_original && (item as any).precio_original > (item as any).precio_unitario;
         if ((item as any).campania_aplicada_id && !tieneDescuento) {
-          const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id);
+          // Pasar cliente_id para que la verificación use el contexto correcto
+          const esValida = await this.verificarVigenciaPromo((item as any).campania_aplicada_id, item.producto_id, createOrderDto.cliente_id);
           if (!esValida) {
-            this.logger.warn('Campaña ID ' + (item as any).campania_aplicada_id + ' para producto ' + item.producto_id + ' no tiene descuento real', { precio_original: (item as any).precio_original, precio_unitario: (item as any).precio_unitario });
-            throw new ConflictException('La promoción para el producto ' + (item.nombre_producto || item.producto_id) + ' ha expirado o no es válida. Actualice el carrito.');
+            this.logger.warn('Campaña ID ' + (item as any).campania_aplicada_id + ' para producto ' + item.producto_id + ' no tiene descuento real; eliminando promo del item', { precio_original: (item as any).precio_original, precio_unitario: (item as any).precio_unitario });
+            // No bloquear la creación del pedido por promos no verificadas: limpiar campos relacionados
+            (item as any).campania_aplicada_id = null;
+            (item as any).motivo_descuento = null;
+            // seguir procesando el item sin promoción
           }
         }
 

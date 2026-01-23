@@ -30,4 +30,23 @@ export class PromocionesInternalController {
       return {};
     }
   }
+
+  @Get('validar/producto/:id')
+  async validatePromotionInternal(
+    @Param('id') id: string,
+    @Query('campania_id') campaniaId?: string,
+    @Query('cliente_id') queryClienteId?: string,
+  ) {
+    try {
+      const clienteId = queryClienteId || undefined;
+      const clienteListaId = clienteId ? (await this.clientesService.findOne(clienteId)).lista_precios_id : null;
+
+      const best = await this.svc.getBestPromotionForProduct(id, { clienteId, listaId: clienteListaId });
+      const valid = !!(best && campaniaId && Number(best.campania_id) === Number(campaniaId));
+      return { valid, best: best || null };
+    } catch (err) {
+      this.logger.warn({ msg: 'Error validando promo (internal)', err: err?.message || err });
+      return { valid: false, best: null };
+    }
+  }
 }
