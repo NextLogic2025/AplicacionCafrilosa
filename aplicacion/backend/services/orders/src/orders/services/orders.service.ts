@@ -7,7 +7,6 @@ import { PromocionAplicada } from '../entities/promocion-aplicada.entity';
 import { CreateOrderDto } from '../dto/requests/create-order.dto';
 import { HistorialEstado } from '../entities/historial-estado.entity';
 import { CartService } from './cart.service';
-import { ServiceHttpClient } from '../../common/http/service-http-client.service';
 import { CatalogExternalService } from '../../common/external/catalog.external.service';
 import { WarehouseExternalService } from '../../common/external/warehouse.external.service';
 import { FinanceExternalService } from '../../common/external/finance.external.service';
