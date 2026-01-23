@@ -487,7 +487,7 @@ export class OrdersService {
     pedidoId: string,
     nuevoEstado: string,
     usuarioId: string,
-    comentario?: string
+    comentario?: string,
   ): Promise<Pedido> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -529,7 +529,8 @@ export class OrdersService {
             cantidadSolicitada: Number(d.cantidad_solicitada ?? d.cantidad)
           }));
           this.logger.debug('Creating picking in Warehouse', { pedidoId, itemsCount: items.length });
-          const pickingResp = await this.warehouseExternal.createPicking({ pedidoId: pedido.id, items });
+          const options = usuarioId ? { headers: { 'x-user-id': String(usuarioId) } } : {};
+          const pickingResp = await this.warehouseExternal.createPicking({ pedidoId: pedido.id, items }, options);
           this.logger.log('Picking creado en Warehouse', { pedidoId: pedido.id, picking: pickingResp?.id ?? pickingResp });
         }
       } catch (whErr) {

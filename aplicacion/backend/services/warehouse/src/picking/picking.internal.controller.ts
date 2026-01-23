@@ -1,5 +1,5 @@
 // picking/picking.internal.controller.ts
-import { Controller, Post, UseGuards, Body, Get, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, UseGuards, Body, Get, Param, BadRequestException, Req } from '@nestjs/common';
 
 import { PickingService } from './picking.service';
 import { ServiceAuthGuard } from '../auth/guards/service-auth.guard';
@@ -24,7 +24,18 @@ export class PickingInternalController {
         return rows.map(r => ({ id: (r as any).id, pedidoId: (r as any).pedidoId }));
     }
     @Post()
-    create(@Body() dto: CreatePickingDto) {
-        return this.service.create(dto);
+    create(@Body() dto: CreatePickingDto, @Req() req: any) {
+        // Prefer forwarded header `x-user-id` (sent by Orders) to assign bodeguero without replacing service auth
+        const forwardedUserId = req?.headers?.['x-user-id'] || req?.headers?.['x-userid'] || null;
+        const tokenUserId = forwardedUserId || req?.user?.sub || req?.user?.id || null;
+        if (tokenUserId && !(dto as any).bodegueroId) {
+            (dto as any).bodegueroId = String(tokenUserId);
+        }
+        return this.service.create(dto as any);
+    }
+    @Post(':id/tomar')
+    tomar(@Param('id') id: string, @Req() req: any) {
+        const usuarioId = req.user?.userId;
+        return this.service.asignarBodeguero(id, usuarioId);
     }
 }

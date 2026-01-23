@@ -207,6 +207,16 @@ export class PickingService {
         });
         const saved: PickingOrden = await this.ordenRepo.save(orden);
 
+        // If caller provided a bodegueroId in the DTO (or the controller injected it from token),
+        // set it as the assigned bodeguero on creation.
+        if ((dto as any).bodegueroId) {
+            try {
+                await this.ordenRepo.update(saved.id, { bodegueroAsignadoId: (dto as any).bodegueroId, estado: 'ASIGNADO', updatedAt: new Date() } as any);
+            } catch (e) {
+                this.logger.warn('No se pudo asignar bodeguero al crear picking', e?.message || e);
+            }
+        }
+
         for (const item of dto.items) {
             // Normalize quantity field: support different payload shapes coming from callers
             const cantidad = Number(item.cantidad ?? item.cantidadSolicitada ?? item.cantidad_solicitada ?? 0);
@@ -528,10 +538,11 @@ export class PickingService {
                 }
 
                 try {
-                    await this.ordersExternal.patchStatus(pedidoId, { status: 'PREPARADO' });
-                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como PREPARADO tras picking ${id}`);
+                    // Notify Orders that the pedido is approved after picking
+                    await this.ordersExternal.patchStatus(pedidoId, { status: 'APROBADO' });
+                    this.logger.log(`Notificado Orders para marcar pedido ${pedidoId} como APROBADO tras picking ${id}`);
                 } catch (notifyErr) {
-                    this.logger.warn('Fallo al notificar Orders para marcar PREPARADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
+                    this.logger.warn('Fallo al notificar Orders para marcar APROBADO', { pickingId: id, pedidoId, error: notifyErr?.message || notifyErr });
                 }
             } else {
                 this.logger.warn('Picking completado sin pedido asociado - no se notificará Orders', { pickingId: id });
